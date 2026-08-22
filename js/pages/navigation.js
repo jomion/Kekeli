@@ -74,51 +74,96 @@ function rendreCartes(items, rendreCarte, gestionClic) {
 // (conservée pour compatibilité éventuelle avec d'autres écrans futurs)
 
 
-// Icônes et noms complets par classe (présentation uniquement, clé = nom en base)
-const PRESENTATION_CLASSES = {
-  CI:  { icone: '🎈', description: "Cours d'Initiation" },
-  CP:  { icone: '📗', description: 'Cours Préparatoire' },
-  CE1: { icone: '📘', description: 'Cours Élémentaire 1ère année' },
-  CE2: { icone: '📙', description: 'Cours Élémentaire 2ème année' },
-  CM1: { icone: '📕', description: 'Cours Moyen 1ère année' },
-  CM2: { icone: '🎓', description: 'Cours Moyen 2ème année' }
-};
+// Présentation détaillée des classes (regroupées par cycle), fidèle au modèle fourni.
+const CYCLES_CLASSES = [
+  {
+    titre: "🌱 Cycle d'Initiation (Niveau Élémentaire 1)",
+    classes: [
+      {
+        nom: 'CI', age: '5 - 6 ans', titre: "Cours D'Initiation",
+        description: "Ancrage dans les premiers apprentissages : découverte de l'écriture, socialisation, pré-lecture et logique des nombres.",
+        focus: 'Graphisme, Sons et Calcul concret',
+        objectif: "Préparer l'entrée dans la lecture autonome"
+      },
+      {
+        nom: 'CP', age: '6 - 7 ans', titre: 'Cours Préparatoire',
+        description: "L'année fondamentale du déchiffrage : consolidation de la lecture, écriture courante et bases de l'arithmétique.",
+        focus: 'Lecture fluide, Écriture et Addition/Soustraction',
+        objectif: "Maîtriser le code alphabétique et la numération"
+      }
+    ]
+  },
+  {
+    titre: '🪘 Cycle d\'Approfondissement (Niveau Moyen)',
+    classes: [
+      {
+        nom: 'CE1', age: '7 - 8 ans', titre: 'Cours Élémentaire 1ère Année',
+        description: "Développement de l'expression orale et écrite, étude de la langue (grammaire, orthographe) et découverte du monde.",
+        focus: 'Compréhension de texte et Calcul mental',
+        objectif: 'Enrichir le vocabulaire et la méthode de résolution'
+      },
+      {
+        nom: 'CE2', age: '8 - 9 ans', titre: 'Cours Élémentaire 2ème Année',
+        description: "Renforcement de l'autonomie. Introduction aux concepts scientifiques simples et structuration de l'espace-temps.",
+        focus: 'Multiplication, Géométrie et Rédaction guidée',
+        objectif: "Consolider la logique et l'expression autonome"
+      }
+    ]
+  },
+  {
+    titre: '🦁 Cycle de Consolidation &amp; Préparation au CEP',
+    classes: [
+      {
+        nom: 'CM1', age: '9 - 10 ans', titre: 'Cours Moyen 1ère Année',
+        description: 'Développement du raisonnement critique. Analyse grammaticale poussée et résolution de problèmes complexes.',
+        focus: 'Divisions, Fractions, Histoire et Sciences',
+        objectif: 'Préparer l\'entrée dans le second degré du primaire'
+      },
+      {
+        nom: 'CM2', age: '10 - 11 ans', titre: 'Cours Moyen 2ème Année',
+        description: "Classe d'aboutissement du primaire. Préparation intensive à l'examen du CEP et transition vers le collège.",
+        focus: 'Rédaction libre, Problèmes à étapes et Bilan Général',
+        objectif: "Réussite au CEP et maîtrise des Paliers d'agilité"
+      }
+    ]
+  }
+];
 
 async function afficherClasses() {
   const { data, error } = await supabaseClient.from('classes').select('*').order('ordre');
   if (error) return erreur(error);
 
-  const comptes = await Promise.all(data.map(c =>
-    supabaseClient.from('classes_champs_formation').select('champ_formation_id', { count: 'exact', head: true }).eq('classe_id', c.id)
-      .then(r => r.count || 0)
-  ));
-
   contenu.innerHTML = `
-    <div class="titre-page">Classes</div>
-    <div class="sous-titre-page">Sélectionnez une classe pour accéder à ses champs de formation.</div>
-    <div class="grille-champs" id="grilleCartes">
-      ${data.map((c, i) => {
-        const p = PRESENTATION_CLASSES[c.nom] || { icone: '📘', description: '' };
-        return `
-        <div class="carte-champ" data-id="${c.id}">
-          <div class="entete-carte-champ">
-            <div class="icone-champ">${p.icone}</div>
-            <div class="titre-carte-champ">${echapper(c.nom)}</div>
-          </div>
-          <div class="description-carte-champ">${echapper(p.description)}</div>
-          <div class="pied-carte-champ">
-            <span class="nb-unites-champ">${comptes[i]} Champ${comptes[i] > 1 ? 's' : ''}</span>
-            <button class="bouton-acceder-champ" type="button">Accéder ➔</button>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>`;
+    <div class="titre-page centre">Choisissez votre Classe</div>
+    <div class="sous-titre-page centre">Accédez aux programmes officiels et aux activités adaptées à chaque niveau scolaire.</div>
+    ${CYCLES_CLASSES.map(cycle => `
+      <div class="titre-cycle">${cycle.titre}</div>
+      <div class="grille-classes">
+        ${cycle.classes.map(c => `
+          <div class="carte-classe-detail" data-nom="${echapper(c.nom)}">
+            <div>
+              <div class="entete-carte-classe">
+                <span class="badge-classe">${echapper(c.nom)}</span>
+                <span class="age-classe">🎂 ${echapper(c.age)}</span>
+              </div>
+              <h2 class="titre-classe-detail">${echapper(c.titre)}</h2>
+              <p class="description-classe-detail">${echapper(c.description)}</p>
+              <ul class="liste-infos-classe">
+                <li>📌 <strong>Focus :</strong> ${echapper(c.focus)}</li>
+                <li>🎯 <strong>Objectif :</strong> ${echapper(c.objectif)}</li>
+              </ul>
+            </div>
+            <button class="bouton-explorer-classe" type="button">Explorer le ${echapper(c.nom)} 🚀</button>
+          </div>`).join('')}
+      </div>`).join('')}
+  `;
 
-  document.getElementById('grilleCartes').addEventListener('click', (e) => {
-    const carte = e.target.closest('[data-id]');
-    if (!carte) return;
-    etat.classe = data.find(x => String(x.id) === carte.dataset.id);
-    afficher();
+  contenu.querySelectorAll('[data-nom]').forEach(carte => {
+    carte.addEventListener('click', () => {
+      etat.classe = data.find(x => x.nom === carte.dataset.nom);
+      if (!etat.classe) return alert("Cette classe n'existe pas encore en base — ajoutez-la dans la table 'classes'.");
+      afficher();
+    });
   });
 }
 
