@@ -123,3 +123,38 @@ a { text-decoration: none; color: inherit; }
   background: var(--bleu-principal); color: white; font-size: 12px; font-weight: 700;
   padding: 6px 12px; border-radius: 6px; border: none; display: inline-flex; align-items: center; gap: 4px;
 }
+
+/* ===== Page "Choisissez votre Classe" (groupée par cycle) ===== */
+.titre-page.centre, .sous-titre-page.centre { text-align: center; }
+.titre-page.centre { font-size: 28px; }
+
+.titre-cycle {
+  font-size: 18px; font-weight: 800; color: var(--bleu-principal);
+  border-bottom: 2px solid var(--bordure); padding-bottom: 8px; margin: 34px 0 20px;
+}
+.titre-cycle:first-of-type { margin-top: 10px; }
+
+.grille-classes { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 22px; }
+
+.carte-classe-detail {
+  background: white; border-radius: 14px; padding: 24px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-top: 6px solid var(--bleu-principal);
+  display: flex; flex-direction: column; justify-content: space-between; transition: transform .2s; cursor: pointer;
+}
+.carte-classe-detail:hover { transform: translateY(-4px); }
+.entete-carte-classe { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.badge-classe {
+  background: var(--accent-clair); color: var(--bleu-principal); border: 1px solid var(--accent);
+  padding: 6px 14px; border-radius: 8px; font-weight: 800; font-size: 20px;
+}
+.age-classe { font-size: 13px; color: var(--texte-gris); font-weight: 600; }
+.titre-classe-detail { font-size: 20px; color: var(--bleu-principal); margin: 5px 0 10px; }
+.description-classe-detail { font-size: 14px; color: #475569; line-height: 1.5; margin-bottom: 15px; }
+.liste-infos-classe {
+  list-style: none; padding: 0; margin: 0 0 20px; border-top: 1px dashed var(--bordure); padding-top: 10px;
+}
+.liste-infos-classe li { font-size: 13px; color: var(--texte-gris); padding: 4px 0; }
+.bouton-explorer-classe {
+  display: block; width: 100%; padding: 12px; background-color: var(--bleu-principal); color: white;
+  text-align: center; border-radius: 8px; font-weight: bold; border: none; box-sizing: border-box; font-size: 14px;
+}
