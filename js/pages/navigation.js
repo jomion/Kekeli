@@ -71,14 +71,55 @@ function rendreCartes(items, rendreCarte, gestionClic) {
     if (item) gestionClic(item);
   });
 }
+// (conservée pour compatibilité éventuelle avec d'autres écrans futurs)
+
+
+// Icônes et noms complets par classe (présentation uniquement, clé = nom en base)
+const PRESENTATION_CLASSES = {
+  CI:  { icone: '🎈', description: "Cours d'Initiation" },
+  CP:  { icone: '📗', description: 'Cours Préparatoire' },
+  CE1: { icone: '📘', description: 'Cours Élémentaire 1ère année' },
+  CE2: { icone: '📙', description: 'Cours Élémentaire 2ème année' },
+  CM1: { icone: '📕', description: 'Cours Moyen 1ère année' },
+  CM2: { icone: '🎓', description: 'Cours Moyen 2ème année' }
+};
 
 async function afficherClasses() {
   const { data, error } = await supabaseClient.from('classes').select('*').order('ordre');
   if (error) return erreur(error);
-  rendreCartes(data,
-    c => `<div class="carte" data-id="${c.id}"><div class="titre-carte">${echapper(c.nom)}</div><div class="sous-titre-carte">Cliquer pour explorer</div></div>`,
-    c => { etat.classe = c; afficher(); }
-  );
+
+  const comptes = await Promise.all(data.map(c =>
+    supabaseClient.from('classes_champs_formation').select('champ_formation_id', { count: 'exact', head: true }).eq('classe_id', c.id)
+      .then(r => r.count || 0)
+  ));
+
+  contenu.innerHTML = `
+    <div class="titre-page">Classes</div>
+    <div class="sous-titre-page">Sélectionnez une classe pour accéder à ses champs de formation.</div>
+    <div class="grille-champs" id="grilleCartes">
+      ${data.map((c, i) => {
+        const p = PRESENTATION_CLASSES[c.nom] || { icone: '📘', description: '' };
+        return `
+        <div class="carte-champ" data-id="${c.id}">
+          <div class="entete-carte-champ">
+            <div class="icone-champ">${p.icone}</div>
+            <div class="titre-carte-champ">${echapper(c.nom)}</div>
+          </div>
+          <div class="description-carte-champ">${echapper(p.description)}</div>
+          <div class="pied-carte-champ">
+            <span class="nb-unites-champ">${comptes[i]} Champ${comptes[i] > 1 ? 's' : ''}</span>
+            <button class="bouton-acceder-champ" type="button">Accéder ➔</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  document.getElementById('grilleCartes').addEventListener('click', (e) => {
+    const carte = e.target.closest('[data-id]');
+    if (!carte) return;
+    etat.classe = data.find(x => String(x.id) === carte.dataset.id);
+    afficher();
+  });
 }
 
 // Icônes et descriptions (présentation uniquement — pas de colonne en base
