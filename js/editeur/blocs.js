@@ -37,7 +37,14 @@ function html_editeurBloc(bloc) {
       return `<input type="text" data-champ="texte" placeholder="Titre de la section" value="${echapper(c.texte)}">`;
 
     case 'texte': case 'a_retenir': case 'definition': case 'exemple': case 'attention': case 'astuce':
-      return `<textarea data-champ="texte" placeholder="Contenu...">${echapper(c.texte)}</textarea>`;
+      return `<div class="barre-outils-texte">
+          <button type="button" data-cmd="bold" title="Gras"><b>G</b></button>
+          <button type="button" data-cmd="italic" title="Italique"><i>I</i></button>
+          <button type="button" data-cmd="underline" title="Souligné"><u>S</u></button>
+          <button type="button" data-cmd="insertUnorderedList" title="Liste à puces">• Liste</button>
+          <button type="button" data-cmd="insertOrderedList" title="Liste numérotée">1. Liste</button>
+        </div>
+        <div class="editeur-riche" contenteditable="true" data-champ-riche="texte">${contenuRicheInitial(c.texte)}</div>`;
 
     case 'image': case 'video':
       return `
@@ -97,4 +104,13 @@ function html_selectPalier(bloc) {
 
 function echapper(v) {
   return (v || '').toString().replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+// Le contenu riche (data-champ-riche) est stocké en HTML depuis cette mise à jour.
+// Pour l'ancien contenu (texte brut sans formatage), on échappe et on convertit
+// les retours à la ligne en <br> pour préserver l'affichage.
+function contenuRicheInitial(texte) {
+  const v = (texte || '').toString();
+  if (v.includes('<')) return v; // déjà du HTML (contenu créé avec le nouvel éditeur)
+  return echapper(v).replace(/\n/g, '<br>');
 }
