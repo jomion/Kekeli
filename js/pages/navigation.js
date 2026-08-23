@@ -4,6 +4,12 @@ const etat = {
   peutEditer: false, peutValider: false, profilAdmin: null
 };
 
+// État déplié/replié de l'arborescence — en dehors de `etat` pour survivre
+// aux re-rendus déclenchés par une création/suppression/renommage
+// (sinon tout se replie à chaque action, ce qui casse le fil).
+const noeudsOuverts = new Set();
+const saOuvertes = new Set();
+
 const contenu = document.getElementById('contenu');
 const filAriane = document.getElementById('filAriane');
 
@@ -189,9 +195,6 @@ async function afficherChamps() {
   // Nombre d'"unités" par champ : niveau unite/dossier si présent,
   // sinon nombre de SA rattachées directement (champs à un seul niveau).
   const comptes = await Promise.all(champs.map(c => compterUnitesChamp(c)));
-  const droitsEdition = etat.profilAdmin
-    ? await Promise.all(champs.map(c => supabaseClient.rpc('peut_editer_perimetre', { p_id: etat.profilAdmin.id, p_classe_id: etat.classe.id, p_champ_id: c.id }).then(r => !!r.data)))
-    : champs.map(() => false);
 
   contenu.innerHTML = `
     <div class="titre-page">Champs de Formation (${echapper(etat.classe.nom)})</div>
@@ -208,29 +211,19 @@ async function afficherChamps() {
           <div class="description-carte-champ">${echapper(p.description)}</div>
           <div class="pied-carte-champ">
             <span class="nb-unites-champ">${comptes[i]} Unité${comptes[i] > 1 ? 's' : ''}</span>
-            <div style="display:flex;gap:6px">
-              ${droitsEdition[i] ? `<button class="btn btn-discret" data-editer-champ="${c.id}" type="button" title="Gérer toute la hiérarchie">✏️ Éditer</button>` : ''}
-              <button class="bouton-acceder-champ" type="button">Accéder ➔</button>
-            </div>
+            <button class="bouton-acceder-champ" type="button">Accéder ➔</button>
           </div>
         </div>`;
       }).join('')}
     </div>`;
 
   document.getElementById('grilleCartes').addEventListener('click', async (e) => {
-    const btnEditer = e.target.closest('[data-editer-champ]');
-    if (btnEditer) {
-      e.stopPropagation();
-      etat.champ = champs.find(x => String(x.id) === btnEditer.dataset.editerChamp);
-      etat.vueArborescence = true;
-      await verifierPermissions();
-      return afficher();
-    }
     const carte = e.target.closest('[data-id]');
     if (!carte) return;
     const c = champs.find(x => String(x.id) === carte.dataset.id);
     etat.champ = c;
-    etat.vueArborescence = false;
+    etat.vueArborescence = true; // vue par défaut : plus rapide, moins de clics
+    noeudsOuverts.clear(); saOuvertes.clear();
     await verifierPermissions();
     afficher();
   });
@@ -552,9 +545,10 @@ async function afficherArborescence() {
     const sas = saParNoeud[n.id] || [];
     const aDuContenu = enfants.length || sas.length;
     const auNiveauMax = structure ? profondeur + 1 >= structure.length : false;
+    const ouvert = noeudsOuverts.has(n.id);
     return `<div class="noeud-arbo">
       <div class="ligne-arbo">
-        <span class="bascule" data-bascule="${n.id}">${aDuContenu ? '▸' : '·'}</span>
+        <span class="bascule" data-bascule="${n.id}">${aDuContenu ? (ouvert ? '▾' : '▸') : '·'}</span>
         <span class="libelle-arbo" data-bascule="${n.id}">${echapper(n.titre)}</span><span class="type-arbo">${etiquetteType(n.type_noeud)}</span>
         ${etat.peutEditer ? `<div class="actions-arbo">
           ${(!structure || !auNiveauMax) ? `<button data-arbo-ajouter-niveau="${n.id}" data-profondeur="${profondeur + 1}">+ Niveau</button>` : ''}
@@ -563,7 +557,7 @@ async function afficherArborescence() {
           <button data-arbo-supprimer-noeud="${n.id}">🗑️</button>
         </div>` : ''}
       </div>
-      <div class="enfants-arbo" data-enfants="${n.id}" style="display:none">
+      <div class="enfants-arbo" data-enfants="${n.id}" style="display:${ouvert ? 'block' : 'none'}">
         ${enfants.map(e => rendreNoeud(e, profondeur + 1)).join('')}
         ${sas.map(s => rendreSA(s)).join('')}
       </div>
@@ -572,16 +566,17 @@ async function afficherArborescence() {
 
   function rendreSA(s) {
     const seances = seancesParSA[s.id] || [];
+    const ouvert = saOuvertes.has(s.id);
     return `<div class="noeud-arbo">
       <div class="ligne-arbo type-sa">
-        <span class="bascule" data-bascule-sa="${s.id}">${seances.length ? '▸' : '·'}</span>
+        <span class="bascule" data-bascule-sa="${s.id}">${seances.length ? (ouvert ? '▾' : '▸') : '·'}</span>
         <span class="libelle-arbo" data-bascule-sa="${s.id}">${s.numero ? 'SA' + s.numero + ' — ' : ''}${echapper(s.titre)}</span><span class="type-arbo">SA</span>
         ${etat.peutEditer ? `<div class="actions-arbo">
           <button data-arbo-ajouter-seance="${s.id}">+ Séance</button>
           <button data-arbo-supprimer-sa="${s.id}">🗑️</button>
         </div>` : ''}
       </div>
-      <div class="enfants-arbo" data-enfants-sa="${s.id}" style="display:none">
+      <div class="enfants-arbo" data-enfants-sa="${s.id}" style="display:${ouvert ? 'block' : 'none'}">
         ${seances.map(se => rendreSeance(se)).join('') || '<p class="chargement" style="padding:10px">Aucune séance.</p>'}
       </div>
     </div>`;
@@ -625,34 +620,47 @@ async function afficherArborescence() {
 
     const toggleNoeud = cible.closest('[data-bascule]:not([data-bascule-sa])');
     if (toggleNoeud) {
-      const conteneur = document.querySelector(`[data-enfants="${toggleNoeud.dataset.bascule}"]`);
+      const id = parseInt(toggleNoeud.dataset.bascule, 10);
+      const conteneur = document.querySelector(`[data-enfants="${id}"]`);
       if (conteneur) {
         const ouvert = conteneur.style.display !== 'none';
         conteneur.style.display = ouvert ? 'none' : 'block';
-        document.querySelectorAll(`[data-bascule="${toggleNoeud.dataset.bascule}"].bascule`).forEach(b => b.textContent = ouvert ? '▸' : '▾');
+        if (ouvert) noeudsOuverts.delete(id); else noeudsOuverts.add(id);
+        document.querySelectorAll(`[data-bascule="${id}"].bascule`).forEach(b => b.textContent = ouvert ? '▸' : '▾');
       }
       if (!cible.closest('.actions-arbo')) return;
     }
 
     const toggleSA = cible.closest('[data-bascule-sa]');
     if (toggleSA && !cible.closest('.actions-arbo')) {
-      const conteneur = document.querySelector(`[data-enfants-sa="${toggleSA.dataset.basculeSa}"]`);
+      const id = parseInt(toggleSA.dataset.basculeSa, 10);
+      const conteneur = document.querySelector(`[data-enfants-sa="${id}"]`);
       if (conteneur) {
         const ouvert = conteneur.style.display !== 'none';
         conteneur.style.display = ouvert ? 'none' : 'block';
-        document.querySelectorAll(`[data-bascule-sa="${toggleSA.dataset.basculeSa}"].bascule`).forEach(b => b.textContent = ouvert ? '▸' : '▾');
+        if (ouvert) saOuvertes.delete(id); else saOuvertes.add(id);
+        document.querySelectorAll(`[data-bascule-sa="${id}"].bascule`).forEach(b => b.textContent = ouvert ? '▸' : '▾');
       }
       return;
     }
 
     const btnAjouterNiveau = cible.closest('[data-arbo-ajouter-niveau]');
-    if (btnAjouterNiveau) return creerNoeudDans(etat.classe.id, etat.champ.id, etat.champ.code, parseInt(btnAjouterNiveau.dataset.arboAjouterNiveau, 10), parseInt(btnAjouterNiveau.dataset.profondeur, 10), afficherArborescence);
+    if (btnAjouterNiveau) {
+      const idParent = parseInt(btnAjouterNiveau.dataset.arboAjouterNiveau, 10);
+      return creerNoeudDans(etat.classe.id, etat.champ.id, etat.champ.code, idParent, parseInt(btnAjouterNiveau.dataset.profondeur, 10), () => { noeudsOuverts.add(idParent); afficherArborescence(); });
+    }
 
     const btnAjouterSA = cible.closest('[data-arbo-ajouter-sa]');
-    if (btnAjouterSA) return creerSADans(parseInt(btnAjouterSA.dataset.arboAjouterSa, 10), btnAjouterSA.dataset.typeNoeud, etat.champ.code, afficherArborescence);
+    if (btnAjouterSA) {
+      const idParent = parseInt(btnAjouterSA.dataset.arboAjouterSa, 10);
+      return creerSADans(idParent, btnAjouterSA.dataset.typeNoeud, etat.champ.code, () => { noeudsOuverts.add(idParent); afficherArborescence(); });
+    }
 
     const btnAjouterSeance = cible.closest('[data-arbo-ajouter-seance]');
-    if (btnAjouterSeance) return creerSeanceDans(parseInt(btnAjouterSeance.dataset.arboAjouterSeance, 10), false, afficherArborescence);
+    if (btnAjouterSeance) {
+      const idSA = parseInt(btnAjouterSeance.dataset.arboAjouterSeance, 10);
+      return creerSeanceDans(idSA, false, () => { saOuvertes.add(idSA); afficherArborescence(); });
+    }
 
     const btnRenommer = cible.closest('[data-arbo-renommer-noeud]');
     if (btnRenommer) {
