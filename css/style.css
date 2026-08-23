@@ -45,10 +45,10 @@ a { text-decoration: none; color: inherit; }
 .conteneur { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
 
 .fil-ariane { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; color: var(--texte-gris); margin-bottom: 20px; }
-.fil-ariane .segment { cursor: pointer; padding: 4px 8px; border-radius: 6px; }
-.fil-ariane .segment:hover { background: var(--bordure); }
-.fil-ariane .segment.actif { color: var(--bleu-principal); font-weight: 700; }
-.fil-ariane .sep { color: var(--texte-gris); }
+.fil-ariane .segment { cursor: pointer; padding: 4px 10px; border-radius: 14px; transition: background .12s; }
+.fil-ariane .segment[data-fil-action]:hover { background: var(--bleu-clair); color: var(--bleu-principal); text-decoration: underline; }
+.fil-ariane .segment.actif { color: white; font-weight: 700; background: var(--bleu-principal); cursor: default; }
+.fil-ariane .sep { color: var(--bordure); font-weight: 700; }
 
 .grille-cartes { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
 .carte {
