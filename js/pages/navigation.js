@@ -244,12 +244,31 @@ async function verifierPermissions() {
   etat.peutValider = !!peutValider;
 }
 
+// Structures hiérarchiques IMPOSÉES pour certains champs (clé = code du champ).
+// Pour ces champs, le type de chaque niveau est dicté par la profondeur —
+// impossible de se tromper ou d'inverser l'ordre. Une fois le dernier niveau
+// atteint, seules des SA peuvent être ajoutées (plus de sous-niveau).
+// Les champs absents de cette liste restent libres (l'admin choisit le type).
+const STRUCTURES_IMPOSEES = {
+  francais: ['theme', 'unite', 'semaine']
+};
+
+function structureImposeeChamp() {
+  return STRUCTURES_IMPOSEES[etat.champ?.code] || null;
+}
+
 async function afficherNoeudsEtSA() {
   const parentId = etat.cheminNoeuds.length ? etat.cheminNoeuds[etat.cheminNoeuds.length - 1].id : null;
+  const structure = structureImposeeChamp();
+  const profondeur = etat.cheminNoeuds.length;
+  // Pour un champ à structure imposée : niveau max atteint => plus de sous-niveau, seulement des SA.
+  const auNiveauMax = structure ? profondeur >= structure.length : false;
+  const peutAjouterNiveau = etat.peutEditer && !auNiveauMax;
+  const peutAjouterSA = etat.peutEditer && parentId && (!structure || auNiveauMax);
 
   let requeteNoeuds = supabaseClient.from('noeuds_parcours').select('*').eq('classe_id', etat.classe.id).eq('champ_formation_id', etat.champ.id).order('ordre');
   requeteNoeuds = parentId ? requeteNoeuds.eq('parent_id', parentId) : requeteNoeuds.is('parent_id', null);
-  const { data: noeuds, error: erreurNoeuds } = await requeteNoeuds;
+  const { data: noeuds, error: erreurNoeuds } = auNiveauMax ? { data: [], error: null } : await requeteNoeuds;
   if (erreurNoeuds) return erreur(erreurNoeuds);
 
   let sas = [];
@@ -259,10 +278,14 @@ async function afficherNoeudsEtSA() {
     sas = data;
   }
 
-  const boutonAjoutNiveau = etat.peutEditer ? `<button class="btn btn-accent" id="btnCreerNoeud" style="margin-bottom:14px">+ Ajouter un niveau</button>` : '';
-  const boutonAjoutSA = (etat.peutEditer && parentId) ? `<button class="btn btn-accent" id="btnCreerSA" style="margin-bottom:14px;margin-left:8px">+ Nouvelle SA ici</button>` : '';
+  const libelleProchainNiveau = structure && !auNiveauMax ? ` (${etiquetteType(structure[profondeur])})` : '';
+  const boutonAjoutNiveau = peutAjouterNiveau ? `<button class="btn btn-accent" id="btnCreerNoeud" style="margin-bottom:14px">+ Ajouter${libelleProchainNiveau ? ' un ' + etiquetteType(structure[profondeur]).toLowerCase() : ' un niveau'}</button>` : '';
+  const boutonAjoutSA = peutAjouterSA ? `<button class="btn btn-accent" id="btnCreerSA" style="margin-bottom:14px;margin-left:8px">+ Nouvelle SA ici</button>` : '';
 
   let html = `<div style="margin-bottom:10px">${boutonAjoutNiveau}${boutonAjoutSA}</div>`;
+  if (structure) {
+    html = `<p class="infos-sauvegarde" style="margin-bottom:10px">📐 Structure imposée pour ${echapper(etat.champ.nom)} : ${structure.map(etiquetteType).join(' → ')} → SA → Séance</p>` + html;
+  }
 
   if (noeuds.length > 0) {
     html += `<div class="titre-cycle" style="margin-top:6px">Niveaux</div>
@@ -365,11 +388,22 @@ async function supprimerSeance(id) {
 // --- CRÉATION RAPIDE -----------------------------------------------------
 
 async function creerNoeud() {
-  const titre = prompt("Titre du niveau (ex: Thème 1, Unité 3, Semaine 1, Dossier 2) :");
+  const structure = structureImposeeChamp();
+  const profondeur = etat.cheminNoeuds.length;
+  const parentId = profondeur ? etat.cheminNoeuds[profondeur - 1].id : null;
+
+  let type;
+  if (structure) {
+    if (profondeur >= structure.length) return alert("Niveau maximum atteint pour ce champ — créez une SA ici plutôt qu'un nouveau niveau.");
+    type = structure[profondeur]; // imposé, pas de choix possible
+  } else {
+    type = prompt("Type : theme / unite / semaine / dossier\n(utilisez \"discipline\" uniquement pour un champ à un seul niveau, ex: EPS)", "semaine");
+    if (!type) return;
+  }
+
+  const titre = prompt(`Titre ${structure ? 'de la ' + etiquetteType(type).toLowerCase() : 'du niveau'} :`);
   if (!titre) return;
-  const type = prompt("Type : theme / unite / semaine / dossier\n(utilisez \"discipline\" uniquement pour un champ à un seul niveau, ex: EPS)", "semaine");
-  if (!type) return;
-  const parentId = etat.cheminNoeuds.length ? etat.cheminNoeuds[etat.cheminNoeuds.length - 1].id : null;
+
   const { error } = await supabaseClient.from('noeuds_parcours').insert({
     classe_id: etat.classe.id, champ_formation_id: etat.champ.id, parent_id: parentId, type_noeud: type, titre, ordre: 0
   });
@@ -378,7 +412,11 @@ async function creerNoeud() {
 }
 
 async function creerSA(noeudParentId) {
-  if (!noeudParentId) return alert("Entrez d'abord dans un niveau (ex: une Semaine) avant de créer une SA.");
+  if (!noeudParentId) return alert("Entrez d'abord dans un niveau avant de créer une SA.");
+  const structure = structureImposeeChamp();
+  if (structure && etat.cheminNoeuds.length < structure.length) {
+    return alert(`Pour ${etat.champ.nom}, une SA ne peut être créée qu'au niveau "${etiquetteType(structure[structure.length - 1])}". Continuez à descendre dans les niveaux.`);
+  }
   const titre = prompt("Titre de la SA :");
   if (!titre) return;
   const { error } = await supabaseClient.from('sa').insert({ noeud_id: noeudParentId, titre, ordre: 0 });
