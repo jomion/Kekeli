@@ -165,6 +165,26 @@ function attacherEcouteursBloc(bloc) {
     });
   });
 
+  // Éditeur de texte riche (gras/italique/souligné/listes)
+  const zoneRiche = el.querySelector('[data-champ-riche]');
+  if (zoneRiche) {
+    zoneRiche.addEventListener('input', () => {
+      bloc.contenu = { ...bloc.contenu, [zoneRiche.dataset.champRiche]: zoneRiche.innerHTML };
+      programmerSauvegardeBloc(bloc);
+    });
+    const barreOutils = el.querySelector('.barre-outils-texte');
+    if (barreOutils) {
+      barreOutils.querySelectorAll('[data-cmd]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          zoneRiche.focus();
+          document.execCommand(btn.dataset.cmd, false, null);
+          bloc.contenu = { ...bloc.contenu, [zoneRiche.dataset.champRiche]: zoneRiche.innerHTML };
+          programmerSauvegardeBloc(bloc);
+        });
+      });
+    }
+  }
+
   // Palier
   const selectPalier = el.querySelector('[data-champ-palier]');
   if (selectPalier) {
@@ -284,12 +304,13 @@ async function dupliquerBloc(bloc) {
   rendreListeBlocs();
 }
 
-async function supprimerBloc(bloc) {
-  if (!confirm('Supprimer ce bloc ?')) return;
-  const { error } = await supabaseClient.from('blocs_seance').delete().eq('id', bloc.id);
-  if (error) return alert(error.message);
-  blocs = blocs.filter(b => b.id !== bloc.id);
-  rendreListeBlocs();
+function supprimerBloc(bloc) {
+  confirmerAction('Supprimer ce bloc ?', async () => {
+    const { error } = await supabaseClient.from('blocs_seance').delete().eq('id', bloc.id);
+    if (error) return alert(error.message);
+    blocs = blocs.filter(b => b.id !== bloc.id);
+    rendreListeBlocs();
+  });
 }
 
 // --- STATUT (brouillon / publié / archivé) ----------------------------------
@@ -309,20 +330,21 @@ async function gererChangementStatut(e) {
 
 // --- DUPLICATION DE SÉANCE ---------------------------------------------------
 
-async function dupliquerSeance() {
-  if (!confirm('Dupliquer cette séance (avec tous ses blocs) ?')) return;
-  const { data: nouvelleSeance, error } = await supabaseClient.from('seances').insert({
-    sa_id: seance.sa_id, titre: seance.titre + ' (copie)', statut: 'brouillon', ordre: seance.ordre + 1,
-    cree_par: profilAdmin.id
-  }).select().single();
-  if (error) return alert(error.message);
+function dupliquerSeance() {
+  confirmerAction('Dupliquer cette séance (avec tous ses blocs) ?', async () => {
+    const { data: nouvelleSeance, error } = await supabaseClient.from('seances').insert({
+      sa_id: seance.sa_id, titre: seance.titre + ' (copie)', statut: 'brouillon', ordre: seance.ordre + 1,
+      cree_par: profilAdmin.id
+    }).select().single();
+    if (error) return alert(error.message);
 
-  for (const b of blocs) {
-    await supabaseClient.from('blocs_seance').insert({
-      seance_id: nouvelleSeance.id, type_bloc: b.type_bloc, contenu: b.contenu, palier: b.palier, ordre: b.ordre
-    });
-  }
-  window.location.href = `editeur-seance.html?id=${nouvelleSeance.id}`;
+    for (const b of blocs) {
+      await supabaseClient.from('blocs_seance').insert({
+        seance_id: nouvelleSeance.id, type_bloc: b.type_bloc, contenu: b.contenu, palier: b.palier, ordre: b.ordre
+      });
+    }
+    window.location.href = `editeur-seance.html?id=${nouvelleSeance.id}`;
+  });
 }
 
 // --- APERÇU ÉLÈVE (lecture seule, dans un nouvel onglet) ---------------------
@@ -333,7 +355,7 @@ function ouvrirApercu() {
     const info = infoType(b.type_bloc);
     const c = b.contenu || {};
     let corps = '';
-    if (TYPES_TEXTE_LIBRE.includes(b.type_bloc)) corps = `<p>${echapper(c.texte).replace(/\n/g, '<br>')}</p>`;
+    if (TYPES_TEXTE_LIBRE.includes(b.type_bloc)) corps = `<div>${contenuRicheInitial(c.texte)}</div>`;
     else if (b.type_bloc === 'titre') corps = `<h3>${echapper(c.texte)}</h3>`;
     else if (b.type_bloc === 'image') corps = `<img src="${echapper(c.url)}" style="max-width:100%;border-radius:8px"><p><em>${echapper(c.legende)}</em></p>`;
     else if (b.type_bloc === 'video') corps = `<p>🎬 <a href="${echapper(c.url)}" target="_blank">${echapper(c.legende) || c.url}</a></p>`;
