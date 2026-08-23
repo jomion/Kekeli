@@ -3,15 +3,56 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KEKELI - Navigation</title>
+<title>KEKELI - Éditeur de séance</title>
 <link rel="stylesheet" href="../css/style.css">
+<style>
+  .barre-editeur { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .infos-sauvegarde { font-size: 12px; color: var(--texte-gris); }
+  select.statut-select { padding: 8px 12px; border-radius: 8px; border: 2px solid var(--bordure); font-weight: 700; font-size: 13px; }
+  .bloc {
+    background: white; border-radius: 10px; padding: 16px; margin-bottom: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05); border-left: 5px solid var(--bleu-principal);
+    cursor: grab;
+  }
+  .bloc.en-glissement { opacity: 0.4; }
+  .bloc-entete { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .bloc-type { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--bleu-principal); }
+  .bloc-actions { display: flex; gap: 6px; }
+  .bloc-actions button { background: none; border: none; cursor: pointer; font-size: 15px; padding: 3px 6px; border-radius: 6px; }
+  .bloc-actions button:hover { background: var(--bordure); }
+  .bloc textarea, .bloc input[type=text], .bloc input[type=url] {
+    width: 100%; border: 1px solid var(--bordure); border-radius: 6px; padding: 8px; font-size: 14px; font-family: inherit;
+  }
+  .bloc textarea { min-height: 70px; resize: vertical; }
+  .champ-ligne { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .champ-ligne label { font-size: 12px; color: var(--texte-gris); min-width: 70px; }
+  select.palier-select { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--bordure); font-size: 13px; }
+  .note-future { font-size: 12px; color: var(--texte-gris); font-style: italic; margin-top: 6px; }
+  .menu-ajout { position: relative; display: inline-block; }
+  .liste-types { display: none; position: absolute; z-index: 20; background: white; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); padding: 8px; margin-top: 6px; max-height: 320px; overflow-y: auto; min-width: 220px; }
+  .liste-types.ouvert { display: block; }
+  .liste-types button { display: block; width: 100%; text-align: left; padding: 8px 10px; background: none; border: none; cursor: pointer; font-size: 13px; border-radius: 6px; }
+  .liste-types button:hover { background: var(--bleu-clair); }
+  table.tableau-bloc { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+  table.tableau-bloc td { border: 1px solid var(--bordure); padding: 0; }
+  table.tableau-bloc input { border: none; padding: 6px; width: 100%; font-size: 13px; }
+  table.tableau-bloc.avec-entete tr:first-child input { font-weight: 800; color: var(--bleu-principal); }
+  table.tableau-bloc.avec-entete tr:first-child td { background: var(--couleur-entete-tableau, var(--bleu-clair)); }
+  table.tableau-bloc.sans-bordures td { border: none; }
+  .cellule-action-tableau { border: none !important; }
+  .pastille-couleur {
+    width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--bordure); cursor: pointer; padding: 0;
+  }
+  .pastille-couleur:hover { border-color: var(--bleu-principal); transform: scale(1.1); }
+  .etiquette-outils { font-size: 12px; color: var(--texte-gris); margin-right: 4px; align-self: center; }
+  .bouton-fusion { border: none; background: none; cursor: pointer; font-size: 11px; padding: 0 0 0 4px; vertical-align: middle; }
+  td { position: relative; }
+</style>
 </head>
 <body>
   <header class="header">
-    <div class="logo">☀️ KEKELI</div>
-    <div class="zone-droite" id="zoneDroite">
-      <a href="admin/connexion.html" class="btn btn-discret">Connexion admin</a>
-    </div>
+    <div class="logo">☀️ KEKELI — Éditeur</div>
+    <div class="zone-droite" id="zoneDroite"></div>
   </header>
 
   <div class="conteneur">
@@ -25,6 +66,7 @@
   <script>const RACINE_SITE = "../";</script>
   <script src="../js/auth-admin.js"></script>
   <script src="../js/modal.js"></script>
-  <script src="../js/pages/navigation.js"></script>
+  <script src="../js/editeur/blocs.js"></script>
+  <script src="../js/pages/editeur-seance.js"></script>
 </body>
 </html>
