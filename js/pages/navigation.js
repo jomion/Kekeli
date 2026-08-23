@@ -195,6 +195,9 @@ async function afficherChamps() {
   // Nombre d'"unités" par champ : niveau unite/dossier si présent,
   // sinon nombre de SA rattachées directement (champs à un seul niveau).
   const comptes = await Promise.all(champs.map(c => compterUnitesChamp(c)));
+  const droitsEdition = etat.profilAdmin
+    ? await Promise.all(champs.map(c => supabaseClient.rpc('peut_editer_perimetre', { p_id: etat.profilAdmin.id, p_classe_id: etat.classe.id, p_champ_id: c.id }).then(r => !!r.data)))
+    : champs.map(() => false);
 
   contenu.innerHTML = `
     <div class="titre-page">Champs de Formation (${echapper(etat.classe.nom)})</div>
@@ -211,18 +214,24 @@ async function afficherChamps() {
           <div class="description-carte-champ">${echapper(p.description)}</div>
           <div class="pied-carte-champ">
             <span class="nb-unites-champ">${comptes[i]} Unité${comptes[i] > 1 ? 's' : ''}</span>
-            <button class="bouton-acceder-champ" type="button">Accéder ➔</button>
+            <div style="display:flex;gap:6px">
+              ${droitsEdition[i] ? `<button class="btn btn-discret" data-editer-champ="${c.id}" type="button" title="Gérer toute la hiérarchie">✏️ Éditer</button>` : ''}
+              <button class="bouton-acceder-champ" data-acceder-champ="${c.id}" type="button">Accéder ➔</button>
+            </div>
           </div>
         </div>`;
       }).join('')}
     </div>`;
 
   document.getElementById('grilleCartes').addEventListener('click', async (e) => {
-    const carte = e.target.closest('[data-id]');
-    if (!carte) return;
-    const c = champs.find(x => String(x.id) === carte.dataset.id);
-    etat.champ = c;
-    etat.vueArborescence = true; // vue par défaut : plus rapide, moins de clics
+    const btnEditer = e.target.closest('[data-editer-champ]');
+    const btnAcceder = e.target.closest('[data-acceder-champ]');
+    if (!btnEditer && !btnAcceder) return;
+    e.stopPropagation();
+    const idChamp = (btnEditer || btnAcceder).dataset.editerChamp || (btnEditer || btnAcceder).dataset.accederChamp;
+    etat.champ = champs.find(x => String(x.id) === idChamp);
+    etat.vueArborescence = !!btnEditer; // Éditer -> arborescence complète, Accéder -> présentation par cartes
+    etat.cheminNoeuds = []; etat.sa = null;
     noeudsOuverts.clear(); saOuvertes.clear();
     await verifierPermissions();
     afficher();
@@ -291,6 +300,20 @@ async function afficherNoeudsEtSA() {
     sas = data;
   }
 
+  // Nombre d'enfants directs (filleuls) par carte, pour affichage.
+  const idsNoeuds = noeuds.map(n => n.id);
+  const idsSA = sas.map(s => s.id);
+  const [{ data: sousNoeuds }, { data: saDesNoeuds }, { data: seancesDesSA }] = await Promise.all([
+    idsNoeuds.length ? supabaseClient.from('noeuds_parcours').select('id, parent_id').in('parent_id', idsNoeuds) : Promise.resolve({ data: [] }),
+    idsNoeuds.length ? supabaseClient.from('sa').select('id, noeud_id').in('noeud_id', idsNoeuds) : Promise.resolve({ data: [] }),
+    idsSA.length ? supabaseClient.from('seances').select('id, sa_id').in('sa_id', idsSA) : Promise.resolve({ data: [] })
+  ]);
+  const compteFilleulsNoeud = {};
+  (sousNoeuds || []).forEach(n => { compteFilleulsNoeud[n.parent_id] = (compteFilleulsNoeud[n.parent_id] || 0) + 1; });
+  (saDesNoeuds || []).forEach(s => { compteFilleulsNoeud[s.noeud_id] = (compteFilleulsNoeud[s.noeud_id] || 0) + 1; });
+  const compteFilleulsSA = {};
+  (seancesDesSA || []).forEach(se => { compteFilleulsSA[se.sa_id] = (compteFilleulsSA[se.sa_id] || 0) + 1; });
+
   const libelleProchainNiveau = structure && !auNiveauMax ? ` (${etiquetteType(structure[profondeur])})` : '';
   const boutonAjoutNiveau = peutAjouterNiveau ? `<button class="btn btn-accent" id="btnCreerNoeud" style="margin-bottom:14px">+ Ajouter${libelleProchainNiveau ? ' un ' + etiquetteType(structure[profondeur]).toLowerCase() : ' un niveau'}</button>` : '';
   const boutonAjoutSA = peutAjouterSA ? `<button class="btn btn-accent" id="btnCreerSA" style="margin-bottom:14px;margin-left:8px">+ Nouvelle SA ici</button>` : '';
@@ -305,7 +328,7 @@ async function afficherNoeudsEtSA() {
       <div class="grille-cartes" id="grilleNoeuds">${noeuds.map(n => `
         <div class="carte" data-id="${n.id}" style="position:relative">
           ${etat.peutEditer ? `<button data-supprimer-noeud="${n.id}" title="Supprimer" style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;font-size:14px">🗑️</button>` : ''}
-          <div class="titre-carte">${echapper(n.titre)}</div><div class="sous-titre-carte">${etiquetteType(n.type_noeud)}</div>
+          <div class="titre-carte">${echapper(n.titre)}</div><div class="sous-titre-carte">${etiquetteType(n.type_noeud)}${compteFilleulsNoeud[n.id] ? ` · ${compteFilleulsNoeud[n.id]} élément${compteFilleulsNoeud[n.id] > 1 ? 's' : ''}` : ''}</div>
         </div>`).join('')}</div>`;
   }
 
@@ -314,7 +337,7 @@ async function afficherNoeudsEtSA() {
       <div class="grille-cartes" id="grilleSA">${sas.map(s => `
         <div class="carte" data-id="${s.id}" style="position:relative">
           ${etat.peutEditer ? `<button data-supprimer-sa="${s.id}" title="Supprimer" style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;font-size:14px">🗑️</button>` : ''}
-          <div class="titre-carte">${s.numero ? 'SA' + s.numero + ' — ' : ''}${echapper(s.titre)}</div>${s.description ? `<div class="sous-titre-carte">${echapper(s.description)}</div>` : ''}
+          <div class="titre-carte">${s.numero ? 'SA' + s.numero + ' — ' : ''}${echapper(s.titre)}</div><div class="sous-titre-carte">${s.description ? echapper(s.description) + ' · ' : ''}${compteFilleulsSA[s.id] || 0} séance${(compteFilleulsSA[s.id] || 0) > 1 ? 's' : ''}</div>
         </div>`).join('')}</div>`;
   }
 
@@ -513,6 +536,119 @@ function creerSeance(saId) {
   creerSeanceDans(saId || etat.sa.id);
 }
 
+// --- DUPLICATION (réutiliser un gabarit déjà construit, ex: Unité 1) -----
+
+// Duplique un noeud ET tout ce qu'il contient (sous-niveaux, SA, séances, blocs)
+// vers un nouveau parent.
+async function dupliquerNoeudRecursif(noeudId, nouveauParentId) {
+  const { data: original } = await supabaseClient.from('noeuds_parcours').select('*').eq('id', noeudId).single();
+  const { data: copie, error } = await supabaseClient.from('noeuds_parcours').insert({
+    classe_id: original.classe_id, champ_formation_id: original.champ_formation_id,
+    parent_id: nouveauParentId, type_noeud: original.type_noeud, titre: original.titre + ' (copie)', ordre: original.ordre
+  }).select().single();
+  if (error) { alert(error.message); return null; }
+
+  const { data: sasOriginales } = await supabaseClient.from('sa').select('*').eq('noeud_id', noeudId);
+  for (const sa of sasOriginales || []) {
+    await dupliquerSARecursif(sa, copie.id, false);
+  }
+
+  const { data: enfants } = await supabaseClient.from('noeuds_parcours').select('*').eq('parent_id', noeudId);
+  for (const enfant of enfants || []) {
+    await dupliquerNoeudRecursif(enfant.id, copie.id);
+  }
+
+  return copie;
+}
+
+// Duplique une SA et toutes ses séances (avec leurs blocs) vers un noeud donné.
+async function dupliquerSARecursif(saOriginale, nouveauNoeudId, renommer = true) {
+  const { data: copie, error } = await supabaseClient.from('sa').insert({
+    noeud_id: nouveauNoeudId, numero: saOriginale.numero,
+    titre: saOriginale.titre + (renommer ? ' (copie)' : ''), description: saOriginale.description, ordre: saOriginale.ordre
+  }).select().single();
+  if (error) { alert(error.message); return null; }
+
+  const { data: seancesOriginales } = await supabaseClient.from('seances').select('*').eq('sa_id', saOriginale.id);
+  for (const se of seancesOriginales || []) {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const { data: seanceCopie, error: erreurSeance } = await supabaseClient.from('seances').insert({
+      sa_id: copie.id, titre: se.titre, discipline: se.discipline, statut: 'brouillon', ordre: se.ordre, cree_par: session.user.id
+    }).select().single();
+    if (erreurSeance) { alert(erreurSeance.message); continue; }
+
+    const { data: blocsOriginaux } = await supabaseClient.from('blocs_seance').select('*').eq('seance_id', se.id).is('parent_bloc_id', null).order('ordre');
+    for (const b of blocsOriginaux || []) {
+      await supabaseClient.from('blocs_seance').insert({
+        seance_id: seanceCopie.id, type_bloc: b.type_bloc, contenu: b.contenu, palier: b.palier, ordre: b.ordre
+      });
+    }
+  }
+  return copie;
+}
+
+async function ouvrirDupliquerNoeud(noeudId) {
+  const { data: noeud } = await supabaseClient.from('noeuds_parcours').select('*').eq('id', noeudId).single();
+  if (!noeud) return;
+
+  if (!noeud.parent_id) {
+    return confirmerAction(`Dupliquer "${noeud.titre}" comme nouveau niveau racine, avec tout son contenu ?`, async () => {
+      contenu.innerHTML = '<div class="chargement">Duplication en cours (cela peut prendre un instant selon la taille du contenu)...</div>';
+      await dupliquerNoeudRecursif(noeudId, null);
+      afficherArborescence();
+    });
+  }
+
+  const { data: parentActuel } = await supabaseClient.from('noeuds_parcours').select('*').eq('id', noeud.parent_id).single();
+  let requete = supabaseClient.from('noeuds_parcours').select('*')
+    .eq('classe_id', etat.classe.id).eq('champ_formation_id', etat.champ.id).eq('type_noeud', parentActuel.type_noeud).order('ordre');
+  requete = parentActuel.parent_id ? requete.eq('parent_id', parentActuel.parent_id) : requete.is('parent_id', null);
+  const { data: destinationsPossibles } = await requete;
+
+  if (!destinationsPossibles || destinationsPossibles.length === 0) return alert('Aucune destination possible.');
+
+  ouvrirModal({
+    titre: `Dupliquer "${noeud.titre}" vers...`,
+    champs: [{
+      nom: 'destination', label: `Destination (même niveau que "${parentActuel.titre}")`, type: 'select',
+      options: destinationsPossibles.map(d => ({ valeur: d.id, label: d.titre }))
+    }],
+    texteValider: 'Dupliquer',
+    onValider: async ({ destination }) => {
+      contenu.innerHTML = '<div class="chargement">Duplication en cours (cela peut prendre un instant selon la taille du contenu)...</div>';
+      await dupliquerNoeudRecursif(noeudId, parseInt(destination, 10));
+      afficherArborescence();
+    }
+  });
+}
+
+async function ouvrirDupliquerSA(saId) {
+  const { data: sa } = await supabaseClient.from('sa').select('*').eq('id', saId).single();
+  if (!sa) return;
+  const { data: noeudActuel } = await supabaseClient.from('noeuds_parcours').select('*').eq('id', sa.noeud_id).single();
+
+  let requete = supabaseClient.from('noeuds_parcours').select('*')
+    .eq('classe_id', etat.classe.id).eq('champ_formation_id', etat.champ.id).eq('type_noeud', noeudActuel.type_noeud).order('ordre');
+  requete = noeudActuel.parent_id ? requete.eq('parent_id', noeudActuel.parent_id) : requete.is('parent_id', null);
+  const { data: destinationsPossibles } = await requete;
+
+  if (!destinationsPossibles || destinationsPossibles.length === 0) return alert('Aucune destination possible.');
+
+  ouvrirModal({
+    titre: `Dupliquer "${sa.titre}" vers...`,
+    champs: [{
+      nom: 'destination', label: `Destination (même niveau que "${noeudActuel.titre}")`, type: 'select',
+      options: destinationsPossibles.map(d => ({ valeur: d.id, label: d.titre }))
+    }],
+    texteValider: 'Dupliquer',
+    onValider: async ({ destination }) => {
+      contenu.innerHTML = '<div class="chargement">Duplication en cours...</div>';
+      await dupliquerSARecursif(sa, parseInt(destination, 10));
+      afficherArborescence();
+    }
+  });
+}
+
 // --- VUE ARBORESCENTE (navigation fluide + création à tout niveau) -------
 
 async function afficherArborescence() {
@@ -554,6 +690,7 @@ async function afficherArborescence() {
           ${(!structure || !auNiveauMax) ? `<button data-arbo-ajouter-niveau="${n.id}" data-profondeur="${profondeur + 1}">+ Niveau</button>` : ''}
           ${(!structure || auNiveauMax) ? `<button data-arbo-ajouter-sa="${n.id}" data-type-noeud="${n.type_noeud}">+ SA</button>` : ''}
           <button data-arbo-renommer-noeud="${n.id}" data-titre-actuel="${echapper(n.titre)}">✏️</button>
+          <button data-arbo-dupliquer-noeud="${n.id}" title="Dupliquer avec tout son contenu vers un autre parent du même niveau">📋</button>
           <button data-arbo-supprimer-noeud="${n.id}">🗑️</button>
         </div>` : ''}
       </div>
@@ -573,6 +710,7 @@ async function afficherArborescence() {
         <span class="libelle-arbo" data-bascule-sa="${s.id}">${s.numero ? 'SA' + s.numero + ' — ' : ''}${echapper(s.titre)}</span><span class="type-arbo">SA</span>
         ${etat.peutEditer ? `<div class="actions-arbo">
           <button data-arbo-ajouter-seance="${s.id}">+ Séance</button>
+          <button data-arbo-dupliquer-sa="${s.id}" title="Dupliquer cette SA (et ses séances) vers un autre niveau">📋</button>
           <button data-arbo-supprimer-sa="${s.id}">🗑️</button>
         </div>` : ''}
       </div>
@@ -583,10 +721,13 @@ async function afficherArborescence() {
   }
 
   function rendreSeance(se) {
+    // La discipline est mise en avant (label principal) — le titre de la
+    // séance devient une précision secondaire juste à côté, alignée.
+    const labelPrincipal = se.discipline ? echapper(se.discipline) : echapper(se.titre);
+    const labelSecondaire = se.discipline ? `<span style="color:var(--texte-gris);font-weight:400"> — ${echapper(se.titre)}</span>` : '';
     return `<div class="ligne-arbo type-seance">
       <span class="bascule">·</span>
-      <a class="libelle-arbo" href="editeur-seance.html?id=${se.id}">${echapper(se.titre)}</a>
-      ${se.discipline ? `<span class="type-arbo">${echapper(se.discipline)}</span>` : ''}
+      <a class="libelle-arbo" href="editeur-seance.html?id=${se.id}" style="display:flex;align-items:baseline">${labelPrincipal}${labelSecondaire}</a>
       <span class="statut-pill statut-${se.statut}" style="margin-left:6px">${pillsStatut[se.statut]}</span>
       ${etat.peutEditer ? `<div class="actions-arbo">
         <a href="editeur-seance.html?id=${se.id}" title="Éditer le contenu">✏️</a>
@@ -673,6 +814,12 @@ async function afficherArborescence() {
         }
       });
     }
+
+    const btnDupliquerNoeud = cible.closest('[data-arbo-dupliquer-noeud]');
+    if (btnDupliquerNoeud) return ouvrirDupliquerNoeud(parseInt(btnDupliquerNoeud.dataset.arboDupliquerNoeud, 10));
+
+    const btnDupliquerSA = cible.closest('[data-arbo-dupliquer-sa]');
+    if (btnDupliquerSA) return ouvrirDupliquerSA(parseInt(btnDupliquerSA.dataset.arboDupliquerSa, 10));
 
     const btnSupprimerNoeud = cible.closest('[data-arbo-supprimer-noeud]');
     if (btnSupprimerNoeud) return supprimerNoeud(parseInt(btnSupprimerNoeud.dataset.arboSupprimerNoeud, 10));
