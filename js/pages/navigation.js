@@ -1,6 +1,6 @@
 // Page pages/navigation.html
 const etat = {
-  classe: null, champ: null, cheminNoeuds: [], sa: null,
+  classe: null, champ: null, cheminNoeuds: [], sa: null, vueArborescence: false,
   peutEditer: false, peutValider: false, profilAdmin: null
 };
 
@@ -26,8 +26,12 @@ function construireFilAriane() {
   const segments = [{ label: '🏠 Classes', action: 'accueil' }];
   if (etat.classe) segments.push({ label: etat.classe.nom, action: 'classe' });
   if (etat.champ) segments.push({ label: etat.champ.nom, action: 'champ' });
-  etat.cheminNoeuds.forEach((n, i) => segments.push({ label: n.titre, action: 'noeud', index: i }));
-  if (etat.sa) segments.push({ label: etat.sa.titre, action: null });
+  if (etat.vueArborescence) {
+    segments.push({ label: '🌳 Arborescence', action: null });
+  } else {
+    etat.cheminNoeuds.forEach((n, i) => segments.push({ label: n.titre, action: 'noeud', index: i }));
+    if (etat.sa) segments.push({ label: etat.sa.titre, action: null });
+  }
 
   filAriane.innerHTML = segments.map((s, i) => {
     const dernier = i === segments.length - 1;
@@ -38,9 +42,9 @@ function construireFilAriane() {
   filAriane.querySelectorAll('[data-fil-action]').forEach(el => {
     el.addEventListener('click', () => {
       const action = el.dataset.filAction;
-      if (action === 'accueil') Object.assign(etat, { classe: null, champ: null, cheminNoeuds: [], sa: null });
-      if (action === 'classe') Object.assign(etat, { champ: null, cheminNoeuds: [], sa: null });
-      if (action === 'champ') Object.assign(etat, { cheminNoeuds: [], sa: null });
+      if (action === 'accueil') Object.assign(etat, { classe: null, champ: null, cheminNoeuds: [], sa: null, vueArborescence: false });
+      if (action === 'classe') Object.assign(etat, { champ: null, cheminNoeuds: [], sa: null, vueArborescence: false });
+      if (action === 'champ') Object.assign(etat, { cheminNoeuds: [], sa: null, vueArborescence: false });
       if (action === 'noeud') { etat.cheminNoeuds = etat.cheminNoeuds.slice(0, parseInt(el.dataset.filIndex, 10) + 1); etat.sa = null; }
       afficher();
     });
@@ -55,6 +59,7 @@ async function afficher() {
 
   if (!etat.classe) return afficherClasses();
   if (!etat.champ) return afficherChamps();
+  if (etat.vueArborescence) return afficherArborescence();
   if (!etat.sa) return afficherNoeudsEtSA();
   return afficherSeances();
 }
@@ -184,6 +189,9 @@ async function afficherChamps() {
   // Nombre d'"unités" par champ : niveau unite/dossier si présent,
   // sinon nombre de SA rattachées directement (champs à un seul niveau).
   const comptes = await Promise.all(champs.map(c => compterUnitesChamp(c)));
+  const droitsEdition = etat.profilAdmin
+    ? await Promise.all(champs.map(c => supabaseClient.rpc('peut_editer_perimetre', { p_id: etat.profilAdmin.id, p_classe_id: etat.classe.id, p_champ_id: c.id }).then(r => !!r.data)))
+    : champs.map(() => false);
 
   contenu.innerHTML = `
     <div class="titre-page">Champs de Formation (${echapper(etat.classe.nom)})</div>
@@ -200,17 +208,29 @@ async function afficherChamps() {
           <div class="description-carte-champ">${echapper(p.description)}</div>
           <div class="pied-carte-champ">
             <span class="nb-unites-champ">${comptes[i]} Unité${comptes[i] > 1 ? 's' : ''}</span>
-            <button class="bouton-acceder-champ" type="button">Accéder ➔</button>
+            <div style="display:flex;gap:6px">
+              ${droitsEdition[i] ? `<button class="btn btn-discret" data-editer-champ="${c.id}" type="button" title="Gérer toute la hiérarchie">✏️ Éditer</button>` : ''}
+              <button class="bouton-acceder-champ" type="button">Accéder ➔</button>
+            </div>
           </div>
         </div>`;
       }).join('')}
     </div>`;
 
   document.getElementById('grilleCartes').addEventListener('click', async (e) => {
+    const btnEditer = e.target.closest('[data-editer-champ]');
+    if (btnEditer) {
+      e.stopPropagation();
+      etat.champ = champs.find(x => String(x.id) === btnEditer.dataset.editerChamp);
+      etat.vueArborescence = true;
+      await verifierPermissions();
+      return afficher();
+    }
     const carte = e.target.closest('[data-id]');
     if (!carte) return;
     const c = champs.find(x => String(x.id) === carte.dataset.id);
     etat.champ = c;
+    etat.vueArborescence = false;
     await verifierPermissions();
     afficher();
   });
@@ -282,7 +302,7 @@ async function afficherNoeudsEtSA() {
   const boutonAjoutNiveau = peutAjouterNiveau ? `<button class="btn btn-accent" id="btnCreerNoeud" style="margin-bottom:14px">+ Ajouter${libelleProchainNiveau ? ' un ' + etiquetteType(structure[profondeur]).toLowerCase() : ' un niveau'}</button>` : '';
   const boutonAjoutSA = peutAjouterSA ? `<button class="btn btn-accent" id="btnCreerSA" style="margin-bottom:14px;margin-left:8px">+ Nouvelle SA ici</button>` : '';
 
-  let html = `<div style="margin-bottom:10px">${boutonAjoutNiveau}${boutonAjoutSA}</div>`;
+  let html = `<div style="margin-bottom:10px">${boutonAjoutNiveau}${boutonAjoutSA}${etat.peutEditer ? ` <button class="btn btn-discret" id="btnVueArbo">🌳 Voir toute l'arborescence</button>` : ''}</div>`;
   if (structure) {
     html = `<p class="infos-sauvegarde" style="margin-bottom:10px">📐 Structure imposée pour ${echapper(etat.champ.nom)} : ${structure.map(etiquetteType).join(' → ')} → SA → Séance</p>` + html;
   }
@@ -335,13 +355,16 @@ async function afficherNoeudsEtSA() {
   if (btnCreerNoeud) btnCreerNoeud.addEventListener('click', creerNoeud);
   const btnCreerSA = document.getElementById('btnCreerSA');
   if (btnCreerSA) btnCreerSA.addEventListener('click', () => creerSA(parentId));
+  const btnVueArbo = document.getElementById('btnVueArbo');
+  if (btnVueArbo) btnVueArbo.addEventListener('click', () => { etat.vueArborescence = true; etat.cheminNoeuds = []; etat.sa = null; afficher(); });
 }
 
 async function supprimerNoeud(id) {
-  if (!confirm("Supprimer ce niveau ? Tout ce qu'il contient (sous-niveaux, SA, séances, blocs) sera supprimé avec.")) return;
-  const { error } = await supabaseClient.from('noeuds_parcours').delete().eq('id', id);
-  if (error) return alert(error.message);
-  afficher();
+  confirmerAction("Supprimer ce niveau ? Tout ce qu'il contient (sous-niveaux, SA, séances, blocs) sera supprimé avec.", async () => {
+    const { error } = await supabaseClient.from('noeuds_parcours').delete().eq('id', id);
+    if (error) return alert(error.message);
+    afficher();
+  });
 }
 
 function etiquetteType(t) {
@@ -349,10 +372,11 @@ function etiquetteType(t) {
 }
 
 async function supprimerSA(id) {
-  if (!confirm("Supprimer cette SA ? Toutes ses séances et leurs blocs seront supprimés avec.")) return;
-  const { error } = await supabaseClient.from('sa').delete().eq('id', id);
-  if (error) return alert(error.message);
-  afficher();
+  confirmerAction("Supprimer cette SA ? Toutes ses séances et leurs blocs seront supprimés avec.", async () => {
+    const { error } = await supabaseClient.from('sa').delete().eq('id', id);
+    if (error) return alert(error.message);
+    afficher();
+  });
 }
 
 async function afficherSeances() {
@@ -375,67 +399,283 @@ async function afficherSeances() {
   });
 
   const btnCreer = document.getElementById('btnCreerSeance');
-  if (btnCreer) btnCreer.addEventListener('click', creerSeance);
+  if (btnCreer) btnCreer.addEventListener('click', () => creerSeance(etat.sa.id));
 }
 
-async function supprimerSeance(id) {
-  if (!confirm('Supprimer cette séance et tous ses blocs ?')) return;
-  const { error } = await supabaseClient.from('seances').delete().eq('id', id);
-  if (error) return alert(error.message);
-  afficher();
+async function supprimerSeance(id, callbackApresSuppression) {
+  confirmerAction('Supprimer cette séance et tous ses blocs ?', async () => {
+    const { error } = await supabaseClient.from('seances').delete().eq('id', id);
+    if (error) return alert(error.message);
+    if (callbackApresSuppression) callbackApresSuppression(); else afficher();
+  });
 }
 
-// --- CRÉATION RAPIDE -----------------------------------------------------
+// --- CRÉATION / RENOMMAGE (formulaires dynamiques) ------------------------
 
-async function creerNoeud() {
-  const structure = structureImposeeChamp();
-  const profondeur = etat.cheminNoeuds.length;
-  const parentId = profondeur ? etat.cheminNoeuds[profondeur - 1].id : null;
+// creerNoeudDans(classe, champ, parentId, profondeur, apresCreation)
+// Version générique réutilisée par la navigation pas-à-pas ET par l'arborescence.
+function creerNoeudDans(classeId, champId, champCode, parentId, profondeur, apresCreation) {
+  const structure = STRUCTURES_IMPOSEES[champCode] || null;
 
-  let type;
+  const poursuivre = (type) => {
+    ouvrirModal({
+      titre: `Nouveau niveau${structure ? ' — ' + etiquetteType(type) : ''}`,
+      champs: [{ nom: 'titre', label: 'Titre', placeholder: 'Ex: Thème 1, Unité 3, Semaine 1...' }],
+      texteValider: 'Créer',
+      onValider: async ({ titre }) => {
+        const { error } = await supabaseClient.from('noeuds_parcours').insert({
+          classe_id: classeId, champ_formation_id: champId, parent_id: parentId, type_noeud: type, titre, ordre: 0
+        });
+        if (error) return alert(error.message);
+        apresCreation();
+      }
+    });
+  };
+
   if (structure) {
     if (profondeur >= structure.length) return alert("Niveau maximum atteint pour ce champ — créez une SA ici plutôt qu'un nouveau niveau.");
-    type = structure[profondeur]; // imposé, pas de choix possible
+    poursuivre(structure[profondeur]);
   } else {
-    type = prompt("Type : theme / unite / semaine / dossier\n(utilisez \"discipline\" uniquement pour un champ à un seul niveau, ex: EPS)", "semaine");
-    if (!type) return;
+    ouvrirModal({
+      titre: 'Nouveau niveau',
+      champs: [
+        { nom: 'titre', label: 'Titre', placeholder: 'Ex: Dossier 2' },
+        { nom: 'type', label: 'Type', type: 'select', options: [
+          { valeur: 'theme', label: 'Thème' }, { valeur: 'unite', label: 'Unité' }, { valeur: 'semaine', label: 'Semaine' },
+          { valeur: 'dossier', label: 'Dossier' }, { valeur: 'discipline', label: 'Discipline (champ à un seul niveau)' }
+        ], valeur: 'dossier' }
+      ],
+      texteValider: 'Créer',
+      onValider: async ({ titre, type }) => {
+        const { error } = await supabaseClient.from('noeuds_parcours').insert({
+          classe_id: classeId, champ_formation_id: champId, parent_id: parentId, type_noeud: type, titre, ordre: 0
+        });
+        if (error) return alert(error.message);
+        apresCreation();
+      }
+    });
   }
-
-  const titre = prompt(`Titre ${structure ? 'de la ' + etiquetteType(type).toLowerCase() : 'du niveau'} :`);
-  if (!titre) return;
-
-  const { error } = await supabaseClient.from('noeuds_parcours').insert({
-    classe_id: etat.classe.id, champ_formation_id: etat.champ.id, parent_id: parentId, type_noeud: type, titre, ordre: 0
-  });
-  if (error) return alert(error.message);
-  afficher();
 }
 
-async function creerSA(noeudParentId) {
+function creerNoeud() {
+  const profondeur = etat.cheminNoeuds.length;
+  const parentId = profondeur ? etat.cheminNoeuds[profondeur - 1].id : null;
+  creerNoeudDans(etat.classe.id, etat.champ.id, etat.champ.code, parentId, profondeur, afficher);
+}
+
+function creerSADans(noeudParentId, typeNoeudParent, champCode, apresCreation) {
+  const structure = STRUCTURES_IMPOSEES[champCode] || null;
+  if (structure && typeNoeudParent !== structure[structure.length - 1]) {
+    return alert(`Pour ce champ, une SA ne peut être créée qu'au niveau "${etiquetteType(structure[structure.length - 1])}".`);
+  }
+  ouvrirModal({
+    titre: 'Nouvelle Situation d\'Apprentissage',
+    champs: [
+      { nom: 'titre', label: 'Titre', placeholder: 'Ex: Lecture, Vocabulaire thématique...' },
+      { nom: 'numero', label: 'Numéro (optionnel)', type: 'number', requis: false },
+      { nom: 'description', label: 'Description (optionnelle)', type: 'textarea', requis: false }
+    ],
+    texteValider: 'Créer',
+    onValider: async ({ titre, numero, description }) => {
+      const { error } = await supabaseClient.from('sa').insert({
+        noeud_id: noeudParentId, titre, numero: numero ? parseInt(numero, 10) : null, description: description || null, ordre: 0
+      });
+      if (error) return alert(error.message);
+      apresCreation();
+    }
+  });
+}
+
+function creerSA(noeudParentId) {
   if (!noeudParentId) return alert("Entrez d'abord dans un niveau avant de créer une SA.");
   const structure = structureImposeeChamp();
   if (structure && etat.cheminNoeuds.length < structure.length) {
     return alert(`Pour ${etat.champ.nom}, une SA ne peut être créée qu'au niveau "${etiquetteType(structure[structure.length - 1])}". Continuez à descendre dans les niveaux.`);
   }
-  const titre = prompt("Titre de la SA :");
-  if (!titre) return;
-  const { error } = await supabaseClient.from('sa').insert({ noeud_id: noeudParentId, titre, ordre: 0 });
-  if (error) return alert(error.message);
-  afficher();
+  const typeNoeudParent = structure ? structure[structure.length - 1] : null;
+  creerSADans(noeudParentId, typeNoeudParent, etat.champ.code, afficher);
 }
 
-async function creerSeance() {
-  const titre = prompt("Titre de la séance :");
-  if (!titre) return;
-  const discipline = prompt("Discipline de cette séance (ex: Lecture, Grammaire, Conjugaison, Orthographe, Vocabulaire, Expression écrite, Écriture...) — laissez vide si non applicable :", "");
-  const { data: { session } } = await supabaseClient.auth.getSession();
-  const { data, error } = await supabaseClient.from('seances').insert({
-    sa_id: etat.sa.id, titre, discipline: discipline || null, statut: 'brouillon', ordre: 0, cree_par: session.user.id
-  }).select().single();
-  if (error) return alert(error.message);
-  window.location.href = `editeur-seance.html?id=${data.id}`;
+function creerSeanceDans(saId, redirigerVersEditeur = true, onCree) {
+  ouvrirModal({
+    titre: 'Nouvelle séance',
+    champs: [
+      { nom: 'titre', label: 'Titre', placeholder: 'Ex: Séance 1 — Découverte du texte' },
+      { nom: 'discipline', label: 'Discipline (optionnelle)', requis: false, placeholder: 'Lecture, Grammaire, Conjugaison...' }
+    ],
+    texteValider: redirigerVersEditeur ? "Créer et ouvrir l'éditeur" : 'Créer',
+    onValider: async ({ titre, discipline }) => {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      const { data, error } = await supabaseClient.from('seances').insert({
+        sa_id: saId, titre, discipline: discipline || null, statut: 'brouillon', ordre: 0, cree_par: session.user.id
+      }).select().single();
+      if (error) return alert(error.message);
+      if (redirigerVersEditeur) window.location.href = `editeur-seance.html?id=${data.id}`;
+      else if (onCree) onCree();
+    }
+  });
 }
 
+function creerSeance(saId) {
+  creerSeanceDans(saId || etat.sa.id);
+}
+
+// --- VUE ARBORESCENTE (navigation fluide + création à tout niveau) -------
+
+async function afficherArborescence() {
+  const [{ data: tousNoeuds, error: e1 }, { data: toutesSAImbriquees, error: e2 }] = await Promise.all([
+    supabaseClient.from('noeuds_parcours').select('*').eq('classe_id', etat.classe.id).eq('champ_formation_id', etat.champ.id).order('ordre'),
+    supabaseClient.from('sa').select('*, noeuds_parcours!inner(classe_id, champ_formation_id)').eq('noeuds_parcours.classe_id', etat.classe.id).eq('noeuds_parcours.champ_formation_id', etat.champ.id).order('ordre')
+  ]);
+  if (e1) return erreur(e1);
+  if (e2) return erreur(e2);
+  const toutesSA = toutesSAImbriquees || [];
+
+  const idsSA = toutesSA.map(s => s.id);
+  const { data: toutesSeances, error: e3 } = idsSA.length
+    ? await supabaseClient.from('seances').select('*').in('sa_id', idsSA).order('ordre')
+    : { data: [], error: null };
+  if (e3) return erreur(e3);
+
+  const enfantsParParent = {};
+  (tousNoeuds || []).forEach(n => { const cle = n.parent_id ?? 'racine'; (enfantsParParent[cle] ??= []).push(n); });
+  const saParNoeud = {};
+  toutesSA.forEach(s => { (saParNoeud[s.noeud_id] ??= []).push(s); });
+  const seancesParSA = {};
+  (toutesSeances || []).forEach(se => { (seancesParSA[se.sa_id] ??= []).push(se); });
+
+  const pillsStatut = { brouillon: 'Brouillon', publie: 'Publié', archive: 'Archivé' };
+  const structure = structureImposeeChamp();
+
+  function rendreNoeud(n, profondeur) {
+    const enfants = enfantsParParent[n.id] || [];
+    const sas = saParNoeud[n.id] || [];
+    const aDuContenu = enfants.length || sas.length;
+    const auNiveauMax = structure ? profondeur + 1 >= structure.length : false;
+    return `<div class="noeud-arbo">
+      <div class="ligne-arbo">
+        <span class="bascule" data-bascule="${n.id}">${aDuContenu ? '▸' : '·'}</span>
+        <span class="libelle-arbo" data-bascule="${n.id}">${echapper(n.titre)}</span><span class="type-arbo">${etiquetteType(n.type_noeud)}</span>
+        ${etat.peutEditer ? `<div class="actions-arbo">
+          ${(!structure || !auNiveauMax) ? `<button data-arbo-ajouter-niveau="${n.id}" data-profondeur="${profondeur + 1}">+ Niveau</button>` : ''}
+          ${(!structure || auNiveauMax) ? `<button data-arbo-ajouter-sa="${n.id}" data-type-noeud="${n.type_noeud}">+ SA</button>` : ''}
+          <button data-arbo-renommer-noeud="${n.id}" data-titre-actuel="${echapper(n.titre)}">✏️</button>
+          <button data-arbo-supprimer-noeud="${n.id}">🗑️</button>
+        </div>` : ''}
+      </div>
+      <div class="enfants-arbo" data-enfants="${n.id}" style="display:none">
+        ${enfants.map(e => rendreNoeud(e, profondeur + 1)).join('')}
+        ${sas.map(s => rendreSA(s)).join('')}
+      </div>
+    </div>`;
+  }
+
+  function rendreSA(s) {
+    const seances = seancesParSA[s.id] || [];
+    return `<div class="noeud-arbo">
+      <div class="ligne-arbo type-sa">
+        <span class="bascule" data-bascule-sa="${s.id}">${seances.length ? '▸' : '·'}</span>
+        <span class="libelle-arbo" data-bascule-sa="${s.id}">${s.numero ? 'SA' + s.numero + ' — ' : ''}${echapper(s.titre)}</span><span class="type-arbo">SA</span>
+        ${etat.peutEditer ? `<div class="actions-arbo">
+          <button data-arbo-ajouter-seance="${s.id}">+ Séance</button>
+          <button data-arbo-supprimer-sa="${s.id}">🗑️</button>
+        </div>` : ''}
+      </div>
+      <div class="enfants-arbo" data-enfants-sa="${s.id}" style="display:none">
+        ${seances.map(se => rendreSeance(se)).join('') || '<p class="chargement" style="padding:10px">Aucune séance.</p>'}
+      </div>
+    </div>`;
+  }
+
+  function rendreSeance(se) {
+    return `<div class="ligne-arbo type-seance">
+      <span class="bascule">·</span>
+      <a class="libelle-arbo" href="editeur-seance.html?id=${se.id}">${echapper(se.titre)}</a>
+      ${se.discipline ? `<span class="type-arbo">${echapper(se.discipline)}</span>` : ''}
+      <span class="statut-pill statut-${se.statut}" style="margin-left:6px">${pillsStatut[se.statut]}</span>
+      ${etat.peutEditer ? `<div class="actions-arbo">
+        <a href="editeur-seance.html?id=${se.id}" title="Éditer le contenu">✏️</a>
+        <button data-arbo-supprimer-seance="${se.id}">🗑️</button>
+      </div>` : ''}
+    </div>`;
+  }
+
+  const racines = enfantsParParent['racine'] || [];
+  const boutonAjoutRacine = etat.peutEditer ? `<button class="btn btn-accent" id="btnArboAjouterRacine" style="margin-bottom:14px">+ Ajouter un niveau racine${structure ? ' (' + etiquetteType(structure[0]) + ')' : ''}</button>` : '';
+
+  contenu.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+      <div class="titre-page" style="margin-bottom:0">🌳 Arborescence — ${echapper(etat.champ.nom)} (${echapper(etat.classe.nom)})</div>
+      <button class="btn btn-discret" id="btnRetourNavClassique">📋 Navigation classique</button>
+    </div>
+    ${structure ? `<p class="infos-sauvegarde" style="margin-bottom:10px">📐 Structure imposée : ${structure.map(etiquetteType).join(' → ')} → SA → Séance</p>` : ''}
+    ${boutonAjoutRacine}
+    <div class="arborescence">
+      ${racines.length ? racines.map(n => rendreNoeud(n, 0)).join('') : '<p class="chargement">Aucun contenu — commencez par ajouter un niveau racine.</p>'}
+    </div>`;
+
+  document.getElementById('btnRetourNavClassique').addEventListener('click', () => { etat.vueArborescence = false; afficher(); });
+  const btnRacine = document.getElementById('btnArboAjouterRacine');
+  if (btnRacine) btnRacine.addEventListener('click', () => creerNoeudDans(etat.classe.id, etat.champ.id, etat.champ.code, null, 0, afficherArborescence));
+
+  const arbo = document.querySelector('.arborescence');
+  if (!arbo) return;
+  arbo.addEventListener('click', (e) => {
+    const cible = e.target;
+
+    const toggleNoeud = cible.closest('[data-bascule]:not([data-bascule-sa])');
+    if (toggleNoeud) {
+      const conteneur = document.querySelector(`[data-enfants="${toggleNoeud.dataset.bascule}"]`);
+      if (conteneur) {
+        const ouvert = conteneur.style.display !== 'none';
+        conteneur.style.display = ouvert ? 'none' : 'block';
+        document.querySelectorAll(`[data-bascule="${toggleNoeud.dataset.bascule}"].bascule`).forEach(b => b.textContent = ouvert ? '▸' : '▾');
+      }
+      if (!cible.closest('.actions-arbo')) return;
+    }
+
+    const toggleSA = cible.closest('[data-bascule-sa]');
+    if (toggleSA && !cible.closest('.actions-arbo')) {
+      const conteneur = document.querySelector(`[data-enfants-sa="${toggleSA.dataset.basculeSa}"]`);
+      if (conteneur) {
+        const ouvert = conteneur.style.display !== 'none';
+        conteneur.style.display = ouvert ? 'none' : 'block';
+        document.querySelectorAll(`[data-bascule-sa="${toggleSA.dataset.basculeSa}"].bascule`).forEach(b => b.textContent = ouvert ? '▸' : '▾');
+      }
+      return;
+    }
+
+    const btnAjouterNiveau = cible.closest('[data-arbo-ajouter-niveau]');
+    if (btnAjouterNiveau) return creerNoeudDans(etat.classe.id, etat.champ.id, etat.champ.code, parseInt(btnAjouterNiveau.dataset.arboAjouterNiveau, 10), parseInt(btnAjouterNiveau.dataset.profondeur, 10), afficherArborescence);
+
+    const btnAjouterSA = cible.closest('[data-arbo-ajouter-sa]');
+    if (btnAjouterSA) return creerSADans(parseInt(btnAjouterSA.dataset.arboAjouterSa, 10), btnAjouterSA.dataset.typeNoeud, etat.champ.code, afficherArborescence);
+
+    const btnAjouterSeance = cible.closest('[data-arbo-ajouter-seance]');
+    if (btnAjouterSeance) return creerSeanceDans(parseInt(btnAjouterSeance.dataset.arboAjouterSeance, 10), false, afficherArborescence);
+
+    const btnRenommer = cible.closest('[data-arbo-renommer-noeud]');
+    if (btnRenommer) {
+      return ouvrirModal({
+        titre: 'Renommer', champs: [{ nom: 'titre', label: 'Titre', valeur: btnRenommer.dataset.titreActuel }], texteValider: 'Renommer',
+        onValider: async ({ titre }) => {
+          const { error } = await supabaseClient.from('noeuds_parcours').update({ titre }).eq('id', parseInt(btnRenommer.dataset.arboRenommerNoeud, 10));
+          if (error) return alert(error.message);
+          afficherArborescence();
+        }
+      });
+    }
+
+    const btnSupprimerNoeud = cible.closest('[data-arbo-supprimer-noeud]');
+    if (btnSupprimerNoeud) return supprimerNoeud(parseInt(btnSupprimerNoeud.dataset.arboSupprimerNoeud, 10));
+
+    const btnSupprimerSA = cible.closest('[data-arbo-supprimer-sa]');
+    if (btnSupprimerSA) return supprimerSA(parseInt(btnSupprimerSA.dataset.arboSupprimerSa, 10));
+
+    const btnSupprimerSeance = cible.closest('[data-arbo-supprimer-seance]');
+    if (btnSupprimerSeance) return supprimerSeance(parseInt(btnSupprimerSeance.dataset.arboSupprimerSeance, 10), afficherArborescence);
+  });
+}
 function erreur(e) {
   contenu.innerHTML = `<p class="message-erreur">Erreur : ${echapper(e.message)}</p>`;
   console.error(e);
