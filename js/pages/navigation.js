@@ -1,6 +1,6 @@
 // Page pages/navigation.html
 const etat = {
-  classe: null, champ: null, cheminNoeuds: [], discipline: null, sa: null,
+  classe: null, champ: null, cheminNoeuds: [], sa: null,
   peutEditer: false, peutValider: false, profilAdmin: null
 };
 
@@ -27,7 +27,6 @@ function construireFilAriane() {
   if (etat.classe) segments.push({ label: etat.classe.nom, action: 'classe' });
   if (etat.champ) segments.push({ label: etat.champ.nom, action: 'champ' });
   etat.cheminNoeuds.forEach((n, i) => segments.push({ label: n.titre, action: 'noeud', index: i }));
-  if (etat.discipline) segments.push({ label: etat.discipline.titre, action: 'discipline' });
   if (etat.sa) segments.push({ label: etat.sa.titre, action: null });
 
   filAriane.innerHTML = segments.map((s, i) => {
@@ -39,11 +38,10 @@ function construireFilAriane() {
   filAriane.querySelectorAll('[data-fil-action]').forEach(el => {
     el.addEventListener('click', () => {
       const action = el.dataset.filAction;
-      if (action === 'accueil') Object.assign(etat, { classe: null, champ: null, cheminNoeuds: [], discipline: null, sa: null });
-      if (action === 'classe') Object.assign(etat, { champ: null, cheminNoeuds: [], discipline: null, sa: null });
-      if (action === 'champ') Object.assign(etat, { cheminNoeuds: [], discipline: null, sa: null });
-      if (action === 'noeud') { etat.cheminNoeuds = etat.cheminNoeuds.slice(0, parseInt(el.dataset.filIndex, 10) + 1); etat.discipline = null; etat.sa = null; }
-      if (action === 'discipline') etat.sa = null;
+      if (action === 'accueil') Object.assign(etat, { classe: null, champ: null, cheminNoeuds: [], sa: null });
+      if (action === 'classe') Object.assign(etat, { champ: null, cheminNoeuds: [], sa: null });
+      if (action === 'champ') Object.assign(etat, { cheminNoeuds: [], sa: null });
+      if (action === 'noeud') { etat.cheminNoeuds = etat.cheminNoeuds.slice(0, parseInt(el.dataset.filIndex, 10) + 1); etat.sa = null; }
       afficher();
     });
   });
@@ -57,8 +55,7 @@ async function afficher() {
 
   if (!etat.classe) return afficherClasses();
   if (!etat.champ) return afficherChamps();
-  if (!etat.discipline) return afficherNoeuds();
-  if (!etat.sa) return afficherSA();
+  if (!etat.sa) return afficherNoeudsEtSA();
   return afficherSeances();
 }
 
@@ -226,13 +223,15 @@ async function compterUnitesChamp(champ) {
 
   if (compteUnitesDossiers > 0) return compteUnitesDossiers;
 
-  const { data: disciplines } = await supabaseClient
+  // Champs à un seul niveau (pas d'unité/dossier) : on compte les SA
+  // rattachées à n'importe quel noeud racine de ce champ.
+  const { data: racines } = await supabaseClient
     .from('noeuds_parcours').select('id')
-    .eq('classe_id', etat.classe.id).eq('champ_formation_id', champ.id).eq('type_noeud', 'discipline');
-  if (!disciplines || disciplines.length === 0) return 0;
+    .eq('classe_id', etat.classe.id).eq('champ_formation_id', champ.id).is('parent_id', null);
+  if (!racines || racines.length === 0) return 0;
 
   const { count: compteSA } = await supabaseClient
-    .from('sa').select('id', { count: 'exact', head: true }).in('noeud_id', disciplines.map(d => d.id));
+    .from('sa').select('id', { count: 'exact', head: true }).in('noeud_id', racines.map(r => r.id));
   return compteSA || 0;
 }
 
@@ -245,50 +244,92 @@ async function verifierPermissions() {
   etat.peutValider = !!peutValider;
 }
 
-async function afficherNoeuds() {
+async function afficherNoeudsEtSA() {
   const parentId = etat.cheminNoeuds.length ? etat.cheminNoeuds[etat.cheminNoeuds.length - 1].id : null;
-  let requete = supabaseClient.from('noeuds_parcours').select('*').eq('classe_id', etat.classe.id).eq('champ_formation_id', etat.champ.id).order('ordre');
-  requete = parentId ? requete.eq('parent_id', parentId) : requete.is('parent_id', null);
-  const { data, error } = await requete;
-  if (error) return erreur(error);
 
-  const boutonAjout = etat.peutEditer ? `<button class="btn btn-accent" id="btnCreerNoeud" style="margin-bottom:14px">+ Ajouter un niveau</button>` : '';
+  let requeteNoeuds = supabaseClient.from('noeuds_parcours').select('*').eq('classe_id', etat.classe.id).eq('champ_formation_id', etat.champ.id).order('ordre');
+  requeteNoeuds = parentId ? requeteNoeuds.eq('parent_id', parentId) : requeteNoeuds.is('parent_id', null);
+  const { data: noeuds, error: erreurNoeuds } = await requeteNoeuds;
+  if (erreurNoeuds) return erreur(erreurNoeuds);
 
-  if (data.length === 0) {
-    contenu.innerHTML = `<p class="chargement">Aucun contenu créé pour l'instant ici.</p>${boutonAjout}`;
-  } else {
-    contenu.innerHTML = `${boutonAjout}<div class="grille-cartes" id="grilleCartes">${data.map(n => `
-      <div class="carte" data-id="${n.id}"><div class="titre-carte">${echapper(n.titre)}</div><div class="sous-titre-carte">${etiquetteType(n.type_noeud)}</div></div>`).join('')}</div>`;
-    document.getElementById('grilleCartes').addEventListener('click', (e) => {
-      const carte = e.target.closest('[data-id]');
-      if (!carte) return;
-      const n = data.find(x => String(x.id) === carte.dataset.id);
-      if (n.type_noeud === 'discipline') etat.discipline = n; else etat.cheminNoeuds.push(n);
-      afficher();
-    });
+  let sas = [];
+  if (parentId) {
+    const { data, error: erreurSA } = await supabaseClient.from('sa').select('*').eq('noeud_id', parentId).order('ordre');
+    if (erreurSA) return erreur(erreurSA);
+    sas = data;
   }
-  const btnCreer = document.getElementById('btnCreerNoeud');
-  if (btnCreer) btnCreer.addEventListener('click', creerNoeud);
+
+  const boutonAjoutNiveau = etat.peutEditer ? `<button class="btn btn-accent" id="btnCreerNoeud" style="margin-bottom:14px">+ Ajouter un niveau</button>` : '';
+  const boutonAjoutSA = (etat.peutEditer && parentId) ? `<button class="btn btn-accent" id="btnCreerSA" style="margin-bottom:14px;margin-left:8px">+ Nouvelle SA ici</button>` : '';
+
+  let html = `<div style="margin-bottom:10px">${boutonAjoutNiveau}${boutonAjoutSA}</div>`;
+
+  if (noeuds.length > 0) {
+    html += `<div class="titre-cycle" style="margin-top:6px">Niveaux</div>
+      <div class="grille-cartes" id="grilleNoeuds">${noeuds.map(n => `
+        <div class="carte" data-id="${n.id}" style="position:relative">
+          ${etat.peutEditer ? `<button data-supprimer-noeud="${n.id}" title="Supprimer" style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;font-size:14px">🗑️</button>` : ''}
+          <div class="titre-carte">${echapper(n.titre)}</div><div class="sous-titre-carte">${etiquetteType(n.type_noeud)}</div>
+        </div>`).join('')}</div>`;
+  }
+
+  if (sas.length > 0) {
+    html += `<div class="titre-cycle">Situations d'Apprentissage</div>
+      <div class="grille-cartes" id="grilleSA">${sas.map(s => `
+        <div class="carte" data-id="${s.id}" style="position:relative">
+          ${etat.peutEditer ? `<button data-supprimer-sa="${s.id}" title="Supprimer" style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;font-size:14px">🗑️</button>` : ''}
+          <div class="titre-carte">${s.numero ? 'SA' + s.numero + ' — ' : ''}${echapper(s.titre)}</div>${s.description ? `<div class="sous-titre-carte">${echapper(s.description)}</div>` : ''}
+        </div>`).join('')}</div>`;
+  }
+
+  if (noeuds.length === 0 && sas.length === 0) {
+    html += `<p class="chargement">Rien ici pour l'instant — ${parentId ? 'ajoutez un sous-niveau ou une SA' : 'ajoutez un niveau'}.</p>`;
+  }
+
+  contenu.innerHTML = html;
+
+  const grilleNoeuds = document.getElementById('grilleNoeuds');
+  if (grilleNoeuds) grilleNoeuds.addEventListener('click', (e) => {
+    const btnSupprimer = e.target.closest('[data-supprimer-noeud]');
+    if (btnSupprimer) { e.stopPropagation(); return supprimerNoeud(parseInt(btnSupprimer.dataset.supprimerNoeud, 10)); }
+    const carte = e.target.closest('[data-id]');
+    if (!carte) return;
+    etat.cheminNoeuds.push(noeuds.find(x => String(x.id) === carte.dataset.id));
+    afficher();
+  });
+
+  const grilleSA = document.getElementById('grilleSA');
+  if (grilleSA) grilleSA.addEventListener('click', (e) => {
+    const btnSupprimer = e.target.closest('[data-supprimer-sa]');
+    if (btnSupprimer) { e.stopPropagation(); return supprimerSA(parseInt(btnSupprimer.dataset.supprimerSa, 10)); }
+    const carte = e.target.closest('[data-id]');
+    if (!carte) return;
+    etat.sa = sas.find(x => String(x.id) === carte.dataset.id);
+    afficher();
+  });
+
+  const btnCreerNoeud = document.getElementById('btnCreerNoeud');
+  if (btnCreerNoeud) btnCreerNoeud.addEventListener('click', creerNoeud);
+  const btnCreerSA = document.getElementById('btnCreerSA');
+  if (btnCreerSA) btnCreerSA.addEventListener('click', () => creerSA(parentId));
+}
+
+async function supprimerNoeud(id) {
+  if (!confirm("Supprimer ce niveau ? Tout ce qu'il contient (sous-niveaux, SA, séances, blocs) sera supprimé avec.")) return;
+  const { error } = await supabaseClient.from('noeuds_parcours').delete().eq('id', id);
+  if (error) return alert(error.message);
+  afficher();
 }
 
 function etiquetteType(t) {
   return { theme: 'Thème', unite: 'Unité', semaine: 'Semaine', dossier: 'Dossier', discipline: 'Discipline' }[t] || t;
 }
 
-async function afficherSA() {
-  const { data, error } = await supabaseClient.from('sa').select('*').eq('noeud_id', etat.discipline.id).order('ordre');
-  if (error) return erreur(error);
-  const boutonAjout = etat.peutEditer ? `<button class="btn btn-accent" id="btnCreerSA" style="margin-bottom:14px">+ Nouvelle SA</button>` : '';
-  contenu.innerHTML = `${boutonAjout}<div class="grille-cartes" id="grilleCartes">${data.map(s => `
-    <div class="carte" data-id="${s.id}"><div class="titre-carte">${s.numero ? 'SA' + s.numero + ' — ' : ''}${echapper(s.titre)}</div>${s.description ? `<div class="sous-titre-carte">${echapper(s.description)}</div>` : ''}</div>`).join('')}</div>`;
-  document.getElementById('grilleCartes').addEventListener('click', (e) => {
-    const carte = e.target.closest('[data-id]');
-    if (!carte) return;
-    etat.sa = data.find(x => String(x.id) === carte.dataset.id);
-    afficher();
-  });
-  const btnCreer = document.getElementById('btnCreerSA');
-  if (btnCreer) btnCreer.addEventListener('click', creerSA);
+async function supprimerSA(id) {
+  if (!confirm("Supprimer cette SA ? Toutes ses séances et leurs blocs seront supprimés avec.")) return;
+  const { error } = await supabaseClient.from('sa').delete().eq('id', id);
+  if (error) return alert(error.message);
+  afficher();
 }
 
 async function afficherSeances() {
@@ -299,12 +340,26 @@ async function afficherSeances() {
 
   contenu.innerHTML = `${boutonAjout}<div class="liste-lignes">${data.map(s => `
     <div class="ligne">
-      <div><div class="titre-ligne">${echapper(s.titre)}</div><span class="statut-pill statut-${s.statut}">${pillsStatut[s.statut]}</span></div>
-      ${etat.peutEditer ? `<a class="btn btn-primaire" href="editeur-seance.html?id=${s.id}">Modifier la séance</a>` : ''}
+      <div><div class="titre-ligne">${echapper(s.titre)}${s.discipline ? ` <span class="statut-pill" style="background:var(--accent-clair);color:var(--bleu-principal)">${echapper(s.discipline)}</span>` : ''}</div><span class="statut-pill statut-${s.statut}">${pillsStatut[s.statut]}</span></div>
+      <div style="display:flex;gap:8px">
+        ${etat.peutEditer ? `<a class="btn btn-primaire" href="editeur-seance.html?id=${s.id}">Modifier la séance</a>` : ''}
+        ${etat.peutEditer ? `<button class="btn btn-danger" data-supprimer-seance="${s.id}">🗑️</button>` : ''}
+      </div>
     </div>`).join('') || '<p class="chargement">Aucune séance pour l\'instant.</p>'}</div>`;
+
+  contenu.querySelectorAll('[data-supprimer-seance]').forEach(btn => {
+    btn.addEventListener('click', () => supprimerSeance(parseInt(btn.dataset.supprimerSeance, 10)));
+  });
 
   const btnCreer = document.getElementById('btnCreerSeance');
   if (btnCreer) btnCreer.addEventListener('click', creerSeance);
+}
+
+async function supprimerSeance(id) {
+  if (!confirm('Supprimer cette séance et tous ses blocs ?')) return;
+  const { error } = await supabaseClient.from('seances').delete().eq('id', id);
+  if (error) return alert(error.message);
+  afficher();
 }
 
 // --- CRÉATION RAPIDE -----------------------------------------------------
@@ -312,7 +367,7 @@ async function afficherSeances() {
 async function creerNoeud() {
   const titre = prompt("Titre du niveau (ex: Thème 1, Unité 3, Semaine 1, Dossier 2) :");
   if (!titre) return;
-  const type = prompt("Type : theme / unite / semaine / dossier / discipline", "discipline");
+  const type = prompt("Type : theme / unite / semaine / dossier\n(utilisez \"discipline\" uniquement pour un champ à un seul niveau, ex: EPS)", "semaine");
   if (!type) return;
   const parentId = etat.cheminNoeuds.length ? etat.cheminNoeuds[etat.cheminNoeuds.length - 1].id : null;
   const { error } = await supabaseClient.from('noeuds_parcours').insert({
@@ -322,10 +377,11 @@ async function creerNoeud() {
   afficher();
 }
 
-async function creerSA() {
+async function creerSA(noeudParentId) {
+  if (!noeudParentId) return alert("Entrez d'abord dans un niveau (ex: une Semaine) avant de créer une SA.");
   const titre = prompt("Titre de la SA :");
   if (!titre) return;
-  const { error } = await supabaseClient.from('sa').insert({ noeud_id: etat.discipline.id, titre, ordre: 0 });
+  const { error } = await supabaseClient.from('sa').insert({ noeud_id: noeudParentId, titre, ordre: 0 });
   if (error) return alert(error.message);
   afficher();
 }
@@ -333,9 +389,10 @@ async function creerSA() {
 async function creerSeance() {
   const titre = prompt("Titre de la séance :");
   if (!titre) return;
+  const discipline = prompt("Discipline de cette séance (ex: Lecture, Grammaire, Conjugaison, Orthographe, Vocabulaire, Expression écrite, Écriture...) — laissez vide si non applicable :", "");
   const { data: { session } } = await supabaseClient.auth.getSession();
   const { data, error } = await supabaseClient.from('seances').insert({
-    sa_id: etat.sa.id, titre, statut: 'brouillon', ordre: 0, cree_par: session.user.id
+    sa_id: etat.sa.id, titre, discipline: discipline || null, statut: 'brouillon', ordre: 0, cree_par: session.user.id
   }).select().single();
   if (error) return alert(error.message);
   window.location.href = `editeur-seance.html?id=${data.id}`;
