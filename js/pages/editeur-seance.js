@@ -84,7 +84,9 @@ function rendre() {
     <div class="barre-editeur">
       <div>
         <h2 style="margin:0 0 4px;color:var(--bleu-principal)">${seance.titre}</h2>
-        <span class="infos-sauvegarde" id="infoSauvegarde">Dernier enregistrement : ${seance.modifie_le ? new Date(seance.modifie_le).toLocaleString('fr-FR') : '—'}</span>
+        <input type="text" id="inputDiscipline" placeholder="Discipline (ex: Lecture, Grammaire, Conjugaison...)" value="${(seance.discipline || '').replace(/"/g, '&quot;')}"
+          style="border:1px solid var(--bordure);border-radius:6px;padding:4px 8px;font-size:12px;margin:4px 0;width:260px">
+        <br><span class="infos-sauvegarde" id="infoSauvegarde">Dernier enregistrement : ${seance.modifie_le ? new Date(seance.modifie_le).toLocaleString('fr-FR') : '—'}</span>
       </div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <select class="statut-select" id="selectStatut">
@@ -106,6 +108,11 @@ function rendre() {
   `;
 
   document.getElementById('selectStatut').addEventListener('change', gererChangementStatut);
+  document.getElementById('inputDiscipline').addEventListener('change', async (e) => {
+    seance.discipline = e.target.value || null;
+    await supabaseClient.from('seances').update({ discipline: seance.discipline }).eq('id', seance.id);
+    afficherSauvegarde();
+  });
   document.getElementById('listeTypes').addEventListener('click', (e) => {
     const bouton = e.target.closest('[data-ajouter-type]');
     if (bouton) ajouterBloc(bouton.dataset.ajouterType);
