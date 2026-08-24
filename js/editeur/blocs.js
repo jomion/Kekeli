@@ -2,26 +2,53 @@
 // Réutilisé par l'éditeur (édition) et, plus tard, par la vue élève (lecture seule).
 
 const TYPES_BLOCS = [
-  { valeur: 'texte',      label: 'Texte',       icone: '📝', usage: 'Explication' },
-  { valeur: 'titre',      label: 'Titre',       icone: '🔠', usage: 'Section (peut contenir d\'autres blocs)' },
-  { valeur: 'a_retenir',  label: 'À retenir',   icone: '⭐', usage: 'Notion essentielle' },
-  { valeur: 'definition', label: 'Définition',  icone: '📖', usage: 'Terme' },
-  { valeur: 'exemple',    label: 'Exemple',     icone: '💡', usage: 'Illustration' },
-  { valeur: 'attention',  label: 'Attention',   icone: '⚠️', usage: 'Point de vigilance' },
-  { valeur: 'astuce',     label: 'Astuce',      icone: '🎯', usage: 'Mémo / méthode' },
-  { valeur: 'image',      label: 'Image',       icone: '🖼️', usage: 'Illustration' },
-  { valeur: 'video',      label: 'Vidéo',       icone: '🎬', usage: 'Ressource' },
-  { valeur: 'tableau',    label: 'Tableau',     icone: '📊', usage: 'Données' },
-  { valeur: 'formule',    label: 'Formule',     icone: '🧮', usage: 'Mathématiques' },
-  { valeur: 'activite',   label: 'Activité',    icone: '🙋', usage: 'Activité pédagogique' },
-  { valeur: 'exercice',   label: 'Exercice',    icone: '✏️', usage: 'Entraînement interactif' },
-  { valeur: 'quiz',       label: 'Quiz',        icone: '❓', usage: 'Questions' },
-  { valeur: 'evaluation', label: 'Évaluation',  icone: '🧾', usage: 'Évaluation / épreuve' },
-  { valeur: 'ressource',  label: 'Ressource',   icone: '📎', usage: 'Document ou média' },
-  { valeur: 'consigne',   label: 'Consigne',    icone: '📋', usage: 'Section pouvant contenir des items' },
-  { valeur: 'item',       label: 'Item',        icone: '▫️', usage: 'Élément d\'une consigne (Item 1, Item 2...)' },
-  { valeur: 'autre',      label: 'Autre',       icone: '🧩', usage: 'Bloc personnalisé (nom libre)' }
+  { valeur: 'texte',      label: 'Texte',       icone: '📝', usage: 'Explication',        couleur: '#003366' },
+  { valeur: 'titre',      label: 'Titre',       icone: '🔠', usage: 'Section (peut contenir d\'autres blocs)', couleur: '#1D4ED8' },
+  { valeur: 'a_retenir',  label: 'À retenir',   icone: '⭐', usage: 'Notion essentielle',  couleur: '#B8860B' },
+  { valeur: 'definition', label: 'Définition',  icone: '📖', usage: 'Terme',               couleur: '#6D28D9' },
+  { valeur: 'exemple',    label: 'Exemple',     icone: '💡', usage: 'Illustration',        couleur: '#15803D' },
+  { valeur: 'attention',  label: 'Attention',   icone: '⚠️', usage: 'Point de vigilance',  couleur: '#B91C1C' },
+  { valeur: 'astuce',     label: 'Astuce',      icone: '🎯', usage: 'Mémo / méthode',      couleur: '#C2410C' },
+  { valeur: 'image',      label: 'Image',       icone: '🖼️', usage: 'Illustration',       couleur: '#0369A1' },
+  { valeur: 'video',      label: 'Vidéo',       icone: '🎬', usage: 'Ressource',           couleur: '#0369A1' },
+  { valeur: 'tableau',    label: 'Tableau',     icone: '📊', usage: 'Données',             couleur: '#0F766E' },
+  { valeur: 'formule',    label: 'Formule',     icone: '🧮', usage: 'Mathématiques',       couleur: '#6D28D9' },
+  { valeur: 'activite',   label: 'Activité',    icone: '🙋', usage: 'Activité pédagogique', couleur: '#15803D' },
+  { valeur: 'exercice',   label: 'Exercice',    icone: '✏️', usage: 'Entraînement interactif', couleur: '#1D4ED8' },
+  { valeur: 'quiz',       label: 'Quiz',        icone: '❓', usage: 'Questions',           couleur: '#C2410C' },
+  { valeur: 'evaluation', label: 'Évaluation',  icone: '🧾', usage: 'Évaluation / épreuve', couleur: '#B91C1C' },
+  { valeur: 'ressource',  label: 'Ressource',   icone: '📎', usage: 'Document ou média',   couleur: '#64748B' },
+  { valeur: 'consigne',   label: 'Consigne',    icone: '📋', usage: 'Section pouvant contenir des items', couleur: '#003366' },
+  { valeur: 'item',       label: 'Item',        icone: '▫️', usage: 'Élément d\'une consigne (Item 1, Item 2...)', couleur: '#475569' },
+  { valeur: 'autre',      label: 'Autre',       icone: '🧩', usage: 'Bloc personnalisé (nom libre)', couleur: '#64748B' }
 ];
+
+// Convertit une couleur hexadécimale en fond très clair (pour harmoniser
+// automatiquement le fond d'un bloc avec sa couleur de police/bordure).
+function teinteClaire(hex, alpha = 0.08) {
+  if (!hex || hex === 'transparent') return 'transparent';
+  const h = hex.replace('#', '');
+  const complet = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+  const r = parseInt(complet.substring(0, 2), 16);
+  const g = parseInt(complet.substring(2, 4), 16);
+  const b = parseInt(complet.substring(4, 6), 16);
+  if ([r, g, b].some(isNaN)) return 'transparent';
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// Choisit un texte blanc ou foncé selon la luminosité du fond, pour que
+// la couleur de police reste toujours lisible quel que soit le fond choisi.
+function texteContrastant(hex) {
+  if (!hex || hex === 'transparent') return '#003366';
+  const h = hex.replace('#', '');
+  const complet = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+  const r = parseInt(complet.substring(0, 2), 16);
+  const g = parseInt(complet.substring(2, 4), 16);
+  const b = parseInt(complet.substring(4, 6), 16);
+  if ([r, g, b].some(isNaN)) return '#003366';
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.6 ? '#1E293B' : '#ffffff';
+}
 
 function infoType(valeur) {
   return TYPES_BLOCS.find(t => t.valeur === valeur) || { label: valeur, icone: '❔' };
@@ -190,7 +217,7 @@ function html_editeurTableau(bloc, c) {
       <input type="checkbox" data-champ-bordures="1" ${c.bordures !== false ? 'checked' : ''}> Afficher les bordures
     </label>
     <div class="barre-outils-texte"><span class="etiquette-outils">Couleur d'en-tête :</span>${swatchesFondTableau}</div>
-    <table class="tableau-bloc ${c.entete ? 'avec-entete' : ''} ${c.bordures === false ? 'sans-bordures' : ''}" data-tableau="1" style="${c.couleurEntete ? `--couleur-entete-tableau:${c.couleurEntete}` : ''}"><tbody>${html}</tbody></table>
+    <table class="tableau-bloc ${c.entete ? 'avec-entete' : ''} ${c.bordures === false ? 'sans-bordures' : ''}" data-tableau="1" style="${c.couleurEntete ? `--couleur-entete-tableau:${c.couleurEntete};--couleur-texte-entete-tableau:${texteContrastant(c.couleurEntete)}` : ''}"><tbody>${html}</tbody></table>
     <div class="champ-ligne">
       <button class="btn btn-discret" data-action="ajouter-ligne" type="button">+ Ligne</button>
       <button class="btn btn-discret" data-action="supprimer-ligne" type="button">🗑️ Dernière ligne</button>
