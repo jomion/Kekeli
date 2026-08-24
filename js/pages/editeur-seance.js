@@ -28,7 +28,6 @@ async function init() {
 
   document.getElementById('zoneDroite').innerHTML = `
     <span class="badge-utilisateur">${profilAdmin.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${profilAdmin.prenom}</span>
-    <a href="navigation.html" class="btn btn-discret">← Navigation</a>
     <button class="btn btn-discret" onclick="deconnecterAdmin()">Déconnexion</button>
   `;
 
@@ -36,6 +35,12 @@ async function init() {
 
   await chargerSeanceEtContexte();
   if (!seance) { contenu.innerHTML = '<p class="message-erreur">Séance introuvable ou accès refusé.</p>'; return; }
+
+  // Le retour "Navigation" ramène directement au parent immédiat (la SA),
+  // pas à la racine — on ne peut construire ce lien qu'une fois le contexte chargé.
+  const urlRetourSA = urlNavigationVersSA();
+  document.getElementById('zoneDroite').insertAdjacentHTML('afterbegin',
+    `<a href="${urlRetourSA}" class="btn btn-discret">← Retour à la SA</a>`);
 
   peutEditer = await appelerPermission('peut_editer_perimetre');
   peutValider = await appelerPermission('peut_valider_perimetre');
@@ -70,12 +75,23 @@ async function chargerSeanceEtContexte() {
   chaineNavigation = { sa, noeud, classe_id: noeud.classe_id, champ_id: noeud.champ_formation_id, classeNom: classe.nom, champNom: champ.nom };
 }
 
+function urlNavigationVersClasse() {
+  return `navigation.html?classeId=${chaineNavigation.classe_id}`;
+}
+function urlNavigationVersChamp() {
+  return `${urlNavigationVersClasse()}&champId=${chaineNavigation.champ_id}`;
+}
+function urlNavigationVersSA() {
+  return `${urlNavigationVersChamp()}&saId=${chaineNavigation.sa.id}`;
+}
+
 function rendreFilAriane() {
-  // Chaque niveau (immédiat ou éloigné) est cliquable et ramène à la navigation.
+  // Chaque niveau (immédiat ou éloigné) est cliquable et ramène exactement
+  // à cet endroit dans la navigation (pas à la racine).
   filAriane.innerHTML = `
-    <span class="segment" data-retour="navigation.html" title="Retour à la liste des classes">${echapper(chaineNavigation.classeNom)}</span><span class="sep">›</span>
-    <span class="segment" data-retour="navigation.html" title="Retour à ce champ de formation">${echapper(chaineNavigation.champNom)}</span><span class="sep">›</span>
-    <span class="segment" data-retour="navigation.html" title="Retour à cette Situation d'Apprentissage">${echapper(chaineNavigation.sa.titre)}</span><span class="sep">›</span>
+    <span class="segment" data-retour="${urlNavigationVersClasse()}" title="Retour à ce champ de formation">${echapper(chaineNavigation.classeNom)}</span><span class="sep">›</span>
+    <span class="segment" data-retour="${urlNavigationVersChamp()}" title="Retour à ce champ de formation">${echapper(chaineNavigation.champNom)}</span><span class="sep">›</span>
+    <span class="segment" data-retour="${urlNavigationVersSA()}" title="Retour à cette Situation d'Apprentissage">${echapper(chaineNavigation.sa.titre)}</span><span class="sep">›</span>
     <span class="segment actif">${echapper(seance.titre)}</span>`;
 
   filAriane.querySelectorAll('[data-retour]').forEach(el => {
@@ -140,6 +156,13 @@ function rendre() {
     if (bouton) ajouterBloc(bouton.dataset.ajouterType, null);
   });
 
+  // Ferme toute palette de couleur ouverte si on clique ailleurs
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.menu-couleur-bloc')) {
+      document.querySelectorAll('.palette-bloc.ouverte').forEach(p => p.classList.remove('ouverte'));
+    }
+  });
+
   rendreListeBlocs();
 }
 
@@ -170,12 +193,29 @@ function htmlBloc(b) {
   const estSection = TYPES_SECTIONS.includes(b.type_bloc);
   const enfants = estSection ? blocs.filter(x => x.parent_bloc_id === b.id).sort((a, b2) => a.ordre - b2.ordre) : [];
   const ouvert = sectionsOuvertes.has(b.id);
+  const couleur = (b.contenu && b.contenu.couleurBloc) || info.couleur;
+  const afficherTitre = !(b.contenu && b.contenu.afficherTitre === false);
+  const libelle = (b.contenu && b.contenu.libelle) || info.label;
+
+  const swatchesBloc = PALETTE_COULEURS.map(col =>
+    `<button type="button" class="pastille-couleur" data-choisir-couleur-bloc="${col.valeur}" title="${col.nom}" style="background:${col.valeur}"></button>`
+  ).join('');
 
   return `
-    <div class="bloc" draggable="true" data-bloc-id="${b.id}">
+    <div class="bloc" draggable="true" data-bloc-id="${b.id}" style="border-left-color:${couleur};background:${teinteClaire(couleur)}">
       <div class="bloc-entete">
-        <span class="bloc-type">${info.icone} ${info.label}</span>
+        <span class="bloc-type" style="color:${couleur}">
+          ${info.icone}
+          <input type="text" class="libelle-bloc-editable" data-libelle-bloc value="${echapper(libelle)}" style="color:${couleur}">
+        </span>
         <div class="bloc-actions">
+          <label title="Afficher ce nom dans l'aperçu élève" style="display:flex;align-items:center;gap:3px;font-size:11px;font-weight:400;color:var(--texte-gris)">
+            <input type="checkbox" data-toggle-titre-bloc ${afficherTitre ? 'checked' : ''}> Titre visible
+          </label>
+          <div class="menu-couleur-bloc">
+            <button type="button" title="Couleur du bloc" data-ouvrir-couleur-bloc>🎨</button>
+            <div class="palette-bloc" data-palette-bloc>${swatchesBloc}</div>
+          </div>
           <button title="Dupliquer" data-action-bloc="dupliquer">📑</button>
           <button title="Supprimer" data-action-bloc="supprimer">🗑️</button>
         </div>
@@ -213,26 +253,53 @@ function attacherEcouteursBloc(bloc) {
     };
     zoneRiche.addEventListener('input', sauverContenuRiche);
 
+    // La sélection de texte se perd dès qu'on clique un bouton hors de la
+    // zone éditable (le focus part sur le bouton) : c'est ce qui empêchait
+    // le formatage couleur (et les autres commandes) de s'appliquer.
+    // On la sauvegarde en continu et on la restaure juste avant chaque commande.
+    let selectionSauvegardee = null;
+    const sauvegarderSelection = () => {
+      const sel = window.getSelection();
+      if (sel.rangeCount > 0 && zoneRiche.contains(sel.anchorNode)) {
+        selectionSauvegardee = sel.getRangeAt(0).cloneRange();
+      }
+    };
+    zoneRiche.addEventListener('mouseup', sauvegarderSelection);
+    zoneRiche.addEventListener('keyup', sauvegarderSelection);
+    const restaurerSelectionEtFocus = () => {
+      zoneRiche.focus();
+      if (selectionSauvegardee) {
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(selectionSauvegardee);
+      }
+    };
+
     const barreOutils = el.querySelector(':scope > .bloc-corps .barre-outils-texte');
     if (barreOutils) {
       barreOutils.querySelectorAll('[data-cmd]').forEach(btn => {
+        // Empêche le bouton de voler le focus au mousedown (sinon la
+        // sélection dans la zone éditable est perdue avant même le clic).
+        btn.addEventListener('mousedown', (e) => e.preventDefault());
         btn.addEventListener('click', () => {
-          zoneRiche.focus();
+          restaurerSelectionEtFocus();
           if (btn.dataset.cmd === 'hiliteColor') {
             document.execCommand('styleWithCSS', false, true);
-            document.execCommand('hiliteColor', false, btn.dataset.valeur);
+            document.execCommand('hiliteColor', false, btn.dataset.valeur === 'transparent' ? 'transparent' : btn.dataset.valeur);
           } else if (btn.dataset.cmd === 'foreColor') {
             document.execCommand('foreColor', false, btn.dataset.valeur);
           } else {
             document.execCommand(btn.dataset.cmd, false, null);
           }
+          sauvegarderSelection();
           sauverContenuRiche();
         });
       });
       const selectPolice = barreOutils.querySelector('[data-cmd-select="fontName"]');
       if (selectPolice) selectPolice.addEventListener('change', () => {
-        zoneRiche.focus();
+        restaurerSelectionEtFocus();
         document.execCommand('fontName', false, selectPolice.value);
+        sauvegarderSelection();
         sauverContenuRiche();
       });
     }
@@ -244,6 +311,37 @@ function attacherEcouteursBloc(bloc) {
     selectPalier.addEventListener('change', () => {
       bloc.palier = selectPalier.value || null;
       programmerSauvegardeBloc(bloc);
+    });
+  }
+
+  // Nom du bloc modifiable (remplace le libellé figé du type)
+  const inputLibelle = el.querySelector(':scope > .bloc-entete [data-libelle-bloc]');
+  if (inputLibelle) inputLibelle.addEventListener('input', () => {
+    bloc.contenu = { ...bloc.contenu, libelle: inputLibelle.value };
+    programmerSauvegardeBloc(bloc);
+  });
+
+  // Afficher/masquer le nom du bloc dans l'aperçu élève
+  const caseTitreVisible = el.querySelector(':scope > .bloc-entete [data-toggle-titre-bloc]');
+  if (caseTitreVisible) caseTitreVisible.addEventListener('change', () => {
+    bloc.contenu = { ...bloc.contenu, afficherTitre: caseTitreVisible.checked };
+    programmerSauvegardeBloc(bloc);
+  });
+
+  // Couleur du bloc (harmonise automatiquement fond + bordure + libellé)
+  const boutonCouleur = el.querySelector(':scope > .bloc-entete [data-ouvrir-couleur-bloc]');
+  const paletteBloc = el.querySelector(':scope > .bloc-entete [data-palette-bloc]');
+  if (boutonCouleur && paletteBloc) {
+    boutonCouleur.addEventListener('click', (e) => {
+      e.stopPropagation();
+      paletteBloc.classList.toggle('ouverte');
+    });
+    paletteBloc.querySelectorAll('[data-choisir-couleur-bloc]').forEach(swatch => {
+      swatch.addEventListener('click', () => {
+        bloc.contenu = { ...bloc.contenu, couleurBloc: swatch.dataset.choisirCouleurBloc };
+        programmerSauvegardeBloc(bloc);
+        rendreListeBlocs();
+      });
     });
   }
 
@@ -515,9 +613,12 @@ function ouvrirApercu() {
   function rendreBlocApercu(b) {
     const info = infoType(b.type_bloc);
     const c = b.contenu || {};
+    const couleur = c.couleurBloc || info.couleur;
+    const afficherTitre = !(c.afficherTitre === false);
+    const libelle = c.libelle || info.label;
     let corps = '';
     if (TYPES_TEXTE_LIBRE.includes(b.type_bloc)) corps = `<div>${contenuRicheInitial(c.texte)}</div>`;
-    else if (b.type_bloc === 'titre') corps = `<h3>${echapper(c.texte)}</h3>`;
+    else if (b.type_bloc === 'titre') corps = `<h3 style="margin:0">${echapper(c.texte)}</h3>`;
     else if (b.type_bloc === 'consigne') corps = `<p>${echapper(c.texte)}</p>`;
     else if (b.type_bloc === 'autre') corps = `${c.nom ? `<p style="font-weight:700">${echapper(c.nom)}</p>` : ''}<p>${echapper(c.texte)}</p>`;
     else if (b.type_bloc === 'image') corps = `<img src="${echapper(c.url)}" style="max-width:100%;border-radius:8px"><p><em>${echapper(c.legende)}</em></p>`;
@@ -529,8 +630,10 @@ function ouvrirApercu() {
       const masquee = (i, j) => fusions.some(f => f.ligne === i && j > f.colonneDebut && j <= f.colonneFin);
       const colspan = (i, j) => { const f = fusions.find(f => f.ligne === i && f.colonneDebut === j); return f ? (f.colonneFin - f.colonneDebut + 1) : 1; };
       const bordure = c.bordures === false ? 'none' : '1px solid #E2E8F0';
+      const couleurEntete = c.couleurEntete || '#F4F7F9';
+      const texteEntete = c.couleurEntete ? texteContrastant(c.couleurEntete) : '#003366';
       const lignesHtml = (c.lignes || []).map((l, i) => {
-        const style = c.entete && i === 0 ? ` style="background:${c.couleurEntete || '#F4F7F9'};font-weight:800;color:#003366"` : '';
+        const style = c.entete && i === 0 ? ` style="background:${couleurEntete};font-weight:800;color:${texteEntete}"` : '';
         return `<tr${style}>${l.map((cel, j) => masquee(i, j) ? '' : `<td ${colspan(i, j) > 1 ? `colspan="${colspan(i, j)}"` : ''} style="border:${bordure};padding:6px">${echapper(cel)}</td>`).join('')}</tr>`;
       }).join('');
       corps = `${c.titre ? `<p style="font-weight:700;margin-bottom:6px">${echapper(c.titre)}</p>` : ''}<table style="border-collapse:collapse;width:100%">${lignesHtml}</table>`;
@@ -538,8 +641,8 @@ function ouvrirApercu() {
     else corps = `<p>${echapper(c.consigne)}</p>${b.palier ? `<p><em>Palier : ${b.palier}</em></p>` : ''}`;
 
     const enfants = blocs.filter(x => x.parent_bloc_id === b.id).sort((a, b2) => a.ordre - b2.ordre);
-    return `<div style="margin-bottom:18px;padding:14px;border-left:4px solid #003366;background:#F4F7F9;border-radius:8px">
-      <div style="font-size:12px;font-weight:bold;color:#003366;text-transform:uppercase">${info.icone} ${info.label}</div>
+    return `<div style="margin-bottom:18px;padding:14px;border-left:4px solid ${couleur};background:${teinteClaire(couleur, 0.06)};border-radius:8px">
+      ${afficherTitre ? `<div style="font-size:12px;font-weight:bold;color:${couleur};text-transform:uppercase;margin-bottom:6px">${info.icone} ${echapper(libelle)}</div>` : ''}
       ${corps}
       ${enfants.length ? `<div style="margin-left:16px;margin-top:10px;border-left:2px dashed #E2E8F0;padding-left:12px">${enfants.map(rendreBlocApercu).join('')}</div>` : ''}
     </div>`;
@@ -548,10 +651,16 @@ function ouvrirApercu() {
   const topNiveau = blocs.filter(b => !b.parent_bloc_id).sort((a, b) => a.ordre - b.ordre);
   const html = topNiveau.map(rendreBlocApercu).join('');
 
+  // La discipline est mise en avant (au-dessus du titre), comme dans l'arborescence.
+  const enTeteTitre = seance.discipline
+    ? `<div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#FFCC00;background:#003366;display:inline-block;padding:4px 12px;border-radius:6px;margin-bottom:8px">${echapper(seance.discipline)}</div>
+       <h1 style="color:#003366;margin:0 0 20px">${echapper(seance.titre)}</h1>`
+    : `<h1 style="color:#003366;margin:0 0 20px">${echapper(seance.titre)}</h1>`;
+
   fenetre.document.write(`
     <html><head><meta charset="UTF-8"><title>Aperçu — ${echapper(seance.titre)}</title>
     <style>body{font-family:'Segoe UI',sans-serif;max-width:700px;margin:30px auto;padding:0 20px;color:#1E293B}</style>
-    </head><body><h1 style="color:#003366">${echapper(seance.titre)}</h1>${html}</body></html>`);
+    </head><body>${enTeteTitre}${html}</body></html>`);
   fenetre.document.close();
 }
 
