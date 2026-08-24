@@ -37,7 +37,8 @@ a { text-decoration: none; color: inherit; }
   top: 0;
   z-index: 100;
 }
-.header .logo { font-size: 20px; font-weight: 800; color: var(--bleu-principal); }
+.header .logo { font-size: 20px; font-weight: 800; color: var(--bleu-principal); display: flex; align-items: center; gap: 8px; }
+.header .logo img { height: 32px; width: auto; display: block; }
 .header .zone-droite { display: flex; align-items: center; gap: 12px; }
 .badge-utilisateur { background: var(--bleu-clair); color: var(--bleu-principal); padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
 .btn-deconnexion { background: none; border: 1px solid var(--bordure); color: var(--texte-gris); padding: 6px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; }
@@ -48,7 +49,7 @@ a { text-decoration: none; color: inherit; }
   background: linear-gradient(135deg, var(--bleu-principal) 0%, var(--bleu-nuit) 100%);
   color: white;
 }
-.hero .logo-hero { font-size: 26px; font-weight: 800; margin-bottom: 18px; letter-spacing: .5px; }
+.hero img.logo-hero { height: 64px; width: auto; margin-bottom: 16px; }
 .hero h1 { font-size: 36px; font-weight: 800; margin: 0 0 12px; }
 .hero p { font-size: 16px; color: #CBD5E1; max-width: 520px; margin: 0 auto 28px; line-height: 1.6; }
 .hero .boutons-hero { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
