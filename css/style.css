@@ -42,6 +42,43 @@ a { text-decoration: none; color: inherit; }
 .badge-utilisateur { background: var(--bleu-clair); color: var(--bleu-principal); padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
 .btn-deconnexion { background: none; border: 1px solid var(--bordure); color: var(--texte-gris); padding: 6px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; }
 
+/* ===== Page d'accueil publique ===== */
+.hero {
+  text-align: center; padding: 70px 20px 60px;
+  background: linear-gradient(135deg, var(--bleu-principal) 0%, var(--bleu-nuit) 100%);
+  color: white;
+}
+.hero .logo-hero { font-size: 26px; font-weight: 800; margin-bottom: 18px; letter-spacing: .5px; }
+.hero h1 { font-size: 36px; font-weight: 800; margin: 0 0 12px; }
+.hero p { font-size: 16px; color: #CBD5E1; max-width: 520px; margin: 0 auto 28px; line-height: 1.6; }
+.hero .boutons-hero { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.btn-cta { padding: 13px 26px; border-radius: 8px; font-weight: 800; font-size: 15px; }
+.btn-cta-primaire { background: var(--accent); color: var(--bleu-principal); }
+.btn-cta-primaire:hover { background: var(--accent-fonce); }
+.btn-cta-secondaire { background: rgba(255,255,255,0.12); color: white; border: 1px solid rgba(255,255,255,0.4); }
+.btn-cta-secondaire:hover { background: rgba(255,255,255,0.2); }
+
+.section-accueil { max-width: 1100px; margin: 0 auto; padding: 50px 20px; }
+.section-accueil h2 { text-align: center; font-size: 24px; font-weight: 800; color: var(--bleu-principal); margin-bottom: 8px; }
+.section-accueil .sous-titre-page { text-align: center; margin: 0 auto 30px; max-width: 500px; }
+
+.grille-roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; }
+.carte-role {
+  background: white; border-radius: 12px; padding: 22px; text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-top: 4px solid var(--bleu-principal);
+}
+.carte-role .icone-role { font-size: 32px; margin-bottom: 10px; }
+.carte-role h3 { font-size: 15px; color: var(--bleu-principal); margin: 0 0 6px; }
+.carte-role p { font-size: 13px; color: var(--texte-gris); line-height: 1.5; margin: 0; }
+
+.grille-paliers { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+.puce-palier {
+  display: flex; align-items: center; gap: 8px; background: white; border-radius: 30px;
+  padding: 10px 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); font-size: 13px; font-weight: 700; color: var(--bleu-principal);
+}
+
+.pied-de-page-public { background: var(--bleu-fonce); color: #CBD5E1; text-align: center; padding: 24px 20px; font-size: 13px; }
+
 .conteneur { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
 
 .fil-ariane { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; color: var(--texte-gris); margin-bottom: 20px; }
