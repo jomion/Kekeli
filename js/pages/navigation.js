@@ -286,7 +286,9 @@ async function afficherNoeudsEtSA() {
   // Pour un champ à structure imposée : niveau max atteint => plus de sous-niveau, seulement des SA.
   const auNiveauMax = structure ? profondeur >= structure.length : false;
   const peutAjouterNiveau = etat.peutEditer && !auNiveauMax;
-  const peutAjouterSA = etat.peutEditer && parentId && (!structure || auNiveauMax);
+  // Pour les champs SANS structure imposée (Français mis à part), une SA
+  // peut être ajoutée directement après le champ, sans niveau intermédiaire.
+  const peutAjouterSA = etat.peutEditer && (structure ? (parentId && auNiveauMax) : true);
 
   let requeteNoeuds = supabaseClient.from('noeuds_parcours').select('*').eq('classe_id', etat.classe.id).eq('champ_formation_id', etat.champ.id).order('ordre');
   requeteNoeuds = parentId ? requeteNoeuds.eq('parent_id', parentId) : requeteNoeuds.is('parent_id', null);
@@ -502,14 +504,33 @@ function creerSADans(noeudParentId, typeNoeudParent, champCode, apresCreation) {
   });
 }
 
-function creerSA(noeudParentId) {
-  if (!noeudParentId) return alert("Entrez d'abord dans un niveau avant de créer une SA.");
+async function creerSA(noeudParentId) {
   const structure = structureImposeeChamp();
   if (structure && etat.cheminNoeuds.length < structure.length) {
     return alert(`Pour ${etat.champ.nom}, une SA ne peut être créée qu'au niveau "${etiquetteType(structure[structure.length - 1])}". Continuez à descendre dans les niveaux.`);
   }
+
+  if (!noeudParentId) {
+    // Champ sans structure imposée : on crée (ou réutilise) un niveau
+    // racine implicite pour porter la SA directement sous le champ.
+    noeudParentId = await obtenirOuCreerNoeudRacineImplicite();
+    if (!noeudParentId) return;
+  }
+
   const typeNoeudParent = structure ? structure[structure.length - 1] : null;
   creerSADans(noeudParentId, typeNoeudParent, etat.champ.code, afficher);
+}
+
+async function obtenirOuCreerNoeudRacineImplicite() {
+  const { data: existants } = await supabaseClient.from('noeuds_parcours').select('*')
+    .eq('classe_id', etat.classe.id).eq('champ_formation_id', etat.champ.id).is('parent_id', null).order('ordre');
+  if (existants && existants.length > 0) return existants[0].id;
+
+  const { data: cree, error } = await supabaseClient.from('noeuds_parcours').insert({
+    classe_id: etat.classe.id, champ_formation_id: etat.champ.id, parent_id: null, type_noeud: 'discipline', titre: etat.champ.nom, ordre: 0
+  }).select().single();
+  if (error) { alert(error.message); return null; }
+  return cree.id;
 }
 
 function creerSeanceDans(saId, redirigerVersEditeur = true, onCree) {
@@ -738,6 +759,7 @@ async function afficherArborescence() {
 
   const racines = enfantsParParent['racine'] || [];
   const boutonAjoutRacine = etat.peutEditer ? `<button class="btn btn-accent" id="btnArboAjouterRacine" style="margin-bottom:14px">+ Ajouter un niveau racine${structure ? ' (' + etiquetteType(structure[0]) + ')' : ''}</button>` : '';
+  const boutonAjoutSARacine = (etat.peutEditer && !structure) ? `<button class="btn btn-accent" id="btnArboAjouterSARacine" style="margin-bottom:14px;margin-left:8px">+ SA directement</button>` : '';
 
   contenu.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
@@ -745,12 +767,19 @@ async function afficherArborescence() {
       <button class="btn btn-discret" id="btnRetourNavClassique">📋 Navigation classique</button>
     </div>
     ${structure ? `<p class="infos-sauvegarde" style="margin-bottom:10px">📐 Structure imposée : ${structure.map(etiquetteType).join(' → ')} → SA → Séance</p>` : ''}
-    ${boutonAjoutRacine}
+    ${boutonAjoutRacine}${boutonAjoutSARacine}
     <div class="arborescence">
       ${racines.length ? racines.map(n => rendreNoeud(n, 0)).join('') : '<p class="chargement">Aucun contenu — commencez par ajouter un niveau racine.</p>'}
     </div>`;
 
   document.getElementById('btnRetourNavClassique').addEventListener('click', () => { etat.vueArborescence = false; afficher(); });
+  const btnSARacine = document.getElementById('btnArboAjouterSARacine');
+  if (btnSARacine) btnSARacine.addEventListener('click', async () => {
+    const idRacine = await obtenirOuCreerNoeudRacineImplicite();
+    if (!idRacine) return;
+    noeudsOuverts.add(idRacine);
+    creerSADans(idRacine, 'discipline', etat.champ.code, afficherArborescence);
+  });
   const btnRacine = document.getElementById('btnArboAjouterRacine');
   if (btnRacine) btnRacine.addEventListener('click', () => creerNoeudDans(etat.classe.id, etat.champ.id, etat.champ.code, null, 0, afficherArborescence));
 
@@ -840,4 +869,28 @@ function echapper(v) {
   return (v || '').toString().replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
 
-afficher();
+// --- POINT D'ENTRÉE : reprend le contexte depuis l'URL si présent --------
+// (ex: retour depuis l'éditeur de séance, qui ramène directement à la SA
+// plutôt qu'à la racine — voir urlNavigationVersSA() dans editeur-seance.js)
+async function initDepuisURL() {
+  const p = new URLSearchParams(window.location.search);
+  const classeId = p.get('classeId');
+  const champId = p.get('champId');
+  const saId = p.get('saId');
+
+  if (classeId) {
+    const { data: classe } = await supabaseClient.from('classes').select('*').eq('id', classeId).single();
+    if (classe) etat.classe = classe;
+  }
+  if (etat.classe && champId) {
+    const { data: champ } = await supabaseClient.from('champs_formation').select('*').eq('id', champId).single();
+    if (champ) { etat.champ = champ; etat.vueArborescence = false; await verifierPermissions(); }
+  }
+  if (etat.champ && saId) {
+    const { data: sa } = await supabaseClient.from('sa').select('*').eq('id', saId).single();
+    if (sa) etat.sa = sa;
+  }
+  afficher();
+}
+
+initDepuisURL();
