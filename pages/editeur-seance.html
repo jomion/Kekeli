@@ -17,9 +17,22 @@
   .bloc.en-glissement { opacity: 0.4; }
   .bloc-entete { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
   .bloc-type { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--bleu-principal); }
-  .bloc-actions { display: flex; gap: 6px; }
+  .bloc-actions { display: flex; gap: 6px; align-items: center; }
   .bloc-actions button { background: none; border: none; cursor: pointer; font-size: 15px; padding: 3px 6px; border-radius: 6px; }
   .bloc-actions button:hover { background: var(--bordure); }
+  .libelle-bloc-editable {
+    border: none; background: none; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px;
+    padding: 2px 4px; border-radius: 4px; width: 140px;
+  }
+  .libelle-bloc-editable:hover, .libelle-bloc-editable:focus { background: rgba(0,0,0,0.05); outline: none; }
+  .menu-couleur-bloc { position: relative; }
+  .menu-couleur-bloc > button { background: none; border: none; cursor: pointer; font-size: 14px; padding: 3px 6px; border-radius: 6px; }
+  .menu-couleur-bloc > button:hover { background: var(--bordure); }
+  .palette-bloc {
+    display: none; position: absolute; right: 0; top: 100%; margin-top: 4px; background: white; border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.15); padding: 8px; z-index: 15; width: 140px; flex-wrap: wrap; gap: 6px;
+  }
+  .palette-bloc.ouverte { display: flex; }
   .bloc textarea, .bloc input[type=text], .bloc input[type=url] {
     width: 100%; border: 1px solid var(--bordure); border-radius: 6px; padding: 8px; font-size: 14px; font-family: inherit;
   }
@@ -36,6 +49,17 @@
   table.tableau-bloc { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
   table.tableau-bloc td { border: 1px solid var(--bordure); padding: 0; }
   table.tableau-bloc input { border: none; padding: 6px; width: 100%; font-size: 13px; }
+  table.tableau-bloc.avec-entete tr:first-child input { font-weight: 800; color: var(--couleur-texte-entete-tableau, var(--bleu-principal)); }
+  table.tableau-bloc.avec-entete tr:first-child td { background: var(--couleur-entete-tableau, var(--bleu-clair)); }
+  table.tableau-bloc.sans-bordures td { border: none; }
+  .cellule-action-tableau { border: none !important; }
+  .pastille-couleur {
+    width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--bordure); cursor: pointer; padding: 0;
+  }
+  .pastille-couleur:hover { border-color: var(--bleu-principal); transform: scale(1.1); }
+  .etiquette-outils { font-size: 12px; color: var(--texte-gris); margin-right: 4px; align-self: center; }
+  .bouton-fusion { border: none; background: none; cursor: pointer; font-size: 11px; padding: 0 0 0 4px; vertical-align: middle; }
+  td { position: relative; }
 </style>
 </head>
 <body>
