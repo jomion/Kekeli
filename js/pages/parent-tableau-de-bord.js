@@ -7,6 +7,7 @@ let profilParent = null;
   if (!profilParent) return;
 
   document.getElementById('badgeUtilisateur').textContent = `🟢 ${profilParent.prenom} ${profilParent.nom}`;
+  initClocheNotifications('zoneCloche', profilParent.id);
 
   await afficherTableauDeBord();
 })();

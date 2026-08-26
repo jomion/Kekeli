@@ -20,11 +20,14 @@ const filAriane = document.getElementById('filAriane');
   if (!profil) return;
   etat.profilAdmin = profil;
   document.getElementById('zoneDroite').innerHTML = `
+    <div id="zoneCloche"></div>
     <span class="badge-utilisateur">${profil.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${profil.prenom}</span>
     <a href="admin/devoirs-notes.html" class="btn btn-discret">📊 Devoirs &amp; notes</a>
+    <a href="admin/enseignants.html" class="btn btn-discret">🧑‍🏫 Enseignants</a>
     <button class="btn btn-discret" id="btnDeconnexion">Déconnexion</button>
   `;
   document.getElementById('btnDeconnexion').addEventListener('click', deconnecterAdmin);
+  initClocheNotifications('zoneCloche', profil.id);
 })();
 
 // --- FIL D'ARIANE ------------------------------------------------------

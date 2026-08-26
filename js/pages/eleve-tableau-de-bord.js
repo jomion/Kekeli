@@ -5,6 +5,7 @@
   if (!profil) return;
 
   document.getElementById('badgeUtilisateur').textContent = `🟢 ${profil.prenom}`;
+  initClocheNotifications('zoneCloche', profil.id);
 
   const { data: fiche } = await supabaseClient.from('eleves').select('mascotte, classe_id').eq('id', profil.id).single();
   const mascotte = fiche?.mascotte || '🦁';
