@@ -131,3 +131,22 @@ nav.nav-publique a:hover { color: var(--accent-cyan); }
 .mascot-option.selected, .mascot-option:hover { border-color: var(--accent-cyan); background: #E6FBFF; }
 
 .bandeau-succes { background: #E6F9EF; color: #0F7A45; border: 1px solid #b7ebc9; border-radius: 8px; padding: 12px 16px; font-size: 13px; margin-bottom: 18px; text-align: center; }
+
+/* ===== Listes (devoirs, notes) ===== */
+.liste-lignes-pub { display: flex; flex-direction: column; gap: 10px; }
+.ligne-pub { background: white; border-radius: 10px; padding: 14px 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ligne-pub .titre-ligne-pub { font-weight: 700; font-size: 14px; color: var(--noir-kekeli); }
+.ligne-pub .sous-ligne-pub { font-size: 12px; color: var(--text-gris); margin-top: 2px; }
+.pastille-statut { font-size: 11px; font-weight: 800; padding: 4px 12px; border-radius: 12px; white-space: nowrap; }
+.pastille-a_faire { background: #F1F5F9; color: var(--text-gris); }
+.pastille-rendu { background: #E6F9EF; color: #0F7A45; }
+.pastille-en_retard { background: #FCEBEB; color: var(--rouge); }
+.pastille-corrige { background: #E6FBFF; color: var(--bleu-kekeli); }
+.pastille-note { background: var(--bleu-kekeli); color: white; font-size: 13px; font-weight: 800; padding: 4px 12px; border-radius: 12px; }
+.pastille-acquis { background: #E6F9EF; color: #0F7A45; }
+.pastille-en_cours { background: #FFF6E0; color: #92620A; }
+.pastille-non_acquis { background: #FCEBEB; color: var(--rouge); }
+.selecteur-enfant { display: flex; gap: 8px; margin-bottom: 22px; flex-wrap: wrap; }
+.selecteur-enfant button { padding: 8px 16px; border-radius: 20px; border: 2px solid var(--bordure); background: white; font-weight: 700; font-size: 13px; cursor: pointer; }
+.selecteur-enfant button.actif { border-color: var(--bleu-kekeli); background: var(--bleu-kekeli); color: white; }
+.titre-section-pub { font-size: 17px; font-weight: 800; color: var(--noir-kekeli); margin: 26px 0 12px; }

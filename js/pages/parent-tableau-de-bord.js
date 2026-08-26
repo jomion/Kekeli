@@ -43,11 +43,11 @@ async function afficherTableauDeBord() {
         <p>Créer le compte de votre enfant pour qu'il accède à son espace.</p>
         <button class="btn btn-filled" id="btnInscrireEnfant">Inscrire</button>
       </div>
-      <div class="carte-action-tb a-venir">
+      <a href="devoirs-notes.html" class="carte-action-tb disponible" style="text-decoration:none;color:inherit;display:block">
         <div class="icone-action-tb">📊</div>
         <h3>Suivi des devoirs et notes</h3>
-        <p>Bientôt disponible.</p>
-      </div>
+        <p>Consulter les devoirs et évaluations de vos enfants.</p>
+      </a>
       <div class="carte-action-tb a-venir">
         <div class="icone-action-tb">💬</div>
         <h3>Messagerie enseignant</h3>

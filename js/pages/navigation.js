@@ -21,6 +21,7 @@ const filAriane = document.getElementById('filAriane');
   etat.profilAdmin = profil;
   document.getElementById('zoneDroite').innerHTML = `
     <span class="badge-utilisateur">${profil.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${profil.prenom}</span>
+    <a href="admin/devoirs-notes.html" class="btn btn-discret">📊 Devoirs &amp; notes</a>
     <button class="btn btn-discret" id="btnDeconnexion">Déconnexion</button>
   `;
   document.getElementById('btnDeconnexion').addEventListener('click', deconnecterAdmin);

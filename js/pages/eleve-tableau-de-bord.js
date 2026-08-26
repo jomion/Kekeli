@@ -33,11 +33,11 @@
         <h3>Mes badges</h3>
         <p>Bientôt disponible.</p>
       </div>
-      <div class="carte-action-tb a-venir">
+      <a href="devoirs-notes.html" class="carte-action-tb disponible" style="text-decoration:none;color:inherit;display:block">
         <div class="icone-action-tb">📊</div>
         <h3>Mes notes et devoirs</h3>
-        <p>Bientôt disponible.</p>
-      </div>
+        <p>Voir mes devoirs à rendre et mes notes.</p>
+      </a>
     </div>
   `;
 })();
