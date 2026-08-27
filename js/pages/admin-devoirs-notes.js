@@ -45,7 +45,7 @@ async function afficherGestion() {
   const zone = document.getElementById('zoneGestion');
   zone.innerHTML = '<div class="chargement">Chargement...</div>';
 
-  const { data: eleves } = await supabaseClient.from('eleves').select('id, profils:id(prenom, nom)').eq('classe_id', classeSelectionnee);
+  const { data: eleves } = await supabaseClient.from('eleves').select('id, profils(prenom, nom)').eq('classe_id', classeSelectionnee);
   const { data: devoirs } = await supabaseClient.from('devoirs').select('*').eq('classe_id', classeSelectionnee).eq('champ_formation_id', champSelectionne).order('date_limite');
   const idsEleves = (eleves || []).map(e => e.id);
   const { data: evaluations } = idsEleves.length
