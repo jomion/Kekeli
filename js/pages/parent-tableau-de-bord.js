@@ -24,7 +24,7 @@ async function afficherTableauDeBord() {
 
     const { data: abonnements } = await supabaseClient
       .from('abonnements_enseignant_eleve')
-      .select('*, enseignants:enseignant_id(profils:id(prenom, nom))')
+      .select('*, enseignants(profils(prenom, nom))')
       .in('eleve_id', idsEnfants);
     (abonnements || []).forEach(a => { (abonnementsParEnfant[a.eleve_id] ??= []).push(a); });
   }
