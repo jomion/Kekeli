@@ -38,8 +38,9 @@ async function afficherTableauDeBord() {
       </div>
       <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
         ${(abonnementsParEnfant[e.id] || []).map(a => `
-          <span class="pastille-statut pastille-${a.statut === 'accepte' ? 'rendu' : a.statut === 'refuse' ? 'en_retard' : 'a_faire'}">
+          <span class="pastille-statut pastille-${a.statut === 'accepte' ? 'rendu' : a.statut === 'refuse' ? 'en_retard' : 'a_faire'}" style="display:inline-flex;align-items:center;gap:6px">
             ${a.enseignants?.profils?.prenom || ''} ${a.enseignants?.profils?.nom || ''} — ${LIBELLES_STATUT_AB[a.statut]}
+            ${a.statut === 'en_attente' ? `<button data-annuler-demande="${a.id}" title="Annuler la demande" style="background:none;border:none;cursor:pointer;font-size:12px;color:inherit">✕</button>` : ''}
           </span>`).join('') || '<span style="font-size:12px;color:var(--text-gris)">Aucun enseignant suivi pour l\'instant.</span>'}
       </div>
     </div>`).join('') : `<p style="color:var(--text-gris)">Aucun enfant inscrit pour l'instant.</p>`;
@@ -83,6 +84,17 @@ async function afficherTableauDeBord() {
   document.getElementById('btnInscrireEnfant').addEventListener('click', ouvrirInscriptionEnfant);
   document.querySelectorAll('[data-suivre-enfant]').forEach(btn => {
     btn.addEventListener('click', () => ouvrirDemandeSuivi(btn.dataset.suivreEnfant));
+  });
+  document.querySelectorAll('[data-annuler-demande]').forEach(btn => {
+    btn.addEventListener('click', () => annulerDemandeSuivi(parseInt(btn.dataset.annulerDemande, 10)));
+  });
+}
+
+async function annulerDemandeSuivi(abonnementId) {
+  confirmerAction('Annuler cette demande ?', async () => {
+    const { error } = await supabaseClient.from('abonnements_enseignant_eleve').delete().eq('id', abonnementId);
+    if (error) return alert(error.message);
+    afficherTableauDeBord();
   });
 }
 
