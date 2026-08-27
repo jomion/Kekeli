@@ -13,7 +13,7 @@ let elevesSuivisIds = []; // élèves dont l'abonnement est accepté pour cet en
 
   const { data: abonnements } = await supabaseClient
     .from('abonnements_enseignant_eleve')
-    .select('eleve_id, eleves:eleve_id(classe_id)')
+    .select('eleve_id, eleves(classe_id)')
     .eq('enseignant_id', profilEnseignant.id).eq('statut', 'accepte');
 
   elevesSuivisIds = (abonnements || []).map(a => a.eleve_id);
@@ -62,7 +62,7 @@ async function afficherGestionEns() {
   const zone = document.getElementById('zoneGestionEns');
   zone.innerHTML = '<p style="color:var(--text-gris)">Chargement...</p>';
 
-  const { data: eleves } = await supabaseClient.from('eleves').select('id, profils:id(prenom, nom)')
+  const { data: eleves } = await supabaseClient.from('eleves').select('id, profils(prenom, nom)')
     .eq('classe_id', classeSelectionneeEns).in('id', elevesSuivisIds);
   const { data: devoirs } = await supabaseClient.from('devoirs').select('*').eq('classe_id', classeSelectionneeEns).eq('champ_formation_id', champSelectionneEns).order('date_limite');
   const idsEleves = (eleves || []).map(e => e.id);
