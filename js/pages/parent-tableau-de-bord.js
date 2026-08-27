@@ -17,14 +17,32 @@ async function afficherTableauDeBord() {
   const idsEnfants = (liens || []).map(l => l.eleve_id);
 
   let enfants = [];
+  let abonnementsParEnfant = {};
   if (idsEnfants.length > 0) {
     const { data: profilsEnfants } = await supabaseClient.from('profils').select('id, prenom, nom').in('id', idsEnfants);
     enfants = profilsEnfants || [];
+
+    const { data: abonnements } = await supabaseClient
+      .from('abonnements_enseignant_eleve')
+      .select('*, profils:enseignant_id(prenom, nom)')
+      .in('eleve_id', idsEnfants);
+    (abonnements || []).forEach(a => { (abonnementsParEnfant[a.eleve_id] ??= []).push(a); });
   }
 
-  const listeEnfants = enfants.length > 0
-    ? enfants.map(e => `<li>${e.prenom} ${e.nom}</li>`).join('')
-    : `<li>Aucun enfant inscrit pour l'instant.</li>`;
+  const LIBELLES_STATUT_AB = { en_attente: 'En attente', accepte: 'Accepté', refuse: 'Refusé' };
+  const blocEnfants = enfants.length > 0 ? enfants.map(e => `
+    <div style="border-bottom:1px solid var(--bordure);padding:12px 0">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <strong>${e.prenom} ${e.nom}</strong>
+        <button class="btn btn-filled" data-suivre-enfant="${e.id}" style="padding:6px 14px;font-size:12px">🔗 Suivre un enseignant</button>
+      </div>
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+        ${(abonnementsParEnfant[e.id] || []).map(a => `
+          <span class="pastille-statut pastille-${a.statut === 'accepte' ? 'rendu' : a.statut === 'refuse' ? 'en_retard' : 'a_faire'}">
+            ${a.profils?.prenom || ''} ${a.profils?.nom || ''} — ${LIBELLES_STATUT_AB[a.statut]}
+          </span>`).join('') || '<span style="font-size:12px;color:var(--text-gris)">Aucun enseignant suivi pour l\'instant.</span>'}
+      </div>
+    </div>`).join('') : `<p style="color:var(--text-gris)">Aucun enfant inscrit pour l'instant.</p>`;
 
   document.getElementById('contenu').innerHTML = `
     <div class="carte-bienvenue">
@@ -34,7 +52,7 @@ async function afficherTableauDeBord() {
 
     <div class="carte-bienvenue" style="border-top-color:var(--bleu-kekeli)">
       <h1 style="font-size:18px">Mes enfants</h1>
-      <ul style="color:var(--text-gris);padding-left:20px">${listeEnfants}</ul>
+      ${blocEnfants}
     </div>
 
     <div class="grille-actions-tb">
@@ -63,6 +81,32 @@ async function afficherTableauDeBord() {
   `;
 
   document.getElementById('btnInscrireEnfant').addEventListener('click', ouvrirInscriptionEnfant);
+  document.querySelectorAll('[data-suivre-enfant]').forEach(btn => {
+    btn.addEventListener('click', () => ouvrirDemandeSuivi(btn.dataset.suivreEnfant));
+  });
+}
+
+function ouvrirDemandeSuivi(eleveId) {
+  ouvrirModal({
+    titre: "Demander le suivi d'un enseignant",
+    champs: [{ nom: 'email', label: "E-mail de l'enseignant", type: 'email', placeholder: 'nom@exemple.com' }],
+    texteValider: 'Envoyer la demande',
+    onValider: async ({ email }) => {
+      const { data: enseignants, error } = await supabaseClient.rpc('trouver_enseignant_par_email', { p_email: email });
+      if (error) return alert(error.message);
+      if (!enseignants || enseignants.length === 0) return alert("Aucun enseignant trouvé avec cet e-mail.");
+
+      const { error: erreurDemande } = await supabaseClient.from('abonnements_enseignant_eleve').insert({
+        eleve_id: eleveId, enseignant_id: enseignants[0].id, demande_par: profilParent.id, statut: 'en_attente'
+      });
+      if (erreurDemande) {
+        if (erreurDemande.code === '23505') return alert('Une demande existe déjà pour cet enseignant.');
+        return alert(erreurDemande.message);
+      }
+      alert(`Demande envoyée à ${enseignants[0].prenom} ${enseignants[0].nom}. Vous serez notifié(e) de sa réponse.`);
+      afficherTableauDeBord();
+    }
+  });
 }
 
 async function ouvrirInscriptionEnfant() {

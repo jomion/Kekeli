@@ -5,17 +5,23 @@ let classesEnseignant = [];
 let champsFormation = [];
 let classeSelectionneeEns = null;
 let champSelectionneEns = null;
+let elevesSuivisIds = []; // élèves dont l'abonnement est accepté pour cet enseignant
 
 (async function () {
   profilEnseignant = await requireRole('enseignant');
   if (!profilEnseignant) return;
 
-  const { data: fiche } = await supabaseClient.from('enseignants').select('classes_assignees').eq('id', profilEnseignant.id).single();
-  const idsClasses = fiche?.classes_assignees || [];
+  const { data: abonnements } = await supabaseClient
+    .from('abonnements_enseignant_eleve')
+    .select('eleve_id, eleves:eleve_id(classe_id)')
+    .eq('enseignant_id', profilEnseignant.id).eq('statut', 'accepte');
+
+  elevesSuivisIds = (abonnements || []).map(a => a.eleve_id);
+  const idsClasses = [...new Set((abonnements || []).map(a => a.eleves?.classe_id).filter(Boolean))];
 
   if (idsClasses.length === 0) {
     document.getElementById('contenu').innerHTML = `
-      <div class="carte-bienvenue"><h1>Aucune classe assignée</h1><p>Un administrateur doit d'abord vous attribuer une classe.</p></div>`;
+      <div class="carte-bienvenue"><h1>Aucun élève suivi</h1><p>Un parent doit d'abord vous demander le suivi de son enfant (avec votre e-mail), et vous devez l'accepter depuis votre tableau de bord.</p></div>`;
     return;
   }
 
@@ -56,7 +62,8 @@ async function afficherGestionEns() {
   const zone = document.getElementById('zoneGestionEns');
   zone.innerHTML = '<p style="color:var(--text-gris)">Chargement...</p>';
 
-  const { data: eleves } = await supabaseClient.from('eleves').select('id, profils:id(prenom, nom)').eq('classe_id', classeSelectionneeEns);
+  const { data: eleves } = await supabaseClient.from('eleves').select('id, profils:id(prenom, nom)')
+    .eq('classe_id', classeSelectionneeEns).in('id', elevesSuivisIds);
   const { data: devoirs } = await supabaseClient.from('devoirs').select('*').eq('classe_id', classeSelectionneeEns).eq('champ_formation_id', champSelectionneEns).order('date_limite');
   const idsEleves = (eleves || []).map(e => e.id);
   const { data: evaluations } = idsEleves.length
@@ -80,7 +87,7 @@ async function afficherGestionEns() {
         <div><div class="titre-ligne-pub">${echapperEns2(d.titre)}</div><div class="sous-ligne-pub">À rendre le ${new Date(d.date_limite).toLocaleDateString('fr-FR')} · ${rendusParDevoir[d.id] || 0}/${(eleves || []).length} rendus</div></div>
       </div>`).join('')}</div>` : '<p style="color:var(--text-gris);font-size:14px">Aucun devoir.</p>'}
 
-    <div class="titre-section-pub">Élèves de la classe</div>
+    <div class="titre-section-pub">Mes élèves suivis dans cette classe</div>
     <div class="liste-lignes-pub">${(eleves || []).map(e => `
       <div class="ligne-pub" style="align-items:flex-start;flex-direction:column;gap:8px">
         <div style="display:flex;justify-content:space-between;width:100%;align-items:center">
