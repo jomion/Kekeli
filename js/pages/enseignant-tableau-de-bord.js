@@ -15,7 +15,7 @@ let profilEnseignantTB = null;
 async function afficherTableauBordEns() {
   const { data: abonnements } = await supabaseClient
     .from('abonnements_enseignant_eleve')
-    .select('*, eleves:eleve_id(classe_id, profils:id(prenom, nom))')
+    .select('*, eleves(classe_id, profils(prenom, nom))')
     .eq('enseignant_id', profilEnseignantTB.id);
 
   const enAttente = (abonnements || []).filter(a => a.statut === 'en_attente');
