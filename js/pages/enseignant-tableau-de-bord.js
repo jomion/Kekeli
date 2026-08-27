@@ -15,7 +15,7 @@ let profilEnseignantTB = null;
 async function afficherTableauBordEns() {
   const { data: abonnements } = await supabaseClient
     .from('abonnements_enseignant_eleve')
-    .select('*, profils:eleve_id(prenom, nom), eleves:eleve_id(classe_id)')
+    .select('*, eleves:eleve_id(classe_id, profils:id(prenom, nom))')
     .eq('enseignant_id', profilEnseignantTB.id);
 
   const enAttente = (abonnements || []).filter(a => a.statut === 'en_attente');
@@ -42,7 +42,7 @@ async function afficherTableauBordEns() {
         <div class="liste-lignes-pub" style="margin-top:10px">
           ${enAttente.map(a => `
             <div class="ligne-pub">
-              <div class="titre-ligne-pub">${a.profils?.prenom || ''} ${a.profils?.nom || ''}</div>
+              <div class="titre-ligne-pub">${a.eleves?.profils?.prenom || ''} ${a.eleves?.profils?.nom || ''}</div>
               <div style="display:flex;gap:8px">
                 <button class="btn btn-filled" data-accepter="${a.id}" style="padding:6px 14px;font-size:12px">✅ Accepter</button>
                 <button class="btn btn-deconnexion-public" data-refuser="${a.id}" style="padding:6px 14px;font-size:12px;color:var(--rouge);border-color:var(--rouge)">✕ Refuser</button>
@@ -54,7 +54,7 @@ async function afficherTableauBordEns() {
     <div class="carte-bienvenue" style="border-top-color:var(--bleu-kekeli)">
       <h1 style="font-size:18px">Mes élèves suivis (${acceptes.length})</h1>
       ${acceptes.length ? `<ul style="color:var(--text-gris);padding-left:20px">
-        ${acceptes.map(a => `<li>${a.profils?.prenom || ''} ${a.profils?.nom || ''} <span style="font-size:12px">(${classesParId[a.eleves?.classe_id] || ''})</span></li>`).join('')}
+        ${acceptes.map(a => `<li>${a.eleves?.profils?.prenom || ''} ${a.eleves?.profils?.nom || ''} <span style="font-size:12px">(${classesParId[a.eleves?.classe_id] || ''})</span></li>`).join('')}
       </ul>` : `<p style="color:var(--text-gris)">Aucun élève suivi pour l'instant — un parent doit d'abord vous en faire la demande (avec votre e-mail).</p>`}
     </div>
 
