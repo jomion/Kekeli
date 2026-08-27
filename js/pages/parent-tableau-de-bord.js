@@ -24,7 +24,7 @@ async function afficherTableauDeBord() {
 
     const { data: abonnements } = await supabaseClient
       .from('abonnements_enseignant_eleve')
-      .select('*, profils:enseignant_id(prenom, nom)')
+      .select('*, enseignants:enseignant_id(profils:id(prenom, nom))')
       .in('eleve_id', idsEnfants);
     (abonnements || []).forEach(a => { (abonnementsParEnfant[a.eleve_id] ??= []).push(a); });
   }
@@ -39,7 +39,7 @@ async function afficherTableauDeBord() {
       <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
         ${(abonnementsParEnfant[e.id] || []).map(a => `
           <span class="pastille-statut pastille-${a.statut === 'accepte' ? 'rendu' : a.statut === 'refuse' ? 'en_retard' : 'a_faire'}">
-            ${a.profils?.prenom || ''} ${a.profils?.nom || ''} — ${LIBELLES_STATUT_AB[a.statut]}
+            ${a.enseignants?.profils?.prenom || ''} ${a.enseignants?.profils?.nom || ''} — ${LIBELLES_STATUT_AB[a.statut]}
           </span>`).join('') || '<span style="font-size:12px;color:var(--text-gris)">Aucun enseignant suivi pour l\'instant.</span>'}
       </div>
     </div>`).join('') : `<p style="color:var(--text-gris)">Aucun enfant inscrit pour l'instant.</p>`;
