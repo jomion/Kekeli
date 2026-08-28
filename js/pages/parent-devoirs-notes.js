@@ -38,7 +38,24 @@ async function afficher() {
 
   const rendusParDevoir = {};
   (rendus || []).forEach(r => { rendusParDevoir[r.devoir_id] = r; });
-  const devoirsAvecStatut = (devoirs || []).map(d => ({ ...d, rendu: rendusParDevoir[d.id] || null }));
+
+  const idsDevoirsBlocs = (devoirs || []).filter(d => d.seance_id).map(d => d.id);
+  let resumesParDevoir = {};
+  if (idsDevoirsBlocs.length) {
+    const { data: blocsTous } = await supabaseClient.from('blocs_seance').select('*').in('devoir_id', idsDevoirsBlocs).order('ordre');
+    const idsBlocsTous = (blocsTous || []).map(b => b.id);
+    const [{ data: reponsesTous }, { data: rendusTous }] = idsBlocsTous.length
+      ? await Promise.all([
+          supabaseClient.from('reponses_exercices').select('*').eq('eleve_id', enfantSelectionneId).in('bloc_id', idsBlocsTous),
+          supabaseClient.from('rendus_activites').select('*').eq('eleve_id', enfantSelectionneId).in('bloc_id', idsBlocsTous)
+        ])
+      : [{ data: [] }, { data: [] }];
+    resumesParDevoir = resumerDevoirsBlocsEnLot(idsDevoirsBlocs, blocsTous, reponsesTous, rendusTous);
+  }
+
+  const devoirsAvecStatut = (devoirs || []).map(d => d.seance_id
+    ? { ...d, resumeBlocs: resumesParDevoir[d.id] || null }
+    : { ...d, rendu: rendusParDevoir[d.id] || null });
 
   document.getElementById('contenu').innerHTML = `
     <div class="carte-bienvenue">
@@ -51,11 +68,12 @@ async function afficher() {
     </div>` : `<p style="font-weight:700;color:var(--noir-kekeli)">${enfant.prenom} ${enfant.nom}</p>`}
 
     <div class="titre-section-pub">📚 Devoirs</div>
-    ${html_listeDevoirs(devoirsAvecStatut, { interactif: false })}
+    <div id="zoneDevoirsParent">${html_listeDevoirs(devoirsAvecStatut, { interactif: false })}</div>
     <div class="titre-section-pub">📊 Notes</div>
     ${html_listeEvaluations(evaluations)}
   `;
 
+  attacherEcouteursDetailsDevoirs(document.getElementById('zoneDevoirsParent'));
   const selecteur = document.getElementById('selecteurEnfant');
   if (selecteur) selecteur.querySelectorAll('[data-enfant]').forEach(btn => {
     btn.addEventListener('click', () => { enfantSelectionneId = btn.dataset.enfant; afficher(); });

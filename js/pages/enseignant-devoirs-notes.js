@@ -65,8 +65,8 @@ async function afficherGestionEns() {
 
   const { data: eleves } = await supabaseClient.from('eleves').select('id, profils(prenom, nom)')
     .eq('classe_id', classeSelectionneeEns).in('id', elevesSuivisIds);
-  const { data: devoirs } = await supabaseClient.from('devoirs').select('*').eq('classe_id', classeSelectionneeEns).eq('champ_formation_id', champSelectionneEns).order('date_limite');
   const idsEleves = (eleves || []).map(e => e.id);
+  const { data: devoirs } = await supabaseClient.from('devoirs').select('*, seances(titre)').eq('classe_id', classeSelectionneeEns).eq('champ_formation_id', champSelectionneEns).order('date_limite');
   const { data: evaluations } = idsEleves.length
     ? await supabaseClient.from('evaluations').select('*').in('eleve_id', idsEleves).eq('champ_formation_id', champSelectionneEns).order('cree_le', { ascending: false })
     : { data: [] };
@@ -83,8 +83,15 @@ async function afficherGestionEns() {
   if (devoirOuvertEns) {
     const devoirOuvert = (devoirs || []).find(d => d.id === devoirOuvertEns);
     if (devoirOuvert) {
-      const { data: rendusDevoir } = await supabaseClient.from('devoirs_rendus').select('*').eq('devoir_id', devoirOuvertEns).in('eleve_id', idsEleves);
-      panneauRendusEns = html_gestionRendusDevoir(devoirOuvert, eleves, rendusDevoir);
+      if (devoirOuvert.seance_id) {
+        const { blocs, reponsesExercices, rendusActivites } = await donneesPanneauDevoirBlocs(devoirOuvertEns, idsEleves);
+        const htmlRendus = (devoirOuvert.statut === 'publie' && blocs.length)
+          ? html_gestionRendusDevoir(devoirOuvert, eleves, null, blocs, reponsesExercices, rendusActivites) : '';
+        panneauRendusEns = html_panneauGestionDevoirBlocs(devoirOuvert, htmlRendus);
+      } else {
+        const { data: rendusDevoir } = await supabaseClient.from('devoirs_rendus').select('*').eq('devoir_id', devoirOuvertEns).in('eleve_id', idsEleves);
+        panneauRendusEns = html_gestionRendusDevoir(devoirOuvert, eleves, rendusDevoir);
+      }
     }
   }
 
@@ -92,14 +99,20 @@ async function afficherGestionEns() {
     <button class="btn btn-filled" id="btnNouveauDevoirEns" style="margin-bottom:20px">+ Nouveau devoir</button>
 
     <div class="titre-section-pub">Devoirs</div>
-    ${(devoirs && devoirs.length) ? `<div class="liste-lignes-pub">${devoirs.map(d => `
+    ${(devoirs && devoirs.length) ? `<div class="liste-lignes-pub">${devoirs.map(d => {
+      const estBlocs = !!d.seance_id;
+      const sousLigne = estBlocs
+        ? `${echapperEns2(d.seances?.titre || '')} · ${d.statut === 'publie' ? 'Publié' : 'Brouillon'} · à rendre le ${new Date(d.date_limite).toLocaleDateString('fr-FR')}`
+        : `À rendre le ${new Date(d.date_limite).toLocaleDateString('fr-FR')} · ${rendusParDevoir[d.id] || 0}/${(eleves || []).length} rendus`;
+      return `
       <div class="ligne-pub" style="flex-direction:column;align-items:stretch;gap:0">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-          <div><div class="titre-ligne-pub">${echapperEns2(d.titre)}</div><div class="sous-ligne-pub">À rendre le ${new Date(d.date_limite).toLocaleDateString('fr-FR')} · ${rendusParDevoir[d.id] || 0}/${(eleves || []).length} rendus</div></div>
-          <button type="button" class="btn btn-discret" data-toggle-rendus-ens="${d.id}" style="padding:6px 14px;font-size:12px">${devoirOuvertEns === d.id ? '▲ Fermer' : '📋 Voir les rendus'}</button>
+          <div><div class="titre-ligne-pub">${echapperEns2(d.titre)}</div><div class="sous-ligne-pub">${sousLigne}</div></div>
+          <button type="button" class="btn btn-discret" data-toggle-rendus-ens="${d.id}" style="padding:6px 14px;font-size:12px">${devoirOuvertEns === d.id ? '▲ Fermer' : (estBlocs ? '📂 Gérer' : '📋 Voir les rendus')}</button>
         </div>
         ${devoirOuvertEns === d.id ? panneauRendusEns : ''}
-      </div>`).join('')}</div>` : '<p style="color:var(--text-gris);font-size:14px">Aucun devoir.</p>'}
+      </div>`;
+    }).join('')}</div>` : '<p style="color:var(--text-gris);font-size:14px">Aucun devoir.</p>'}
 
     <div class="titre-section-pub">Mes élèves suivis dans cette classe</div>
     <div class="liste-lignes-pub">${(eleves || []).map(e => `
@@ -133,23 +146,52 @@ async function afficherGestionEns() {
       ouvrirCorrectionDevoir(parseInt(btn.dataset.corrigerDevoir, 10), profilEnseignant.id, afficherGestionEns);
     });
   });
+  zone.querySelectorAll('[data-corriger-activite-devoir]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      ouvrirCorrectionActiviteDevoir(parseInt(btn.dataset.corrigerActiviteDevoir, 10), profilEnseignant.id, afficherGestionEns);
+    });
+  });
+  zone.querySelectorAll('[data-toggle-statut-devoir]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const { error } = await supabaseClient.from('devoirs')
+        .update({ statut: btn.dataset.nouveauStatut }).eq('id', parseInt(btn.dataset.toggleStatutDevoir, 10));
+      if (error) return alert(error.message);
+      afficherGestionEns();
+    });
+  });
+
+  if (devoirOuvertEns) {
+    const devoirOuvert = (devoirs || []).find(d => d.id === devoirOuvertEns);
+    if (devoirOuvert && devoirOuvert.seance_id) {
+      const conteneurBlocs = zone.querySelector(`[data-editeur-blocs-devoir="${devoirOuvertEns}"]`);
+      if (conteneurBlocs) initEditeurBlocsDevoir(devoirOuvertEns, conteneurBlocs);
+    }
+  }
 }
 
-function ouvrirNouveauDevoirEns() {
+async function ouvrirNouveauDevoirEns() {
+  const seances = await chargerSeancesPourMatiere(classeSelectionneeEns, champSelectionneEns);
+  if (!seances.length) {
+    alert("Aucune séance publiée n'existe pour cette matière dans cette classe. Créez (ou faites créer par un admin) une séance dans le parcours avant de donner un devoir.");
+    return;
+  }
   ouvrirModal({
     titre: 'Nouveau devoir',
     champs: [
       { nom: 'titre', label: 'Titre' },
-      { nom: 'consigne', label: 'Consigne', type: 'textarea', requis: false },
+      { nom: 'seance_id', label: 'Séance à évaluer', type: 'select', options: seances.map(s => ({ valeur: s.id, label: s.label })) },
+      { nom: 'consigne', label: 'Consigne générale (optionnelle)', type: 'textarea', requis: false },
       { nom: 'date_limite', label: 'À rendre pour le', type: 'date' }
     ],
     texteValider: 'Créer',
-    onValider: async ({ titre, consigne, date_limite }) => {
-      const { error } = await supabaseClient.from('devoirs').insert({
+    onValider: async ({ titre, seance_id, consigne, date_limite }) => {
+      const { data, error } = await supabaseClient.from('devoirs').insert({
         classe_id: classeSelectionneeEns, champ_formation_id: champSelectionneEns, titre, consigne: consigne || null,
+        seance_id: parseInt(seance_id, 10), statut: 'brouillon',
         date_limite: new Date(date_limite).toISOString(), cree_par: profilEnseignant.id
-      });
+      }).select().single();
       if (error) return alert(error.message);
+      devoirOuvertEns = data.id;
       afficherGestionEns();
     }
   });

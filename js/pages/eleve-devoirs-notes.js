@@ -21,7 +21,24 @@ async function charger() {
 
   const rendusParDevoir = {};
   (rendus || []).forEach(r => { rendusParDevoir[r.devoir_id] = r; });
-  const devoirsAvecStatut = (devoirs || []).map(d => ({ ...d, rendu: rendusParDevoir[d.id] || null }));
+
+  const idsDevoirsBlocs = (devoirs || []).filter(d => d.seance_id).map(d => d.id);
+  let resumesParDevoir = {};
+  if (idsDevoirsBlocs.length) {
+    const { data: blocsTous } = await supabaseClient.from('blocs_seance').select('*').in('devoir_id', idsDevoirsBlocs).order('ordre');
+    const idsBlocsTous = (blocsTous || []).map(b => b.id);
+    const [{ data: reponsesTous }, { data: rendusTous }] = idsBlocsTous.length
+      ? await Promise.all([
+          supabaseClient.from('reponses_exercices').select('*').eq('eleve_id', profilEleve.id).in('bloc_id', idsBlocsTous),
+          supabaseClient.from('rendus_activites').select('*').eq('eleve_id', profilEleve.id).in('bloc_id', idsBlocsTous)
+        ])
+      : [{ data: [] }, { data: [] }];
+    resumesParDevoir = resumerDevoirsBlocsEnLot(idsDevoirsBlocs, blocsTous, reponsesTous, rendusTous);
+  }
+
+  const devoirsAvecStatut = (devoirs || []).map(d => d.seance_id
+    ? { ...d, resumeBlocs: resumesParDevoir[d.id] || null }
+    : { ...d, rendu: rendusParDevoir[d.id] || null });
 
   document.getElementById('contenu').innerHTML = `
     <div class="carte-bienvenue">
@@ -34,7 +51,9 @@ async function charger() {
     ${html_listeEvaluations(evaluations)}
   `;
 
-  document.getElementById('zoneDevoirs').querySelectorAll('[data-rendre-devoir]').forEach(btn => {
+  const zoneDevoirs = document.getElementById('zoneDevoirs');
+  attacherEcouteursDetailsDevoirs(zoneDevoirs);
+  zoneDevoirs.querySelectorAll('[data-rendre-devoir]').forEach(btn => {
     btn.addEventListener('click', () => rendreDevoir(parseInt(btn.dataset.rendreDevoir, 10), btn.dataset.titreDevoir));
   });
 }

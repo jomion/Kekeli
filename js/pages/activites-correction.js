@@ -34,10 +34,17 @@ async function chargerActivites() {
   const zone = document.getElementById('contenu');
   zone.innerHTML = '<div class="chargement">Chargement...</div>';
 
+  // Les activités de devoir (blocs_seance.devoir_id renseigné) sont exclues
+  // ici : elles ont leur propre écran de correction dans le panneau de
+  // gestion du devoir (onglet "Devoirs & notes" — js/devoirs-notes-rendu.js,
+  // ouvrirCorrectionActiviteDevoir), où le contexte (devoir, élève, note
+  // globale) est clair. Les lister aussi ici les afficherait sans classe ni
+  // séance (elles n'ont pas de seance_id), ce qui serait confus.
   const { data, error } = await supabaseClient
     .from('blocs_seance')
     .select('id, contenu, palier, seance_id, seances(titre, sa_id, sa(titre, noeud_id, noeuds_parcours(classe_id, champ_formation_id, classes(nom), champs_formation(nom))))')
     .eq('type_bloc', 'activite')
+    .is('devoir_id', null)
     .order('id', { ascending: false });
 
   if (error) { zone.innerHTML = `<p class="chargement">Erreur : ${echapperAct(error.message)}</p>`; return; }
