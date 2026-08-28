@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KEKELI - Navigation</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="logo"><img src="../assets/logo/logo.png" alt="KEKELI"> KEKELI</div>
+    <div class="zone-droite" id="zoneDroite">
+      <a href="admin/connexion.html" class="btn btn-discret">Connexion admin</a>
+    </div>
+  </header>
+
+  <div class="conteneur">
+    <div class="fil-ariane" id="filAriane"></div>
+    <div id="contenu" class="chargement">Chargement...</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/supabaseClient.js"></script>
+  <script>const RACINE_SITE = "../";</script>
+  <script src="../js/auth-admin.js"></script>
+  <script src="../js/auth-utilisateur.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/modal.js"></script>
+  <script src="../js/pages/navigation.js"></script>
+</body>
+</html>
