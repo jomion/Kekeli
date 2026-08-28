@@ -145,35 +145,55 @@ function html_editeurBloc(bloc) {
 // couleur de fond, avec une palette de couleurs par défaut.
 function html_editeurTexteRiche(bloc, c) {
   const swatchesPolice = PALETTE_COULEURS.map(col =>
-    `<button type="button" class="pastille-couleur" data-cmd="foreColor" data-valeur="${col.valeur}" title="${col.nom}" style="background:${col.valeur}"></button>`
+    `<button type="button" class="pastille-couleur" data-cmd="foreColor" data-valeur="${col.valeur}" title="Texte ${col.nom}" style="background:${col.valeur}"></button>`
   ).join('');
   const swatchesFond = PALETTE_COULEURS.map(col =>
-    `<button type="button" class="pastille-couleur" data-cmd="hiliteColor" data-valeur="${col.valeur}" title="${col.nom}" style="background:${col.valeur}"></button>`
+    `<button type="button" class="pastille-couleur" data-cmd="hiliteColor" data-valeur="${col.valeur}" title="Surligner en ${col.nom}" style="background:${col.valeur}"></button>`
   ).join('');
 
+  // Une seule barre d'outils, regroupée par sections (séparées visuellement),
+  // pour qu'elle se lise comme un vrai traitement de texte plutôt que comme
+  // plusieurs blocs de boutons séparés.
   return `
     <div class="barre-outils-texte">
-      <button type="button" data-cmd="bold" title="Gras"><b>G</b></button>
-      <button type="button" data-cmd="italic" title="Italique"><i>I</i></button>
-      <button type="button" data-cmd="underline" title="Souligné"><u>S</u></button>
-      <select data-cmd-select="fontName" title="Police">
-        <option value="Segoe UI">Segoe UI</option>
-        <option value="Georgia">Georgia</option>
-        <option value="'Courier New'">Courier New</option>
-        <option value="Verdana">Verdana</option>
-        <option value="'Comic Sans MS'">Comic Sans MS</option>
-      </select>
-      <button type="button" data-cmd="justifyLeft" title="Aligner à gauche">⯇</button>
-      <button type="button" data-cmd="justifyCenter" title="Centrer">☰</button>
-      <button type="button" data-cmd="justifyRight" title="Aligner à droite">⯈</button>
-      <button type="button" data-cmd="insertUnorderedList" title="Liste à puces">• Liste</button>
-      <button type="button" data-cmd="insertOrderedList" title="Liste numérotée">1. Liste</button>
-    </div>
-    <div class="barre-outils-texte">
-      <span class="etiquette-outils">Couleur du texte :</span>${swatchesPolice}
-    </div>
-    <div class="barre-outils-texte">
-      <span class="etiquette-outils">Surlignage :</span>${swatchesFond}
+      <div class="groupe-outils">
+        <button type="button" data-cmd="bold" title="Gras (Ctrl+B)"><b>G</b></button>
+        <button type="button" data-cmd="italic" title="Italique (Ctrl+I)"><i>I</i></button>
+        <button type="button" data-cmd="underline" title="Souligné (Ctrl+U)"><u>S</u></button>
+      </div>
+      <span class="separateur-outils"></span>
+      <div class="groupe-outils">
+        <select data-cmd-select="fontName" title="Police">
+          <option value="Segoe UI">Segoe UI</option>
+          <option value="Georgia">Georgia</option>
+          <option value="'Courier New'">Courier New</option>
+          <option value="Verdana">Verdana</option>
+          <option value="'Comic Sans MS'">Comic Sans MS</option>
+        </select>
+      </div>
+      <span class="separateur-outils"></span>
+      <div class="groupe-outils">
+        <button type="button" data-cmd="justifyLeft" title="Aligner à gauche">⯇</button>
+        <button type="button" data-cmd="justifyCenter" title="Centrer">☰</button>
+        <button type="button" data-cmd="justifyRight" title="Aligner à droite">⯈</button>
+      </div>
+      <span class="separateur-outils"></span>
+      <div class="groupe-outils">
+        <button type="button" data-cmd="insertUnorderedList" title="Liste à puces">• Liste</button>
+        <button type="button" data-cmd="insertOrderedList" title="Liste numérotée">1. Liste</button>
+      </div>
+      <span class="separateur-outils"></span>
+      <div class="groupe-outils groupe-couleurs">
+        <span class="etiquette-outils">Texte</span>${swatchesPolice}
+      </div>
+      <span class="separateur-outils"></span>
+      <div class="groupe-outils groupe-couleurs">
+        <span class="etiquette-outils">Surlignage</span>${swatchesFond}
+      </div>
+      <span class="separateur-outils"></span>
+      <div class="groupe-outils">
+        <button type="button" data-cmd="removeFormat" class="bouton-effacer-format" title="Effacer toute la mise en forme">⌫ Format</button>
+      </div>
     </div>
     <div class="editeur-riche" contenteditable="true" data-champ-riche="texte">${contenuRicheInitial(c.texte)}</div>`;
 }

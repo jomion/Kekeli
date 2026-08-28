@@ -172,16 +172,25 @@ a { text-decoration: none; color: inherit; }
 .ligne-arbo.type-sa .libelle-arbo { font-style: italic; }
 
 /* ===== Barre d'outils de formatage riche (blocs texte) ===== */
-.barre-outils-texte { display: flex; gap: 4px; margin-bottom: 6px; flex-wrap: wrap; }
+.barre-outils-texte {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap;
+  background: #F8FAFC; border: 1px solid var(--bordure); border-radius: 8px; padding: 6px 8px;
+}
+.barre-outils-texte .groupe-outils { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.barre-outils-texte .separateur-outils { width: 1px; align-self: stretch; min-height: 20px; background: var(--bordure); }
 .barre-outils-texte button {
   border: 1px solid var(--bordure); background: white; border-radius: 6px; padding: 5px 10px;
   cursor: pointer; font-size: 13px; color: var(--texte-fonce); min-width: 30px;
 }
 .barre-outils-texte button:hover { background: var(--bleu-clair); border-color: var(--bleu-principal); }
+.barre-outils-texte button.actif { background: var(--bleu-principal); border-color: var(--bleu-principal); color: white; }
+.barre-outils-texte .bouton-effacer-format { font-size: 12px; color: var(--texte-gris); }
 .barre-outils-texte select {
   border: 1px solid var(--bordure); border-radius: 6px; padding: 4px 6px; font-size: 12px; background: white; color: var(--texte-fonce);
 }
+.barre-outils-texte .groupe-couleurs { gap: 5px; }
 .barre-outils-texte .pastille-couleur { align-self: center; }
+.barre-outils-texte .etiquette-outils { font-size: 11px; color: var(--texte-gris); margin-right: 2px; white-space: nowrap; }
 .editeur-riche {
   border: 1px solid var(--bordure); border-radius: 6px; padding: 10px; min-height: 70px;
   font-size: 14px; font-family: inherit; line-height: 1.5; color: var(--texte-fonce);

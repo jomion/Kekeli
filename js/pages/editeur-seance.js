@@ -281,33 +281,60 @@ function attacherEcouteursBloc(bloc) {
       }
     };
 
-    const barreOutils = el.querySelector(':scope > .bloc-corps .barre-outils-texte');
-    if (barreOutils) {
-      barreOutils.querySelectorAll('[data-cmd]').forEach(btn => {
-        // Empêche le bouton de voler le focus au mousedown (sinon la
-        // sélection dans la zone éditable est perdue avant même le clic).
-        btn.addEventListener('mousedown', (e) => e.preventDefault());
-        btn.addEventListener('click', () => {
+    // Bug corrigé : la barre d'outils est désormais un seul bloc (voir blocs.js),
+    // mais on utilise quand même querySelectorAll par précaution — avec l'ancien
+    // découpage en 3 barres séparées, querySelector() ne renvoyait que la
+    // première, et les boutons de couleur (texte/surlignage) des barres
+    // suivantes ne recevaient jamais leurs écouteurs : c'est pour ça qu'ils
+    // ne fonctionnaient pas.
+    const barresOutils = el.querySelectorAll(':scope > .bloc-corps .barre-outils-texte');
+    if (barresOutils.length) {
+      const commandesAvecEtat = ['bold', 'italic', 'underline', 'justifyLeft', 'justifyCenter', 'justifyRight', 'insertUnorderedList', 'insertOrderedList'];
+      const boutonsCommande = [];
+      const mettreAJourEtatBarreOutils = () => {
+        boutonsCommande.forEach(b => {
+          if (!commandesAvecEtat.includes(b.dataset.cmd)) return;
+          try { b.classList.toggle('actif', document.queryCommandState(b.dataset.cmd)); } catch (_e) { /* ignoré */ }
+        });
+      };
+
+      barresOutils.forEach(barreOutils => {
+        barreOutils.querySelectorAll('[data-cmd]').forEach(btn => {
+          boutonsCommande.push(btn);
+          // Empêche le bouton de voler le focus au mousedown (sinon la
+          // sélection dans la zone éditable est perdue avant même le clic).
+          btn.addEventListener('mousedown', (e) => e.preventDefault());
+          btn.addEventListener('click', () => {
+            restaurerSelectionEtFocus();
+            if (btn.dataset.cmd === 'hiliteColor') {
+              document.execCommand('styleWithCSS', false, true);
+              document.execCommand('hiliteColor', false, btn.dataset.valeur === 'transparent' ? 'transparent' : btn.dataset.valeur);
+            } else if (btn.dataset.cmd === 'foreColor') {
+              document.execCommand('styleWithCSS', false, true);
+              document.execCommand('foreColor', false, btn.dataset.valeur);
+            } else {
+              document.execCommand(btn.dataset.cmd, false, null);
+            }
+            sauvegarderSelection();
+            sauverContenuRiche();
+            mettreAJourEtatBarreOutils();
+          });
+        });
+        const selectPolice = barreOutils.querySelector('[data-cmd-select="fontName"]');
+        if (selectPolice) selectPolice.addEventListener('change', () => {
           restaurerSelectionEtFocus();
-          if (btn.dataset.cmd === 'hiliteColor') {
-            document.execCommand('styleWithCSS', false, true);
-            document.execCommand('hiliteColor', false, btn.dataset.valeur === 'transparent' ? 'transparent' : btn.dataset.valeur);
-          } else if (btn.dataset.cmd === 'foreColor') {
-            document.execCommand('foreColor', false, btn.dataset.valeur);
-          } else {
-            document.execCommand(btn.dataset.cmd, false, null);
-          }
+          document.execCommand('fontName', false, selectPolice.value);
           sauvegarderSelection();
           sauverContenuRiche();
         });
       });
-      const selectPolice = barreOutils.querySelector('[data-cmd-select="fontName"]');
-      if (selectPolice) selectPolice.addEventListener('change', () => {
-        restaurerSelectionEtFocus();
-        document.execCommand('fontName', false, selectPolice.value);
-        sauvegarderSelection();
-        sauverContenuRiche();
-      });
+
+      // Les boutons Gras/Italique/... reflètent l'état du texte sous le curseur,
+      // comme dans un vrai traitement de texte (plus intuitif : on voit tout de
+      // suite si la sélection actuelle est déjà en gras, alignée à droite, etc.).
+      zoneRiche.addEventListener('keyup', mettreAJourEtatBarreOutils);
+      zoneRiche.addEventListener('mouseup', mettreAJourEtatBarreOutils);
+      zoneRiche.addEventListener('focus', mettreAJourEtatBarreOutils);
     }
   }
 
