@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KEKELI - Espace enseignant</title>
+<title>KEKELI - Messagerie</title>
 <link rel="stylesheet" href="../../css/style-public.css">
 </head>
 <body>
@@ -11,7 +11,7 @@
     <a href="../../index.html" class="logo"><img src="../../assets/logo/logo.png" alt="KEKELI"> KEKELI</a>
     <div style="display:flex;align-items:center;gap:12px">
       <div id="zoneCloche"></div>
-      <span class="badge-utilisateur-public" id="badgeUtilisateur">Connexion...</span>
+      <a href="tableau-de-bord.html" class="btn-deconnexion-public">← Mon espace</a>
       <button class="btn-deconnexion-public" onclick="deconnecterUtilisateur()">Déconnexion</button>
     </div>
   </header>
@@ -26,7 +26,6 @@
   <script>const RACINE_SITE = "../../";</script>
   <script src="../../js/auth-utilisateur.js"></script>
   <script src="../../js/notifications.js"></script>
-  <script src="../../js/modal.js"></script>
-  <script src="../../js/pages/enseignant-tableau-de-bord.js"></script>
+  <script src="../../js/pages/enseignant-messagerie.js"></script>
 </body>
 </html>

@@ -37,13 +37,30 @@ async function afficherTableauDeBord() {
         <button class="btn btn-filled" data-suivre-enfant="${e.id}" style="padding:6px 14px;font-size:12px">🔗 Suivre un enseignant</button>
       </div>
       <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
-        ${(abonnementsParEnfant[e.id] || []).map(a => `
-          <span class="pastille-statut pastille-${a.statut === 'accepte' ? 'rendu' : a.statut === 'refuse' ? 'en_retard' : 'a_faire'}" style="display:inline-flex;align-items:center;gap:6px">
-            ${a.enseignants?.profils?.prenom || ''} ${a.enseignants?.profils?.nom || ''} — ${LIBELLES_STATUT_AB[a.statut]}
-            ${a.statut === 'en_attente' ? `<button data-annuler-demande="${a.id}" title="Annuler la demande" style="background:none;border:none;cursor:pointer;font-size:12px;color:inherit">✕</button>` : ''}
-          </span>`).join('') || '<span style="font-size:12px;color:var(--text-gris)">Aucun enseignant suivi pour l\'instant.</span>'}
+        ${(abonnementsParEnfant[e.id] || []).map(a => rendreLignePastilleAB(a)).join('') || '<span style="font-size:12px;color:var(--text-gris)">Aucun enseignant suivi pour l\'instant.</span>'}
       </div>
     </div>`).join('') : `<p style="color:var(--text-gris)">Aucun enfant inscrit pour l'instant.</p>`;
+
+  function rendreLignePastilleAB(a) {
+    const demandeParEnseignant = a.demande_par === a.enseignant_id;
+    let actions = '';
+    if (a.statut === 'en_attente' && demandeParEnseignant) {
+      actions = `
+        <button class="btn btn-filled" data-accepter-demande-ens="${a.id}" style="padding:3px 10px;font-size:11px">✅ Accepter</button>
+        <button class="btn btn-deconnexion-public" data-refuser-demande-ens="${a.id}" style="padding:3px 10px;font-size:11px;color:var(--rouge);border-color:var(--rouge)">✕ Refuser</button>`;
+    } else if (a.statut === 'en_attente') {
+      actions = `<button data-annuler-abonnement="${a.id}" data-statut-ab="${a.statut}" title="Annuler la demande" style="background:none;border:none;cursor:pointer;font-size:12px;color:inherit">✕</button>`;
+    } else if (a.statut === 'accepte') {
+      actions = `
+        <a href="messagerie.html?abonnement=${a.id}" style="font-size:11px;text-decoration:underline;color:inherit">💬 Message</a>
+        <button data-annuler-abonnement="${a.id}" data-statut-ab="${a.statut}" title="Arrêter le suivi" style="background:none;border:none;cursor:pointer;font-size:12px;color:inherit">✕</button>`;
+    }
+    return `
+      <span class="pastille-statut pastille-${a.statut === 'accepte' ? 'rendu' : a.statut === 'refuse' ? 'en_retard' : 'a_faire'}" style="display:inline-flex;align-items:center;gap:6px">
+        ${a.enseignants?.profils?.prenom || ''} ${a.enseignants?.profils?.nom || ''} — ${LIBELLES_STATUT_AB[a.statut]}${a.statut === 'en_attente' && demandeParEnseignant ? ' (demande de l\'enseignant)' : ''}
+        ${actions}
+      </span>`;
+  }
 
   document.getElementById('contenu').innerHTML = `
     <div class="carte-bienvenue">
@@ -68,11 +85,17 @@ async function afficherTableauDeBord() {
         <h3>Suivi des devoirs et notes</h3>
         <p>Consulter les devoirs et évaluations de vos enfants.</p>
       </a>
+      ${Object.values(abonnementsParEnfant).some(liste => liste.some(a => a.statut === 'accepte')) ? `
+      <a href="messagerie.html" class="carte-action-tb disponible" style="text-decoration:none;color:inherit;display:block">
+        <div class="icone-action-tb">💬</div>
+        <h3>Messagerie enseignant</h3>
+        <p>Échanger avec les enseignants qui suivent vos enfants.</p>
+      </a>` : `
       <div class="carte-action-tb a-venir">
         <div class="icone-action-tb">💬</div>
         <h3>Messagerie enseignant</h3>
-        <p>Bientôt disponible.</p>
-      </div>
+        <p>Disponible dès qu'un enseignant suit un de vos enfants.</p>
+      </div>`}
       <div class="carte-action-tb a-venir">
         <div class="icone-action-tb">💳</div>
         <h3>Paiement des frais</h3>
@@ -85,17 +108,31 @@ async function afficherTableauDeBord() {
   document.querySelectorAll('[data-suivre-enfant]').forEach(btn => {
     btn.addEventListener('click', () => ouvrirDemandeSuivi(btn.dataset.suivreEnfant));
   });
-  document.querySelectorAll('[data-annuler-demande]').forEach(btn => {
-    btn.addEventListener('click', () => annulerDemandeSuivi(parseInt(btn.dataset.annulerDemande, 10)));
+  document.querySelectorAll('[data-annuler-abonnement]').forEach(btn => {
+    btn.addEventListener('click', () => annulerAbonnement(parseInt(btn.dataset.annulerAbonnement, 10), btn.dataset.statutAb));
+  });
+  document.querySelectorAll('[data-accepter-demande-ens]').forEach(btn => {
+    btn.addEventListener('click', () => repondreDemandeEnseignant(parseInt(btn.dataset.accepterDemandeEns, 10), 'accepte'));
+  });
+  document.querySelectorAll('[data-refuser-demande-ens]').forEach(btn => {
+    btn.addEventListener('click', () => repondreDemandeEnseignant(parseInt(btn.dataset.refuserDemandeEns, 10), 'refuse'));
   });
 }
 
-async function annulerDemandeSuivi(abonnementId) {
-  confirmerAction('Annuler cette demande ?', async () => {
+async function annulerAbonnement(abonnementId, statutActuel) {
+  const message = statutActuel === 'accepte' ? "Arrêter le suivi de cet enseignant ?" : 'Annuler cette demande ?';
+  confirmerAction(message, async () => {
     const { error } = await supabaseClient.from('abonnements_enseignant_eleve').delete().eq('id', abonnementId);
     if (error) return alert(error.message);
     afficherTableauDeBord();
   });
+}
+
+async function repondreDemandeEnseignant(abonnementId, statut) {
+  const { error } = await supabaseClient.from('abonnements_enseignant_eleve')
+    .update({ statut, traite_le: new Date().toISOString() }).eq('id', abonnementId);
+  if (error) return alert(error.message);
+  afficherTableauDeBord();
 }
 
 function ouvrirDemandeSuivi(eleveId) {
