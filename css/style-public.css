@@ -258,9 +258,19 @@ nav.nav-publique a:hover { color: var(--accent-cyan); }
 /* ===== Page séance (lecture + travail : exercices / activités) ===== */
 .bloc-lecture { background: white; border-radius: 10px; padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border-left: 5px solid var(--bleu-kekeli); }
 .bloc-lecture-titre { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--bleu-kekeli); margin-bottom: 8px; }
-.bloc-lecture img { max-width: 100%; border-radius: 8px; }
+.bloc-lecture img { max-width: 100%; border-radius: 8px; display: block; margin: 0 0 8px; }
 .bloc-lecture table { border-collapse: collapse; width: 100%; }
 .bloc-lecture table td { border: 1px solid var(--bordure); padding: 6px; }
+/* Le contenu riche (texte/définition/exemple...) vient de l'éditeur admin :
+   selon comment il a été saisi ou collé, il peut porter ses propres marges
+   ou indentations. On les neutralise pour qu'il reste toujours aligné avec
+   le titre du bloc juste au-dessus, plutôt que de décaler visuellement le
+   contenu vers la droite. */
+.contenu-riche-lecture { margin: 0; padding: 0; text-align: left; }
+.contenu-riche-lecture > *:first-child { margin-top: 0; }
+.contenu-riche-lecture > *:last-child { margin-bottom: 0; }
+.contenu-riche-lecture p, .contenu-riche-lecture div { margin-left: 0 !important; text-indent: 0 !important; }
+.contenu-riche-lecture img { margin-left: 0 !important; }
 .question-lecture { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--bordure); }
 .question-lecture:first-child { margin-top: 0; padding-top: 0; border-top: none; }
 .question-enonce { font-weight: 700; margin: 0 0 8px; }
@@ -279,6 +289,12 @@ nav.nav-publique a:hover { color: var(--accent-cyan); }
 .acces-suspendu-exercice { background: #FFF3E0; border-left: 4px solid #FF9800; border-radius: 8px; padding: 12px 14px; font-size: 14px; color: #7A4A00; }
 .note-essai-gratuit { font-size: 12px; color: #B8860B; background: #FFF8E1; border-radius: 6px; padding: 6px 10px; display: inline-block; margin-bottom: 8px; }
 .entete-seance-eleve { background: white; border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border-left: 5px solid var(--bleu-kekeli); }
+/* Fil d'ariane miniature (arborescence complète : classe > matière >
+   thème/unité/semaine/dossier... > SA > séance) — seul endroit où le titre
+   de la séance apparaît désormais ; le grand titre en double a été retiré,
+   remplacé par la discipline mise en avant ci-dessous. */
+.miniature-arborescence-eleve { font-size: 12px; color: var(--text-gris); line-height: 1.5; }
+.badge-discipline-seance { display: inline-block; font-size: 17px; font-weight: 800; padding: 5px 14px; border-radius: 20px; margin-top: 8px; background: #F1F5F9; color: var(--bleu-kekeli); }
 .badge-palier-seance { display: inline-block; font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 20px; margin-top: 6px; }
 .badge-palier-azovi { background: #E8F8EF; color: #22A559; }
 .badge-palier-devi { background: #EBF5FB; color: #3498DB; }

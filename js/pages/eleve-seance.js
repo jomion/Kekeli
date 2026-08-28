@@ -39,6 +39,24 @@ const LIBELLES_MEDAILLE = { bronze: '🥉 Bronze', argent: '🥈 Argent', or: '�
   await charger();
 })();
 
+// Remonte la chaîne parent_id d'un noeud (celui qui porte la SA de la
+// séance) jusqu'à la racine, pour afficher l'arborescence complète dans le
+// fil d'ariane (miniature) — quelle que soit la profondeur réelle de la
+// matière (ex: Thème > Unité > Semaine pour le français, juste Dossier pour
+// les maths). Retourne les titres dans l'ordre racine → feuille.
+async function remonterCheminNoeudsEleve(noeudDepart) {
+  const chemin = [];
+  let n = noeudDepart;
+  let garde = 0; // filet de sécurité si une chaîne de parent_id bouclait par erreur
+  while (n && garde++ < 20) {
+    chemin.unshift(n.titre);
+    if (!n.parent_id) break;
+    const { data: parent } = await supabaseClient.from('noeuds_parcours').select('id, parent_id, titre').eq('id', n.parent_id).single();
+    n = parent;
+  }
+  return chemin;
+}
+
 async function charger() {
   const params = new URLSearchParams(window.location.search);
   const seanceId = parseInt(params.get('id'), 10);
@@ -49,7 +67,7 @@ async function charger() {
   }
 
   const { data: seance, error: erreurSeance } = await supabaseClient
-    .from('seances').select('*, sa(titre, noeud_id, noeuds_parcours(classe_id, champ_formation_id, classes(nom), champs_formation(nom)))').eq('id', seanceId).maybeSingle();
+    .from('seances').select('*, sa(titre, noeud_id, noeuds_parcours(id, parent_id, titre, classe_id, champ_formation_id, classes(nom), champs_formation(nom)))').eq('id', seanceId).maybeSingle();
   if (erreurSeance || !seance) {
     conteneur.innerHTML = '<p style="text-align:center;color:var(--text-gris)">Cette séance est introuvable ou n\'est pas (ou plus) publiée.</p>';
     return;
@@ -59,6 +77,11 @@ async function charger() {
   cheminSeance = {
     classeNom: noeud?.classes?.nom || '',
     champNom: noeud?.champs_formation?.nom || '',
+    // Arborescence complète (Thème/Unité/Semaine/Dossier...) remontée depuis
+    // le noeud immédiat de la SA jusqu'à la racine — quel que soit le nombre
+    // de niveaux, pour un fil d'ariane fidèle même quand la structure change
+    // d'une matière à l'autre (voir remonterCheminNoeudsEleve ci-dessous).
+    cheminNoeuds: await remonterCheminNoeudsEleve(noeud),
     saTitre: seance.sa?.titre || ''
   };
 
@@ -122,7 +145,14 @@ function rendre() {
   tousBlocsTop.filter(b => b.palier).forEach(b => { (blocsParPalier[b.palier] ??= []).push(b); });
   const aDesPaliers = etatPaliersSeance.some(p => p.nb_total > 0);
 
-  const filAriane = [cheminSeance.classeNom, cheminSeance.champNom, cheminSeance.saTitre, seanceCourante.titre].filter(Boolean).join(' › ');
+  // Arborescence complète dans la miniature (fil d'ariane) — le titre de la
+  // séance n'apparaît plus qu'ici, plus dans un grand titre dupliqué juste
+  // en dessous (voir entete-seance-eleve : c'est maintenant la discipline
+  // qui tient ce rôle, mise en avant).
+  const filAriane = [
+    cheminSeance.classeNom, cheminSeance.champNom, ...(cheminSeance.cheminNoeuds || []),
+    cheminSeance.saTitre, seanceCourante.titre
+  ].filter(Boolean).join(' › ');
 
   const boutonMarquerTermine = (blocsTravail.length === 0 && !aDesPaliers)
     ? (seanceDejaTerminee
@@ -133,9 +163,8 @@ function rendre() {
   document.getElementById('contenu').innerHTML = `
     <div class="fil-ariane-eleve"><a href="matiere.html">← Retour à mes matières</a></div>
     <div class="entete-seance-eleve">
-      ${filAriane ? `<p style="margin:0 0 6px;font-size:12px;color:var(--text-gris)">${echapper(filAriane)}</p>` : ''}
-      <h1 style="margin:0">${echapper(seanceCourante.titre)}</h1>
-      ${seanceCourante.discipline ? `<span class="badge-palier-seance" style="background:#F1F5F9;color:var(--bleu-kekeli)">${echapper(seanceCourante.discipline)}</span>` : ''}
+      ${filAriane ? `<p style="margin:0" class="miniature-arborescence-eleve">${echapper(filAriane)}</p>` : ''}
+      ${seanceCourante.discipline ? `<span class="badge-discipline-seance">${echapper(seanceCourante.discipline)}</span>` : ''}
     </div>
 
     <div class="zone-travail-seance">
@@ -204,7 +233,7 @@ function rendreBlocLecture(b) {
   const libelle = c.libelle || info.label;
   let corps = '';
 
-  if (TYPES_TEXTE_LIBRE.includes(b.type_bloc)) corps = `<div>${contenuRicheInitial(c.texte)}</div>`;
+  if (TYPES_TEXTE_LIBRE.includes(b.type_bloc)) corps = `<div class="contenu-riche-lecture">${contenuRicheInitial(c.texte)}</div>`;
   else if (b.type_bloc === 'titre') corps = `<h3 style="margin:0">${echapper(c.texte)}</h3>`;
   else if (b.type_bloc === 'consigne') corps = `<p>${echapper(c.texte)}</p>`;
   else if (b.type_bloc === 'autre') corps = `${c.nom ? `<p style="font-weight:700">${echapper(c.nom)}</p>` : ''}<p>${echapper(c.texte)}</p>`;

@@ -9,7 +9,7 @@ let profilAdminTB = null;
 let classesTB = [];
 let champsTB = [];
 let seancesTB = [];
-const filtresTB = { matiere: '', classe: '', statut: '', recherche: '' };
+const filtresTB = { matiere: '', classe: '', statut: '', recherche: '', unite: '', semaine: '', dossier: '', sa: '' };
 
 const LIBELLES_STATUT_TB = { brouillon: 'Brouillon', publie: 'Publié', archive: 'Archivé' };
 
@@ -31,7 +31,7 @@ async function init() {
   ] = await Promise.all([
     supabaseClient.from('classes').select('id, nom, ordre').order('ordre'),
     supabaseClient.from('champs_formation').select('id, nom, code, actif').eq('actif', true).order('nom'),
-    supabaseClient.from('noeuds_parcours').select('id, classe_id, champ_formation_id'),
+    supabaseClient.from('noeuds_parcours').select('id, classe_id, champ_formation_id, parent_id, type_noeud, titre'),
     supabaseClient.from('sa').select('id, noeud_id, titre, numero'),
     supabaseClient.from('seances').select('id, sa_id, titre, statut, discipline, ordre, modifie_le').order('modifie_le', { ascending: false }),
     supabaseClient.from('enseignants').select('id'),
@@ -54,11 +54,13 @@ async function init() {
   seancesTB = (seances || []).map(s => {
     const saInfo = saParId.get(s.sa_id) || null;
     const noeud = saInfo ? noeudParId.get(saInfo.noeud_id) : null;
+    const chemin = saInfo ? remonterCheminHierarchiqueTB(saInfo.noeud_id, noeudParId) : { unite: null, semaine: null, dossier: null };
     return {
       ...s,
       saInfo,
       classe: noeud ? classeParId.get(noeud.classe_id) || null : null,
-      champ: noeud ? champParId.get(noeud.champ_formation_id) || null : null
+      champ: noeud ? champParId.get(noeud.champ_formation_id) || null : null,
+      unite: chemin.unite, semaine: chemin.semaine, dossier: chemin.dossier
     };
   });
 
@@ -66,6 +68,24 @@ async function init() {
   afficherActions();
   afficherFiltres();
   rendreSeances();
+}
+
+// Remonte la chaîne de parent_id d'un noeud (celui qui porte la SA d'une
+// séance) pour retrouver ses ancêtres "Unité", "Semaine" et "Dossier", quel
+// que soit le nombre de niveaux entre eux (ex: Thème > Unité > Semaine pour
+// le français). Sert à filtrer/regrouper les séances sans avoir à connaître
+// à l'avance la profondeur exacte de la hiérarchie de chaque matière.
+function remonterCheminHierarchiqueTB(noeudId, noeudParId) {
+  const chemin = { unite: null, semaine: null, dossier: null };
+  let n = noeudParId.get(noeudId);
+  let garde = 0; // filet de sécurité si une chaîne de parent_id bouclait par erreur
+  while (n && garde++ < 30) {
+    if (n.type_noeud === 'unite' && !chemin.unite) chemin.unite = n;
+    if (n.type_noeud === 'semaine' && !chemin.semaine) chemin.semaine = n;
+    if (n.type_noeud === 'dossier' && !chemin.dossier) chemin.dossier = n;
+    n = n.parent_id ? noeudParId.get(n.parent_id) : null;
+  }
+  return chemin;
 }
 
 function afficherTaches(enseignants, devoirs) {
@@ -163,6 +183,7 @@ function afficherFiltres() {
       <option value="publie">Publié</option>
       <option value="archive">Archivé</option>
     </select>
+    <span id="zoneFiltresHierarchiquesTB" style="display:contents"></span>
   `;
   document.getElementById('rechercheSeanceTB').addEventListener('input', (e) => {
     filtresTB.recherche = e.target.value.trim().toLowerCase();
@@ -170,14 +191,99 @@ function afficherFiltres() {
   });
   document.getElementById('filtreMatiereTB').addEventListener('change', (e) => {
     filtresTB.matiere = e.target.value;
+    filtresTB.unite = ''; filtresTB.semaine = ''; filtresTB.dossier = ''; filtresTB.sa = '';
+    afficherFiltresHierarchiques();
     rendreSeances();
   });
   document.getElementById('filtreClasseTB').addEventListener('change', (e) => {
     filtresTB.classe = e.target.value;
+    filtresTB.unite = ''; filtresTB.semaine = ''; filtresTB.dossier = ''; filtresTB.sa = '';
+    afficherFiltresHierarchiques();
     rendreSeances();
   });
   document.getElementById('filtreStatutTB').addEventListener('change', (e) => {
     filtresTB.statut = e.target.value;
+    rendreSeances();
+  });
+
+  afficherFiltresHierarchiques();
+}
+
+// Filtres secondaires calculés automatiquement à partir du contenu réel du
+// parcours (pas de valeurs codées en dur) : Unité + Semaine pour le français,
+// Dossier pour les mathématiques, ou juste la SA pour les autres matières
+// (structure à un seul niveau) — pour retrouver une séance à éditer sans
+// avoir à redescendre toute l'arborescence depuis "navigation.html".
+function afficherFiltresHierarchiques() {
+  const zone = document.getElementById('zoneFiltresHierarchiquesTB');
+  if (!filtresTB.matiere) { zone.innerHTML = ''; return; }
+
+  const champSelectionne = champsTB.find(c => String(c.id) === filtresTB.matiere);
+  // Séances de la matière choisie (et de la classe choisie, si renseignée) —
+  // sert uniquement à calculer les options disponibles dans les filtres.
+  const seancesPourOptions = seancesTB.filter(s =>
+    String(s.champ?.id ?? '') === filtresTB.matiere &&
+    (!filtresTB.classe || String(s.classe?.id ?? '') === filtresTB.classe)
+  );
+
+  const optionsUniques = (liste, cle) => {
+    const vues = new Map();
+    liste.forEach(s => { const n = s[cle]; if (n && !vues.has(n.id)) vues.set(n.id, n); });
+    return [...vues.values()].sort((a, b) => a.titre.localeCompare(b.titre, 'fr'));
+  };
+  const optionsSA = (liste) => {
+    const vues = new Map();
+    liste.forEach(s => { const sa = s.saInfo; if (sa && !vues.has(sa.id)) vues.set(sa.id, sa); });
+    return [...vues.values()].sort((a, b) => (a.numero ?? 0) - (b.numero ?? 0) || a.titre.localeCompare(b.titre, 'fr'));
+  };
+  const libelleSA = (sa) => `${sa.numero ? 'SA' + sa.numero + ' — ' : ''}${sa.titre}`;
+
+  let html = '';
+
+  if (champSelectionne?.code === 'francais') {
+    const unites = optionsUniques(seancesPourOptions, 'unite');
+    const seancesApresUnite = filtresTB.unite ? seancesPourOptions.filter(s => String(s.unite?.id ?? '') === filtresTB.unite) : seancesPourOptions;
+    const semaines = optionsUniques(seancesApresUnite, 'semaine');
+    const seancesApresSemaine = filtresTB.semaine ? seancesApresUnite.filter(s => String(s.semaine?.id ?? '') === filtresTB.semaine) : seancesApresUnite;
+    const sasDispo = optionsSA(seancesApresSemaine);
+
+    html = `
+      <select id="filtreUniteTB"><option value="">Toutes les unités</option>${unites.map(n => `<option value="${n.id}" ${filtresTB.unite === String(n.id) ? 'selected' : ''}>${echapperTB(n.titre)}</option>`).join('')}</select>
+      <select id="filtreSemaineTB"><option value="">Toutes les semaines</option>${semaines.map(n => `<option value="${n.id}" ${filtresTB.semaine === String(n.id) ? 'selected' : ''}>${echapperTB(n.titre)}</option>`).join('')}</select>
+      <select id="filtreSaTB"><option value="">Toutes les SA</option>${sasDispo.map(sa => `<option value="${sa.id}" ${filtresTB.sa === String(sa.id) ? 'selected' : ''}>${echapperTB(libelleSA(sa))}</option>`).join('')}</select>`;
+  } else if (champSelectionne?.code === 'mathematique') {
+    const dossiers = optionsUniques(seancesPourOptions, 'dossier');
+    const seancesApresDossier = filtresTB.dossier ? seancesPourOptions.filter(s => String(s.dossier?.id ?? '') === filtresTB.dossier) : seancesPourOptions;
+    const sasDispo = optionsSA(seancesApresDossier);
+
+    html = `
+      <select id="filtreDossierTB"><option value="">Tous les dossiers</option>${dossiers.map(n => `<option value="${n.id}" ${filtresTB.dossier === String(n.id) ? 'selected' : ''}>${echapperTB(n.titre)}</option>`).join('')}</select>
+      <select id="filtreSaTB"><option value="">Toutes les SA</option>${sasDispo.map(sa => `<option value="${sa.id}" ${filtresTB.sa === String(sa.id) ? 'selected' : ''}>${echapperTB(libelleSA(sa))}</option>`).join('')}</select>`;
+  } else {
+    const sasDispo = optionsSA(seancesPourOptions);
+    html = `<select id="filtreSaTB"><option value="">Toutes les SA</option>${sasDispo.map(sa => `<option value="${sa.id}" ${filtresTB.sa === String(sa.id) ? 'selected' : ''}>${echapperTB(libelleSA(sa))}</option>`).join('')}</select>`;
+  }
+
+  zone.innerHTML = html;
+
+  const filtreUnite = document.getElementById('filtreUniteTB');
+  if (filtreUnite) filtreUnite.addEventListener('change', (e) => {
+    filtresTB.unite = e.target.value; filtresTB.semaine = ''; filtresTB.sa = '';
+    afficherFiltresHierarchiques(); rendreSeances();
+  });
+  const filtreSemaine = document.getElementById('filtreSemaineTB');
+  if (filtreSemaine) filtreSemaine.addEventListener('change', (e) => {
+    filtresTB.semaine = e.target.value; filtresTB.sa = '';
+    afficherFiltresHierarchiques(); rendreSeances();
+  });
+  const filtreDossier = document.getElementById('filtreDossierTB');
+  if (filtreDossier) filtreDossier.addEventListener('change', (e) => {
+    filtresTB.dossier = e.target.value; filtresTB.sa = '';
+    afficherFiltresHierarchiques(); rendreSeances();
+  });
+  const filtreSA = document.getElementById('filtreSaTB');
+  if (filtreSA) filtreSA.addEventListener('change', (e) => {
+    filtresTB.sa = e.target.value;
     rendreSeances();
   });
 }
@@ -189,6 +295,10 @@ function rendreSeances() {
     if (filtresTB.classe && String(s.classe?.id ?? '') !== filtresTB.classe) return false;
     if (filtresTB.statut && s.statut !== filtresTB.statut) return false;
     if (filtresTB.recherche && !(s.titre || '').toLowerCase().includes(filtresTB.recherche)) return false;
+    if (filtresTB.unite && String(s.unite?.id ?? '') !== filtresTB.unite) return false;
+    if (filtresTB.semaine && String(s.semaine?.id ?? '') !== filtresTB.semaine) return false;
+    if (filtresTB.dossier && String(s.dossier?.id ?? '') !== filtresTB.dossier) return false;
+    if (filtresTB.sa && String(s.sa_id ?? '') !== filtresTB.sa) return false;
     return true;
   });
 

@@ -14,7 +14,7 @@ const saOuvertes = new Set();
 const contenu = document.getElementById('contenu');
 const filAriane = document.getElementById('filAriane');
 
-(async function initEntete() {
+async function initEntete() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) return;
   etat.userId = session.user.id;
@@ -55,7 +55,7 @@ const filAriane = document.getElementById('filAriane');
     return;
   }
   if (profilGenerique?.role === 'eleve') etat.estEleve = true;
-})();
+}
 
 // --- FIL D'ARIANE ------------------------------------------------------
 
@@ -920,6 +920,15 @@ function echapper(v) {
 // --- POINT D'ENTRÉE : reprend le contexte depuis l'URL si présent --------
 // (ex: retour depuis l'éditeur de séance, qui ramène directement à la SA
 // plutôt qu'à la racine — voir urlNavigationVersSA() dans editeur-seance.js)
+// initEntete() (badge utilisateur, profilAdmin/profilEnseignant/estEleve) et
+// initDepuisURL() (reprise du contexte classe/champ/SA depuis l'URL, ex :
+// retour depuis l'éditeur de séance) étaient auparavant deux IIFE lancées en
+// parallèle au chargement de la page. Comme initDepuisURL() appelle
+// verifierPermissions(), qui lit etat.profilAdmin/etat.profilEnseignant,
+// une requête réseau un peu plus lente pour l'une que pour l'autre pouvait
+// faire tourner verifierPermissions() AVANT que le profil ne soit chargé —
+// peutEditer restait alors bloqué à false (bouton "Modifier" absent) jusqu'à
+// un rechargement complet. On force maintenant l'ordre : profil d'abord.
 async function initDepuisURL() {
   const p = new URLSearchParams(window.location.search);
   const classeId = p.get('classeId');
@@ -941,4 +950,7 @@ async function initDepuisURL() {
   afficher();
 }
 
-initDepuisURL();
+(async function demarrer() {
+  await initEntete();
+  await initDepuisURL();
+})();
