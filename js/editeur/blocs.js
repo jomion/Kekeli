@@ -56,6 +56,16 @@ function infoType(valeur) {
 
 const TYPES_TEXTE_LIBRE = ['texte', 'a_retenir', 'definition', 'exemple', 'attention', 'astuce', 'item'];
 
+// Types dont le contenu textuel peut être assisté par l'IA (bouton "Générer"/"Améliorer"
+// dans l'entête du bloc). On indique, par type, quel champ de `contenu` contient le texte.
+const TYPES_IA_CHAMP_TEXTE = [...TYPES_TEXTE_LIBRE, 'titre', 'consigne', 'autre'];
+const TYPES_IA_CHAMP_CONSIGNE = ['activite', 'exercice', 'quiz', 'evaluation'];
+function champIA(typeBloc) {
+  if (TYPES_IA_CHAMP_TEXTE.includes(typeBloc)) return 'texte';
+  if (TYPES_IA_CHAMP_CONSIGNE.includes(typeBloc)) return 'consigne';
+  return null;
+}
+
 // Types de blocs qui agissent comme des SECTIONS : ils peuvent contenir
 // d'autres blocs en leur sein (voir parent_bloc_id). La liste définitive
 // des sections et des profondeurs autorisées sera affinée plus tard —

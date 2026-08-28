@@ -201,6 +201,9 @@ function htmlBloc(b) {
     `<button type="button" class="pastille-couleur" data-choisir-couleur-bloc="${col.valeur}" title="${col.nom}" style="background:${col.valeur}"></button>`
   ).join('');
 
+  const champIa = champIA(b.type_bloc);
+  const texteExistantIa = champIa && b.contenu && (b.contenu[champIa] || '').toString().replace(/<[^>]*>/g, '').trim();
+
   return `
     <div class="bloc" draggable="true" data-bloc-id="${b.id}" style="border-left-color:${couleur};background:${teinteClaire(couleur)}">
       <div class="bloc-entete">
@@ -212,6 +215,9 @@ function htmlBloc(b) {
           <label title="Afficher ce nom dans l'aperçu élève" style="display:flex;align-items:center;gap:3px;font-size:11px;font-weight:400;color:var(--texte-gris)">
             <input type="checkbox" data-toggle-titre-bloc ${afficherTitre ? 'checked' : ''}> Titre visible
           </label>
+          ${champIa ? `
+          <button type="button" title="Générer un brouillon avec l'IA" data-action-ia="generer">✨</button>
+          ${texteExistantIa ? `<button type="button" title="Améliorer ce texte avec l'IA" data-action-ia="ameliorer">🪄</button>` : ''}` : ''}
           <div class="menu-couleur-bloc">
             <button type="button" title="Couleur du bloc" data-ouvrir-couleur-bloc>🎨</button>
             <div class="palette-bloc" data-palette-bloc>${swatchesBloc}</div>
@@ -346,6 +352,12 @@ function attacherEcouteursBloc(bloc) {
   }
 
   attacherEcouteursTableau(el, bloc);
+
+  // Assistant IA (générer un brouillon / améliorer le texte existant)
+  const boutonGenererIA = el.querySelector(':scope > .bloc-entete [data-action-ia="generer"]');
+  if (boutonGenererIA) boutonGenererIA.addEventListener('click', () => ouvrirGenerationIA(bloc));
+  const boutonAmeliorerIA = el.querySelector(':scope > .bloc-entete [data-action-ia="ameliorer"]');
+  if (boutonAmeliorerIA) boutonAmeliorerIA.addEventListener('click', () => ameliorerBlocAvecIA(bloc, boutonAmeliorerIA));
 
   // Sections : déplier/replier + ajouter un bloc à l'intérieur
   const boutonToggleSection = el.querySelector(`:scope > .zone-section [data-toggle-section="${bloc.id}"]`);
@@ -517,6 +529,85 @@ function programmerSauvegardeBloc(bloc) {
 function afficherSauvegarde() {
   const el = document.getElementById('infoSauvegarde');
   if (el) el.textContent = `Dernier enregistrement : ${new Date().toLocaleString('fr-FR')}`;
+}
+
+// --- ASSISTANT IA (générer un brouillon / améliorer un texte) --------------
+// Appelle la fonction Supabase Edge "assistant-ia", qui contacte l'IA côté
+// serveur (la clé de service n'est jamais exposée dans le navigateur).
+
+async function appelerAssistantIA(payload) {
+  const { data, error } = await supabaseClient.functions.invoke('assistant-ia', { body: payload });
+  if (error) {
+    let message = error.message || "Le service IA n'a pas répondu.";
+    try {
+      const corps = await error.context?.json?.();
+      if (corps?.error) message = corps.error;
+    } catch (_ignore) { /* on garde le message par défaut */ }
+    throw new Error(message);
+  }
+  if (data?.error) throw new Error(data.error);
+  return (data?.texte || '').trim();
+}
+
+function texteBrutDepuisHtml(html) {
+  const div = document.createElement('div');
+  div.innerHTML = html || '';
+  return (div.textContent || div.innerText || '').trim();
+}
+
+function htmlDepuisTexteBrut(texte) {
+  return (texte || '').split(/\n+/).map(l => l.trim()).filter(Boolean).map(l => `<p>${echapper(l)}</p>`).join('') || `<p>${echapper(texte)}</p>`;
+}
+
+async function ameliorerBlocAvecIA(bloc, bouton) {
+  const champ = champIA(bloc.type_bloc);
+  if (!champ) return;
+  const estRiche = TYPES_TEXTE_LIBRE.includes(bloc.type_bloc);
+  const valeurActuelle = (bloc.contenu && bloc.contenu[champ]) || '';
+  const texteActuel = estRiche ? texteBrutDepuisHtml(valeurActuelle) : valeurActuelle.toString();
+  if (!texteActuel.trim()) return alert('Ce bloc est vide — rien à améliorer pour le moment.');
+
+  const texteBoutonOriginal = bouton.textContent;
+  bouton.disabled = true;
+  bouton.textContent = '⏳';
+  try {
+    const resultat = await appelerAssistantIA({
+      action: 'ameliorer', texte: texteActuel, typeBloc: bloc.type_bloc,
+      classe: chaineNavigation?.classeNom, champ: chaineNavigation?.champNom
+    });
+    bloc.contenu = { ...bloc.contenu, [champ]: estRiche ? htmlDepuisTexteBrut(resultat) : resultat };
+    programmerSauvegardeBloc(bloc);
+    rendreListeBlocs();
+  } catch (e) {
+    alert("Erreur IA : " + e.message);
+  } finally {
+    if (bouton.isConnected) { bouton.disabled = false; bouton.textContent = texteBoutonOriginal; }
+  }
+}
+
+function ouvrirGenerationIA(bloc) {
+  const champ = champIA(bloc.type_bloc);
+  if (!champ) return;
+  ouvrirModal({
+    titre: "Générer un brouillon avec l'IA",
+    champs: [{ nom: 'sujet', label: 'Sujet à donner à l\'IA', type: 'textarea', placeholder: 'Ex : la conjugaison du verbe être au présent' }],
+    texteValider: 'Générer',
+    onValider: async ({ sujet }) => {
+      if (!sujet || !sujet.trim()) return;
+      try {
+        const resultat = await appelerAssistantIA({
+          action: 'generer', sujet, typeBloc: bloc.type_bloc,
+          classe: chaineNavigation?.classeNom, champ: chaineNavigation?.champNom
+        });
+        const estRiche = TYPES_TEXTE_LIBRE.includes(bloc.type_bloc);
+        bloc.contenu = { ...bloc.contenu, [champ]: estRiche ? htmlDepuisTexteBrut(resultat) : resultat };
+        programmerSauvegardeBloc(bloc);
+        rendreListeBlocs();
+      } catch (e) {
+        alert("Erreur IA : " + e.message);
+      }
+    }
+  });
 }
 
 // --- AJOUT / DUPLICATION / SUPPRESSION DE BLOCS -----------------------------
