@@ -96,11 +96,11 @@ async function afficherTableauDeBord() {
         <h3>Messagerie enseignant</h3>
         <p>Disponible dès qu'un enseignant suit un de vos enfants.</p>
       </div>`}
-      <div class="carte-action-tb a-venir">
+      <a href="paiements.html" class="carte-action-tb disponible" style="text-decoration:none;color:inherit;display:block">
         <div class="icone-action-tb">💳</div>
         <h3>Paiement des frais</h3>
-        <p>Bientôt disponible.</p>
-      </div>
+        <p>Consulter l'historique des paiements de vos enfants.</p>
+      </a>
     </div>
   `;
 

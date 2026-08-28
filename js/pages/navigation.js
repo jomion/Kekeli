@@ -1,7 +1,7 @@
 // Page pages/navigation.html
 const etat = {
   classe: null, champ: null, cheminNoeuds: [], sa: null, vueArborescence: false,
-  peutEditer: false, peutValider: false, profilAdmin: null
+  peutEditer: false, peutValider: false, profilAdmin: null, estEleve: false
 };
 
 // État déplié/replié de l'arborescence — en dehors de `etat` pour survivre
@@ -17,18 +17,25 @@ const filAriane = document.getElementById('filAriane');
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) return;
   const profil = await chargerProfilAdmin(session.user.id);
-  if (!profil) return;
-  etat.profilAdmin = profil;
-  document.getElementById('zoneDroite').innerHTML = `
-    <div id="zoneCloche"></div>
-    <span class="badge-utilisateur">${profil.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${profil.prenom}</span>
-    <a href="admin/tableau-de-bord.html" class="btn btn-discret">🏠 Tableau de bord</a>
-    <a href="admin/devoirs-notes.html" class="btn btn-discret">📊 Devoirs &amp; notes</a>
-    <a href="admin/messagerie.html" class="btn btn-discret">💬 Messagerie</a>
-    <button class="btn btn-discret" id="btnDeconnexion">Déconnexion</button>
-  `;
-  document.getElementById('btnDeconnexion').addEventListener('click', deconnecterAdmin);
-  initClocheNotifications('zoneCloche', profil.id);
+  if (profil) {
+    etat.profilAdmin = profil;
+    document.getElementById('zoneDroite').innerHTML = `
+      <div id="zoneCloche"></div>
+      <span class="badge-utilisateur">${profil.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${profil.prenom}</span>
+      <a href="admin/tableau-de-bord.html" class="btn btn-discret">🏠 Tableau de bord</a>
+      <a href="admin/devoirs-notes.html" class="btn btn-discret">📊 Devoirs &amp; notes</a>
+      <a href="admin/messagerie.html" class="btn btn-discret">💬 Messagerie</a>
+      <button class="btn btn-discret" id="btnDeconnexion">Déconnexion</button>
+    `;
+    document.getElementById('btnDeconnexion').addEventListener('click', deconnecterAdmin);
+    initClocheNotifications('zoneCloche', profil.id);
+    return;
+  }
+
+  // Pas un compte admin : on regarde si c'est un élève, pour proposer la
+  // lecture des séances (bouton "Lire la séance" plus bas).
+  const { data: profilGenerique } = await supabaseClient.from('profils').select('role').eq('id', session.user.id).maybeSingle();
+  if (profilGenerique?.role === 'eleve') etat.estEleve = true;
 })();
 
 // --- FIL D'ARIANE ------------------------------------------------------
@@ -413,6 +420,7 @@ async function afficherSeances() {
       <div><div class="titre-ligne">${echapper(s.titre)}${s.discipline ? ` <span class="statut-pill" style="background:var(--accent-clair);color:var(--bleu-principal)">${echapper(s.discipline)}</span>` : ''}</div><span class="statut-pill statut-${s.statut}">${pillsStatut[s.statut]}</span></div>
       <div style="display:flex;gap:8px">
         ${etat.peutEditer ? `<a class="btn btn-primaire" href="editeur-seance.html?id=${s.id}">Modifier la séance</a>` : ''}
+        ${etat.estEleve && !etat.peutEditer ? `<a class="btn btn-primaire" href="eleve/seance.html?id=${s.id}">📖 Lire la séance</a>` : ''}
         ${etat.peutEditer ? `<button class="btn btn-danger" data-supprimer-seance="${s.id}">🗑️</button>` : ''}
       </div>
     </div>`).join('') || '<p class="chargement">Aucune séance pour l\'instant.</p>'}</div>`;

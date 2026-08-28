@@ -132,8 +132,7 @@ function html_editeurBloc(bloc) {
         <div class="champ-ligne"><label>Palier</label>${html_selectPalier(bloc)}</div>`;
 
     case 'exercice': case 'quiz': case 'evaluation':
-      return `<textarea data-champ="consigne" placeholder="Consigne (l'éditeur détaillé — questions, correction automatique — arrive à l'étape dédiée du projet)">${echapper(c.consigne)}</textarea>
-        <p class="note-future">Éditeur complet (questions, correction automatique, barème) prévu à l'étape "Exercices &amp; épreuves" du projet.</p>`;
+      return html_editeurExercice(bloc, c);
 
     default:
       return `<p class="note-future">Type de bloc non reconnu.</p>`;
@@ -298,6 +297,94 @@ function html_selectPalier(bloc) {
   return `<select class="palier-select" data-champ-palier="1">
     ${paliers.map(p => `<option value="${p.v}" ${(bloc.palier || '') === p.v ? 'selected' : ''}>${p.l}</option>`).join('')}
   </select>`;
+}
+
+// --- ÉDITEUR D'EXERCICE / QUIZ / ÉVALUATION (questions + corrigé) ----------
+// Les questions (énoncé, type, options) restent dans bloc.contenu.questions —
+// c'est ce que l'élève reçoit pour répondre. Le corrigé (bonnes réponses,
+// barème) vit à part, dans la table corriges_exercices : jamais envoyé au
+// navigateur élève. Ici, dans l'éditeur admin, on affiche les deux côte à
+// côte pour que ce soit pratique à saisir — voir attacherEcouteursQuestions
+// dans editeur-seance.js pour le chargement du corrigé et la sauvegarde.
+
+const LIBELLES_TYPE_QUESTION = {
+  qcm: 'QCM (choix multiple)',
+  vrai_faux: 'Vrai / Faux',
+  reponse_courte: 'Réponse courte',
+  reponse_longue: 'Réponse longue (corrigée par IA)'
+};
+
+function html_editeurExercice(bloc, c) {
+  const questions = Array.isArray(c.questions) ? c.questions : [];
+  return `
+    <textarea data-champ="consigne" placeholder="Consigne générale (ex: Réponds aux questions suivantes)">${echapper(c.consigne)}</textarea>
+    <div class="champ-ligne"><label>Palier</label>${html_selectPalier(bloc)}</div>
+    <div class="editeur-questions" data-questions-bloc="${bloc.id}">
+      <div class="liste-questions" data-liste-questions>
+        ${questions.length ? questions.map((q, i) => html_questionEditeur(q, i, null)).join('') : '<p class="note-future">Aucune question pour l\'instant.</p>'}
+      </div>
+      <button type="button" class="btn btn-discret" data-ajouter-question>+ Ajouter une question</button>
+      <p class="note-future" data-etat-corrige>Chargement du corrigé...</p>
+    </div>`;
+}
+
+// corrige peut être `null` (corrigé pas encore chargé depuis la base — les
+// champs de correction s'affichent alors désactivés le temps du chargement).
+function html_questionEditeur(q, index, corrige) {
+  const c = corrige ? (corrige[q.id] || {}) : null;
+  const enAttente = corrige === null;
+  const points = c ? (c.points ?? 1) : 1;
+
+  let corpsCorrige = '';
+  if (q.type === 'qcm') {
+    const options = Array.isArray(q.options) ? q.options : [];
+    corpsCorrige = `
+      <div class="options-qcm">
+        ${options.map((opt, i) => `
+          <div class="option-qcm">
+            <input type="radio" name="bonne-${q.id}" data-question-bonne-index="${i}" ${!enAttente && String(c.bonneReponse) === String(i) ? 'checked' : ''} ${enAttente ? 'disabled' : ''}>
+            <input type="text" data-option-index="${i}" value="${echapper(opt)}" placeholder="Option ${i + 1}">
+            <button type="button" data-supprimer-option="${i}" title="Supprimer cette option">✕</button>
+          </div>`).join('')}
+        <button type="button" class="btn btn-discret" data-ajouter-option style="align-self:flex-start;font-size:12px">+ Option</button>
+      </div>`;
+  } else if (q.type === 'vrai_faux') {
+    const val = !enAttente ? (c.bonneReponse === true || c.bonneReponse === 'true') : null;
+    corpsCorrige = `
+      <div class="vrai-faux-choix">
+        <label><input type="radio" name="vf-${q.id}" data-question-bonne-vf="true" ${val === true ? 'checked' : ''} ${enAttente ? 'disabled' : ''}> Vrai</label>
+        <label><input type="radio" name="vf-${q.id}" data-question-bonne-vf="false" ${val === false ? 'checked' : ''} ${enAttente ? 'disabled' : ''}> Faux</label>
+      </div>`;
+  } else if (q.type === 'reponse_courte') {
+    const valeur = !enAttente && Array.isArray(c.bonneReponse) ? c.bonneReponse.join(', ') : '';
+    corpsCorrige = `
+      <div class="reponse-courte-champ">
+        <label>Réponse(s) acceptée(s) (séparées par une virgule)</label>
+        <input type="text" data-question-reponse-courte value="${echapper(valeur)}" placeholder="Ex: Paris, paris" ${enAttente ? 'disabled' : ''}>
+      </div>`;
+  } else if (q.type === 'reponse_longue') {
+    const bareme = !enAttente ? (c.bareme || '') : '';
+    corpsCorrige = `
+      <div class="bareme-champ">
+        <label>Éléments de correction attendus (barème indicatif pour l'IA)</label>
+        <textarea data-question-bareme placeholder="Ex: l'élève doit citer au moins 2 exemples..." ${enAttente ? 'disabled' : ''}>${echapper(bareme)}</textarea>
+      </div>
+      <p class="note-future">🤖 Réponse ouverte : sera notée par IA (note + commentaire), avec relecture possible ensuite.</p>`;
+  }
+
+  return `
+    <div class="question-editeur" data-question-id="${q.id}">
+      <div class="question-entete">
+        <span style="font-size:12px;font-weight:700;color:var(--texte-gris)">Q${index + 1}</span>
+        <select data-question-champ="type">
+          ${Object.entries(LIBELLES_TYPE_QUESTION).map(([v, l]) => `<option value="${v}" ${q.type === v ? 'selected' : ''}>${l}</option>`).join('')}
+        </select>
+        <label>Points <input type="number" min="0" step="0.5" data-question-points value="${points}" ${enAttente ? 'disabled' : ''}></label>
+        <button type="button" class="bouton-supprimer-question" data-supprimer-question title="Supprimer cette question">🗑️</button>
+      </div>
+      <textarea data-question-champ="enonce" placeholder="Énoncé de la question...">${echapper(q.enonce)}</textarea>
+      ${corpsCorrige}
+    </div>`;
 }
 
 function echapper(v) {

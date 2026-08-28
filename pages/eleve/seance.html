@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KEKELI - Séance</title>
+<link rel="stylesheet" href="../../css/style-public.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  .bloc-lecture { background: white; border-radius: 10px; padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border-left: 5px solid var(--bleu-kekeli); }
+  .bloc-lecture-titre { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--bleu-kekeli); margin-bottom: 8px; }
+  .bloc-lecture img { max-width: 100%; border-radius: 8px; }
+  .bloc-lecture table { border-collapse: collapse; width: 100%; }
+  .bloc-lecture table td { border: 1px solid var(--bordure); padding: 6px; }
+  .question-lecture { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--bordure); }
+  .question-lecture:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+  .question-enonce { font-weight: 700; margin: 0 0 8px; }
+  .question-lecture label { display: block; margin-bottom: 6px; cursor: pointer; }
+  .question-lecture input[type=text], .question-lecture textarea {
+    width: 100%; border: 2px solid var(--bordure); border-radius: 8px; padding: 8px; font-size: 14px; font-family: inherit;
+  }
+  .question-lecture textarea { min-height: 80px; resize: vertical; }
+  .vf-choix { display: flex; gap: 20px; }
+  .bouton-valider-exercice { margin-top: 16px; }
+  .resultat-question { margin-top: 14px; padding: 10px 12px; border-radius: 8px; }
+  .resultat-question.correct { background: #E8F8EF; border-left: 4px solid #22A559; }
+  .resultat-question.incorrect { background: #FCEBEB; border-left: 4px solid var(--rouge); }
+  .resultat-question.attente { background: #FFF8E1; border-left: 4px solid #FFC93C; }
+  .recap-score { font-size: 20px; font-weight: 800; color: var(--bleu-kekeli); margin-bottom: 10px; }
+  .fil-ariane-eleve { font-size: 13px; color: var(--text-gris); margin-bottom: 14px; }
+  .fil-ariane-eleve a { color: var(--bleu-kekeli); text-decoration: none; font-weight: 700; }
+</style>
+</head>
+<body>
+  <header class="entete-tableau-bord">
+    <a href="../../index.html" class="logo"><img src="../../assets/logo/logo.png" alt="KEKELI"> KEKELI</a>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div id="zoneCloche"></div>
+      <a href="tableau-de-bord.html" class="btn-deconnexion-public">← Mon espace</a>
+      <button class="btn-deconnexion-public" onclick="deconnecterUtilisateur()">Déconnexion</button>
+    </div>
+  </header>
+
+  <div class="conteneur-tableau-bord" id="contenu">
+    <p style="text-align:center;color:var(--text-gris)">Chargement...</p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/supabaseClient.js"></script>
+  <script>const RACINE_SITE = "../../";</script>
+  <script src="../../js/auth-utilisateur.js"></script>
+  <script src="../../js/notifications.js"></script>
+  <script src="../../js/editeur/blocs.js"></script>
+  <script src="../../js/pages/eleve-seance.js"></script>
+</body>
+</html>

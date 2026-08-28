@@ -113,6 +113,16 @@ function afficherActions() {
       <h3>Messagerie</h3>
       <p>Échanger avec les enseignants et les autres administrateurs.</p>
     </a>`,
+    `<a href="paiements.html" class="carte-action-tb disponible">
+      <div class="icone-action-tb">💳</div>
+      <h3>Paiements des frais</h3>
+      <p>Enregistrer les règlements reçus (suivi manuel, par classe).</p>
+    </a>`,
+    `<a href="badges.html" class="carte-action-tb disponible">
+      <div class="icone-action-tb">🎯</div>
+      <h3>Badges des élèves</h3>
+      <p>Créer des badges et en attribuer manuellement aux élèves.</p>
+    </a>`,
     estSuperAdmin ? `<a href="gestion-administrateurs.html" class="carte-action-tb disponible">
       <div class="icone-action-tb">🛡️</div>
       <h3>Gestion des administrateurs</h3>

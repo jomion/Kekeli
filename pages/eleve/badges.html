@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KEKELI - Mes badges</title>
+<link rel="stylesheet" href="../../css/style-public.css">
+<style>
+  .grille-mes-badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; margin-top: 14px; }
+  .carte-mon-badge { background: white; border-radius: 12px; padding: 18px 12px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-top: 4px solid var(--bleu-kekeli); }
+  .carte-mon-badge .icone-mon-badge { font-size: 40px; }
+  .carte-mon-badge h4 { margin: 8px 0 2px; font-size: 13px; color: var(--noir-kekeli); }
+  .carte-mon-badge p { margin: 0; font-size: 11px; color: var(--text-gris); }
+  .carte-mon-badge .date-mon-badge { margin-top: 6px; font-size: 10px; color: var(--text-gris); font-style: italic; }
+</style>
+</head>
+<body>
+  <header class="entete-tableau-bord">
+    <a href="../../index.html" class="logo"><img src="../../assets/logo/logo.png" alt="KEKELI"> KEKELI</a>
+    <div style="display:flex;align-items:center;gap:12px">
+      <a href="tableau-de-bord.html" class="btn-deconnexion-public">← Mon espace</a>
+      <button class="btn-deconnexion-public" onclick="deconnecterUtilisateur()">Déconnexion</button>
+    </div>
+  </header>
+
+  <div class="conteneur-tableau-bord" id="contenu">
+    <p style="text-align:center;color:var(--text-gris)">Chargement...</p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/supabaseClient.js"></script>
+  <script>const RACINE_SITE = "../../";</script>
+  <script src="../../js/auth-utilisateur.js"></script>
+  <script src="../../js/pages/eleve-badges.js"></script>
+</body>
+</html>

@@ -42,11 +42,11 @@
         <h3>Mes cours</h3>
         <p>Découvrir les leçons de ta classe.</p>
       </a>
-      <div class="carte-action-tb a-venir">
+      <a href="badges.html" class="carte-action-tb disponible" style="text-decoration:none;color:inherit;display:block">
         <div class="icone-action-tb">🎯</div>
         <h3>Mes badges</h3>
-        <p>Bientôt disponible.</p>
-      </div>
+        <p>Voir les badges que tu as obtenus.</p>
+      </a>
       <a href="devoirs-notes.html" class="carte-action-tb disponible" style="text-decoration:none;color:inherit;display:block">
         <div class="icone-action-tb">📊</div>
         <h3>Mes notes et devoirs</h3>

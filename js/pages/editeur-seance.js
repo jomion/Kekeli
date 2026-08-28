@@ -475,6 +475,7 @@ function attacherEcouteursBloc(bloc) {
   }
 
   attacherEcouteursTableau(el, bloc);
+  attacherEcouteursQuestions(el, bloc);
 
   // Assistant IA (générer un brouillon / améliorer le texte existant)
   const boutonGenererIA = el.querySelector(':scope > .bloc-entete [data-action-ia="generer"]');
@@ -592,6 +593,156 @@ function attacherEcouteursTableau(el, bloc) {
       declencherRerendu({ fusions });
     });
   });
+}
+
+// --- EXERCICE / QUIZ / ÉVALUATION : questions (publiques) + corrigé (privé) --
+// Les questions vivent dans bloc.contenu.questions (comme le reste du bloc,
+// envoyées à l'élève). Le corrigé vit dans une table séparée (corriges_exercices,
+// jamais lisible par un élève via les policies RLS) : on le charge à part, de
+// façon asynchrone, la première fois que ce bloc s'affiche dans l'éditeur.
+function attacherEcouteursQuestions(el, bloc) {
+  const conteneur = el.querySelector(':scope > .bloc-corps [data-questions-bloc]');
+  if (!conteneur) return;
+
+  const listeEl = conteneur.querySelector('[data-liste-questions]');
+  const etatCorrigeEl = conteneur.querySelector('[data-etat-corrige]');
+  const btnAjouterQuestion = conteneur.querySelector('[data-ajouter-question]');
+  let corrigeActuel = null; // null tant que le corrigé n'est pas encore chargé
+
+  const questions = () => Array.isArray(bloc.contenu && bloc.contenu.questions) ? bloc.contenu.questions : [];
+  const majQuestions = (liste) => { bloc.contenu = { ...bloc.contenu, questions: liste }; programmerSauvegardeBloc(bloc); };
+  const sauvegarderCorrige = () => { if (corrigeActuel) programmerSauvegardeCorrige(bloc.id, corrigeActuel); };
+
+  function rerender() {
+    const qs = questions();
+    listeEl.innerHTML = qs.length
+      ? qs.map((q, i) => html_questionEditeur(q, i, corrigeActuel)).join('')
+      : '<p class="note-future">Aucune question pour l\'instant.</p>';
+    wirerQuestions();
+  }
+
+  function wirerQuestions() {
+    listeEl.querySelectorAll('[data-question-id]').forEach(qEl => {
+      const qId = qEl.dataset.questionId;
+      const q = questions().find(x => x.id === qId);
+      if (!q) return;
+      const c = corrigeActuel ? (corrigeActuel[qId] = corrigeActuel[qId] || {}) : null;
+
+      qEl.querySelector('[data-question-champ="type"]').addEventListener('change', (e) => {
+        q.type = e.target.value;
+        if (q.type === 'qcm' && !Array.isArray(q.options)) q.options = ['', ''];
+        majQuestions(questions());
+        rerender();
+      });
+
+      qEl.querySelector('[data-champ="enonce"]').addEventListener('input', (e) => {
+        q.enonce = e.target.value;
+        majQuestions(questions());
+      });
+
+      const inputPoints = qEl.querySelector('[data-question-points]');
+      if (inputPoints) inputPoints.addEventListener('input', () => {
+        if (!c) return;
+        c.points = parseFloat(inputPoints.value) || 0;
+        sauvegarderCorrige();
+      });
+
+      qEl.querySelector('[data-supprimer-question]').addEventListener('click', () => {
+        majQuestions(questions().filter(x => x.id !== qId));
+        if (corrigeActuel) { delete corrigeActuel[qId]; sauvegarderCorrige(); }
+        rerender();
+      });
+
+      if (q.type === 'qcm') {
+        qEl.querySelectorAll('[data-option-index]').forEach(inputOpt => {
+          inputOpt.addEventListener('input', () => {
+            const i = parseInt(inputOpt.dataset.optionIndex, 10);
+            q.options[i] = inputOpt.value;
+            majQuestions(questions());
+          });
+        });
+        qEl.querySelectorAll('[data-question-bonne-index]').forEach(radio => {
+          radio.addEventListener('change', () => {
+            if (!c) return;
+            c.bonneReponse = radio.dataset.questionBonneIndex;
+            sauvegarderCorrige();
+          });
+        });
+        const btnAjouterOption = qEl.querySelector('[data-ajouter-option]');
+        if (btnAjouterOption) btnAjouterOption.addEventListener('click', () => {
+          q.options = [...(q.options || []), ''];
+          majQuestions(questions());
+          rerender();
+        });
+        qEl.querySelectorAll('[data-supprimer-option]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            q.options.splice(parseInt(btn.dataset.supprimerOption, 10), 1);
+            majQuestions(questions());
+            rerender();
+          });
+        });
+      }
+
+      if (q.type === 'vrai_faux') {
+        qEl.querySelectorAll('[data-question-bonne-vf]').forEach(radio => {
+          radio.addEventListener('change', () => {
+            if (!c) return;
+            c.bonneReponse = radio.dataset.questionBonneVf === 'true';
+            sauvegarderCorrige();
+          });
+        });
+      }
+
+      if (q.type === 'reponse_courte') {
+        const inputRc = qEl.querySelector('[data-question-reponse-courte]');
+        if (inputRc) inputRc.addEventListener('input', () => {
+          if (!c) return;
+          c.bonneReponse = inputRc.value.split(',').map(s => s.trim()).filter(Boolean);
+          sauvegarderCorrige();
+        });
+      }
+
+      if (q.type === 'reponse_longue') {
+        const texteBareme = qEl.querySelector('[data-question-bareme]');
+        if (texteBareme) texteBareme.addEventListener('input', () => {
+          if (!c) return;
+          c.bareme = texteBareme.value;
+          sauvegarderCorrige();
+        });
+      }
+    });
+  }
+
+  if (btnAjouterQuestion) {
+    btnAjouterQuestion.disabled = true; // le temps que le corrigé charge, pour ne rien écraser
+    btnAjouterQuestion.addEventListener('click', () => {
+      if (!corrigeActuel) return;
+      const nouvelleQuestion = { id: 'q_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7), type: 'qcm', enonce: '', options: ['', ''] };
+      majQuestions([...questions(), nouvelleQuestion]);
+      corrigeActuel[nouvelleQuestion.id] = { points: 1 };
+      sauvegarderCorrige();
+      rerender();
+    });
+  }
+
+  supabaseClient.from('corriges_exercices').select('corrige').eq('bloc_id', bloc.id).maybeSingle()
+    .then(({ data }) => {
+      corrigeActuel = (data && data.corrige) || {};
+      if (etatCorrigeEl) etatCorrigeEl.remove();
+      if (btnAjouterQuestion) btnAjouterQuestion.disabled = false;
+      rerender();
+    });
+}
+
+let minuteriesSauvegardeCorrige = {};
+function programmerSauvegardeCorrige(blocId, corrige) {
+  clearTimeout(minuteriesSauvegardeCorrige[blocId]);
+  minuteriesSauvegardeCorrige[blocId] = setTimeout(async () => {
+    await supabaseClient.from('corriges_exercices').upsert(
+      { bloc_id: blocId, corrige, modifie_le: new Date().toISOString() }, { onConflict: 'bloc_id' }
+    );
+    afficherSauvegarde();
+  }, 700);
 }
 
 // --- GLISSER-DÉPOSER (scopé par conteneur : racine ou une section) --------
@@ -837,6 +988,18 @@ async function dupliquerBloc(bloc) {
   }).select().single();
   if (error) return alert(error.message);
   blocs.push(data);
+
+  // Pour un exercice/quiz/évaluation, le corrigé vit dans une table séparée
+  // (corriges_exercices) : il faut le copier explicitement vers le nouveau
+  // bloc, sinon la copie garderait des questions sans aucune bonne réponse.
+  if (['exercice', 'quiz', 'evaluation'].includes(bloc.type_bloc)) {
+    const { data: corrigeSource } = await supabaseClient
+      .from('corriges_exercices').select('corrige').eq('bloc_id', bloc.id).maybeSingle();
+    if (corrigeSource) {
+      await supabaseClient.from('corriges_exercices').insert({ bloc_id: data.id, corrige: corrigeSource.corrige });
+    }
+  }
+
   rendreListeBlocs();
   // Note : les sous-blocs d'une section dupliquée ne sont pas encore
   // copiés automatiquement — à affiner avec les règles de profondeur.
@@ -889,11 +1052,25 @@ function dupliquerSeance() {
     }
     const enfants = blocs.filter(b => b.parent_bloc_id);
     for (const b of enfants) {
-      await supabaseClient.from('blocs_seance').insert({
+      const { data: copieEnfant } = await supabaseClient.from('blocs_seance').insert({
         seance_id: nouvelleSeance.id, type_bloc: b.type_bloc, contenu: b.contenu, palier: b.palier,
         ordre: b.ordre, parent_bloc_id: correspondance[b.parent_bloc_id] || null
-      });
+      }).select().single();
+      if (copieEnfant) correspondance[b.id] = copieEnfant.id;
     }
+
+    // Corrigés des exercices/quiz/évaluations : table séparée, à copier à part
+    // (sinon la séance dupliquée aurait des questions sans aucune bonne réponse).
+    const blocsNotables = blocs.filter(b => ['exercice', 'quiz', 'evaluation'].includes(b.type_bloc));
+    for (const b of blocsNotables) {
+      if (!correspondance[b.id]) continue;
+      const { data: corrigeSource } = await supabaseClient
+        .from('corriges_exercices').select('corrige').eq('bloc_id', b.id).maybeSingle();
+      if (corrigeSource) {
+        await supabaseClient.from('corriges_exercices').insert({ bloc_id: correspondance[b.id], corrige: corrigeSource.corrige });
+      }
+    }
+
     window.location.href = `editeur-seance.html?id=${nouvelleSeance.id}`;
   });
 }
@@ -930,6 +1107,29 @@ function ouvrirApercu() {
         return `<tr${style}>${l.map((cel, j) => masquee(i, j) ? '' : `<td ${colspan(i, j) > 1 ? `colspan="${colspan(i, j)}"` : ''} style="border:${bordure};padding:6px">${echapper(cel)}</td>`).join('')}</tr>`;
       }).join('');
       corps = `${c.titre ? `<p style="font-weight:700;margin-bottom:6px">${echapper(c.titre)}</p>` : ''}<table style="border-collapse:collapse;width:100%">${lignesHtml}</table>`;
+    }
+    else if (['exercice', 'quiz', 'evaluation'].includes(b.type_bloc)) {
+      const questions = Array.isArray(c.questions) ? c.questions : [];
+      corps = `
+        ${c.consigne ? `<p>${echapper(c.consigne)}</p>` : ''}
+        ${b.palier ? `<p><em>Palier : ${b.palier}</em></p>` : ''}
+        ${questions.length ? questions.map((q, i) => {
+          let champ = '';
+          if (q.type === 'qcm') {
+            champ = `<div style="margin-top:6px">${(q.options || []).map(opt => `<label style="display:block;margin-bottom:4px"><input type="radio" disabled> ${echapper(opt)}</label>`).join('')}</div>`;
+          } else if (q.type === 'vrai_faux') {
+            champ = `<div style="margin-top:6px;display:flex;gap:16px"><label><input type="radio" disabled> Vrai</label><label><input type="radio" disabled> Faux</label></div>`;
+          } else if (q.type === 'reponse_courte') {
+            champ = `<input type="text" disabled placeholder="Réponse..." style="margin-top:6px;width:100%;max-width:300px;padding:6px;border:1px solid #E2E8F0;border-radius:6px">`;
+          } else {
+            champ = `<textarea disabled placeholder="Réponse..." style="margin-top:6px;width:100%;min-height:70px;padding:6px;border:1px solid #E2E8F0;border-radius:6px"></textarea>`;
+          }
+          return `<div style="margin-top:12px;padding-top:10px;border-top:1px dashed #E2E8F0">
+            <p style="font-weight:700;margin:0">${i + 1}. ${echapper(q.enonce)}</p>
+            ${champ}
+          </div>`;
+        }).join('') : `<p style="color:#94A3B8;font-style:italic">Aucune question pour l'instant.</p>`}
+      `;
     }
     else corps = `<p>${echapper(c.consigne)}</p>${b.palier ? `<p><em>Palier : ${b.palier}</em></p>` : ''}`;
 

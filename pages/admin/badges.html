@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KEKELI Admin - Badges des élèves</title>
+<link rel="stylesheet" href="../../css/style.css">
+<style>
+  .grille-badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .carte-badge { background: white; border-radius: 10px; padding: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border-left: 4px solid var(--bleu-principal); }
+  .carte-badge.inactif { opacity: .55; }
+  .carte-badge .icone-badge { font-size: 26px; }
+  .carte-badge h4 { margin: 6px 0 2px; font-size: 14px; }
+  .carte-badge p { margin: 0; font-size: 12px; color: var(--texte-gris); }
+  .carte-badge .regle-badge { font-size: 11px; color: var(--bleu-principal); font-weight: 700; margin-top: 6px; }
+  .carte-badge .actions-badge { display: flex; gap: 6px; margin-top: 10px; }
+  .pastille-badge-eleve { display: inline-flex; align-items: center; gap: 4px; background: var(--bleu-clair); color: var(--bleu-principal); border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 700; }
+  .pastille-badge-eleve button { background: none; border: none; cursor: pointer; color: inherit; font-size: 11px; padding: 0; }
+</style>
+</head>
+<body>
+  <header class="header">
+    <div class="logo"><img src="../../assets/logo/logo.png" alt="KEKELI"> KEKELI Admin</div>
+    <div class="zone-droite" id="zoneDroite">
+      <a href="tableau-de-bord.html" class="btn btn-discret">🏠 Tableau de bord</a>
+    </div>
+  </header>
+
+  <div class="conteneur">
+    <div class="titre-page">🎯 Badges des élèves</div>
+    <div class="sous-titre-page">Créez des badges (automatiques et/ou attribuables à la main) et récompensez vos élèves.</div>
+    <div id="contenu" class="chargement">Chargement...</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/supabaseClient.js"></script>
+  <script>const RACINE_SITE = "../../";</script>
+  <script src="../../js/auth-admin.js"></script>
+  <script src="../../js/modal.js"></script>
+  <script src="../../js/pages/admin-badges.js"></script>
+</body>
+</html>
