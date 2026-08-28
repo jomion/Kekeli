@@ -16,11 +16,24 @@
     nomClasse = classe?.nom || '';
   }
 
+  const { data: abonnements } = await supabaseClient
+    .from('abonnements_enseignant_eleve')
+    .select('*, enseignants(profils(prenom, nom))')
+    .eq('eleve_id', profil.id).eq('statut', 'accepte');
+  const enseignantsSuivis = abonnements || [];
+
   document.getElementById('contenu').innerHTML = `
     <div class="carte-bienvenue carte-bienvenue-eleve">
       <div class="mascotte-eleve">${mascotte}</div>
       <h1>Bonjour, ${profil.prenom} !</h1>
       <p>${nomClasse ? `Bienvenue dans ton espace ${nomClasse}.` : 'Bienvenue dans ton espace KEKELI.'}</p>
+    </div>
+
+    <div class="carte-bienvenue" style="border-top-color:var(--bleu-kekeli)">
+      <h1 style="font-size:18px">👩‍🏫 Mes enseignants</h1>
+      ${enseignantsSuivis.length ? `<ul style="color:var(--text-gris);padding-left:20px">
+        ${enseignantsSuivis.map(a => `<li>${a.enseignants?.profils?.prenom || ''} ${a.enseignants?.profils?.nom || ''}</li>`).join('')}
+      </ul>` : `<p style="color:var(--text-gris)">Aucun enseignant ne te suit pour l'instant.</p>`}
     </div>
 
     <div class="grille-actions-tb">
