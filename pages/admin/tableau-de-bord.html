@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KEKELI Admin - Tableau de bord</title>
+<link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="logo"><img src="../../assets/logo/logo.png" alt="KEKELI"> KEKELI Admin</div>
+    <div class="zone-droite" id="zoneDroite"></div>
+  </header>
+
+  <div class="conteneur">
+    <div class="titre-page">Tableau de bord</div>
+    <div class="sous-titre-page">Vue d'ensemble des tâches à gérer, et accès direct à l'édition des séquences et séances.</div>
+
+    <div id="zoneTaches" class="grille-taches-admin" style="margin-bottom:24px"></div>
+
+    <div id="zoneActions" class="grille-actions-tb" style="margin-bottom:32px"></div>
+
+    <div class="titre-page" style="font-size:19px;margin-bottom:2px">🌳 Séquences &amp; séances par matière</div>
+    <div class="sous-titre-page">Recherchez et filtrez pour retrouver une séance en un clic, puis éditez-la directement.</div>
+
+    <div id="zoneFiltres" class="barre-filtres-admin"></div>
+    <div id="zoneSeances" class="chargement">Chargement...</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/supabaseClient.js"></script>
+  <script>const RACINE_SITE = "../../";</script>
+  <script src="../../js/auth-admin.js"></script>
+  <script src="../../js/notifications.js"></script>
+  <script src="../../js/modal.js"></script>
+  <script src="../../js/pages/admin-tableau-de-bord.js"></script>
+</body>
+</html>

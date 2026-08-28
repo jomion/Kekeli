@@ -22,6 +22,7 @@ const filAriane = document.getElementById('filAriane');
   document.getElementById('zoneDroite').innerHTML = `
     <div id="zoneCloche"></div>
     <span class="badge-utilisateur">${profil.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${profil.prenom}</span>
+    <a href="admin/tableau-de-bord.html" class="btn btn-discret">🏠 Tableau de bord</a>
     <a href="admin/devoirs-notes.html" class="btn btn-discret">📊 Devoirs &amp; notes</a>
     <a href="admin/enseignants.html" class="btn btn-discret">🧑‍🏫 Enseignants</a>
     <button class="btn btn-discret" id="btnDeconnexion">Déconnexion</button>

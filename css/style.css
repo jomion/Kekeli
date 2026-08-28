@@ -110,6 +110,43 @@ a { text-decoration: none; color: inherit; }
 .statut-publie { background: #E6F9EF; color: #0F7A45; }
 .statut-archive { background: #FCEBEB; color: var(--rouge); }
 
+/* ===== Tableau de bord admin : raccourcis, tâches, liste de séances ===== */
+.grille-actions-tb { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.carte-action-tb {
+  background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  border: 2px solid transparent; text-decoration: none; color: inherit; display: block;
+}
+.carte-action-tb.disponible { border-color: var(--bleu-clair); cursor: pointer; transition: transform .15s, border-color .15s; }
+.carte-action-tb.disponible:hover { transform: translateY(-2px); border-color: var(--bleu-principal); }
+.carte-action-tb .icone-action-tb { font-size: 26px; margin-bottom: 8px; }
+.carte-action-tb h3 { margin: 0 0 4px; font-size: 15px; color: var(--bleu-principal); }
+.carte-action-tb p { margin: 0; font-size: 12px; color: var(--texte-gris); line-height: 1.4; }
+
+.grille-taches-admin { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.pastille-tache-admin {
+  background: white; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  border-left: 4px solid var(--bleu-clair); display: flex; flex-direction: column; gap: 2px;
+}
+.pastille-tache-admin.a-traiter { border-left-color: var(--accent); }
+.pastille-tache-admin .chiffre-tache { font-size: 24px; font-weight: 800; color: var(--bleu-principal); }
+.pastille-tache-admin .libelle-tache { font-size: 12px; color: var(--texte-gris); }
+
+.barre-filtres-admin { display: flex; gap: 10px; flex-wrap: wrap; margin: 18px 0; align-items: center; }
+.barre-filtres-admin select, .barre-filtres-admin input[type="search"] {
+  padding: 9px 12px; border-radius: 8px; border: 1px solid var(--bordure); font-size: 13px; background: white;
+}
+.barre-filtres-admin input[type="search"] { flex-grow: 1; min-width: 180px; }
+
+.groupe-matiere-admin { margin-bottom: 22px; }
+.groupe-matiere-admin .titre-groupe-matiere {
+  font-size: 14px; font-weight: 800; color: var(--bleu-principal); text-transform: uppercase; letter-spacing: .4px;
+  margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid var(--bleu-clair);
+}
+.ligne-seance-admin { flex-wrap: wrap; }
+.ligne-seance-admin .details-seance-admin { display: flex; flex-direction: column; gap: 3px; }
+.ligne-seance-admin .meta-seance-admin { font-size: 12px; color: var(--texte-gris); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.badge-classe-admin { font-size: 10px; background: var(--bleu-clair); color: var(--bleu-principal); padding: 1px 8px; border-radius: 8px; font-weight: 700; }
+
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 8px; font-size: 13px; font-weight: 700; border: none; cursor: pointer; }
 .btn-primaire { background: var(--bleu-principal); color: white; }
 .btn-primaire:hover { background: var(--bleu-nuit); }
