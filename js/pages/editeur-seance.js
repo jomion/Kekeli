@@ -555,8 +555,51 @@ function texteBrutDepuisHtml(html) {
   return (div.textContent || div.innerText || '').trim();
 }
 
-function htmlDepuisTexteBrut(texte) {
-  return (texte || '').split(/\n+/).map(l => l.trim()).filter(Boolean).map(l => `<p>${echapper(l)}</p>`).join('') || `<p>${echapper(texte)}</p>`;
+// L'IA reçoit la consigne de ne pas utiliser de Markdown, mais elle en glisse
+// parfois quand même (**gras**, listes à puces, titres #). Ces deux fonctions
+// nettoient ça : l'une produit du vrai HTML pour les champs "riches"
+// (contenteditable), l'autre du texte simple débarrassé des symboles pour les
+// champs classiques (input/textarea), où ces symboles s'afficheraient tels quels.
+
+function nettoyerMarkdown(texte) {
+  return (texte || '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/__(.+?)__/g, '$1')
+    .replace(/(^|[^*])\*(?!\*)([^*]+?)\*(?!\*)/g, '$1$2')
+    .replace(/`{1,3}([^`]+?)`{1,3}/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^\s*[-*+]\s+/gm, '- ')
+    .trim();
+}
+
+function markdownVersHtml(texte) {
+  const lignes = (texte || '').split(/\n+/).map(l => l.trim()).filter(Boolean);
+  if (!lignes.length) return `<p>${echapper(texte)}</p>`;
+  const inline = (ligne) => echapper(ligne)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__(.+?)__/g, '<strong>$1</strong>')
+    .replace(/(^|[^*])\*(?!\*)([^*]+?)\*(?!\*)/g, '$1<em>$2</em>')
+    .replace(/`{1,3}([^`]+?)`{1,3}/g, '<code>$1</code>');
+  let html = '';
+  let listeOuverte = null; // 'ul' | 'ol' | null
+  const fermerListe = () => { if (listeOuverte) { html += `</${listeOuverte}>`; listeOuverte = null; } };
+  for (const ligne of lignes) {
+    const puce = ligne.match(/^[-*+]\s+(.*)$/);
+    const numero = ligne.match(/^\d+[.)]\s+(.*)$/);
+    const titre = ligne.match(/^#{1,6}\s+(.*)$/);
+    if (puce) {
+      if (listeOuverte !== 'ul') { fermerListe(); html += '<ul>'; listeOuverte = 'ul'; }
+      html += `<li>${inline(puce[1])}</li>`;
+    } else if (numero) {
+      if (listeOuverte !== 'ol') { fermerListe(); html += '<ol>'; listeOuverte = 'ol'; }
+      html += `<li>${inline(numero[1])}</li>`;
+    } else {
+      fermerListe();
+      html += titre ? `<p><strong>${inline(titre[1])}</strong></p>` : `<p>${inline(ligne)}</p>`;
+    }
+  }
+  fermerListe();
+  return html;
 }
 
 async function ameliorerBlocAvecIA(bloc, bouton) {
@@ -575,7 +618,7 @@ async function ameliorerBlocAvecIA(bloc, bouton) {
       action: 'ameliorer', texte: texteActuel, typeBloc: bloc.type_bloc,
       classe: chaineNavigation?.classeNom, champ: chaineNavigation?.champNom
     });
-    bloc.contenu = { ...bloc.contenu, [champ]: estRiche ? htmlDepuisTexteBrut(resultat) : resultat };
+    bloc.contenu = { ...bloc.contenu, [champ]: estRiche ? markdownVersHtml(resultat) : nettoyerMarkdown(resultat) };
     programmerSauvegardeBloc(bloc);
     rendreListeBlocs();
   } catch (e) {
@@ -600,7 +643,7 @@ function ouvrirGenerationIA(bloc) {
           classe: chaineNavigation?.classeNom, champ: chaineNavigation?.champNom
         });
         const estRiche = TYPES_TEXTE_LIBRE.includes(bloc.type_bloc);
-        bloc.contenu = { ...bloc.contenu, [champ]: estRiche ? htmlDepuisTexteBrut(resultat) : resultat };
+        bloc.contenu = { ...bloc.contenu, [champ]: estRiche ? markdownVersHtml(resultat) : nettoyerMarkdown(resultat) };
         programmerSauvegardeBloc(bloc);
         rendreListeBlocs();
       } catch (e) {
