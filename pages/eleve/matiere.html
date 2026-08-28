@@ -5,30 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KEKELI - Mes matières</title>
 <link rel="stylesheet" href="../../css/style-public.css">
-<style>
-  .fil-ariane-eleve a { cursor: pointer; }
-  .grille-champs-eleve { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 16px; }
-  .carte-champ-eleve { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); cursor: pointer; transition: transform .15s; border: 2px solid transparent; }
-  .carte-champ-eleve:hover { transform: translateY(-3px); border-color: var(--bleu-kekeli); }
-  .icone-champ-eleve { font-size: 30px; margin-bottom: 8px; }
-  .grille-sa-eleve { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
-  .carte-sa-eleve { background: white; border-radius: 12px; padding: 16px 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-  .carte-sa-eleve:hover { border-left: 5px solid var(--bleu-kekeli); }
-  .subject-header { background: white; padding: 1.5rem 2rem; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); margin-bottom: 1.5rem; border-top: 6px solid var(--bleu-kekeli); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
-  .grille-paliers-eleve { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
-  .palier-card-eleve { background: white; padding: 1.2rem; border-radius: 12px; text-align: center; border-top: 5px solid; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
-  .palier-card-eleve.verrouille { opacity: .55; }
-  .palier-icon-eleve { font-size: 2rem; margin-bottom: .4rem; }
-  .btn-palier-eleve { color: white; border: none; padding: .5rem 1rem; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%; margin-top: .6rem; text-decoration: none; display: inline-block; }
-  .session-list-eleve { display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem; }
-  .session-card-eleve { background: white; border-radius: 12px; padding: 1.2rem 1.5rem; display: flex; align-items: center; gap: 1.2rem; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border: 1px solid var(--bordure); }
-  .session-card-eleve.active { border-left: 6px solid var(--bleu-kekeli); }
-  .session-card-eleve.completed { border-left: 6px solid #22A559; opacity: .9; }
-  .session-card-eleve.locked { background: #F1F5F9; color: var(--text-gris); border-style: dashed; }
-  .session-icon-eleve { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; background: #E0E7FF; }
-  .session-content-eleve { flex-grow: 1; }
-  .session-title-eleve { font-size: 1.05rem; font-weight: 700; }
-</style>
 </head>
 <body>
   <header class="entete-tableau-bord">

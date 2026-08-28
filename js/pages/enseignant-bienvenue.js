@@ -16,8 +16,8 @@
   const nbClasses = (enseignant?.classes_assignees || []).length;
 
   document.getElementById('contenu').innerHTML = `
-    <div class="welcome-card-eleve">
-      <div class="mascot-avatar-eleve">🧑‍🏫</div>
+    <div class="welcome-card-eleve theme-enseignant">
+      <div class="mascot-avatar-eleve theme-enseignant">🧑‍🏫</div>
       <h1 style="color:var(--bleu-kekeli);margin:0 0 8px">Bienvenue, ${echapperEnsBv(profil.prenom)} !</h1>
       <p style="color:var(--text-gris);margin:0">${nbClasses ? `Tu gères ${nbClasses} classe${nbClasses > 1 ? 's' : ''}.` : "Aucune classe accordée pour l'instant — demandes-en une depuis ton tableau de bord."}</p>
     </div>

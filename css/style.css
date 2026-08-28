@@ -329,3 +329,12 @@ a { text-decoration: none; color: inherit; }
   display: block; width: 100%; padding: 12px; background-color: var(--bleu-principal); color: white;
   text-align: center; border-radius: 8px; font-weight: bold; border: none; box-sizing: border-box; font-size: 14px;
 }
+
+/* ===== Espace enseignant / admin — activités & classes assignées ===== */
+.carte-plan { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border-left: 4px solid var(--bleu-principal); }
+
+.carte-demande { background: white; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+.table-enseignants { width: 100%; border-collapse: collapse; }
+.table-enseignants th, .table-enseignants td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--bordure); font-size: 13px; }
+.pastille-classe-ens { display: inline-block; background: var(--bleu-clair); color: var(--bleu-principal); border-radius: 20px; padding: 2px 10px; font-size: 11px; font-weight: 700; margin: 2px 3px 2px 0; }
+.pastille-classe-ens button { background: none; border: none; cursor: pointer; color: inherit; font-size: 10px; margin-left: 4px; }
