@@ -194,6 +194,10 @@ a { text-decoration: none; color: inherit; }
 .editeur-riche {
   border: 1px solid var(--bordure); border-radius: 6px; padding: 10px; min-height: 70px;
   font-size: 14px; font-family: inherit; line-height: 1.5; color: var(--texte-fonce);
+  /* Explicite exprès (et pas juste "hérité par défaut") : un texte déclaré ici
+     bloque tout héritage d'un centrage venu d'un ancêtre, quelle qu'en soit
+     l'origine — c'est ce qui causait le centrage par défaut constaté. */
+  text-align: left;
 }
 .editeur-riche:focus { outline: none; border-color: var(--bleu-principal); }
 .editeur-riche ul, .editeur-riche ol { margin: 6px 0 6px 20px; }
