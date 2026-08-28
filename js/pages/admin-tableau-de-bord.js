@@ -128,6 +128,16 @@ function afficherActions() {
       <h3>Badges des élèves</h3>
       <p>Créer des badges et en attribuer manuellement aux élèves.</p>
     </a>`,
+    `<a href="activites.html" class="carte-action-tb disponible">
+      <div class="icone-action-tb">📝</div>
+      <h3>Activités à corriger</h3>
+      <p>Corriger les activités rendues, filtrées par palier/classe/matière.</p>
+    </a>`,
+    `<a href="enseignants-classes.html" class="carte-action-tb disponible">
+      <div class="icone-action-tb">🧑‍🏫</div>
+      <h3>Enseignants &amp; classes</h3>
+      <p>Valider les demandes d'accès à une classe faites par les enseignants.</p>
+    </a>`,
     estSuperAdmin ? `<a href="gestion-administrateurs.html" class="carte-action-tb disponible">
       <div class="icone-action-tb">🛡️</div>
       <h3>Gestion des administrateurs</h3>

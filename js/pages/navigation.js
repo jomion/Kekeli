@@ -1,7 +1,8 @@
 // Page pages/navigation.html
 const etat = {
   classe: null, champ: null, cheminNoeuds: [], sa: null, vueArborescence: false,
-  peutEditer: false, peutValider: false, profilAdmin: null, estEleve: false
+  peutEditer: false, peutValider: false, profilAdmin: null, profilEnseignant: null,
+  estEleve: false, userId: null
 };
 
 // État déplié/replié de l'arborescence — en dehors de `etat` pour survivre
@@ -16,6 +17,8 @@ const filAriane = document.getElementById('filAriane');
 (async function initEntete() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) return;
+  etat.userId = session.user.id;
+
   const profil = await chargerProfilAdmin(session.user.id);
   if (profil) {
     etat.profilAdmin = profil;
@@ -32,9 +35,25 @@ const filAriane = document.getElementById('filAriane');
     return;
   }
 
-  // Pas un compte admin : on regarde si c'est un élève, pour proposer la
-  // lecture des séances (bouton "Lire la séance" plus bas).
-  const { data: profilGenerique } = await supabaseClient.from('profils').select('role').eq('id', session.user.id).maybeSingle();
+  // Pas un compte admin : on regarde si c'est un enseignant (accès de
+  // gestion sur son périmètre : suivi élève ou classe assignée) ou un
+  // élève (bouton "Lire la séance" plus bas, en lecture seule).
+  const profilGenerique = await chargerProfil(session.user.id);
+  if (profilGenerique?.role === 'enseignant') {
+    const { data: enseignant } = await supabaseClient.from('enseignants').select('*').eq('id', session.user.id).single();
+    etat.profilEnseignant = { ...profilGenerique, ...enseignant };
+    document.getElementById('zoneDroite').innerHTML = `
+      <div id="zoneCloche"></div>
+      <span class="badge-utilisateur">🧑‍🏫 Enseignant : ${echapper(profilGenerique.prenom)}</span>
+      <a href="enseignant/tableau-de-bord.html" class="btn btn-discret">🏠 Tableau de bord</a>
+      <a href="enseignant/activites.html" class="btn btn-discret">📝 Activités à corriger</a>
+      <a href="enseignant/devoirs-notes.html" class="btn btn-discret">📊 Devoirs &amp; notes</a>
+      <button class="btn btn-discret" id="btnDeconnexion">Déconnexion</button>
+    `;
+    document.getElementById('btnDeconnexion').addEventListener('click', deconnecterUtilisateur);
+    initClocheNotifications('zoneCloche', profilGenerique.id);
+    return;
+  }
   if (profilGenerique?.role === 'eleve') etat.estEleve = true;
 })();
 
@@ -207,8 +226,8 @@ async function afficherChamps() {
   // Nombre d'"unités" par champ : niveau unite/dossier si présent,
   // sinon nombre de SA rattachées directement (champs à un seul niveau).
   const comptes = await Promise.all(champs.map(c => compterUnitesChamp(c)));
-  const droitsEdition = etat.profilAdmin
-    ? await Promise.all(champs.map(c => supabaseClient.rpc('peut_editer_perimetre', { p_id: etat.profilAdmin.id, p_classe_id: etat.classe.id, p_champ_id: c.id }).then(r => !!r.data)))
+  const droitsEdition = (etat.profilAdmin || etat.profilEnseignant)
+    ? await Promise.all(champs.map(c => supabaseClient.rpc('peut_gerer_classe_champ', { p_id: etat.userId, p_classe_id: etat.classe.id, p_champ_id: c.id }).then(r => !!r.data)))
     : champs.map(() => false);
 
   contenu.innerHTML = `
@@ -271,11 +290,21 @@ async function compterUnitesChamp(champ) {
 
 async function verifierPermissions() {
   etat.peutEditer = false; etat.peutValider = false;
-  if (!etat.profilAdmin) return;
-  const { data: peutEditer } = await supabaseClient.rpc('peut_editer_perimetre', { p_id: etat.profilAdmin.id, p_classe_id: etat.classe.id, p_champ_id: etat.champ.id });
-  const { data: peutValider } = await supabaseClient.rpc('peut_valider_perimetre', { p_id: etat.profilAdmin.id, p_classe_id: etat.classe.id, p_champ_id: etat.champ.id });
-  etat.peutEditer = !!peutEditer;
-  etat.peutValider = !!peutValider;
+  if (etat.profilAdmin) {
+    const { data: peutEditer } = await supabaseClient.rpc('peut_editer_perimetre', { p_id: etat.profilAdmin.id, p_classe_id: etat.classe.id, p_champ_id: etat.champ.id });
+    const { data: peutValider } = await supabaseClient.rpc('peut_valider_perimetre', { p_id: etat.profilAdmin.id, p_classe_id: etat.classe.id, p_champ_id: etat.champ.id });
+    etat.peutEditer = !!peutEditer;
+    etat.peutValider = !!peutValider;
+    return;
+  }
+  if (etat.profilEnseignant) {
+    // Un enseignant gère son périmètre (suivi élève accepté ou classe
+    // assignée) : il peut éditer ET publier son propre contenu — pas de
+    // validation admin séparée pour l'instant.
+    const { data: peutGerer } = await supabaseClient.rpc('peut_gerer_classe_champ', { p_id: etat.userId, p_classe_id: etat.classe.id, p_champ_id: etat.champ.id });
+    etat.peutEditer = !!peutGerer;
+    etat.peutValider = !!peutGerer;
+  }
 }
 
 // Structures hiérarchiques IMPOSÉES pour certains champs (clé = code du champ).
@@ -551,13 +580,26 @@ function creerSeanceDans(saId, redirigerVersEditeur = true, onCree) {
     titre: 'Nouvelle séance',
     champs: [
       { nom: 'titre', label: 'Titre', placeholder: 'Ex: Séance 1 — Découverte du texte' },
-      { nom: 'discipline', label: 'Discipline (optionnelle)', requis: false, placeholder: 'Lecture, Grammaire, Conjugaison...' }
+      { nom: 'discipline', label: 'Discipline (optionnelle)', requis: false, placeholder: 'Lecture, Grammaire, Conjugaison...' },
+      { nom: 'palier', label: 'Palier (optionnel — parcours différencié par niveau)', type: 'select', requis: false,
+        options: [
+          { valeur: '', label: '— Aucun (séance classique) —' },
+          { valeur: 'azovi', label: '🌱 Azɔ̀ví (très facile)' },
+          { valeur: 'devi', label: '🪘 Dèví (moyen)' },
+          { valeur: 'ogan', label: '🦁 Ògán (difficile)' },
+          { valeur: 'axosu', label: '👑 Axɔ́sú (très difficile)' }
+        ] }
     ],
     texteValider: redirigerVersEditeur ? "Créer et ouvrir l'éditeur" : 'Créer',
-    onValider: async ({ titre, discipline }) => {
+    onValider: async ({ titre, discipline, palier }) => {
       const { data: { session } } = await supabaseClient.auth.getSession();
+      // ordre séquentiel (nécessaire au verrouillage progressif par palier :
+      // les séances d'une même SA/palier se débloquent dans l'ordre de création
+      // par défaut — un réordonnancement manuel viendra plus tard).
+      const { count } = await supabaseClient.from('seances').select('id', { count: 'exact', head: true }).eq('sa_id', saId);
       const { data, error } = await supabaseClient.from('seances').insert({
-        sa_id: saId, titre, discipline: discipline || null, statut: 'brouillon', ordre: 0, cree_par: session.user.id
+        sa_id: saId, titre, discipline: discipline || null, palier: palier || null,
+        statut: 'brouillon', ordre: count || 0, cree_par: session.user.id
       }).select().single();
       if (error) return alert(error.message);
       if (redirigerVersEditeur) window.location.href = `editeur-seance.html?id=${data.id}`;

@@ -33,6 +33,20 @@
   .fil-ariane-eleve a { color: var(--bleu-kekeli); text-decoration: none; font-weight: 700; }
   .acces-suspendu-exercice { background: #FFF3E0; border-left: 4px solid #FF9800; border-radius: 8px; padding: 12px 14px; font-size: 14px; color: #7A4A00; }
   .note-essai-gratuit { font-size: 12px; color: #B8860B; background: #FFF8E1; border-radius: 6px; padding: 6px 10px; display: inline-block; margin-bottom: 8px; }
+  .entete-seance-eleve { background: white; border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border-left: 5px solid var(--bleu-kekeli); }
+  .badge-palier-seance { display: inline-block; font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 20px; margin-top: 6px; }
+  .badge-palier-azovi { background: #E8F8EF; color: #22A559; }
+  .badge-palier-devi { background: #EBF5FB; color: #3498DB; }
+  .badge-palier-ogan { background: #FDF2E9; color: #E67E22; }
+  .badge-palier-axosu { background: #F4ECF7; color: #9B59B6; }
+  .zone-travail-seance { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+  .colonne-lecture-seance, .colonne-exercice-seance { min-width: 0; }
+  .activite-lecture { padding-top: 8px; }
+  .activite-lecture textarea { width: 100%; border: 2px solid var(--bordure); border-radius: 8px; padding: 8px; font-size: 14px; font-family: inherit; min-height: 90px; resize: vertical; }
+  .activite-lecture input[type=url] { width: 100%; border: 2px solid var(--bordure); border-radius: 8px; padding: 8px; font-size: 14px; margin-top: 8px; }
+  .carte-note-activite { background: #F1F5F9; border-radius: 8px; padding: 10px 12px; margin-top: 8px; font-size: 13px; }
+  .bouton-marquer-termine { margin-top: 10px; }
+  @media (max-width: 860px) { .zone-travail-seance { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>

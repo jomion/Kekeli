@@ -1,15 +1,22 @@
 // Page pages/eleve/seance.html
-// Vue élève en lecture d'une séance publiée : affiche tous les blocs (texte,
-// image, tableau...) et, pour les blocs exercice/quiz/évaluation, propose un
-// formulaire de réponse (ou le résultat déjà obtenu). Réutilise les
-// utilitaires de js/editeur/blocs.js (infoType, teinteClaire, echapper...)
-// qui sont volontairement partagés entre l'éditeur et la vue élève.
+// Vue élève en lecture d'une séance publiée, sur le modèle "2 colonnes" :
+// à gauche le support de cours (texte, règle, exemples...), à droite le
+// travail à faire (exercice/quiz/évaluation à correction automatique, ou
+// activité à rendre pour correction manuelle). Réutilise les utilitaires de
+// js/editeur/blocs.js (infoType, teinteClaire, echapper...) volontairement
+// partagés entre l'éditeur et la vue élève.
 
 let profilEleveSeance = null;
 let seanceCourante = null;
+let cheminSeance = null; // { classeNom, champNom, saTitre }
 let blocsCourants = [];
 let reponsesExistantes = {}; // bloc_id -> ligne reponses_exercices
+let rendusActivitesExistants = {}; // bloc_id -> ligne rendus_activites
 let etatAccesCorrectionIA = { autorise: false }; // service premium "correction_ia" (cf. consommer_usage_service en base)
+let seanceDejaTerminee = false;
+
+const TYPES_TRAVAIL = ['exercice', 'quiz', 'evaluation', 'activite'];
+const LIBELLES_PALIER_ELEVE = { azovi: '🌱 Azɔ̀ví', devi: '🪘 Dèví', ogan: '🦁 Ògán', axosu: '👑 Axɔ́sú' };
 
 (async function () {
   profilEleveSeance = await requireRole('eleve');
@@ -28,12 +35,18 @@ async function charger() {
   }
 
   const { data: seance, error: erreurSeance } = await supabaseClient
-    .from('seances').select('*').eq('id', seanceId).maybeSingle();
+    .from('seances').select('*, sa(titre, noeud_id, noeuds_parcours(classe_id, champ_formation_id, classes(nom), champs_formation(nom)))').eq('id', seanceId).maybeSingle();
   if (erreurSeance || !seance) {
     conteneur.innerHTML = '<p style="text-align:center;color:var(--text-gris)">Cette séance est introuvable ou n\'est pas (ou plus) publiée.</p>';
     return;
   }
   seanceCourante = seance;
+  const noeud = seance.sa?.noeuds_parcours;
+  cheminSeance = {
+    classeNom: noeud?.classes?.nom || '',
+    champNom: noeud?.champs_formation?.nom || '',
+    saTitre: seance.sa?.titre || ''
+  };
 
   const { data: blocs, error: erreurBlocs } = await supabaseClient
     .from('blocs_seance').select('*').eq('seance_id', seanceId).order('ordre');
@@ -44,14 +57,25 @@ async function charger() {
   blocsCourants = blocs || [];
 
   const idsExercices = blocsCourants.filter(b => ['exercice', 'quiz', 'evaluation'].includes(b.type_bloc)).map(b => b.id);
+  const idsActivites = blocsCourants.filter(b => b.type_bloc === 'activite').map(b => b.id);
   reponsesExistantes = {};
+  rendusActivitesExistants = {};
+
   if (idsExercices.length) {
     const { data: reponses } = await supabaseClient
       .from('reponses_exercices').select('*').eq('eleve_id', profilEleveSeance.id).in('bloc_id', idsExercices);
     (reponses || []).forEach(r => { reponsesExistantes[r.bloc_id] = r; });
-
     await rafraichirAccesCorrectionIA();
   }
+  if (idsActivites.length) {
+    const { data: rendus } = await supabaseClient
+      .from('rendus_activites').select('*').eq('eleve_id', profilEleveSeance.id).in('bloc_id', idsActivites);
+    (rendus || []).forEach(r => { rendusActivitesExistants[r.bloc_id] = r; });
+  }
+
+  const { data: termine } = await supabaseClient
+    .from('seances_terminees').select('id').eq('eleve_id', profilEleveSeance.id).eq('seance_id', seanceId).maybeSingle();
+  seanceDejaTerminee = !!termine;
 
   rendre();
 }
@@ -69,21 +93,64 @@ async function rafraichirAccesCorrectionIA() {
 }
 
 function rendre() {
-  const topNiveau = blocsCourants.filter(b => !b.parent_bloc_id).sort((a, b) => a.ordre - b.ordre);
-  const enTeteDiscipline = seanceCourante.discipline
-    ? `<div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#FFCC00;background:#003366;display:inline-block;padding:4px 12px;border-radius:6px;margin-bottom:10px">${echapper(seanceCourante.discipline)}</div>`
+  const tousBlocsTop = blocsCourants.filter(b => !b.parent_bloc_id).sort((a, b) => a.ordre - b.ordre);
+  const blocsLecture = tousBlocsTop.filter(b => !TYPES_TRAVAIL.includes(b.type_bloc));
+  const blocsTravail = tousBlocsTop.filter(b => TYPES_TRAVAIL.includes(b.type_bloc));
+
+  const filAriane = [cheminSeance.classeNom, cheminSeance.champNom, cheminSeance.saTitre, seanceCourante.titre].filter(Boolean).join(' › ');
+  const badgePalier = seanceCourante.palier
+    ? `<span class="badge-palier-seance badge-palier-${seanceCourante.palier}">${LIBELLES_PALIER_ELEVE[seanceCourante.palier] || seanceCourante.palier}</span>`
+    : '';
+
+  const boutonMarquerTermine = blocsTravail.length === 0
+    ? (seanceDejaTerminee
+        ? `<p class="bouton-marquer-termine" style="color:#22A559;font-weight:700">✅ Séance terminée</p>`
+        : `<button class="btn btn-filled bouton-marquer-termine" id="btnMarquerTermine">✅ J'ai terminé cette séance</button>`)
     : '';
 
   document.getElementById('contenu').innerHTML = `
-    <div class="fil-ariane-eleve"><a href="../navigation.html">← Retour à mes cours</a></div>
-    <div class="carte-bienvenue">
-      ${enTeteDiscipline}
-      <h1>${echapper(seanceCourante.titre)}</h1>
+    <div class="fil-ariane-eleve"><a href="matiere.html">← Retour à mes matières</a></div>
+    <div class="entete-seance-eleve">
+      ${filAriane ? `<p style="margin:0 0 6px;font-size:12px;color:var(--text-gris)">${echapper(filAriane)}</p>` : ''}
+      <h1 style="margin:0">${echapper(seanceCourante.titre)}</h1>
+      ${seanceCourante.discipline ? `<span class="badge-palier-seance" style="background:#F1F5F9;color:var(--bleu-kekeli)">${echapper(seanceCourante.discipline)}</span>` : ''}
+      ${badgePalier}
+      ${seanceCourante.est_evaluation_finale ? `<span class="badge-palier-seance" style="background:#FEF3C7;color:#D97706">🏆 Évaluation finale — débloque le palier suivant</span>` : ''}
     </div>
-    ${topNiveau.map(rendreBlocLecture).join('') || '<p style="color:var(--text-gris)">Cette séance ne contient encore aucun contenu.</p>'}
+
+    <div class="zone-travail-seance">
+      <div class="colonne-lecture-seance">
+        ${blocsLecture.length ? blocsLecture.map(rendreBlocLecture).join('') : '<p style="color:var(--text-gris)">Aucun support de cours pour cette séance.</p>'}
+        ${boutonMarquerTermine}
+      </div>
+      <div class="colonne-exercice-seance">
+        ${blocsTravail.length ? blocsTravail.map(rendreBlocTravail).join('') : '<div class="bloc-lecture" style="border-left-color:#94A3B8"><p style="color:var(--text-gris);margin:0">Aucun exercice ni activité pour cette séance — profite bien de la lecture !</p></div>'}
+      </div>
+    </div>
   `;
 
   attacherEcouteursExercices();
+  attacherEcouteursActivites();
+  const btnMarquerTermine = document.getElementById('btnMarquerTermine');
+  if (btnMarquerTermine) btnMarquerTermine.addEventListener('click', async () => {
+    btnMarquerTermine.disabled = true;
+    const { error } = await supabaseClient.from('seances_terminees')
+      .insert({ eleve_id: profilEleveSeance.id, seance_id: seanceCourante.id });
+    if (error && error.code !== '23505') { alert(error.message); btnMarquerTermine.disabled = false; return; }
+    btnMarquerTermine.textContent = '✅ Séance terminée !';
+  });
+}
+
+function rendreBlocTravail(b) {
+  const info = infoType(b.type_bloc);
+  const c = b.contenu || {};
+  const couleur = c.couleurBloc || info.couleur || '#0000D1';
+  const libelle = c.libelle || info.label;
+  const corps = b.type_bloc === 'activite' ? rendreActivite(b, c) : rendreExercice(b, c);
+  return `<div class="bloc-lecture" style="border-left-color:${couleur};background:${teinteClaire(couleur, 0.04)}">
+    <div class="bloc-lecture-titre" style="color:${couleur}">${info.icone} ${echapper(libelle)}</div>
+    ${corps}
+  </div>`;
 }
 
 function rendreBlocLecture(b) {
@@ -114,14 +181,13 @@ function rendreBlocLecture(b) {
     }).join('');
     corps = `${c.titre ? `<p style="font-weight:700;margin-bottom:6px">${echapper(c.titre)}</p>` : ''}<table>${lignesHtml}</table>`;
   }
-  else if (['exercice', 'quiz', 'evaluation'].includes(b.type_bloc)) corps = rendreExercice(b, c);
-  else corps = `<p>${echapper(c.consigne)}</p>`;
+  else corps = `<p>${echapper(c.consigne || c.texte || '')}</p>`;
 
   const enfants = blocsCourants.filter(x => x.parent_bloc_id === b.id).sort((a, b2) => a.ordre - b2.ordre);
   return `<div class="bloc-lecture" style="border-left-color:${couleur};background:${teinteClaire(couleur, 0.04)}">
     ${afficherTitre ? `<div class="bloc-lecture-titre" style="color:${couleur}">${info.icone} ${echapper(libelle)}</div>` : ''}
     ${corps}
-    ${enfants.length ? `<div style="margin-left:16px;margin-top:10px;border-left:2px dashed var(--bordure);padding-left:12px">${enfants.map(rendreBlocLecture).join('')}</div>` : ''}
+    ${enfants.length ? `<div style="margin-left:16px;margin-top:10px;border-left:2px dashed var(--bordure);padding-left:12px">${enfants.filter(x => !TYPES_TRAVAIL.includes(x.type_bloc)).map(rendreBlocLecture).join('')}</div>` : ''}
   </div>`;
 }
 
@@ -154,6 +220,39 @@ function rendreExercice(b, c) {
     <form data-form-exercice="${b.id}">
       ${questions.map((q, i) => rendreChampQuestion(q, i)).join('')}
       <button type="submit" class="btn btn-filled bouton-valider-exercice">✅ Valider mes réponses</button>
+    </form>
+  `;
+}
+
+// Une "activité" n'a pas de correction automatique : l'élève rend un texte
+// (et/ou un lien de pièce jointe), un enseignant/admin corrige ensuite à la
+// main (note et/ou appréciation) — voir js/pages/activites-correction.js.
+function rendreActivite(b, c) {
+  const rendu = rendusActivitesExistants[b.id];
+
+  if (rendu) {
+    if (rendu.corrige_le) {
+      return `
+        ${c.consigne ? `<p>${echapper(c.consigne)}</p>` : ''}
+        <p style="font-size:13px;background:#F9F9F9;padding:8px;border-radius:6px">${echapper(rendu.reponse_texte || '')}</p>
+        <div class="carte-note-activite">
+          ✅ Corrigé${rendu.note != null ? ` — <strong>${rendu.note}/${rendu.bareme}</strong>` : ''}
+          ${rendu.appreciation ? ` — ${{ acquis: 'Acquis', en_cours: 'En cours', non_acquis: 'Non acquis' }[rendu.appreciation]}` : ''}
+          ${rendu.commentaire ? `<p style="margin:6px 0 0">💬 ${echapper(rendu.commentaire)}</p>` : ''}
+        </div>`;
+    }
+    return `
+      ${c.consigne ? `<p>${echapper(c.consigne)}</p>` : ''}
+      <p style="font-size:13px;background:#F9F9F9;padding:8px;border-radius:6px">${echapper(rendu.reponse_texte || '')}</p>
+      <p style="font-size:12px;color:var(--text-gris);margin-top:8px">⏳ En attente de correction.</p>`;
+  }
+
+  return `
+    ${c.consigne ? `<p>${echapper(c.consigne)}</p>` : ''}
+    <form data-form-activite="${b.id}" class="activite-lecture">
+      <textarea name="reponse" required placeholder="Écris ta réponse ici..."></textarea>
+      <input type="url" name="piece_jointe" placeholder="Lien vers une pièce jointe (optionnel)">
+      <button type="submit" class="btn btn-filled bouton-valider-exercice">📤 Rendre mon travail</button>
     </form>
   `;
 }
@@ -248,6 +347,35 @@ function attacherEcouteursExercices() {
         boutonValider.disabled = false;
         boutonValider.textContent = '✅ Valider mes réponses';
       }
+    });
+  });
+}
+
+function attacherEcouteursActivites() {
+  document.querySelectorAll('[data-form-activite]').forEach(form => {
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const blocId = parseInt(form.dataset.formActivite, 10);
+      const reponseTexte = form.querySelector('[name=reponse]').value.trim();
+      const pieceJointe = form.querySelector('[name=piece_jointe]').value.trim();
+
+      const boutonValider = form.querySelector('button[type=submit]');
+      boutonValider.disabled = true;
+      boutonValider.textContent = 'Envoi en cours...';
+
+      const { data, error } = await supabaseClient.from('rendus_activites').insert({
+        bloc_id: blocId, eleve_id: profilEleveSeance.id,
+        reponse_texte: reponseTexte, piece_jointe_url: pieceJointe || null
+      }).select().single();
+
+      if (error) {
+        alert(error.message);
+        boutonValider.disabled = false;
+        boutonValider.textContent = '📤 Rendre mon travail';
+        return;
+      }
+      rendusActivitesExistants[blocId] = data;
+      rendre();
     });
   });
 }

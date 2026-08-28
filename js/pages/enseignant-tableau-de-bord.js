@@ -2,6 +2,12 @@
 
 let profilEnseignantTB = null;
 
+function echapperEns(v) {
+  const d = document.createElement('div');
+  d.textContent = v ?? '';
+  return d.innerHTML;
+}
+
 (async function () {
   profilEnseignantTB = await requireRole('enseignant');
   if (!profilEnseignantTB) return;
@@ -22,7 +28,19 @@ async function afficherTableauBordEns() {
   const enAttenteEnvoyees = (abonnements || []).filter(a => a.statut === 'en_attente' && a.demande_par === profilEnseignantTB.id);
   const acceptes = (abonnements || []).filter(a => a.statut === 'accepte');
 
-  // Noms de classes pour affichage
+  // Classes obtenues par suivi élève (ci-dessus) + classes assignées
+  // directement (nouveau : suivi.enseignant.classes_assignees, alimenté par
+  // les demandes de classe ci-dessous, validées par l'administration).
+  const { data: enseignantRow } = await supabaseClient.from('enseignants').select('classes_assignees').eq('id', profilEnseignantTB.id).single();
+  const classesAssignees = enseignantRow?.classes_assignees || [];
+  const { data: toutesClasses } = await supabaseClient.from('classes').select('*').order('ordre');
+  const { data: demandesClasse } = await supabaseClient.from('demandes_classe_enseignant').select('*').eq('enseignant_id', profilEnseignantTB.id);
+  const demandesEnAttente = (demandesClasse || []).filter(d => d.statut === 'en_attente');
+  const classesAssigneesInfos = (toutesClasses || []).filter(c => classesAssignees.includes(c.id));
+  const classesDisponibles = (toutesClasses || []).filter(c => !classesAssignees.includes(c.id) && !demandesEnAttente.some(d => d.classe_id === c.id));
+  const aAccesClasse = acceptes.length > 0 || classesAssignees.length > 0;
+
+  // Noms de classes pour affichage (suivi élève par élève)
   const idsClasses = [...new Set(acceptes.map(a => a.eleves?.classe_id).filter(Boolean))];
   let classesParId = {};
   if (idsClasses.length) {
@@ -67,6 +85,22 @@ async function afficherTableauBordEns() {
         </div>
       </div>` : ''}
 
+    <div class="carte-bienvenue" style="border-top-color:var(--devi)">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <h1 style="font-size:18px;margin:0">🏫 Mes classes (${classesAssigneesInfos.length})</h1>
+        <button class="btn btn-filled" id="btnDemanderClasse" style="padding:6px 14px;font-size:12px">+ Demander une classe</button>
+      </div>
+      <p style="color:var(--text-gris);font-size:13px;margin-top:6px">En plus du suivi élève par élève, une classe accordée par l'administration vous donne accès en lecture ET édition à tout son contenu pédagogique (séances, exercices, activités).</p>
+      ${classesAssigneesInfos.length ? `<ul style="color:var(--text-gris);padding-left:20px;margin-top:10px">
+        ${classesAssigneesInfos.map(c => `<li style="margin-bottom:4px">${echapperEns(c.nom)}
+          <button data-quitter-classe="${c.id}" title="Quitter cette classe" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--rouge);margin-left:4px">✕</button>
+        </li>`).join('')}
+      </ul>` : ''}
+      ${demandesEnAttente.length ? `<div style="margin-top:10px;font-size:13px;color:var(--text-gris)">
+        Demandes en attente : ${demandesEnAttente.map(d => echapperEns((toutesClasses || []).find(c => c.id === d.classe_id)?.nom || '')).join(', ')}
+      </div>` : ''}
+    </div>
+
     <div class="carte-bienvenue" style="border-top-color:var(--bleu-kekeli)">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <h1 style="font-size:18px;margin:0">Mes élèves suivis (${acceptes.length})</h1>
@@ -81,14 +115,32 @@ async function afficherTableauBordEns() {
     </div>
 
     <div class="grille-actions-tb">
-      ${acceptes.length > 0 ? `<a href="devoirs-notes.html" class="carte-action-tb disponible" style="text-decoration:none;color:inherit;display:block">
+      ${aAccesClasse ? `<a href="devoirs-notes.html" class="carte-action-tb disponible" style="text-decoration:none;color:inherit;display:block">
         <div class="icone-action-tb">📊</div>
         <h3>Devoirs &amp; notes</h3>
-        <p>Attribuer des devoirs et des notes à vos élèves suivis.</p>
+        <p>Attribuer des devoirs et des notes à vos élèves.</p>
       </a>` : `<div class="carte-action-tb a-venir">
         <div class="icone-action-tb">📊</div>
         <h3>Devoirs &amp; notes</h3>
-        <p>Disponible dès qu'un élève vous suit.</p>
+        <p>Disponible dès qu'un élève vous suit ou qu'une classe vous est accordée.</p>
+      </div>`}
+      ${aAccesClasse ? `<a href="activites.html" class="carte-action-tb disponible" style="text-decoration:none;color:inherit;display:block">
+        <div class="icone-action-tb">📝</div>
+        <h3>Activités à corriger</h3>
+        <p>Corriger les activités rendues par vos élèves, filtrées par palier.</p>
+      </a>` : `<div class="carte-action-tb a-venir">
+        <div class="icone-action-tb">📝</div>
+        <h3>Activités à corriger</h3>
+        <p>Disponible dès qu'un élève vous suit ou qu'une classe vous est accordée.</p>
+      </div>`}
+      ${aAccesClasse ? `<a href="../navigation.html" class="carte-action-tb disponible" style="text-decoration:none;color:inherit;display:block">
+        <div class="icone-action-tb">📚</div>
+        <h3>Contenu pédagogique</h3>
+        <p>Consulter et éditer les séances de vos classes.</p>
+      </a>` : `<div class="carte-action-tb a-venir">
+        <div class="icone-action-tb">📚</div>
+        <h3>Contenu pédagogique</h3>
+        <p>Disponible dès qu'une classe vous est accordée.</p>
       </div>`}
       ${acceptes.length > 0 ? `<a href="messagerie.html" class="carte-action-tb disponible" style="text-decoration:none;color:inherit;display:block">
         <div class="icone-action-tb">💬</div>
@@ -125,6 +177,39 @@ async function afficherTableauBordEns() {
     btn.addEventListener('click', () => annulerAbonnementEns(parseInt(btn.dataset.annulerSuivi, 10), 'accepte'));
   });
   document.getElementById('btnSuivreEleve').addEventListener('click', ouvrirRechercheEleve);
+  document.getElementById('btnDemanderClasse').addEventListener('click', () => ouvrirDemandeClasse(classesDisponibles));
+  document.querySelectorAll('[data-quitter-classe]').forEach(btn => {
+    btn.addEventListener('click', () => quitterClasse(parseInt(btn.dataset.quitterClasse, 10)));
+  });
+}
+
+function ouvrirDemandeClasse(classesDisponibles) {
+  if (!classesDisponibles.length) return alert("Aucune classe supplémentaire disponible pour l'instant.");
+  ouvrirModal({
+    titre: 'Demander l\'accès à une classe',
+    champs: [{
+      nom: 'classe_id', label: 'Classe', type: 'select',
+      options: classesDisponibles.map(c => ({ valeur: c.id, label: c.nom }))
+    }],
+    texteValider: "Envoyer la demande à l'administration",
+    onValider: async ({ classe_id }) => {
+      const { error } = await supabaseClient.from('demandes_classe_enseignant').insert({
+        enseignant_id: profilEnseignantTB.id, classe_id: parseInt(classe_id, 10)
+      });
+      if (error) return alert(error.message);
+      alert("Demande envoyée — l'administration doit la valider.");
+      afficherTableauBordEns();
+    }
+  });
+}
+
+function quitterClasse(classeId) {
+  confirmerAction("Quitter cette classe ? Vous perdrez l'accès à son contenu pédagogique.", async () => {
+    const { error } = await supabaseClient.from('demandes_classe_enseignant')
+      .delete().eq('enseignant_id', profilEnseignantTB.id).eq('classe_id', classeId).eq('statut', 'accepte');
+    if (error) return alert(error.message);
+    afficherTableauBordEns();
+  });
 }
 
 async function repondreDemande(abonnementId, statut) {

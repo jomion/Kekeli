@@ -83,9 +83,9 @@ async function chargerProfil(userId) {
 function urlTableauDeBord(role) {
   const racine = _racine();
   switch (role) {
-    case 'eleve': return `${racine}pages/eleve/tableau-de-bord.html`;
+    case 'eleve': return `${racine}pages/eleve/bienvenue.html`;
     case 'parent': return `${racine}pages/parent/tableau-de-bord.html`;
-    case 'enseignant': return `${racine}pages/enseignant/tableau-de-bord.html`;
+    case 'enseignant': return `${racine}pages/enseignant/bienvenue.html`;
     case 'admin': case 'super_admin': return `${racine}pages/navigation.html`;
     default: return `${racine}index.html`;
   }
