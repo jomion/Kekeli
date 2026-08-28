@@ -15,9 +15,12 @@ let minuteriesSauvegarde = {}; // debounce par bloc
 const sectionsOuvertes = new Set();
 
 // État du glisser-déposer, partagé entre tous les conteneurs (racine +
-// chaque section) pour empêcher un déplacement d'un conteneur à un autre
-// (non géré pour l'instant — on affinera les profondeurs plus tard).
-let dragEtat = { element: null, conteneurOrigine: null };
+// chaque section) : permet de déplacer un bloc d'un conteneur à un autre
+// (ex: le faire entrer dans une section, ou en sortir) — on garde son
+// conteneur et son parent d'origine pour pouvoir recompacter les positions
+// restantes là-bas si le bloc en repart. Les règles de profondeur (limiter
+// l'imbrication) ne sont pas encore appliquées — à affiner plus tard.
+let dragEtat = { element: null, conteneurOrigine: null, parentBlocIdOrigine: undefined };
 
 const contenu = document.getElementById('contenu');
 const filAriane = document.getElementById('filAriane');
@@ -593,44 +596,80 @@ function attacherEcouteursTableau(el, bloc) {
 
 // --- GLISSER-DÉPOSER (scopé par conteneur : racine ou une section) --------
 
+// Bug corrigé : déplacer un bloc RACINE ↔ SECTION (ou d'une section à une
+// autre) ne faisait rien, car le survol d'un autre conteneur que celui
+// d'origine était explicitement ignoré ("pas de déplacement entre
+// conteneurs pour l'instant"), et le dépôt ne recalculait ni la position ni
+// le parent du bloc déplacé dans ce cas. Le déplacement entre conteneurs est
+// maintenant géré : la position (ordre) ET le rattachement (parent_bloc_id)
+// sont recalculés à la fois dans le conteneur d'arrivée et, si le bloc en
+// est parti, dans celui de départ.
 function activerGlisserDeposer(conteneur, parentBlocId) {
   const blocsDirects = [...conteneur.querySelectorAll(':scope > .bloc')];
+
+  // Permet aussi de déposer après le dernier bloc, ou dans une section
+  // encore vide (survol du fond du conteneur, pas d'un bloc existant).
+  conteneur.addEventListener('dragover', (e) => {
+    if (!dragEtat.element || e.target !== conteneur) return;
+    e.preventDefault();
+    conteneur.appendChild(dragEtat.element);
+  });
+  conteneur.addEventListener('drop', (e) => {
+    if (!dragEtat.element || e.target !== conteneur) return;
+    e.preventDefault();
+    finaliserDepot(conteneur, parentBlocId);
+  });
 
   blocsDirects.forEach(el => {
     el.addEventListener('dragstart', (e) => {
       e.stopPropagation();
-      dragEtat = { element: el, conteneurOrigine: conteneur };
+      dragEtat = { element: el, conteneurOrigine: conteneur, parentBlocIdOrigine: parentBlocId };
       el.classList.add('en-glissement');
     });
     el.addEventListener('dragend', (e) => {
       e.stopPropagation();
       el.classList.remove('en-glissement');
-      dragEtat = { element: null, conteneurOrigine: null };
+      dragEtat = { element: null, conteneurOrigine: null, parentBlocIdOrigine: undefined };
     });
     el.addEventListener('dragover', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      if (!dragEtat.element || dragEtat.element === el || dragEtat.conteneurOrigine !== conteneur) return; // pas de déplacement entre conteneurs pour l'instant
+      if (!dragEtat.element || dragEtat.element === el || dragEtat.element.contains(el)) return;
       const rect = el.getBoundingClientRect();
       const apres = (e.clientY - rect.top) > rect.height / 2;
       conteneur.insertBefore(dragEtat.element, apres ? el.nextSibling : el);
     });
     el.addEventListener('drop', (e) => {
       e.stopPropagation();
-      if (dragEtat.conteneurOrigine === conteneur) enregistrerNouvelOrdre(conteneur);
+      finaliserDepot(conteneur, parentBlocId);
     });
   });
 }
 
-async function enregistrerNouvelOrdre(conteneur) {
+async function finaliserDepot(conteneurDestination, parentBlocIdDestination) {
+  const conteneurOrigine = dragEtat.conteneurOrigine;
+  const parentBlocIdOrigine = dragEtat.parentBlocIdOrigine;
+  await enregistrerNouvelOrdre(conteneurDestination, parentBlocIdDestination);
+  // Le bloc a changé de conteneur : celui de départ a une place vide à
+  // recompacter (les blocs restants n'ont pas changé de parent, seule leur
+  // position se resserre).
+  if (conteneurOrigine && conteneurOrigine !== conteneurDestination) {
+    await enregistrerNouvelOrdre(conteneurOrigine, parentBlocIdOrigine);
+  }
+}
+
+async function enregistrerNouvelOrdre(conteneur, parentBlocId) {
   const idsOrdonnes = [...conteneur.querySelectorAll(':scope > .bloc')].map(el => parseInt(el.dataset.blocId, 10));
   idsOrdonnes.forEach((id, index) => {
     const b = blocs.find(x => x.id === id);
-    if (b) b.ordre = index;
+    if (b) {
+      b.ordre = index;
+      b.parent_bloc_id = parentBlocId ?? null; // rattache au conteneur où le bloc se trouve réellement
+    }
   });
   for (const id of idsOrdonnes) {
     const b = blocs.find(x => x.id === id);
-    await supabaseClient.from('blocs_seance').update({ ordre: b.ordre }).eq('id', id);
+    await supabaseClient.from('blocs_seance').update({ ordre: b.ordre, parent_bloc_id: b.parent_bloc_id }).eq('id', id);
   }
   afficherSauvegarde();
 }
