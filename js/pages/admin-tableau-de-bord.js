@@ -92,23 +92,33 @@ function afficherTaches(enseignants, devoirs) {
 }
 
 function afficherActions() {
-  document.getElementById('zoneActions').innerHTML = `
-    <a href="../navigation.html" class="carte-action-tb disponible">
+  const estSuperAdmin = !!profilAdminTB.est_super_admin;
+
+  document.getElementById('zoneActions').innerHTML = [
+    `<a href="../navigation.html" class="carte-action-tb disponible">
       <div class="icone-action-tb">🌳</div>
       <h3>Arborescence complète</h3>
       <p>Créer de nouvelles classes, matières, unités, SA ou séances.</p>
-    </a>
-    <a href="devoirs-notes.html" class="carte-action-tb disponible">
+    </a>`,
+    // Le suivi des devoirs et notes reste un outil du quotidien pour les
+    // admins de terrain ; le super_admin, dont le rôle est plus transversal
+    // (supervision, gestion des comptes admin), n'en a pas besoin ici.
+    !estSuperAdmin ? `<a href="devoirs-notes.html" class="carte-action-tb disponible">
       <div class="icone-action-tb">📊</div>
       <h3>Devoirs &amp; notes</h3>
       <p>Attribuer des devoirs et des notes par classe et par matière.</p>
-    </a>
-    <a href="enseignants.html" class="carte-action-tb disponible">
-      <div class="icone-action-tb">🧑‍🏫</div>
-      <h3>Enseignants</h3>
-      <p>Gérer les comptes enseignants et les classes assignées.</p>
-    </a>
-  `;
+    </a>` : '',
+    `<a href="messagerie.html" class="carte-action-tb disponible">
+      <div class="icone-action-tb">💬</div>
+      <h3>Messagerie</h3>
+      <p>Échanger avec les enseignants et les autres administrateurs.</p>
+    </a>`,
+    estSuperAdmin ? `<a href="gestion-administrateurs.html" class="carte-action-tb disponible">
+      <div class="icone-action-tb">🛡️</div>
+      <h3>Gestion des administrateurs</h3>
+      <p>Ajouter un administrateur et définir ses droits d'édition.</p>
+    </a>` : ''
+  ].filter(Boolean).join('');
 }
 
 function afficherFiltres() {

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KEKELI - Messagerie administration</title>
+<link rel="stylesheet" href="../../css/style-public.css">
+</head>
+<body>
+  <header class="entete-tableau-bord">
+    <a href="../../index.html" class="logo"><img src="../../assets/logo/logo.png" alt="KEKELI"> KEKELI</a>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div id="zoneCloche"></div>
+      <a href="tableau-de-bord.html" class="btn-deconnexion-public">← Mon espace</a>
+      <button class="btn-deconnexion-public" onclick="deconnecterUtilisateur()">Déconnexion</button>
+    </div>
+  </header>
+
+  <div class="conteneur-tableau-bord" id="contenu">
+    <p style="text-align:center;color:var(--text-gris)">Chargement...</p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/supabaseClient.js"></script>
+  <script>const RACINE_SITE = "../../";</script>
+  <script src="../../js/auth-utilisateur.js"></script>
+  <script src="../../js/notifications.js"></script>
+  <script src="../../js/pages/enseignant-messagerie-admin.js"></script>
+</body>
+</html>

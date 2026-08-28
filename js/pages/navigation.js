@@ -24,7 +24,7 @@ const filAriane = document.getElementById('filAriane');
     <span class="badge-utilisateur">${profil.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${profil.prenom}</span>
     <a href="admin/tableau-de-bord.html" class="btn btn-discret">🏠 Tableau de bord</a>
     <a href="admin/devoirs-notes.html" class="btn btn-discret">📊 Devoirs &amp; notes</a>
-    <a href="admin/enseignants.html" class="btn btn-discret">🧑‍🏫 Enseignants</a>
+    <a href="admin/messagerie.html" class="btn btn-discret">💬 Messagerie</a>
     <button class="btn btn-discret" id="btnDeconnexion">Déconnexion</button>
   `;
   document.getElementById('btnDeconnexion').addEventListener('click', deconnecterAdmin);

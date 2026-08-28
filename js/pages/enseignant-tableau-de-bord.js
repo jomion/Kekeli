@@ -99,6 +99,11 @@ async function afficherTableauBordEns() {
         <h3>Messagerie parent</h3>
         <p>Disponible dès qu'un élève vous suit.</p>
       </div>`}
+      <a href="messagerie-admin.html" class="carte-action-tb disponible" style="text-decoration:none;color:inherit;display:block">
+        <div class="icone-action-tb">🗂️</div>
+        <h3>Messagerie administration</h3>
+        <p>Échanger avec l'équipe administrative de KEKELI.</p>
+      </a>
       <div class="carte-action-tb a-venir">
         <div class="icone-action-tb">🎥</div>
         <h3>Visioconférence</h3>
