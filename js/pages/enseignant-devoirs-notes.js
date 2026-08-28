@@ -6,6 +6,7 @@ let champsFormation = [];
 let classeSelectionneeEns = null;
 let champSelectionneEns = null;
 let elevesSuivisIds = []; // élèves dont l'abonnement est accepté pour cet enseignant
+let devoirOuvertEns = null; // id du devoir dont le panneau de rendus est déplié
 
 (async function () {
   profilEnseignant = await requireRole('enseignant');
@@ -78,13 +79,26 @@ async function afficherGestionEns() {
   const rendusParDevoir = {};
   (rendus || []).forEach(r => { rendusParDevoir[r.devoir_id] = (rendusParDevoir[r.devoir_id] || 0) + 1; });
 
+  let panneauRendusEns = '';
+  if (devoirOuvertEns) {
+    const devoirOuvert = (devoirs || []).find(d => d.id === devoirOuvertEns);
+    if (devoirOuvert) {
+      const { data: rendusDevoir } = await supabaseClient.from('devoirs_rendus').select('*').eq('devoir_id', devoirOuvertEns).in('eleve_id', idsEleves);
+      panneauRendusEns = html_gestionRendusDevoir(devoirOuvert, eleves, rendusDevoir);
+    }
+  }
+
   zone.innerHTML = `
     <button class="btn btn-filled" id="btnNouveauDevoirEns" style="margin-bottom:20px">+ Nouveau devoir</button>
 
     <div class="titre-section-pub">Devoirs</div>
     ${(devoirs && devoirs.length) ? `<div class="liste-lignes-pub">${devoirs.map(d => `
-      <div class="ligne-pub">
-        <div><div class="titre-ligne-pub">${echapperEns2(d.titre)}</div><div class="sous-ligne-pub">À rendre le ${new Date(d.date_limite).toLocaleDateString('fr-FR')} · ${rendusParDevoir[d.id] || 0}/${(eleves || []).length} rendus</div></div>
+      <div class="ligne-pub" style="flex-direction:column;align-items:stretch;gap:0">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+          <div><div class="titre-ligne-pub">${echapperEns2(d.titre)}</div><div class="sous-ligne-pub">À rendre le ${new Date(d.date_limite).toLocaleDateString('fr-FR')} · ${rendusParDevoir[d.id] || 0}/${(eleves || []).length} rendus</div></div>
+          <button type="button" class="btn btn-discret" data-toggle-rendus-ens="${d.id}" style="padding:6px 14px;font-size:12px">${devoirOuvertEns === d.id ? '▲ Fermer' : '📋 Voir les rendus'}</button>
+        </div>
+        ${devoirOuvertEns === d.id ? panneauRendusEns : ''}
       </div>`).join('')}</div>` : '<p style="color:var(--text-gris);font-size:14px">Aucun devoir.</p>'}
 
     <div class="titre-section-pub">Mes élèves suivis dans cette classe</div>
@@ -106,6 +120,18 @@ async function afficherGestionEns() {
   document.getElementById('btnNouveauDevoirEns').addEventListener('click', ouvrirNouveauDevoirEns);
   zone.querySelectorAll('[data-noter-ens]').forEach(btn => {
     btn.addEventListener('click', () => ouvrirNouvelleNoteEns(btn.dataset.noterEns));
+  });
+  zone.querySelectorAll('[data-toggle-rendus-ens]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = parseInt(btn.dataset.toggleRendusEns, 10);
+      devoirOuvertEns = devoirOuvertEns === id ? null : id;
+      afficherGestionEns();
+    });
+  });
+  zone.querySelectorAll('[data-corriger-devoir]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      ouvrirCorrectionDevoir(parseInt(btn.dataset.corrigerDevoir, 10), profilEnseignant.id, afficherGestionEns);
+    });
   });
 }
 

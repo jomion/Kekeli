@@ -3,6 +3,7 @@
 let profilAdminDN = null;
 let classeSelectionnee = null;
 let champSelectionne = null;
+let devoirOuvertAdmin = null; // id du devoir dont le panneau de rendus est déplié
 
 async function init() {
   profilAdminDN = await requireAdmin();
@@ -60,12 +61,25 @@ async function afficherGestion() {
   const rendusParDevoir = {};
   (rendus || []).forEach(r => { rendusParDevoir[r.devoir_id] = (rendusParDevoir[r.devoir_id] || 0) + 1; });
 
+  let panneauRendusAdmin = '';
+  if (devoirOuvertAdmin) {
+    const devoirOuvert = (devoirs || []).find(d => d.id === devoirOuvertAdmin);
+    if (devoirOuvert) {
+      const { data: rendusDevoir } = await supabaseClient.from('devoirs_rendus').select('*').eq('devoir_id', devoirOuvertAdmin).in('eleve_id', idsEleves);
+      panneauRendusAdmin = html_gestionRendusDevoir(devoirOuvert, eleves, rendusDevoir);
+    }
+  }
+
   zone.innerHTML = `
     <button class="btn btn-accent" id="btnNouveauDevoir" style="margin-bottom:20px">+ Nouveau devoir</button>
     <div class="titre-cycle" style="margin-top:0">Devoirs</div>
     ${(devoirs && devoirs.length) ? `<div class="liste-lignes">${devoirs.map(d => `
-      <div class="ligne">
-        <div><div class="titre-ligne">${echapperAdmin(d.titre)}</div><span style="font-size:12px;color:var(--texte-gris)">À rendre le ${new Date(d.date_limite).toLocaleDateString('fr-FR')} · ${rendusParDevoir[d.id] || 0}/${(eleves || []).length} rendus</span></div>
+      <div class="ligne" style="flex-direction:column;align-items:stretch;gap:0">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+          <div><div class="titre-ligne">${echapperAdmin(d.titre)}</div><span style="font-size:12px;color:var(--texte-gris)">À rendre le ${new Date(d.date_limite).toLocaleDateString('fr-FR')} · ${rendusParDevoir[d.id] || 0}/${(eleves || []).length} rendus</span></div>
+          <button type="button" class="btn btn-discret" data-toggle-rendus-admin="${d.id}" style="padding:6px 14px;font-size:12px">${devoirOuvertAdmin === d.id ? '▲ Fermer' : '📋 Voir les rendus'}</button>
+        </div>
+        ${devoirOuvertAdmin === d.id ? panneauRendusAdmin : ''}
       </div>`).join('')}</div>` : '<p class="chargement">Aucun devoir.</p>'}
 
     <div class="titre-cycle">Élèves de la classe</div>
@@ -86,6 +100,18 @@ async function afficherGestion() {
   document.getElementById('btnNouveauDevoir').addEventListener('click', ouvrirNouveauDevoir);
   zone.querySelectorAll('[data-noter]').forEach(btn => {
     btn.addEventListener('click', () => ouvrirNouvelleNote(btn.dataset.noter));
+  });
+  zone.querySelectorAll('[data-toggle-rendus-admin]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = parseInt(btn.dataset.toggleRendusAdmin, 10);
+      devoirOuvertAdmin = devoirOuvertAdmin === id ? null : id;
+      afficherGestion();
+    });
+  });
+  zone.querySelectorAll('[data-corriger-devoir]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      ouvrirCorrectionDevoir(parseInt(btn.dataset.corrigerDevoir, 10), profilAdminDN.id, afficherGestion);
+    });
   });
 }
 

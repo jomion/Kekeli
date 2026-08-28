@@ -35,15 +35,25 @@ async function charger() {
   `;
 
   document.getElementById('zoneDevoirs').querySelectorAll('[data-rendre-devoir]').forEach(btn => {
-    btn.addEventListener('click', () => marquerRendu(parseInt(btn.dataset.rendreDevoir, 10)));
+    btn.addEventListener('click', () => rendreDevoir(parseInt(btn.dataset.rendreDevoir, 10), btn.dataset.titreDevoir));
   });
 }
 
-async function marquerRendu(devoirId) {
-  const reponse = prompt("Réponse ou commentaire à joindre (facultatif) :", "") || null;
-  const { error } = await supabaseClient.from('devoirs_rendus').insert({
-    devoir_id: devoirId, eleve_id: profilEleve.id, statut: 'rendu', contenu_reponse: reponse, rendu_le: new Date().toISOString()
+function rendreDevoir(devoirId, titreDevoir) {
+  ouvrirModal({
+    titre: `Rendre : ${titreDevoir}`,
+    champs: [
+      { nom: 'contenu_reponse', label: 'Ta réponse', type: 'textarea', placeholder: 'Écris ta réponse ici...' },
+      { nom: 'piece_jointe_url', label: 'Lien vers une pièce jointe (optionnel)', requis: false, placeholder: 'https://...' }
+    ],
+    texteValider: 'Envoyer au maître',
+    onValider: async ({ contenu_reponse, piece_jointe_url }) => {
+      const { error } = await supabaseClient.from('devoirs_rendus').insert({
+        devoir_id: devoirId, eleve_id: profilEleve.id, statut: 'rendu',
+        contenu_reponse, piece_jointe_url: piece_jointe_url || null, rendu_le: new Date().toISOString()
+      });
+      if (error) return alert(error.message);
+      await charger();
+    }
   });
-  if (error) return alert(error.message);
-  await charger();
 }
