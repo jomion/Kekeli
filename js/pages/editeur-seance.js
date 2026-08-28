@@ -382,19 +382,39 @@ function attacherEcouteursBloc(bloc) {
           sauverContenuRiche();
         });
 
-        // Taille de texte : execCommand('fontSize') ne connaît que l'échelle
-        // héritée 1-7 (<font size="7">) — on applique donc la taille réelle en
-        // pixels nous-mêmes en remplaçant la balise obtenue par un <span> stylé.
+        // Taille de texte : execCommand('fontSize') utilise une échelle héritée
+        // 1-7 censée être remplacée par un <font size="n"> — mais Chrome
+        // l'applique en fait directement en mot-clé CSS (ex: "xxx-large" pour le
+        // niveau 7), sans jamais créer de <font> à remplacer. Résultat vérifié :
+        // le texte devenait énorme quelle que soit la taille choisie, et les
+        // sélections suivantes n'avaient plus aucun effet visible. On applique
+        // donc la taille nous-mêmes, directement en pixels, sans passer par
+        // execCommand : il faut une sélection de texte (pas juste un curseur).
         const selectTaille = barreOutils.querySelector('[data-cmd-select-taille]');
         if (selectTaille) selectTaille.addEventListener('change', () => {
           restaurerSelectionEtFocus();
-          document.execCommand('fontSize', false, '7');
-          zoneRiche.querySelectorAll('font[size]').forEach(f => {
-            const span = document.createElement('span');
-            span.style.fontSize = selectTaille.value + 'px';
-            while (f.firstChild) span.appendChild(f.firstChild);
-            f.replaceWith(span);
-          });
+          const sel = window.getSelection();
+          if (!sel.rangeCount || sel.getRangeAt(0).collapsed) {
+            alert('Sélectionnez d\'abord le texte dont vous voulez changer la taille, puis choisissez une taille.');
+            return;
+          }
+          const range = sel.getRangeAt(0);
+          const span = document.createElement('span');
+          span.style.fontSize = selectTaille.value + 'px';
+          try {
+            range.surroundContents(span);
+          } catch (_e) {
+            // La sélection traverse plusieurs éléments (ex : à cheval sur un
+            // passage déjà en gras et du texte simple) — surroundContents()
+            // refuse ce cas précis ; on extrait puis on réinsère à la place.
+            const contenu = range.extractContents();
+            span.appendChild(contenu);
+            range.insertNode(span);
+          }
+          sel.removeAllRanges();
+          const nouvelle = document.createRange();
+          nouvelle.selectNodeContents(span);
+          sel.addRange(nouvelle);
           sauvegarderSelection();
           sauverContenuRiche();
         });
