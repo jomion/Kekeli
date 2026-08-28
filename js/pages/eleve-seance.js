@@ -5,18 +5,32 @@
 // activité à rendre pour correction manuelle). Réutilise les utilitaires de
 // js/editeur/blocs.js (infoType, teinteClaire, echapper...) volontairement
 // partagés entre l'éditeur et la vue élève.
+//
+// Paliers d'agilité : un bloc (exercice/quiz/évaluation/activité) peut être
+// tagué d'un palier (azovi/devi/ogan/axosu). Les blocs sans palier restent
+// dans les 2 colonnes classiques ; les blocs avec palier sont regroupés dans
+// une section dédiée en bas de page, débloqués progressivement (cf.
+// etat_paliers_seance côté base — un palier se débloque quand le précédent a
+// toutes ses activités réussies, sauf une au maximum).
+//
+// Essais multiples : l'élève peut refaire un exercice/activité autant de
+// fois qu'il veut, mais seuls les essais 1 et 2 comptent pour la médaille
+// (🥉/🥈/🥇/💎) — au-delà, c'est de l'entraînement libre.
 
 let profilEleveSeance = null;
 let seanceCourante = null;
 let cheminSeance = null; // { classeNom, champNom, saTitre }
 let blocsCourants = [];
-let reponsesExistantes = {}; // bloc_id -> ligne reponses_exercices
-let rendusActivitesExistants = {}; // bloc_id -> ligne rendus_activites
+let reponsesExistantes = {}; // bloc_id -> [lignes reponses_exercices] triées par numero_essai
+let rendusActivitesExistants = {}; // bloc_id -> [lignes rendus_activites] triées par numero_essai
 let etatAccesCorrectionIA = { autorise: false }; // service premium "correction_ia" (cf. consommer_usage_service en base)
 let seanceDejaTerminee = false;
+let etatPaliersSeance = []; // [{palier, nb_total, nb_reussies, deverrouille}] — vide si la séance n'utilise pas les paliers
+let formulairesReouverts = new Set(); // bloc_id pour lesquels l'élève a cliqué "Refaire" (affiche un formulaire vierge malgré un essai existant)
 
 const TYPES_TRAVAIL = ['exercice', 'quiz', 'evaluation', 'activite'];
 const LIBELLES_PALIER_ELEVE = { azovi: '🌱 Azɔ̀ví', devi: '🪘 Dèví', ogan: '🦁 Ògán', axosu: '👑 Axɔ́sú' };
+const LIBELLES_MEDAILLE = { bronze: '🥉 Bronze', argent: '🥈 Argent', or: '🥇 Or', diamant: '💎 Diamant' };
 
 (async function () {
   profilEleveSeance = await requireRole('eleve');
@@ -60,22 +74,28 @@ async function charger() {
   const idsActivites = blocsCourants.filter(b => b.type_bloc === 'activite').map(b => b.id);
   reponsesExistantes = {};
   rendusActivitesExistants = {};
+  formulairesReouverts.clear();
 
   if (idsExercices.length) {
     const { data: reponses } = await supabaseClient
-      .from('reponses_exercices').select('*').eq('eleve_id', profilEleveSeance.id).in('bloc_id', idsExercices);
-    (reponses || []).forEach(r => { reponsesExistantes[r.bloc_id] = r; });
+      .from('reponses_exercices').select('*').eq('eleve_id', profilEleveSeance.id).in('bloc_id', idsExercices).order('numero_essai');
+    (reponses || []).forEach(r => { (reponsesExistantes[r.bloc_id] ??= []).push(r); });
     await rafraichirAccesCorrectionIA();
   }
   if (idsActivites.length) {
     const { data: rendus } = await supabaseClient
-      .from('rendus_activites').select('*').eq('eleve_id', profilEleveSeance.id).in('bloc_id', idsActivites);
-    (rendus || []).forEach(r => { rendusActivitesExistants[r.bloc_id] = r; });
+      .from('rendus_activites').select('*').eq('eleve_id', profilEleveSeance.id).in('bloc_id', idsActivites).order('numero_essai');
+    (rendus || []).forEach(r => { (rendusActivitesExistants[r.bloc_id] ??= []).push(r); });
   }
 
   const { data: termine } = await supabaseClient
     .from('seances_terminees').select('id').eq('eleve_id', profilEleveSeance.id).eq('seance_id', seanceId).maybeSingle();
   seanceDejaTerminee = !!termine;
+
+  const aDesPaliers = blocsCourants.some(b => b.palier);
+  etatPaliersSeance = aDesPaliers
+    ? (await supabaseClient.rpc('etat_paliers_seance', { p_eleve_id: profilEleveSeance.id, p_seance_id: seanceId })).data || []
+    : [];
 
   rendre();
 }
@@ -94,15 +114,17 @@ async function rafraichirAccesCorrectionIA() {
 
 function rendre() {
   const tousBlocsTop = blocsCourants.filter(b => !b.parent_bloc_id).sort((a, b) => a.ordre - b.ordre);
-  const blocsLecture = tousBlocsTop.filter(b => !TYPES_TRAVAIL.includes(b.type_bloc));
-  const blocsTravail = tousBlocsTop.filter(b => TYPES_TRAVAIL.includes(b.type_bloc));
+  const blocsGeneraux = tousBlocsTop.filter(b => !b.palier);
+  const blocsLecture = blocsGeneraux.filter(b => !TYPES_TRAVAIL.includes(b.type_bloc));
+  const blocsTravail = blocsGeneraux.filter(b => TYPES_TRAVAIL.includes(b.type_bloc));
+
+  const blocsParPalier = {};
+  tousBlocsTop.filter(b => b.palier).forEach(b => { (blocsParPalier[b.palier] ??= []).push(b); });
+  const aDesPaliers = etatPaliersSeance.some(p => p.nb_total > 0);
 
   const filAriane = [cheminSeance.classeNom, cheminSeance.champNom, cheminSeance.saTitre, seanceCourante.titre].filter(Boolean).join(' › ');
-  const badgePalier = seanceCourante.palier
-    ? `<span class="badge-palier-seance badge-palier-${seanceCourante.palier}">${LIBELLES_PALIER_ELEVE[seanceCourante.palier] || seanceCourante.palier}</span>`
-    : '';
 
-  const boutonMarquerTermine = blocsTravail.length === 0
+  const boutonMarquerTermine = (blocsTravail.length === 0 && !aDesPaliers)
     ? (seanceDejaTerminee
         ? `<p class="bouton-marquer-termine" style="color:#22A559;font-weight:700">✅ Séance terminée</p>`
         : `<button class="btn btn-filled bouton-marquer-termine" id="btnMarquerTermine">✅ J'ai terminé cette séance</button>`)
@@ -114,8 +136,6 @@ function rendre() {
       ${filAriane ? `<p style="margin:0 0 6px;font-size:12px;color:var(--text-gris)">${echapper(filAriane)}</p>` : ''}
       <h1 style="margin:0">${echapper(seanceCourante.titre)}</h1>
       ${seanceCourante.discipline ? `<span class="badge-palier-seance" style="background:#F1F5F9;color:var(--bleu-kekeli)">${echapper(seanceCourante.discipline)}</span>` : ''}
-      ${badgePalier}
-      ${seanceCourante.est_evaluation_finale ? `<span class="badge-palier-seance" style="background:#FEF3C7;color:#D97706">🏆 Évaluation finale — débloque le palier suivant</span>` : ''}
     </div>
 
     <div class="zone-travail-seance">
@@ -124,13 +144,16 @@ function rendre() {
         ${boutonMarquerTermine}
       </div>
       <div class="colonne-exercice-seance">
-        ${blocsTravail.length ? blocsTravail.map(rendreBlocTravail).join('') : '<div class="bloc-lecture" style="border-left-color:#94A3B8"><p style="color:var(--text-gris);margin:0">Aucun exercice ni activité pour cette séance — profite bien de la lecture !</p></div>'}
+        ${blocsTravail.length ? blocsTravail.map(rendreBlocTravail).join('') : (aDesPaliers ? '' : '<div class="bloc-lecture" style="border-left-color:#94A3B8"><p style="color:var(--text-gris);margin:0">Aucun exercice ni activité pour cette séance — profite bien de la lecture !</p></div>')}
       </div>
     </div>
+
+    ${aDesPaliers ? html_sectionPaliers(blocsParPalier) : ''}
   `;
 
   attacherEcouteursExercices();
   attacherEcouteursActivites();
+  attacherEcouteursRefaire();
   const btnMarquerTermine = document.getElementById('btnMarquerTermine');
   if (btnMarquerTermine) btnMarquerTermine.addEventListener('click', async () => {
     btnMarquerTermine.disabled = true;
@@ -139,6 +162,26 @@ function rendre() {
     if (error && error.code !== '23505') { alert(error.message); btnMarquerTermine.disabled = false; return; }
     btnMarquerTermine.textContent = '✅ Séance terminée !';
   });
+}
+
+function html_sectionPaliers(blocsParPalier) {
+  return `
+    <div class="section-title-eleve" style="margin-top:24px">🎯 Paliers de cette séance</div>
+    ${etatPaliersSeance.filter(p => p.nb_total > 0).map(p => {
+      const libelle = LIBELLES_PALIER_ELEVE[p.palier] || p.palier;
+      const blocs = (blocsParPalier[p.palier] || []).sort((a, b) => a.ordre - b.ordre);
+      if (!p.deverrouille) {
+        return `<div class="bloc-lecture" style="border-left-color:#94A3B8;opacity:.7;margin-top:14px">
+          <div class="bloc-lecture-titre">🔒 ${libelle}</div>
+          <p style="margin:0;color:var(--text-gris);font-size:13px">Termine d'abord le palier précédent (toutes les activités réussies, sauf une au maximum) pour débloquer celui-ci.</p>
+        </div>`;
+      }
+      return `<div class="bloc-lecture" style="border-left-color:var(--bleu-kekeli);margin-top:14px">
+        <div class="bloc-lecture-titre">${libelle} — ${p.nb_reussies}/${p.nb_total} réussi${p.nb_reussies > 1 ? 's' : ''}</div>
+        ${blocs.map(b => TYPES_TRAVAIL.includes(b.type_bloc) ? rendreBlocTravail(b) : rendreBlocLecture(b)).join('')}
+      </div>`;
+    }).join('')}
+  `;
 }
 
 function rendreBlocTravail(b) {
@@ -191,15 +234,22 @@ function rendreBlocLecture(b) {
   </div>`;
 }
 
+function libelleMedaille(medaille, numeroEssai) {
+  if (!medaille || numeroEssai > 2) return '';
+  const marque = numeroEssai === 2 ? ' <span style="font-size:11px;opacity:.75">· 2ᵉ essai</span>' : '';
+  return ` <span class="badge-palier-seance" style="background:#FEF3C7;color:#92620A">${LIBELLES_MEDAILLE[medaille]}${marque}</span>`;
+}
+
 function rendreExercice(b, c) {
   const questions = Array.isArray(c.questions) ? c.questions : [];
-  const dejaRepondu = reponsesExistantes[b.id];
+  const essais = reponsesExistantes[b.id] || [];
+  const dernier = essais[essais.length - 1];
 
   if (!questions.length) {
     return `${c.consigne ? `<p>${echapper(c.consigne)}</p>` : ''}<p style="color:var(--text-gris);font-style:italic">Aucune question pour l'instant — reviens plus tard.</p>`;
   }
 
-  if (dejaRepondu) return rendreResultatExercice(c, questions, dejaRepondu);
+  if (dernier && !formulairesReouverts.has(b.id)) return rendreResultatExercice(b, c, questions, dernier);
 
   if (!etatAccesCorrectionIA.autorise) {
     return `
@@ -217,6 +267,7 @@ function rendreExercice(b, c) {
   return `
     ${c.consigne ? `<p>${echapper(c.consigne)}</p>` : ''}
     ${noteEssai}
+    ${essais.length ? `<p style="font-size:12px;color:var(--text-gris)">Nouvel essai (n°${essais.length + 1})</p>` : ''}
     <form data-form-exercice="${b.id}">
       ${questions.map((q, i) => rendreChampQuestion(q, i)).join('')}
       <button type="submit" class="btn btn-filled bouton-valider-exercice">✅ Valider mes réponses</button>
@@ -228,27 +279,31 @@ function rendreExercice(b, c) {
 // (et/ou un lien de pièce jointe), un enseignant/admin corrige ensuite à la
 // main (note et/ou appréciation) — voir js/pages/activites-correction.js.
 function rendreActivite(b, c) {
-  const rendu = rendusActivitesExistants[b.id];
+  const essais = rendusActivitesExistants[b.id] || [];
+  const dernier = essais[essais.length - 1];
 
-  if (rendu) {
-    if (rendu.corrige_le) {
+  if (dernier && !formulairesReouverts.has(b.id)) {
+    if (dernier.corrige_le) {
       return `
         ${c.consigne ? `<p>${echapper(c.consigne)}</p>` : ''}
-        <p style="font-size:13px;background:#F9F9F9;padding:8px;border-radius:6px">${echapper(rendu.reponse_texte || '')}</p>
+        <p style="font-size:13px;background:#F9F9F9;padding:8px;border-radius:6px">${echapper(dernier.reponse_texte || '')}</p>
         <div class="carte-note-activite">
-          ✅ Corrigé${rendu.note != null ? ` — <strong>${rendu.note}/${rendu.bareme}</strong>` : ''}
-          ${rendu.appreciation ? ` — ${{ acquis: 'Acquis', en_cours: 'En cours', non_acquis: 'Non acquis' }[rendu.appreciation]}` : ''}
-          ${rendu.commentaire ? `<p style="margin:6px 0 0">💬 ${echapper(rendu.commentaire)}</p>` : ''}
-        </div>`;
+          ✅ Corrigé${dernier.note != null ? ` — <strong>${dernier.note}/${dernier.bareme}</strong>` : ''}
+          ${dernier.appreciation ? ` — ${{ acquis: 'Acquis', en_cours: 'En cours', non_acquis: 'Non acquis' }[dernier.appreciation]}` : ''}
+          ${libelleMedaille(dernier.medaille, dernier.numero_essai)}
+          ${dernier.commentaire ? `<p style="margin:6px 0 0">💬 ${echapper(dernier.commentaire)}</p>` : ''}
+        </div>
+        <button type="button" class="btn btn-discret" data-refaire="${b.id}" data-type-refaire="activite" style="margin-top:10px">🔄 Refaire cette activité</button>`;
     }
     return `
       ${c.consigne ? `<p>${echapper(c.consigne)}</p>` : ''}
-      <p style="font-size:13px;background:#F9F9F9;padding:8px;border-radius:6px">${echapper(rendu.reponse_texte || '')}</p>
+      <p style="font-size:13px;background:#F9F9F9;padding:8px;border-radius:6px">${echapper(dernier.reponse_texte || '')}</p>
       <p style="font-size:12px;color:var(--text-gris);margin-top:8px">⏳ En attente de correction.</p>`;
   }
 
   return `
     ${c.consigne ? `<p>${echapper(c.consigne)}</p>` : ''}
+    ${essais.length ? `<p style="font-size:12px;color:var(--text-gris)">Nouvel essai (n°${essais.length + 1})</p>` : ''}
     <form data-form-activite="${b.id}" class="activite-lecture">
       <textarea name="reponse" required placeholder="Écris ta réponse ici..."></textarea>
       <input type="url" name="piece_jointe" placeholder="Lien vers une pièce jointe (optionnel)">
@@ -274,14 +329,14 @@ function rendreChampQuestion(q, i) {
   return `<div class="question-lecture"><p class="question-enonce">${i + 1}. ${echapper(q.enonce)}</p>${champ}</div>`;
 }
 
-function rendreResultatExercice(c, questions, reponse) {
+function rendreResultatExercice(b, c, questions, reponse) {
   const details = reponse.details || {};
   const reponsesDonnees = reponse.reponses || {};
   const enAttente = reponse.statut === 'en_attente_ia';
 
   return `
     ${c.consigne ? `<p>${echapper(c.consigne)}</p>` : ''}
-    <div class="recap-score">${enAttente ? '⏳ En cours de correction par un enseignant' : `📊 Score : ${reponse.score} / ${reponse.score_max}`}</div>
+    <div class="recap-score">${enAttente ? '⏳ En cours de correction par un enseignant' : `📊 Score : ${reponse.score} / ${reponse.score_max}`}${libelleMedaille(reponse.medaille, reponse.numero_essai)}</div>
     ${questions.map((q, i) => {
       const d = details[q.id] || {};
       const classeResultat = d.correct === true ? 'correct' : d.correct === false ? 'incorrect' : 'attente';
@@ -300,7 +355,17 @@ function rendreResultatExercice(c, questions, reponse) {
         </div>
       </div>`;
     }).join('')}
+    ${!enAttente ? `<button type="button" class="btn btn-discret" data-refaire="${b.id}" data-type-refaire="exercice" style="margin-top:10px">🔄 Refaire cet exercice</button>` : ''}
   `;
+}
+
+function attacherEcouteursRefaire() {
+  document.querySelectorAll('[data-refaire]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      formulairesReouverts.add(parseInt(btn.dataset.refaire, 10));
+      rendre();
+    });
+  });
 }
 
 function attacherEcouteursExercices() {
@@ -324,8 +389,10 @@ function attacherEcouteursExercices() {
       boutonValider.disabled = true;
       boutonValider.textContent = 'Correction en cours...';
 
+      const numeroEssai = (reponsesExistantes[blocId] || []).length + 1;
+
       try {
-        const { data, error } = await supabaseClient.functions.invoke('corriger-exercice', { body: { blocId, reponses } });
+        const { data, error } = await supabaseClient.functions.invoke('corriger-exercice', { body: { blocId, reponses, numeroEssai } });
         if (error) {
           let message = error.message || "Le service de correction n'a pas répondu.";
           try {
@@ -336,11 +403,17 @@ function attacherEcouteursExercices() {
         }
         if (data?.error) throw new Error(data.error);
 
-        reponsesExistantes[blocId] = {
+        (reponsesExistantes[blocId] ??= []).push({
           bloc_id: blocId, eleve_id: profilEleveSeance.id, reponses,
           score: data.score, score_max: data.score_max, details: data.details, statut: data.statut,
-        };
+          numero_essai: numeroEssai, medaille: data.medaille ?? null,
+        });
+        formulairesReouverts.delete(blocId);
         await rafraichirAccesCorrectionIA();
+        const aDesPaliers = blocsCourants.some(x => x.palier);
+        if (aDesPaliers) {
+          etatPaliersSeance = (await supabaseClient.rpc('etat_paliers_seance', { p_eleve_id: profilEleveSeance.id, p_seance_id: seanceCourante.id })).data || [];
+        }
         rendre();
       } catch (e) {
         alert(e.message || "Une erreur est survenue pendant la correction.");
@@ -358,13 +431,14 @@ function attacherEcouteursActivites() {
       const blocId = parseInt(form.dataset.formActivite, 10);
       const reponseTexte = form.querySelector('[name=reponse]').value.trim();
       const pieceJointe = form.querySelector('[name=piece_jointe]').value.trim();
+      const numeroEssai = (rendusActivitesExistants[blocId] || []).length + 1;
 
       const boutonValider = form.querySelector('button[type=submit]');
       boutonValider.disabled = true;
       boutonValider.textContent = 'Envoi en cours...';
 
       const { data, error } = await supabaseClient.from('rendus_activites').insert({
-        bloc_id: blocId, eleve_id: profilEleveSeance.id,
+        bloc_id: blocId, eleve_id: profilEleveSeance.id, numero_essai: numeroEssai,
         reponse_texte: reponseTexte, piece_jointe_url: pieceJointe || null
       }).select().single();
 
@@ -374,7 +448,8 @@ function attacherEcouteursActivites() {
         boutonValider.textContent = '📤 Rendre mon travail';
         return;
       }
-      rendusActivitesExistants[blocId] = data;
+      (rendusActivitesExistants[blocId] ??= []).push(data);
+      formulairesReouverts.delete(blocId);
       rendre();
     });
   });

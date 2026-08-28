@@ -1,23 +1,19 @@
 // Page pages/eleve/matiere.html
-// Parcours de l'élève dans le contenu de SA classe : Matière → Situation
-// d'Apprentissage → (Palier si le contenu en utilise) → Séances, avec
-// verrouillage progressif (etat_seances_palier / paliers_disponibles_sa, cf.
-// migration progression_paliers_agilite). Un élève ne voit jamais que le
-// contenu publié de SA propre classe (RLS sur seances/blocs_seance).
+// Parcours de l'élève dans le contenu de sa classe : Matière → Situation
+// d'Apprentissage → Séances, avec verrouillage séquentiel simple entre
+// séances (etat_seances_sa). Les paliers d'agilité (azovi/devi/ogan/axosu)
+// ne groupent plus les séances : ils gèrent le déblocage progressif des
+// activités À L'INTÉRIEUR d'une séance — voir eleve-seance.js. Un élève ne
+// voit jamais que le contenu publié de sa propre classe (RLS sur
+// seances/blocs_seance).
 
 let profilEleveMat = null;
 let classeIdEleve = null;
-let etatMat = { champ: null, sa: null, palier: null, saUtilisePaliers: false };
+let etatMat = { champ: null, sa: null };
 
 const PRESENTATION_CHAMPS_ELEVE = {
   francais:     { icone: '📚' }, mathematique: { icone: '📐' }, es: { icone: '🌍' },
   est:          { icone: '🔬' }, ea: { icone: '🎨' }, eps: { icone: '⚽' }
-};
-const LIBELLES_PALIER_MAT = {
-  azovi: { icone: '🌱', nom: 'Azɔ̀ví', couleur: '#2ECC71' },
-  devi:  { icone: '🪘', nom: 'Dèví', couleur: '#3498DB' },
-  ogan:  { icone: '🦁', nom: 'Ògán', couleur: '#E67E22' },
-  axosu: { icone: '👑', nom: 'Axɔ́sú', couleur: '#9B59B6' }
 };
 
 (async function () {
@@ -46,9 +42,8 @@ function attacherFilAriane(nb) {
   document.querySelectorAll('[data-fil-mat]').forEach(el => {
     el.addEventListener('click', () => {
       const i = parseInt(el.dataset.filMat, 10);
-      if (i === 0) { etatMat = { champ: null, sa: null, palier: null, saUtilisePaliers: false }; afficherChamps(); }
-      else if (i === 1) { etatMat.sa = null; etatMat.palier = null; afficherSA(); }
-      else if (i === 2) { etatMat.palier = null; afficherPaliersOuListe(); }
+      if (i === 0) { etatMat = { champ: null, sa: null }; afficherChamps(); }
+      else if (i === 1) { etatMat.sa = null; afficherSA(); }
     });
   });
 }
@@ -111,84 +106,41 @@ async function afficherSA() {
   `;
   attacherFilAriane();
   document.getElementById('grilleSaMat').querySelectorAll('[data-sa-id]').forEach(el => {
-    el.addEventListener('click', async () => {
+    el.addEventListener('click', () => {
       etatMat.sa = (sas || []).find(s => String(s.id) === el.dataset.saId);
-      const { data: utilisePaliers } = await supabaseClient.rpc('sa_utilise_paliers', { p_sa_id: etatMat.sa.id });
-      etatMat.saUtilisePaliers = !!utilisePaliers;
-      etatMat.palier = null;
-      afficherPaliersOuListe();
+      afficherSeancesListe();
     });
-  });
-}
-
-function afficherPaliersOuListe() {
-  if (etatMat.saUtilisePaliers && !etatMat.palier) return afficherPaliers();
-  return afficherSeancesListe();
-}
-
-async function afficherPaliers() {
-  const conteneur = document.getElementById('contenu');
-  const segments = [{ label: '🏠 Mes matières' }, { label: etatMat.champ.nom }, { label: etatMat.sa.titre }];
-  conteneur.innerHTML = filArianeMat(segments) + '<div class="chargement">Chargement...</div>';
-
-  const { data: paliers } = await supabaseClient.rpc('paliers_disponibles_sa', { p_eleve_id: profilEleveMat.id, p_sa_id: etatMat.sa.id });
-
-  conteneur.innerHTML = `
-    ${filArianeMat(segments)}
-    <div class="subject-header">
-      <div><h1 style="margin:0 0 4px">${echapper(etatMat.sa.titre)}</h1><p style="margin:0;color:var(--text-gris)">Choisis ton palier pour commencer.</p></div>
-    </div>
-    <div class="grille-paliers-eleve">
-      ${(paliers || []).map(p => {
-        const info = LIBELLES_PALIER_MAT[p.palier];
-        const complet = p.nb_total > 0 && p.nb_termine >= p.nb_total;
-        return `<div class="palier-card-eleve ${p.deverrouille ? '' : 'verrouille'}" style="border-color:${info.couleur}">
-          <div class="palier-icon-eleve">${p.deverrouille ? info.icone : '🔒'}</div>
-          <div style="font-weight:800">${info.nom}</div>
-          <div style="font-size:12px;color:var(--text-gris)">${p.nb_total ? `${p.nb_termine}/${p.nb_total} séances${complet ? ' ✅' : ''}` : 'Pas encore de contenu'}</div>
-          ${p.deverrouille
-            ? `<button class="btn-palier-eleve" style="background:${info.couleur}" data-palier="${p.palier}">Accéder</button>`
-            : `<button class="btn-palier-eleve" style="background:#94A3B8" disabled>Verrouillé</button>`}
-        </div>`;
-      }).join('')}
-    </div>
-  `;
-  attacherFilAriane();
-  conteneur.querySelectorAll('[data-palier]').forEach(btn => {
-    btn.addEventListener('click', () => { etatMat.palier = btn.dataset.palier; afficherSeancesListe(); });
   });
 }
 
 async function afficherSeancesListe() {
   const conteneur = document.getElementById('contenu');
-  const infoPalier = etatMat.palier ? LIBELLES_PALIER_MAT[etatMat.palier] : null;
   const segments = [{ label: '🏠 Mes matières' }, { label: etatMat.champ.nom }, { label: etatMat.sa.titre }];
-  if (infoPalier) segments.push({ label: `${infoPalier.icone} ${infoPalier.nom}` });
   conteneur.innerHTML = filArianeMat(segments) + '<div class="chargement">Chargement...</div>';
 
-  const { data: seances } = await supabaseClient.rpc('etat_seances_palier', {
-    p_eleve_id: profilEleveMat.id, p_sa_id: etatMat.sa.id, p_palier: etatMat.palier
+  const { data: seances } = await supabaseClient.rpc('etat_seances_sa', {
+    p_eleve_id: profilEleveMat.id, p_sa_id: etatMat.sa.id
   });
 
   conteneur.innerHTML = `
     ${filArianeMat(segments)}
     <div class="subject-header">
       <div>
-        <h1 style="margin:0 0 4px">${echapper(etatMat.sa.titre)}${infoPalier ? ` — ${infoPalier.nom}` : ''}</h1>
+        <h1 style="margin:0 0 4px">${echapper(etatMat.sa.titre)}</h1>
         <p style="margin:0;color:var(--text-gris)">${(seances || []).length} séance${(seances || []).length > 1 ? 's' : ''}</p>
       </div>
     </div>
     <div class="session-list-eleve">
       ${(seances || []).map((s, i) => {
         const classe = s.verrouille ? 'locked' : s.termine ? 'completed' : 'active';
-        const icone = s.verrouille ? '🔒' : s.termine ? '✅' : (s.est_evaluation_finale ? '🏆' : '▶️');
+        const icone = s.verrouille ? '🔒' : s.termine ? '✅' : '▶️';
         const bouton = s.verrouille
           ? `<button class="btn-palier-eleve" style="background:var(--bordure);color:var(--text-gris);cursor:not-allowed" disabled>Verrouillé</button>`
           : `<a class="btn-palier-eleve" style="background:${s.termine ? '#22A559' : 'var(--bleu-kekeli)'}" href="seance.html?id=${s.id}">${s.termine ? 'Revoir' : 'Continuer'}</a>`;
         return `<div class="session-card-eleve ${classe}">
           <div class="session-icon-eleve">${icone}</div>
           <div class="session-content-eleve">
-            <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-gris)">Séance ${i + 1}${s.est_evaluation_finale ? ' · Évaluation' : ''}</div>
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-gris)">Séance ${i + 1}</div>
             <div class="session-title-eleve">${echapper(s.titre)}</div>
             ${s.discipline ? `<div style="font-size:12px;color:var(--text-gris)">${echapper(s.discipline)}</div>` : ''}
           </div>

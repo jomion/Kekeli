@@ -33,8 +33,10 @@ const LIBELLES_PALIER_TB = {
   const enseignantsSuivis = abonnements || [];
   const serie = calculerSerieJoursTB((toutesDates || []).map(d => d.termine_le));
 
-  // Progression globale (indicative) : séances terminées / séances publiées
-  // accessibles à la classe de l'élève.
+  // Avancement dans le programme (indicatif) : séances terminées / séances
+  // publiées accessibles à la classe de l'élève. Distinct des paliers
+  // d'agilité ci-dessous, qui mesurent la MAÎTRISE (activités réussies par
+  // palier à l'intérieur des séances), pas juste l'avancement.
   let progressionPct = 0;
   if (fiche?.classe_id) {
     const { data: noeudsClasse } = await supabaseClient.from('noeuds_parcours').select('id').eq('classe_id', fiche.classe_id);
@@ -54,13 +56,14 @@ const LIBELLES_PALIER_TB = {
       <h2 style="margin:0">👋 Content de te revoir, ${echapperTb(profil.prenom)} !</h2>
       <p style="color:var(--text-gris);margin:6px 0 0">${nomClasse ? `Classe : ${echapperTb(nomClasse)}` : ''}</p>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px">
-        <span style="font-size:14px;font-weight:600">Progression globale</span>
+        <span style="font-size:14px;font-weight:600">Avancement dans le programme</span>
         <span style="font-weight:700;color:var(--bleu-kekeli)">${progressionPct}%</span>
       </div>
       <div class="progress-bar-bg-eleve"><div class="progress-bar-fill-eleve" style="width:${progressionPct}%"></div></div>
     </div>
 
-    <div class="section-title-eleve" style="margin-bottom:12px">🎯 Paliers d'agilité</div>
+    <div class="section-title-eleve" style="margin-bottom:2px">🎯 Paliers d'agilité</div>
+    <p style="margin:0 0 12px;font-size:12px;color:var(--text-gris)">Ton niveau de maîtrise actuel, selon les activités réussies par palier dans chaque séance.</p>
     <div class="grille-paliers-tb">
       ${Object.entries(LIBELLES_PALIER_TB).map(([code, info]) => `
         <a href="matiere.html" class="palier-card-tb ${niveauActuel === code ? 'courant' : ''}" style="border-color:${info.couleur}">

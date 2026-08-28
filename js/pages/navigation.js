@@ -580,25 +580,18 @@ function creerSeanceDans(saId, redirigerVersEditeur = true, onCree) {
     titre: 'Nouvelle séance',
     champs: [
       { nom: 'titre', label: 'Titre', placeholder: 'Ex: Séance 1 — Découverte du texte' },
-      { nom: 'discipline', label: 'Discipline (optionnelle)', requis: false, placeholder: 'Lecture, Grammaire, Conjugaison...' },
-      { nom: 'palier', label: 'Palier (optionnel — parcours différencié par niveau)', type: 'select', requis: false,
-        options: [
-          { valeur: '', label: '— Aucun (séance classique) —' },
-          { valeur: 'azovi', label: '🌱 Azɔ̀ví (très facile)' },
-          { valeur: 'devi', label: '🪘 Dèví (moyen)' },
-          { valeur: 'ogan', label: '🦁 Ògán (difficile)' },
-          { valeur: 'axosu', label: '👑 Axɔ́sú (très difficile)' }
-        ] }
+      { nom: 'discipline', label: 'Discipline (optionnelle)', requis: false, placeholder: 'Lecture, Grammaire, Conjugaison...' }
     ],
     texteValider: redirigerVersEditeur ? "Créer et ouvrir l'éditeur" : 'Créer',
-    onValider: async ({ titre, discipline, palier }) => {
+    onValider: async ({ titre, discipline }) => {
       const { data: { session } } = await supabaseClient.auth.getSession();
-      // ordre séquentiel (nécessaire au verrouillage progressif par palier :
-      // les séances d'une même SA/palier se débloquent dans l'ordre de création
-      // par défaut — un réordonnancement manuel viendra plus tard).
+      // ordre séquentiel (nécessaire au verrouillage progressif : les séances
+      // d'une même SA se débloquent dans l'ordre de création par défaut — un
+      // réordonnancement manuel viendra plus tard). Le palier, lui, se règle
+      // par activité/exercice à l'intérieur de la séance, pas ici.
       const { count } = await supabaseClient.from('seances').select('id', { count: 'exact', head: true }).eq('sa_id', saId);
       const { data, error } = await supabaseClient.from('seances').insert({
-        sa_id: saId, titre, discipline: discipline || null, palier: palier || null,
+        sa_id: saId, titre, discipline: discipline || null,
         statut: 'brouillon', ordre: count || 0, cree_par: session.user.id
       }).select().single();
       if (error) return alert(error.message);

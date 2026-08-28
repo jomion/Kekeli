@@ -119,17 +119,6 @@ function rendre() {
         <h2 style="margin:0 0 4px;color:var(--bleu-principal)">${echapper(seance.titre)}</h2>
         <input type="text" id="inputDiscipline" placeholder="Discipline (ex: Lecture, Grammaire, Conjugaison...)" value="${echapper(seance.discipline)}"
           style="border:1px solid var(--bordure);border-radius:6px;padding:4px 8px;font-size:12px;margin:4px 0;width:260px">
-        <select id="selectPalierSeance" style="border:1px solid var(--bordure);border-radius:6px;padding:4px 8px;font-size:12px;margin:4px 0 4px 6px">
-          <option value="" ${!seance.palier ? 'selected' : ''}>— Aucun palier (séance classique) —</option>
-          <option value="azovi" ${seance.palier === 'azovi' ? 'selected' : ''}>🌱 Azɔ̀ví (très facile)</option>
-          <option value="devi" ${seance.palier === 'devi' ? 'selected' : ''}>🪘 Dèví (moyen)</option>
-          <option value="ogan" ${seance.palier === 'ogan' ? 'selected' : ''}>🦁 Ògán (difficile)</option>
-          <option value="axosu" ${seance.palier === 'axosu' ? 'selected' : ''}>👑 Axɔ́sú (très difficile)</option>
-        </select>
-        <label style="font-size:12px;margin-left:8px;display:${seance.palier ? 'inline-flex' : 'none'};align-items:center;gap:4px" id="labelEvalFinale">
-          <input type="checkbox" id="checkEvalFinale" ${seance.est_evaluation_finale ? 'checked' : ''}>
-          🏆 Évaluation finale (débloque le palier suivant)
-        </label>
         <br><span class="infos-sauvegarde" id="infoSauvegarde">Dernier enregistrement : ${seance.modifie_le ? new Date(seance.modifie_le).toLocaleString('fr-FR') : '—'}</span>
       </div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -163,19 +152,6 @@ function rendre() {
   document.getElementById('inputDiscipline').addEventListener('change', async (e) => {
     seance.discipline = e.target.value || null;
     await supabaseClient.from('seances').update({ discipline: seance.discipline }).eq('id', seance.id);
-    afficherSauvegarde();
-  });
-  document.getElementById('selectPalierSeance').addEventListener('change', async (e) => {
-    seance.palier = e.target.value || null;
-    if (!seance.palier) seance.est_evaluation_finale = false;
-    await supabaseClient.from('seances').update({ palier: seance.palier, est_evaluation_finale: seance.est_evaluation_finale }).eq('id', seance.id);
-    afficherSauvegarde();
-    rendre();
-  });
-  const checkEvalFinale = document.getElementById('checkEvalFinale');
-  if (checkEvalFinale) checkEvalFinale.addEventListener('change', async (e) => {
-    seance.est_evaluation_finale = e.target.checked;
-    await supabaseClient.from('seances').update({ est_evaluation_finale: seance.est_evaluation_finale }).eq('id', seance.id);
     afficherSauvegarde();
   });
   document.getElementById('listeTypes').addEventListener('click', (e) => {
