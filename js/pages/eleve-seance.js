@@ -259,7 +259,7 @@ function rendreBlocLecture(b) {
   return `<div class="bloc-lecture" style="border-left-color:${couleur};background:${teinteClaire(couleur, 0.04)}">
     ${afficherTitre ? `<div class="bloc-lecture-titre" style="color:${couleur}">${info.icone} ${echapper(libelle)}</div>` : ''}
     ${corps}
-    ${enfants.length ? `<div style="margin-left:16px;margin-top:10px;border-left:2px dashed var(--bordure);padding-left:12px">${enfants.filter(x => !TYPES_TRAVAIL.includes(x.type_bloc)).map(rendreBlocLecture).join('')}</div>` : ''}
+    ${enfants.length ? `<div style="margin-top:10px">${enfants.filter(x => !TYPES_TRAVAIL.includes(x.type_bloc)).map(rendreBlocLecture).join('')}</div>` : ''}
   </div>`;
 }
 

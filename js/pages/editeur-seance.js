@@ -1137,7 +1137,7 @@ function ouvrirApercu() {
     return `<div style="margin-bottom:18px;padding:14px;border-left:4px solid ${couleur};background:${teinteClaire(couleur, 0.06)};border-radius:8px">
       ${afficherTitre ? `<div style="font-size:12px;font-weight:bold;color:${couleur};text-transform:uppercase;margin-bottom:6px">${info.icone} ${echapper(libelle)}</div>` : ''}
       ${corps}
-      ${enfants.length ? `<div style="margin-left:16px;margin-top:10px;border-left:2px dashed #E2E8F0;padding-left:12px">${enfants.map(rendreBlocApercu).join('')}</div>` : ''}
+      ${enfants.length ? `<div style="margin-top:10px">${enfants.map(rendreBlocApercu).join('')}</div>` : ''}
     </div>`;
   }
 
