@@ -153,7 +153,9 @@ function html_editeurTexteRiche(bloc, c) {
 
   // Une seule barre d'outils, regroupée par sections (séparées visuellement),
   // pour qu'elle se lise comme un vrai traitement de texte plutôt que comme
-  // plusieurs blocs de boutons séparés.
+  // plusieurs blocs de boutons séparés. Les couleurs sont maintenant dans un
+  // petit menu déroulant (🎨 / 🖍️) plutôt qu'alignées en permanence dans la
+  // barre, avec une roue de couleur personnalisée en plus des 9 teintes fixes.
   return `
     <div class="barre-outils-texte">
       <div class="groupe-outils">
@@ -169,6 +171,18 @@ function html_editeurTexteRiche(bloc, c) {
           <option value="'Courier New'">Courier New</option>
           <option value="Verdana">Verdana</option>
           <option value="'Comic Sans MS'">Comic Sans MS</option>
+          <option value="'Caveat', cursive">Cursive</option>
+        </select>
+        <select data-cmd-select-taille="1" title="Taille du texte">
+          <option value="12">12</option>
+          <option value="13">13</option>
+          <option value="14" selected>14</option>
+          <option value="16">16</option>
+          <option value="18">18</option>
+          <option value="20">20</option>
+          <option value="24">24</option>
+          <option value="28">28</option>
+          <option value="32">32</option>
         </select>
       </div>
       <span class="separateur-outils"></span>
@@ -176,6 +190,7 @@ function html_editeurTexteRiche(bloc, c) {
         <button type="button" data-cmd="justifyLeft" title="Aligner à gauche">⯇</button>
         <button type="button" data-cmd="justifyCenter" title="Centrer">☰</button>
         <button type="button" data-cmd="justifyRight" title="Aligner à droite">⯈</button>
+        <button type="button" data-cmd="justifyFull" title="Justifier">▤</button>
       </div>
       <span class="separateur-outils"></span>
       <div class="groupe-outils">
@@ -183,12 +198,27 @@ function html_editeurTexteRiche(bloc, c) {
         <button type="button" data-cmd="insertOrderedList" title="Liste numérotée">1. Liste</button>
       </div>
       <span class="separateur-outils"></span>
-      <div class="groupe-outils groupe-couleurs">
-        <span class="etiquette-outils">Texte</span>${swatchesPolice}
-      </div>
-      <span class="separateur-outils"></span>
-      <div class="groupe-outils groupe-couleurs">
-        <span class="etiquette-outils">Surlignage</span>${swatchesFond}
+      <div class="groupe-outils">
+        <div class="menu-couleur-riche">
+          <button type="button" class="bouton-couleur-riche" data-ouvrir-couleur-riche title="Couleur du texte">🎨 Texte</button>
+          <div class="palette-riche" data-palette-riche>
+            <div class="etiquette-outils etiquette-pleine-largeur">Couleur du texte</div>
+            ${swatchesPolice}
+            <label class="couleur-personnalisee" title="Choisir une couleur personnalisée">
+              <input type="color" data-cmd="foreColor" value="#1E293B">
+            </label>
+          </div>
+        </div>
+        <div class="menu-couleur-riche">
+          <button type="button" class="bouton-couleur-riche" data-ouvrir-couleur-riche title="Couleur de surlignage">🖍️ Surlignage</button>
+          <div class="palette-riche" data-palette-riche>
+            <div class="etiquette-outils etiquette-pleine-largeur">Surlignage</div>
+            ${swatchesFond}
+            <label class="couleur-personnalisee" title="Choisir une couleur personnalisée">
+              <input type="color" data-cmd="hiliteColor" value="#ffffff">
+            </label>
+          </div>
+        </div>
       </div>
       <span class="separateur-outils"></span>
       <div class="groupe-outils">

@@ -161,6 +161,9 @@ function rendre() {
     if (!e.target.closest('.menu-couleur-bloc')) {
       document.querySelectorAll('.palette-bloc.ouverte').forEach(p => p.classList.remove('ouverte'));
     }
+    if (!e.target.closest('.menu-couleur-riche')) {
+      document.querySelectorAll('.palette-riche.ouverte').forEach(p => p.classList.remove('ouverte'));
+    }
   });
 
   rendreListeBlocs();
@@ -289,17 +292,39 @@ function attacherEcouteursBloc(bloc) {
     // ne fonctionnaient pas.
     const barresOutils = el.querySelectorAll(':scope > .bloc-corps .barre-outils-texte');
     if (barresOutils.length) {
-      const commandesAvecEtat = ['bold', 'italic', 'underline', 'justifyLeft', 'justifyCenter', 'justifyRight', 'insertUnorderedList', 'insertOrderedList'];
+      // queryCommandState('justifyCenter'/'justifyRight'/'justifyFull') est peu
+      // fiable dans les navigateurs (il peut répondre "vrai" par défaut sur une
+      // zone vide) — c'est ce qui donnait l'impression que le curseur était
+      // "centré par défaut". On calcule donc l'alignement réel nous-mêmes, en
+      // lisant le text-align effectivement appliqué autour du curseur.
+      const alignementActuel = () => {
+        const sel = window.getSelection();
+        let noeud = sel && sel.rangeCount && zoneRiche.contains(sel.anchorNode) ? sel.anchorNode : zoneRiche;
+        let el2 = noeud.nodeType === 3 ? noeud.parentElement : noeud;
+        while (el2 && el2 !== zoneRiche.parentElement) {
+          const align = getComputedStyle(el2).textAlign;
+          if (align && align !== 'start') return align;
+          el2 = el2.parentElement;
+        }
+        return 'left';
+      };
+      const commandesEtatSimple = ['bold', 'italic', 'underline', 'insertUnorderedList', 'insertOrderedList'];
+      const commandesAlignement = { justifyLeft: 'left', justifyCenter: 'center', justifyRight: 'right', justifyFull: 'justify' };
       const boutonsCommande = [];
       const mettreAJourEtatBarreOutils = () => {
+        const align = alignementActuel();
         boutonsCommande.forEach(b => {
-          if (!commandesAvecEtat.includes(b.dataset.cmd)) return;
-          try { b.classList.toggle('actif', document.queryCommandState(b.dataset.cmd)); } catch (_e) { /* ignoré */ }
+          const cmd = b.dataset.cmd;
+          if (commandesEtatSimple.includes(cmd)) {
+            try { b.classList.toggle('actif', document.queryCommandState(cmd)); } catch (_e) { /* ignoré */ }
+          } else if (commandesAlignement[cmd]) {
+            b.classList.toggle('actif', commandesAlignement[cmd] === align);
+          }
         });
       };
 
       barresOutils.forEach(barreOutils => {
-        barreOutils.querySelectorAll('[data-cmd]').forEach(btn => {
+        barreOutils.querySelectorAll('button[data-cmd]').forEach(btn => {
           boutonsCommande.push(btn);
           // Empêche le bouton de voler le focus au mousedown (sinon la
           // sélection dans la zone éditable est perdue avant même le clic).
@@ -320,6 +345,35 @@ function attacherEcouteursBloc(bloc) {
             mettreAJourEtatBarreOutils();
           });
         });
+
+        // Roues de couleur personnalisées (en plus des 9 teintes de la palette) :
+        // pas de preventDefault sur mousedown ici, sinon le sélecteur de couleur
+        // natif du navigateur ne s'ouvrirait jamais.
+        barreOutils.querySelectorAll('input[type="color"][data-cmd]').forEach(inputCouleur => {
+          inputCouleur.addEventListener('input', () => {
+            restaurerSelectionEtFocus();
+            document.execCommand('styleWithCSS', false, true);
+            document.execCommand(inputCouleur.dataset.cmd, false, inputCouleur.value);
+            sauvegarderSelection();
+            sauverContenuRiche();
+          });
+        });
+
+        // Menus déroulants de couleur (🎨 Texte / 🖍️ Surlignage) : remplacent
+        // l'ancien alignement de pastilles en permanence dans la barre.
+        barreOutils.querySelectorAll('.menu-couleur-riche').forEach(menu => {
+          const boutonMenu = menu.querySelector('[data-ouvrir-couleur-riche]');
+          const palette = menu.querySelector('[data-palette-riche]');
+          if (!boutonMenu || !palette) return;
+          boutonMenu.addEventListener('mousedown', (e) => e.preventDefault());
+          boutonMenu.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const etaitOuverte = palette.classList.contains('ouverte');
+            document.querySelectorAll('.palette-riche.ouverte, .palette-bloc.ouverte').forEach(p => p.classList.remove('ouverte'));
+            if (!etaitOuverte) palette.classList.add('ouverte');
+          });
+        });
+
         const selectPolice = barreOutils.querySelector('[data-cmd-select="fontName"]');
         if (selectPolice) selectPolice.addEventListener('change', () => {
           restaurerSelectionEtFocus();
@@ -327,14 +381,33 @@ function attacherEcouteursBloc(bloc) {
           sauvegarderSelection();
           sauverContenuRiche();
         });
+
+        // Taille de texte : execCommand('fontSize') ne connaît que l'échelle
+        // héritée 1-7 (<font size="7">) — on applique donc la taille réelle en
+        // pixels nous-mêmes en remplaçant la balise obtenue par un <span> stylé.
+        const selectTaille = barreOutils.querySelector('[data-cmd-select-taille]');
+        if (selectTaille) selectTaille.addEventListener('change', () => {
+          restaurerSelectionEtFocus();
+          document.execCommand('fontSize', false, '7');
+          zoneRiche.querySelectorAll('font[size]').forEach(f => {
+            const span = document.createElement('span');
+            span.style.fontSize = selectTaille.value + 'px';
+            while (f.firstChild) span.appendChild(f.firstChild);
+            f.replaceWith(span);
+          });
+          sauvegarderSelection();
+          sauverContenuRiche();
+        });
       });
 
-      // Les boutons Gras/Italique/... reflètent l'état du texte sous le curseur,
-      // comme dans un vrai traitement de texte (plus intuitif : on voit tout de
-      // suite si la sélection actuelle est déjà en gras, alignée à droite, etc.).
+      // Les boutons Gras/Italique/Alignement/... reflètent l'état du texte sous
+      // le curseur, comme dans un vrai traitement de texte (plus intuitif : on
+      // voit tout de suite si la sélection actuelle est déjà en gras, alignée
+      // à droite, etc. — et l'alignement par défaut s'affiche bien à gauche).
       zoneRiche.addEventListener('keyup', mettreAJourEtatBarreOutils);
       zoneRiche.addEventListener('mouseup', mettreAJourEtatBarreOutils);
       zoneRiche.addEventListener('focus', mettreAJourEtatBarreOutils);
+      mettreAJourEtatBarreOutils();
     }
   }
 
@@ -820,6 +893,9 @@ function ouvrirApercu() {
 
   fenetre.document.write(`
     <html><head><meta charset="UTF-8"><title>Aperçu — ${echapper(seance.titre)}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap" rel="stylesheet">
     <style>body{font-family:'Segoe UI',sans-serif;max-width:700px;margin:30px auto;padding:0 20px;color:#1E293B}</style>
     </head><body>${enTeteTitre}${html}</body></html>`);
   fenetre.document.close();
