@@ -118,6 +118,11 @@ function afficherActions() {
       <h3>Paiements des frais</h3>
       <p>Enregistrer les règlements reçus (suivi manuel, par classe).</p>
     </a>`,
+    `<a href="abonnements.html" class="carte-action-tb disponible">
+      <div class="icone-action-tb">💎</div>
+      <h3>Abonnements &amp; services premium</h3>
+      <p>Formules tarifaires, essais gratuits, souscriptions (correction IA, etc.).</p>
+    </a>`,
     `<a href="badges.html" class="carte-action-tb disponible">
       <div class="icone-action-tb">🎯</div>
       <h3>Badges des élèves</h3>

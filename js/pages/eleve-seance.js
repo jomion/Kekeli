@@ -9,6 +9,7 @@ let profilEleveSeance = null;
 let seanceCourante = null;
 let blocsCourants = [];
 let reponsesExistantes = {}; // bloc_id -> ligne reponses_exercices
+let etatAccesCorrectionIA = { autorise: false }; // service premium "correction_ia" (cf. consommer_usage_service en base)
 
 (async function () {
   profilEleveSeance = await requireRole('eleve');
@@ -48,9 +49,23 @@ async function charger() {
     const { data: reponses } = await supabaseClient
       .from('reponses_exercices').select('*').eq('eleve_id', profilEleveSeance.id).in('bloc_id', idsExercices);
     (reponses || []).forEach(r => { reponsesExistantes[r.bloc_id] = r; });
+
+    await rafraichirAccesCorrectionIA();
   }
 
   rendre();
+}
+
+// Correction automatique = service premium (abonnement, forfait ou essai
+// gratuit limité — cf. la fonction SQL etat_acces_service). On vérifie l'accès
+// une fois par chargement de page pour afficher tout de suite le bon message,
+// plutôt que de laisser l'élève remplir tout un exercice avant de découvrir
+// qu'il n'y a plus d'accès.
+async function rafraichirAccesCorrectionIA() {
+  const { data: etatAcces } = await supabaseClient.rpc('etat_acces_service', {
+    p_eleve_id: profilEleveSeance.id, p_service: 'correction_ia',
+  });
+  etatAccesCorrectionIA = etatAcces || { autorise: false };
 }
 
 function rendre() {
@@ -120,8 +135,22 @@ function rendreExercice(b, c) {
 
   if (dejaRepondu) return rendreResultatExercice(c, questions, dejaRepondu);
 
+  if (!etatAccesCorrectionIA.autorise) {
+    return `
+      ${c.consigne ? `<p>${echapper(c.consigne)}</p>` : ''}
+      <div class="acces-suspendu-exercice">
+        🔒 La correction automatique des exercices est un service premium. Tu as utilisé tous tes essais gratuits — demande à un adulte de contacter l'administration pour souscrire (abonnement ou forfait).
+      </div>
+    `;
+  }
+
+  const noteEssai = etatAccesCorrectionIA.source === 'essai_gratuit'
+    ? `<p class="note-essai-gratuit">🎁 Essai gratuit — il te reste ${etatAccesCorrectionIA.essais_restants} correction${etatAccesCorrectionIA.essais_restants > 1 ? 's' : ''} offerte${etatAccesCorrectionIA.essais_restants > 1 ? 's' : ''} après celle-ci.</p>`
+    : '';
+
   return `
     ${c.consigne ? `<p>${echapper(c.consigne)}</p>` : ''}
+    ${noteEssai}
     <form data-form-exercice="${b.id}">
       ${questions.map((q, i) => rendreChampQuestion(q, i)).join('')}
       <button type="submit" class="btn btn-filled bouton-valider-exercice">✅ Valider mes réponses</button>
@@ -212,6 +241,7 @@ function attacherEcouteursExercices() {
           bloc_id: blocId, eleve_id: profilEleveSeance.id, reponses,
           score: data.score, score_max: data.score_max, details: data.details, statut: data.statut,
         };
+        await rafraichirAccesCorrectionIA();
         rendre();
       } catch (e) {
         alert(e.message || "Une erreur est survenue pendant la correction.");

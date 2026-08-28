@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KEKELI Admin - Abonnements &amp; services premium</title>
+<link rel="stylesheet" href="../../css/style.css">
+<style>
+  .grille-plans { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .carte-plan { background: white; border-radius: 10px; padding: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border-left: 4px solid var(--bleu-principal); }
+  .carte-plan.inactif { opacity: .55; }
+  .carte-plan h4 { margin: 0 0 4px; font-size: 14px; }
+  .carte-plan p { margin: 0; font-size: 12px; color: var(--texte-gris); }
+  .carte-plan .prix-plan { font-size: 18px; font-weight: 800; color: var(--bleu-principal); margin: 6px 0; }
+  .carte-plan .actions-plan { display: flex; gap: 6px; margin-top: 10px; }
+  .table-essais { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
+  .carte-essai { background: white; border-radius: 10px; padding: 12px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 10px; }
+  .carte-essai input { width: 60px; padding: 6px; border-radius: 6px; border: 1px solid var(--bordure); text-align: center; }
+  .pastille-souscription { display: inline-flex; align-items: center; gap: 4px; background: var(--bleu-clair); color: var(--bleu-principal); border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 700; }
+  .pastille-souscription button { background: none; border: none; cursor: pointer; color: inherit; font-size: 11px; padding: 0; }
+</style>
+</head>
+<body>
+  <header class="header">
+    <div class="logo"><img src="../../assets/logo/logo.png" alt="KEKELI"> KEKELI Admin</div>
+    <div class="zone-droite" id="zoneDroite">
+      <a href="tableau-de-bord.html" class="btn btn-discret">🏠 Tableau de bord</a>
+    </div>
+  </header>
+
+  <div class="conteneur">
+    <div class="titre-page">💎 Abonnements &amp; services premium</div>
+    <div class="sous-titre-page">Correction automatique par IA, rapports avancés, visioconférence — gérez les formules, les essais gratuits, et enregistrez les souscriptions (suivi manuel, comme les paiements de frais).</div>
+    <div id="contenu" class="chargement">Chargement...</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/supabaseClient.js"></script>
+  <script>const RACINE_SITE = "../../";</script>
+  <script src="../../js/auth-admin.js"></script>
+  <script src="../../js/modal.js"></script>
+  <script src="../../js/pages/admin-abonnements.js"></script>
+</body>
+</html>
