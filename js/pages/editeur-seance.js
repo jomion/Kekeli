@@ -1083,27 +1083,32 @@ function ouvrirGenerationResume() {
     .eq('sa_id', chaineNavigation.sa.id).eq('statut', 'publie').lt('ordre', seance.ordre).order('ordre')
     .then(({ data: seancesPrecedentes }) => {
       const liste = seancesPrecedentes || [];
-      if (!liste.length) {
-        confirmerAction(`Générer un résumé IA de cette séance (« ${seance.titre} ») ? Il sera ajouté en brouillon, à relire avant de le publier.`, () => lancerGenerationResume([], []));
-        return;
-      }
+      // Consigne libre et facultative : par défaut le résumé suit une consigne
+      // fixe (points clés, phrases courtes, concis) — ce champ permet de la
+      // préciser au cas par cas (longueur, ton, ce sur quoi insister...) sans
+      // avoir à retoucher le résultat après coup.
+      const champInstructions = {
+        nom: 'instructions', requis: false, type: 'textarea',
+        label: 'Consignes pour l\'IA (facultatif) — ex : insiste sur le vocabulaire, fais très court, présente en puces...',
+        placeholder: 'Laisser vide pour un résumé standard'
+      };
       ouvrirModal({
         titre: '🗒️ Générer un résumé avec l\'IA',
-        champs: [{
+        champs: liste.length ? [{
           nom: 'seances',
           label: `Un bloc "Résumé" sera ajouté à cette séance (« ${seance.titre} »), en brouillon — à relire avant de le publier. Inclure aussi ces séances précédentes déjà publiées de cette SA, pour un résumé progressif (facultatif) :`,
           type: 'checkboxes', requis: false, options: liste.map(s => ({ valeur: s.id, label: s.titre })), valeur: []
-        }],
+        }, champInstructions] : [champInstructions],
         texteValider: 'Générer',
-        onValider: ({ seances: idsChoisis }) => {
+        onValider: ({ seances: idsChoisis, instructions }) => {
           const idsSelectionnes = (idsChoisis || []).map(v => parseInt(v, 10));
-          lancerGenerationResume(idsSelectionnes, liste);
+          lancerGenerationResume(idsSelectionnes, liste, (instructions || '').trim());
         }
       });
     });
 }
 
-async function lancerGenerationResume(idsAutresSeances, seancesDisponibles) {
+async function lancerGenerationResume(idsAutresSeances, seancesDisponibles, instructionsPersonnalisees) {
   // Le bloc brouillon est créé tout de suite (avec un texte d'attente),
   // pour que l'admin voie immédiatement qu'une génération est en cours —
   // l'appel IA peut prendre plusieurs secondes.
@@ -1145,7 +1150,7 @@ async function lancerGenerationResume(idsAutresSeances, seancesDisponibles) {
     if (source.length > LIMITE_CARACTERES) source = source.slice(source.length - LIMITE_CARACTERES);
 
     const resultat = await appelerAssistantIA({
-      action: 'resumer', contenuSource: source,
+      action: 'resumer', contenuSource: source, instructions: instructionsPersonnalisees || '',
       classe: chaineNavigation?.classeNom, champ: chaineNavigation?.champNom
     });
     await enregistrerTexteBloc(markdownVersHtml(resultat));
