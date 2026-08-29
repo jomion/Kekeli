@@ -161,6 +161,12 @@ function ouvrirDemandeSuivi(eleveId) {
 async function ouvrirInscriptionEnfant() {
   const { data: classes } = await supabaseClient.from('classes').select('*').order('ordre');
 
+  // Département/Commune/Arrondissement sont désormais demandés pour l'élève
+  // aussi (comme pour parent/enseignant) — préremplis avec ceux du parent
+  // par défaut (rarement différents), mais modifiables ici.
+  const departementParDefaut = profilParent.departement || DEPARTEMENTS_BENIN[0];
+  const communesDisponibles = COMMUNES_PAR_DEPARTEMENT[departementParDefaut] || [];
+
   ouvrirModal({
     titre: 'Inscrire un enfant',
     champs: [
@@ -168,14 +174,17 @@ async function ouvrirInscriptionEnfant() {
       { nom: 'nom', label: 'Nom de l\'enfant' },
       { nom: 'classe', label: 'Classe', type: 'select', options: (classes || []).map(c => ({ valeur: c.id, label: c.nom })) },
       { nom: 'identifiant', label: 'Identifiant de connexion', placeholder: 'Ex: prenom.classe (ex: biodun.cm2)' },
-      { nom: 'motDePasse', label: 'Mot de passe', type: 'password', placeholder: '6 caractères min.' }
+      { nom: 'motDePasse', label: 'Mot de passe', type: 'password', placeholder: '6 caractères min.' },
+      { nom: 'departement', label: 'Département', type: 'select', valeur: departementParDefaut, options: DEPARTEMENTS_BENIN.map(d => ({ valeur: d, label: d })) },
+      { nom: 'commune', label: 'Commune', type: 'select', valeur: profilParent.commune, options: communesDisponibles.map(c => ({ valeur: c, label: c })), dependDe: 'departement', optionsSelonDependance: (dep) => (COMMUNES_PAR_DEPARTEMENT[dep] || []).map(c => ({ valeur: c, label: c })) },
+      { nom: 'arrondissement', label: 'Arrondissement', valeur: profilParent.arrondissement || '', requis: false }
     ],
     texteValider: 'Créer le compte',
     onValider: (valeurs) => confirmerInscriptionEnfant(valeurs)
   });
 }
 
-async function confirmerInscriptionEnfant({ prenom, nom, classe, identifiant, motDePasse }) {
+async function confirmerInscriptionEnfant({ prenom, nom, classe, identifiant, motDePasse, departement, commune, arrondissement }) {
   if (!motDePasse || motDePasse.length < 6) return alert('Le mot de passe doit contenir au moins 6 caractères.');
 
   const parentId = profilParent.id; // capturé AVANT le changement de session
@@ -189,7 +198,8 @@ async function confirmerInscriptionEnfant({ prenom, nom, classe, identifiant, mo
   // À partir d'ici, le client est authentifié comme l'ENFANT (pas le parent) —
   // c'est une limitation du SDK client sans fonction serveur dédiée.
   const { error: erreurProfil } = await supabaseClient.from('profils').insert({
-    id: enfantId, role: 'eleve', nom, prenom, identifiant: identifiant.trim().toLowerCase(), email
+    id: enfantId, role: 'eleve', nom, prenom, identifiant: identifiant.trim().toLowerCase(), email,
+    departement: departement || null, commune: commune || null, arrondissement: (arrondissement || '').trim() || null
   });
   if (erreurProfil) return alert(erreurProfil.message);
 

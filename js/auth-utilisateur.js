@@ -33,11 +33,31 @@ async function resoudreEmailConnexion(identifiantOuEmail) {
   return data;
 }
 
-// --- INSCRIPTION (parent ou enseignant uniquement) -----------------------
+// --- INSCRIPTION (parent, enseignant ou autorité pédagogique) ------------
+//
+// Champs de localisation (voir js/geo-benin.js pour Département/Commune) :
+//   - parent, enseignant : departement, commune, arrondissement
+//   - autorite_pedagogique : departement, commune (sauf Directeur Départemental
+//     qui n'a que departement), + selon la fonction : circonscriptionScolaire,
+//     zonePedagogique, ecole (voir FONCTIONS_AUTORITE_PEDAGOGIQUE ci-dessous).
 
-async function inscrire({ role, prenom, nom, email, motDePasse }) {
-  if (role !== 'parent' && role !== 'enseignant') {
+const ROLES_INSCRIPTIBLES = ['parent', 'enseignant', 'autorite_pedagogique'];
+
+// Pour chaque fonction de l'Autorité Pédagogique, la liste des champs
+// supplémentaires à demander et à enregistrer (en plus de departement).
+const FONCTIONS_AUTORITE_PEDAGOGIQUE = {
+  directeur: { commune: true, circonscriptionScolaire: true, zonePedagogique: true, ecole: true },
+  conseiller_pedagogique: { commune: true, circonscriptionScolaire: true, zonePedagogique: true, ecole: false },
+  inspecteur: { commune: true, circonscriptionScolaire: true, zonePedagogique: false, ecole: false },
+  directeur_departemental: { commune: false, circonscriptionScolaire: false, zonePedagogique: false, ecole: false }
+};
+
+async function inscrire({ role, prenom, nom, email, motDePasse, fonction, departement, commune, arrondissement, circonscriptionScolaire, zonePedagogique, ecole }) {
+  if (!ROLES_INSCRIPTIBLES.includes(role)) {
     return { error: { message: "Ce type de compte ne peut pas s'inscrire directement." } };
+  }
+  if (role === 'autorite_pedagogique' && !FONCTIONS_AUTORITE_PEDAGOGIQUE[fonction]) {
+    return { error: { message: "Choisissez une fonction valide pour l'Autorité Pédagogique." } };
   }
 
   const { data, error } = await supabaseClient.auth.signUp({ email, password: motDePasse });
@@ -46,8 +66,27 @@ async function inscrire({ role, prenom, nom, email, motDePasse }) {
   const userId = data.user?.id;
   if (!userId) return { error: { message: "Le compte n'a pas pu être créé. Réessayez." } };
 
-  const { error: erreurProfil } = await supabaseClient.from('profils').insert({ id: userId, role, nom, prenom, email });
+  const champsFonction = role === 'autorite_pedagogique' ? FONCTIONS_AUTORITE_PEDAGOGIQUE[fonction] : null;
+
+  const { error: erreurProfil } = await supabaseClient.from('profils').insert({
+    id: userId, role, nom, prenom, email,
+    departement: departement || null,
+    commune: role === 'autorite_pedagogique' ? (champsFonction.commune ? (commune || null) : null) : (commune || null),
+    arrondissement: role === 'autorite_pedagogique' ? null : (arrondissement || null)
+  });
   if (erreurProfil) return { error: erreurProfil };
+
+  if (role === 'autorite_pedagogique') {
+    const { error: erreurRole } = await supabaseClient.from('autorites_pedagogiques').insert({
+      id: userId,
+      fonction,
+      circonscription_scolaire: champsFonction.circonscriptionScolaire ? (circonscriptionScolaire || null) : null,
+      zone_pedagogique: champsFonction.zonePedagogique ? (zonePedagogique || null) : null,
+      ecole: champsFonction.ecole ? (ecole || null) : null
+    });
+    if (erreurRole) return { error: erreurRole };
+    return { data };
+  }
 
   const table = role === 'parent' ? 'parents' : 'enseignants';
   const { error: erreurRole } = await supabaseClient.from(table).insert({ id: userId });
@@ -86,6 +125,7 @@ function urlTableauDeBord(role) {
     case 'eleve': return `${racine}pages/eleve/bienvenue.html`;
     case 'parent': return `${racine}pages/parent/tableau-de-bord.html`;
     case 'enseignant': return `${racine}pages/enseignant/bienvenue.html`;
+    case 'autorite_pedagogique': return `${racine}pages/autorite/bienvenue.html`;
     case 'admin': case 'super_admin': return `${racine}pages/navigation.html`;
     default: return `${racine}index.html`;
   }

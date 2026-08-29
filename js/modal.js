@@ -6,7 +6,11 @@
 // ============================================================
 
 // ouvrirModal({ titre, champs, texteValider, onValider })
-// champs: [{ nom, label, type: 'text'|'textarea'|'select'|'number', options, requis, valeur, placeholder }]
+// champs: [{ nom, label, type: 'text'|'textarea'|'select'|'number', options, requis, valeur, placeholder,
+//            dependDe, optionsSelonDependance }]
+// Un select peut dépendre d'un autre (cascade, ex. Commune selon Département) :
+// dependDe = nom du champ dont il dépend, optionsSelonDependance = fonction
+// (valeurDuChampDontIlDepend) => [{valeur, label}, ...] appelée à chaque changement.
 function ouvrirModal({ titre, champs, texteValider = 'Enregistrer', onValider }) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -27,6 +31,17 @@ function ouvrirModal({ titre, champs, texteValider = 'Enregistrer', onValider })
   overlay.querySelector('[data-fermer-modal]').addEventListener('click', fermer);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) fermer(); });
   document.addEventListener('keydown', function echap(e) { if (e.key === 'Escape') { fermer(); document.removeEventListener('keydown', echap); } });
+
+  // Cascades select → select (ex. Commune qui se recalcule selon Département).
+  champs.filter(c => c.dependDe && c.optionsSelonDependance).forEach(c => {
+    const champDependant = overlay.querySelector(`[name="${c.nom}"]`);
+    const champDont = overlay.querySelector(`[name="${c.dependDe}"]`);
+    if (!champDependant || !champDont) return;
+    champDont.addEventListener('change', () => {
+      const options = c.optionsSelonDependance(champDont.value) || [];
+      champDependant.innerHTML = options.map(o => `<option value="${o.valeur}">${o.label}</option>`).join('');
+    });
+  });
 
   overlay.querySelector('#formModalDynamique').addEventListener('submit', (e) => {
     e.preventDefault();
