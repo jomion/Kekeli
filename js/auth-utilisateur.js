@@ -36,12 +36,21 @@ async function resoudreEmailConnexion(identifiantOuEmail) {
 // --- INSCRIPTION (parent, enseignant ou autorité pédagogique) ------------
 //
 // Champs de localisation (voir js/geo-benin.js pour Département/Commune) :
-//   - parent, enseignant : departement, commune, arrondissement
+//   - parent : departement, commune, arrondissement
+//   - enseignant : departement, commune, arrondissement, + circonscriptionScolaire,
+//     zonePedagogique, ecole, et classeId (une classe lui est attribuée
+//     directement — voir attribuer_classe_initiale_enseignant() côté base ;
+//     toute classe SUPPLÉMENTAIRE repasse par la demande d'accès existante).
 //   - autorite_pedagogique : departement, commune (sauf Directeur Départemental
 //     qui n'a que departement), + selon la fonction : circonscriptionScolaire,
 //     zonePedagogique, ecole (voir FONCTIONS_AUTORITE_PEDAGOGIQUE ci-dessous).
 
 const ROLES_INSCRIPTIBLES = ['parent', 'enseignant', 'autorite_pedagogique'];
+
+// Rôles pour lesquels la localisation (et, pour l'enseignant, l'école/la
+// classe) est obligatoire — utilisé aussi pour la page "compléter mon
+// profil" qui rattrape les comptes créés avant cette mise à jour.
+const ROLES_AVEC_LOCALISATION_OBLIGATOIRE = ['parent', 'enseignant', 'autorite_pedagogique'];
 
 // Pour chaque fonction de l'Autorité Pédagogique, la liste des champs
 // supplémentaires à demander et à enregistrer (en plus de departement).
@@ -52,7 +61,7 @@ const FONCTIONS_AUTORITE_PEDAGOGIQUE = {
   directeur_departemental: { commune: false, circonscriptionScolaire: false, zonePedagogique: false, ecole: false }
 };
 
-async function inscrire({ role, prenom, nom, email, motDePasse, fonction, departement, commune, arrondissement, circonscriptionScolaire, zonePedagogique, ecole }) {
+async function inscrire({ role, prenom, nom, email, motDePasse, fonction, departement, commune, arrondissement, circonscriptionScolaire, zonePedagogique, ecole, classeId }) {
   if (!ROLES_INSCRIPTIBLES.includes(role)) {
     return { error: { message: "Ce type de compte ne peut pas s'inscrire directement." } };
   }
@@ -88,8 +97,27 @@ async function inscrire({ role, prenom, nom, email, motDePasse, fonction, depart
     return { data };
   }
 
-  const table = role === 'parent' ? 'parents' : 'enseignants';
-  const { error: erreurRole } = await supabaseClient.from(table).insert({ id: userId });
+  if (role === 'enseignant') {
+    const { error: erreurEns } = await supabaseClient.from('enseignants').insert({
+      id: userId,
+      ecole: ecole || null,
+      circonscription_scolaire: circonscriptionScolaire || null,
+      zone_pedagogique: zonePedagogique || null
+    });
+    if (erreurEns) return { error: erreurEns };
+
+    if (classeId) {
+      // Attribution directe (pas de validation admin) de la classe choisie
+      // à l'inscription — une seule fois par compte. Une éventuelle erreur
+      // ici (ex. classe déjà attribuée par un autre biais) ne doit pas
+      // empêcher la création du compte : elle est juste signalée.
+      const { error: erreurClasse } = await supabaseClient.rpc('attribuer_classe_initiale_enseignant', { p_classe_id: parseInt(classeId, 10) });
+      if (erreurClasse) return { data, avertissement: erreurClasse.message };
+    }
+    return { data };
+  }
+
+  const { error: erreurRole } = await supabaseClient.from('parents').insert({ id: userId });
   if (erreurRole) return { error: erreurRole };
 
   return { data };
@@ -135,10 +163,11 @@ function urlLogin() {
   return `${_racine()}pages/login.html`;
 }
 
-// À appeler en haut de chaque page réservée à un rôle :
-//   const profil = await requireRole('parent');
-//   if (!profil) return;
-async function requireRole(roleAttendu) {
+function urlCompleterProfil() {
+  return `${_racine()}pages/completer-profil.html`;
+}
+
+async function chargerSessionEtProfil() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) { window.location.href = urlLogin(); return null; }
 
@@ -148,10 +177,69 @@ async function requireRole(roleAttendu) {
     window.location.href = urlLogin();
     return null;
   }
+  return profil;
+}
+
+// Détermine si un compte doit passer par "compléter mon profil" avant de
+// continuer — sert à rattraper les comptes créés avant l'ajout de la
+// localisation (Département/Commune/Arrondissement), et pour l'enseignant,
+// de l'École/Circonscription Scolaire/Zone Pédagogique/Classe.
+async function profilEstIncomplet(profil) {
+  if (!ROLES_AVEC_LOCALISATION_OBLIGATOIRE.includes(profil.role)) return false;
+  if (!profil.departement) return true;
+
+  if (profil.role === 'parent') {
+    return !profil.commune || !profil.arrondissement;
+  }
+
+  if (profil.role === 'enseignant') {
+    if (!profil.commune || !profil.arrondissement) return true;
+    const { data: ens } = await supabaseClient.from('enseignants')
+      .select('ecole, circonscription_scolaire, zone_pedagogique, classes_assignees').eq('id', profil.id).single();
+    if (!ens || !ens.ecole || !ens.circonscription_scolaire || !ens.zone_pedagogique) return true;
+    if ((ens.classes_assignees || []).length === 0) {
+      const { count } = await supabaseClient.from('demandes_classe_enseignant')
+        .select('id', { count: 'exact', head: true }).eq('enseignant_id', profil.id);
+      if (!count) return true;
+    }
+    return false;
+  }
+
+  // autorite_pedagogique : dépend de la fonction (voir FONCTIONS_AUTORITE_PEDAGOGIQUE).
+  const { data: autorite } = await supabaseClient.from('autorites_pedagogiques').select('*').eq('id', profil.id).single();
+  if (!autorite) return true;
+  const champs = FONCTIONS_AUTORITE_PEDAGOGIQUE[autorite.fonction];
+  if (!champs) return false;
+  if (champs.commune && !profil.commune) return true;
+  if (champs.circonscriptionScolaire && !autorite.circonscription_scolaire) return true;
+  if (champs.zonePedagogique && !autorite.zone_pedagogique) return true;
+  if (champs.ecole && !autorite.ecole) return true;
+  return false;
+}
+
+// Redirige vers la page "compléter mon profil" si nécessaire ; renvoie
+// true si une redirection a eu lieu (l'appelant doit alors s'arrêter là).
+async function redirigerSiProfilIncomplet(profil) {
+  if (window.location.pathname.endsWith('completer-profil.html')) return false; // évite la boucle infinie
+  if (await profilEstIncomplet(profil)) {
+    const retour = encodeURIComponent(window.location.pathname + window.location.search);
+    window.location.href = `${urlCompleterProfil()}?retour=${retour}`;
+    return true;
+  }
+  return false;
+}
+
+// À appeler en haut de chaque page réservée à un rôle :
+//   const profil = await requireRole('parent');
+//   if (!profil) return;
+async function requireRole(roleAttendu) {
+  const profil = await chargerSessionEtProfil();
+  if (!profil) return null;
   if (profil.role !== roleAttendu) {
     window.location.href = urlTableauDeBord(profil.role);
     return null;
   }
+  if (await redirigerSiProfilIncomplet(profil)) return null;
   return profil;
 }
 

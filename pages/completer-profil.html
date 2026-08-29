@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KEKELI - Compléter mon profil</title>
+<link rel="stylesheet" href="../css/style-public.css">
+</head>
+<body>
+  <div class="page-auth">
+    <div class="carte-auth">
+      <div class="logo"><img src="../assets/logo/logo.png" alt="KEKELI"> KEKELI</div>
+      <div class="sous-titre">Bonjour <span id="badgeUtilisateur"></span> — encore une étape</div>
+      <p style="font-size:13px;color:var(--text-gris);margin:-8px 0 16px">
+        KEKELI vous demande maintenant quelques informations complémentaires
+        (localisation<span id="texteComplement"></span>). Merci de les renseigner
+        pour continuer à utiliser votre espace.
+      </p>
+
+      <form id="formCompleterProfil">
+        <div class="champ-auth" id="champDepartement">
+          <label>Département</label>
+          <select id="departement"></select>
+        </div>
+        <div class="champ-auth" id="champCommune">
+          <label>Commune</label>
+          <select id="commune"></select>
+        </div>
+        <div class="champ-auth" id="champArrondissement">
+          <label>Arrondissement</label>
+          <input type="text" id="arrondissement">
+        </div>
+        <div class="champ-auth" id="champCirconscription" style="display:none">
+          <label>Circonscription Scolaire</label>
+          <input type="text" id="circonscriptionScolaire">
+        </div>
+        <div class="champ-auth" id="champZone" style="display:none">
+          <label>Zone Pédagogique</label>
+          <select id="zonePedagogique"></select>
+        </div>
+        <div class="champ-auth" id="champEcole" style="display:none">
+          <label>École</label>
+          <input type="text" id="ecole">
+        </div>
+        <div class="champ-auth" id="champClasse" style="display:none">
+          <label>Classe</label>
+          <select id="classe"></select>
+          <p style="font-size:12px;color:var(--text-gris);margin:6px 0 0">Cette classe vous sera attribuée directement. Pour une classe supplémentaire, vous pourrez ensuite en faire la demande depuis votre espace.</p>
+        </div>
+
+        <p class="message-erreur-auth" id="messageErreur"></p>
+        <button type="submit" class="btn-auth-principal" id="btnCompleter">Enregistrer</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/supabaseClient.js"></script>
+  <script>const RACINE_SITE = "../";</script>
+  <script src="../js/auth-utilisateur.js"></script>
+  <script src="../js/geo-benin.js"></script>
+  <script src="../js/pages/completer-profil.js"></script>
+</body>
+</html>

@@ -19,7 +19,7 @@ async function afficherTableauDeBord() {
   let enfants = [];
   let abonnementsParEnfant = {};
   if (idsEnfants.length > 0) {
-    const { data: profilsEnfants } = await supabaseClient.from('profils').select('id, prenom, nom').in('id', idsEnfants);
+    const { data: profilsEnfants } = await supabaseClient.from('profils').select('id, prenom, nom, departement, commune, arrondissement').in('id', idsEnfants);
     enfants = profilsEnfants || [];
 
     const { data: abonnements } = await supabaseClient
@@ -30,16 +30,22 @@ async function afficherTableauDeBord() {
   }
 
   const LIBELLES_STATUT_AB = { en_attente: 'En attente', accepte: 'Accepté', refuse: 'Refusé' };
-  const blocEnfants = enfants.length > 0 ? enfants.map(e => `
+  const blocEnfants = enfants.length > 0 ? enfants.map(e => {
+    const localisationIncomplete = !e.departement || !e.commune || !e.arrondissement;
+    return `
     <div style="border-bottom:1px solid var(--bordure);padding:12px 0">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <strong>${e.prenom} ${e.nom}</strong>
-        <button class="btn btn-filled" data-suivre-enfant="${e.id}" style="padding:6px 14px;font-size:12px">🔗 Suivre un enseignant</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${localisationIncomplete ? `<button class="btn btn-deconnexion-public" data-completer-localisation="${e.id}" style="padding:6px 14px;font-size:12px;color:#B45309;border-color:#B45309">⚠️ Compléter les informations</button>` : ''}
+          <button class="btn btn-filled" data-suivre-enfant="${e.id}" style="padding:6px 14px;font-size:12px">🔗 Suivre un enseignant</button>
+        </div>
       </div>
       <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
         ${(abonnementsParEnfant[e.id] || []).map(a => rendreLignePastilleAB(a)).join('') || '<span style="font-size:12px;color:var(--text-gris)">Aucun enseignant suivi pour l\'instant.</span>'}
       </div>
-    </div>`).join('') : `<p style="color:var(--text-gris)">Aucun enfant inscrit pour l'instant.</p>`;
+    </div>`;
+  }).join('') : `<p style="color:var(--text-gris)">Aucun enfant inscrit pour l'instant.</p>`;
 
   function rendreLignePastilleAB(a) {
     const demandeParEnseignant = a.demande_par === a.enseignant_id;
@@ -107,6 +113,12 @@ async function afficherTableauDeBord() {
   document.getElementById('btnInscrireEnfant').addEventListener('click', ouvrirInscriptionEnfant);
   document.querySelectorAll('[data-suivre-enfant]').forEach(btn => {
     btn.addEventListener('click', () => ouvrirDemandeSuivi(btn.dataset.suivreEnfant));
+  });
+  document.querySelectorAll('[data-completer-localisation]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const enfant = enfants.find(e => e.id === btn.dataset.completerLocalisation);
+      if (enfant) ouvrirCompletionLocalisationEnfant(enfant);
+    });
   });
   document.querySelectorAll('[data-annuler-abonnement]').forEach(btn => {
     btn.addEventListener('click', () => annulerAbonnement(parseInt(btn.dataset.annulerAbonnement, 10), btn.dataset.statutAb));
@@ -215,4 +227,31 @@ async function confirmerInscriptionEnfant({ prenom, nom, classe, identifiant, mo
   // c'est la seule façon fiable de lui rendre sa propre session ici.
   await supabaseClient.auth.signOut();
   window.location.href = '../login.html?enfant_cree=1';
+}
+
+// Complète Département/Commune/Arrondissement pour un enfant inscrit avant
+// l'ajout de ces champs. Le parent n'étant pas connecté "en tant que"
+// l'enfant, la mise à jour passe par la fonction serveur
+// completer_localisation_enfant() (SECURITY DEFINER), qui vérifie elle-même
+// le lien parent_eleve avant d'écrire.
+function ouvrirCompletionLocalisationEnfant(enfant) {
+  const departementParDefaut = enfant.departement || profilParent.departement || DEPARTEMENTS_BENIN[0];
+  const communesDisponibles = COMMUNES_PAR_DEPARTEMENT[departementParDefaut] || [];
+
+  ouvrirModal({
+    titre: `Compléter les informations de ${enfant.prenom}`,
+    champs: [
+      { nom: 'departement', label: 'Département', type: 'select', valeur: departementParDefaut, options: DEPARTEMENTS_BENIN.map(d => ({ valeur: d, label: d })) },
+      { nom: 'commune', label: 'Commune', type: 'select', valeur: enfant.commune || '', options: communesDisponibles.map(c => ({ valeur: c, label: c })), dependDe: 'departement', optionsSelonDependance: (dep) => (COMMUNES_PAR_DEPARTEMENT[dep] || []).map(c => ({ valeur: c, label: c })) },
+      { nom: 'arrondissement', label: 'Arrondissement', valeur: enfant.arrondissement || '', requis: false }
+    ],
+    texteValider: 'Enregistrer',
+    onValider: async ({ departement, commune, arrondissement }) => {
+      const { error } = await supabaseClient.rpc('completer_localisation_enfant', {
+        p_eleve_id: enfant.id, p_departement: departement || null, p_commune: commune || null, p_arrondissement: (arrondissement || '').trim() || null
+      });
+      if (error) return alert(error.message);
+      afficherTableauDeBord();
+    }
+  });
 }

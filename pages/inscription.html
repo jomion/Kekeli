@@ -84,6 +84,11 @@
           <label>École</label>
           <input type="text" id="ecole">
         </div>
+        <div class="champ-auth" id="champClasse" style="display:none">
+          <label>Classe</label>
+          <select id="classe"></select>
+          <p style="font-size:12px;color:var(--text-gris);margin:6px 0 0">Cette classe vous sera attribuée directement. Pour une classe supplémentaire, vous pourrez ensuite en faire la demande depuis votre espace (validée par l'administration).</p>
+        </div>
 
         <p class="message-erreur-auth" id="messageErreur"></p>
         <button type="submit" class="btn-auth-principal" id="btnInscription">Créer mon compte</button>
@@ -114,9 +119,17 @@
     const champCirconscription = document.getElementById('champCirconscription');
     const champZone = document.getElementById('champZone');
     const champEcole = document.getElementById('champEcole');
+    const champClasse = document.getElementById('champClasse');
 
     initialiserSelectDepartementCommune(document.getElementById('departement'), document.getElementById('commune'));
     document.getElementById('zonePedagogique').innerHTML = ZONES_PEDAGOGIQUES.map(z => `<option value="${z}">${z}</option>`).join('');
+
+    // Liste des classes, pour que l'enseignant en choisisse une à l'inscription
+    // (elle lui est attribuée directement — voir majChampsLocalisation ci-dessous).
+    (async function chargerClasses() {
+      const { data: classes } = await supabaseClient.from('classes').select('*').order('ordre');
+      document.getElementById('classe').innerHTML = (classes || []).map(c => `<option value="${c.id}">${c.nom}</option>`).join('');
+    })();
 
     // Pour chaque rôle/fonction, quels champs de localisation afficher.
     // (Les champs habituels — nom, prénom, e-mail, mot de passe — sont
@@ -125,14 +138,28 @@
       const role = selectRole.value;
       const fonction = selectFonction.value;
       const estAutorite = role === 'autorite_pedagogique';
+      const estEnseignant = role === 'enseignant';
 
       champFonction.style.display = estAutorite ? '' : 'none';
 
       // Département : toujours demandé, quel que soit le rôle.
       champDepartement.style.display = '';
 
+      if (estEnseignant) {
+        // Enseignant : Département, Commune, Arrondissement, Circonscription
+        // Scolaire, Zone Pédagogique, École, Classe (attribuée directement).
+        champCommune.style.display = '';
+        champArrondissement.style.display = '';
+        champCirconscription.style.display = '';
+        champZone.style.display = '';
+        champEcole.style.display = '';
+        champClasse.style.display = '';
+        return;
+      }
+      champClasse.style.display = 'none';
+
       if (!estAutorite) {
-        // Parent / Enseignant : Département, Commune, Arrondissement.
+        // Parent : Département, Commune, Arrondissement.
         champCommune.style.display = '';
         champArrondissement.style.display = '';
         champCirconscription.style.display = 'none';
@@ -182,7 +209,7 @@
       btn.disabled = true; btn.textContent = 'Création en cours...';
 
       const role = selectRole.value;
-      const { error } = await inscrire({
+      const { error, avertissement } = await inscrire({
         role,
         fonction: role === 'autorite_pedagogique' ? selectFonction.value : undefined,
         prenom: document.getElementById('prenom').value.trim(),
@@ -194,13 +221,17 @@
         arrondissement: document.getElementById('arrondissement').value.trim(),
         circonscriptionScolaire: document.getElementById('circonscriptionScolaire').value.trim(),
         zonePedagogique: document.getElementById('zonePedagogique').value,
-        ecole: document.getElementById('ecole').value.trim()
+        ecole: document.getElementById('ecole').value.trim(),
+        classeId: role === 'enseignant' ? document.getElementById('classe').value : undefined
       });
 
       if (error) {
         messageErreur.textContent = error.message || "Impossible de créer le compte. Vérifiez vos informations.";
         btn.disabled = false; btn.textContent = 'Créer mon compte';
         return;
+      }
+      if (avertissement) {
+        alert("Votre compte a été créé, mais la classe n'a pas pu être attribuée automatiquement (" + avertissement + "). Vous pourrez en faire la demande depuis votre espace.");
       }
       window.location.href = urlTableauDeBord(role);
     });
