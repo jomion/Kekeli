@@ -34,6 +34,11 @@
 .reponse-courte-champ, .bareme-champ { margin-top: 6px; }
 .reponse-courte-champ label, .bareme-champ label { font-size: 12px; color: var(--text-gris); display: block; margin-bottom: 3px; }
 .reponse-courte-champ input { width: 100%; border: 1px solid var(--bordure); border-radius: 6px; padding: 6px 8px; box-sizing: border-box; }
+.trous-champ { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+.trous-champ label { font-size: 12px; color: var(--text-gris); display: block; }
+.trous-champ input[type=text] { width: 100%; border: 1px solid var(--bordure); border-radius: 6px; padding: 6px 8px; box-sizing: border-box; margin-top: 3px; }
+.options-ordre { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+.options-ordre .option-qcm input[type=number] { flex: none; width: auto; }
 .item-type-devoir:hover { background: #F1F5F9; }
 
 :root {
@@ -389,6 +394,12 @@ body.avec-entete-fixe { padding-top: 68px; }
 }
 .question-lecture textarea { min-height: 80px; resize: vertical; }
 .vf-choix { display: flex; gap: 20px; }
+.champ-trou { border: 2px solid var(--bordure); border-radius: 6px; padding: 4px 8px; font-size: 14px; font-family: inherit; text-align: center; }
+.liste-remise-en-ordre { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.liste-remise-en-ordre li { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: white; border: 2px solid var(--bordure); border-radius: 8px; padding: 8px 10px; }
+.fleches-ordre { display: flex; gap: 4px; flex-shrink: 0; }
+.fleches-ordre button { background: var(--bleu-clair, #F1F5F9); border: 1px solid var(--bordure); border-radius: 6px; cursor: pointer; font-size: 12px; padding: 3px 8px; }
+.fleches-ordre button:hover { background: var(--bordure); }
 .bouton-valider-exercice { margin-top: 16px; }
 .resultat-question { margin-top: 14px; padding: 10px 12px; border-radius: 8px; }
 .resultat-question.correct { background: #E8F8EF; border-left: 4px solid #22A559; }

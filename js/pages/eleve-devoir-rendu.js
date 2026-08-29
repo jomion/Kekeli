@@ -54,7 +54,9 @@ async function chargerDevoir() {
   }
   blocsDevoirCourant = blocs || [];
 
-  const idsExercices = blocsDevoirCourant.filter(b => ['exercice', 'quiz', 'evaluation'].includes(b.type_bloc)).map(b => b.id);
+  // Depuis la refonte des Activités, un bloc "activite" est noté comme un
+  // exercice (questions + corrigé) — voir la même note dans js/pages/eleve-seance.js.
+  const idsExercices = blocsDevoirCourant.filter(b => ['exercice', 'quiz', 'evaluation', 'activite'].includes(b.type_bloc)).map(b => b.id);
   const idsActivites = blocsDevoirCourant.filter(b => b.type_bloc === 'activite').map(b => b.id);
   reponsesExistantesDevoir = {};
   rendusActivitesExistantsDevoir = {};
@@ -121,7 +123,11 @@ function rendreBlocTravailDevoir(b) {
   const c = b.contenu || {};
   const couleur = c.couleurBloc || info.couleur || '#0000D1';
   const libelle = c.libelle || info.label;
-  const corps = b.type_bloc === 'activite' ? rendreActiviteDevoir(b, c) : rendreExerciceDevoir(b, c);
+  // Voir la même logique (et son explication) dans js/pages/eleve-seance.js :
+  // une activité déjà rendue via l'ancien mode (texte libre) garde son
+  // affichage legacy ; une nouvelle activité passe par le parcours structuré.
+  const aRenduLegacy = b.type_bloc === 'activite' && (rendusActivitesExistantsDevoir[b.id] || []).length > 0;
+  const corps = aRenduLegacy ? rendreActiviteDevoir(b, c) : rendreExerciceDevoir(b, c);
   return `<div class="bloc-lecture" style="border-left-color:${couleur};background:${teinteClaire(couleur, 0.04)}">
     <div class="bloc-lecture-titre" style="color:${couleur}">${info.icone} ${echapper(libelle)}</div>
     ${corps}
@@ -207,6 +213,26 @@ function rendreActiviteDevoir(b, c) {
 }
 
 function rendreChampQuestionDevoir(q, i) {
+  if (q.type === 'texte_a_trous') {
+    let idxTrou = -1;
+    const morceaux = echapper(q.enonce).split('___');
+    const enonceAvecTrous = morceaux.map((morceau, k) => {
+      if (k === morceaux.length - 1) return morceau;
+      idxTrou++;
+      return `${morceau}<input type="text" class="champ-trou" data-trou-index="${idxTrou}" required style="width:110px;display:inline-block;margin:0 4px">`;
+    }).join('');
+    return `<div class="question-lecture" data-question-trous="${echapper(q.id)}"><p class="question-enonce">${i + 1}. ${enonceAvecTrous}</p></div>`;
+  }
+  if (q.type === 'remise_en_ordre') {
+    const options = Array.isArray(q.options) ? q.options : [];
+    const ordreMele = options.map((opt, idx) => ({ opt, idx })).sort(() => Math.random() - 0.5);
+    return `<div class="question-lecture">
+      <p class="question-enonce">${i + 1}. ${echapper(q.enonce)}</p>
+      <ol class="liste-remise-en-ordre" data-ordre-question="${echapper(q.id)}">
+        ${ordreMele.map(({ opt, idx }) => `<li data-index-original="${idx}"><span>${echapper(opt)}</span><span class="fleches-ordre"><button type="button" data-monter title="Monter">▲</button><button type="button" data-descendre title="Descendre">▼</button></span></li>`).join('')}
+      </ol>
+    </div>`;
+  }
   let champ = '';
   if (q.type === 'qcm') {
     champ = (q.options || []).map((opt, idx) => `<label><input type="radio" name="q_${echapper(q.id)}" value="${idx}" required> ${echapper(opt)}</label>`).join('');
@@ -221,6 +247,25 @@ function rendreChampQuestionDevoir(q, i) {
     champ = `<textarea name="q_${echapper(q.id)}" required placeholder="Ta réponse..."></textarea>`;
   }
   return `<div class="question-lecture"><p class="question-enonce">${i + 1}. ${echapper(q.enonce)}</p>${champ}</div>`;
+}
+
+function attacherEcouteursListesOrdreDevoir(racine = document) {
+  racine.querySelectorAll('.liste-remise-en-ordre').forEach(liste => {
+    liste.querySelectorAll('button[data-monter]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const li = btn.closest('li');
+        const precedent = li.previousElementSibling;
+        if (precedent) liste.insertBefore(li, precedent);
+      });
+    });
+    liste.querySelectorAll('button[data-descendre]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const li = btn.closest('li');
+        const suivant = li.nextElementSibling;
+        if (suivant) liste.insertBefore(suivant, li);
+      });
+    });
+  });
 }
 
 function rendreResultatExerciceDevoir(b, c, questions, reponse) {
@@ -238,6 +283,8 @@ function rendreResultatExerciceDevoir(b, c, questions, reponse) {
       let texteReponse = '(sans réponse)';
       if (q.type === 'qcm') texteReponse = (q.options || [])[Number(donnee)] ?? texteReponse;
       else if (q.type === 'vrai_faux') texteReponse = donnee === undefined ? texteReponse : ((donnee === true || donnee === 'true') ? 'Vrai' : 'Faux');
+      else if (q.type === 'texte_a_trous') texteReponse = Array.isArray(donnee) && donnee.length ? donnee.join(' / ') : texteReponse;
+      else if (q.type === 'remise_en_ordre') texteReponse = Array.isArray(donnee) && donnee.length ? donnee.map(idx => (q.options || [])[idx]).join(' → ') : texteReponse;
       else if (donnee) texteReponse = donnee;
       return `<div class="question-lecture">
         <p class="question-enonce">${i + 1}. ${echapper(q.enonce)}</p>
@@ -263,6 +310,7 @@ function attacherEcouteursRefaireDevoir() {
 }
 
 function attacherEcouteursExercicesDevoir() {
+  attacherEcouteursListesOrdreDevoir();
   document.querySelectorAll('[data-form-exercice-devoir]').forEach(form => {
     form.addEventListener('submit', async (ev) => {
       ev.preventDefault();
@@ -272,6 +320,16 @@ function attacherEcouteursExercicesDevoir() {
 
       const reponses = {};
       questions.forEach(q => {
+        if (q.type === 'texte_a_trous') {
+          const champsTrou = form.querySelectorAll(`[data-question-trous="${CSS.escape(String(q.id))}"] .champ-trou`);
+          reponses[q.id] = Array.from(champsTrou).map(inp => inp.value);
+          return;
+        }
+        if (q.type === 'remise_en_ordre') {
+          const liste = form.querySelector(`[data-ordre-question="${CSS.escape(String(q.id))}"]`);
+          reponses[q.id] = liste ? Array.from(liste.children).map(li => parseInt(li.dataset.indexOriginal, 10)) : [];
+          return;
+        }
         const champCoche = form.querySelector(`[name="q_${CSS.escape(String(q.id))}"]:checked`);
         const champSimple = form.querySelector(`input[type=text][name="q_${CSS.escape(String(q.id))}"], textarea[name="q_${CSS.escape(String(q.id))}"]`);
         const champ = champCoche || champSimple;

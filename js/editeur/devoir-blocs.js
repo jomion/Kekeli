@@ -70,10 +70,6 @@ function html_ligneBlocDevoir(b) {
 
 function html_corpsBlocDevoir(bloc) {
   const c = bloc.contenu || {};
-  if (bloc.type_bloc === 'activite') {
-    return `<textarea data-champ-devoir="consigne" placeholder="Consigne de l'activité (ce que l'élève doit faire)...">${echapper(c.consigne)}</textarea>
-      <p class="note-future">L'élève rendra un texte libre (+ une pièce jointe facultative) ; l'enseignant corrige ensuite à la main (note + appréciation).</p>`;
-  }
   const questions = Array.isArray(c.questions) ? c.questions : [];
   return `
     <textarea data-champ-devoir="consigne" placeholder="Consigne générale (ex : Réponds aux questions suivantes)">${echapper(c.consigne)}</textarea>
@@ -119,7 +115,7 @@ function attacherEcouteursBlocsDevoir(devoirId) {
       });
     });
 
-    if (['exercice', 'quiz', 'evaluation'].includes(bloc.type_bloc)) {
+    if (['exercice', 'quiz', 'evaluation', 'activite'].includes(bloc.type_bloc)) {
       attacherEcouteursQuestionsDevoir(devoirId, el, bloc);
     }
   });
@@ -184,6 +180,12 @@ function attacherEcouteursQuestionsDevoir(devoirId, el, bloc) {
         q.enonce = e.target.value;
         majQuestions(questions());
       });
+      if (q.type === 'texte_a_trous') {
+        // Nombre de trous recalculé au blur seulement (pas au input), sinon
+        // le champ énoncé perdrait le focus à chaque frappe (voir la même
+        // logique dans js/pages/editeur-seance.js).
+        qEl.querySelector('[data-question-champ="enonce"]').addEventListener('blur', () => rerender());
+      }
 
       const inputPoints = qEl.querySelector('[data-question-points]');
       if (inputPoints) inputPoints.addEventListener('input', () => {
@@ -198,19 +200,12 @@ function attacherEcouteursQuestionsDevoir(devoirId, el, bloc) {
         rerender();
       });
 
-      if (q.type === 'qcm') {
+      if (q.type === 'qcm' || q.type === 'remise_en_ordre') {
         qEl.querySelectorAll('[data-option-index]').forEach(inputOpt => {
           inputOpt.addEventListener('input', () => {
             const i = parseInt(inputOpt.dataset.optionIndex, 10);
             q.options[i] = inputOpt.value;
             majQuestions(questions());
-          });
-        });
-        qEl.querySelectorAll('[data-question-bonne-index]').forEach(radio => {
-          radio.addEventListener('change', () => {
-            if (!c) return;
-            c.bonneReponse = radio.dataset.questionBonneIndex;
-            sauvegarderCorrige();
           });
         });
         const btnAjouterOption = qEl.querySelector('[data-ajouter-option]');
@@ -221,9 +216,52 @@ function attacherEcouteursQuestionsDevoir(devoirId, el, bloc) {
         });
         qEl.querySelectorAll('[data-supprimer-option]').forEach(btn => {
           btn.addEventListener('click', () => {
-            q.options.splice(parseInt(btn.dataset.supprimerOption, 10), 1);
+            const i = parseInt(btn.dataset.supprimerOption, 10);
+            q.options.splice(i, 1);
             majQuestions(questions());
+            if (c && q.type === 'qcm' && String(c.bonneReponse) === String(i)) c.bonneReponse = undefined;
+            if (c && Array.isArray(c.bonneReponse)) {
+              c.bonneReponse = c.bonneReponse.filter(x => x !== i).map(x => x > i ? x - 1 : x);
+            }
+            if (c) sauvegarderCorrige();
             rerender();
+          });
+        });
+      }
+
+      if (q.type === 'qcm') {
+        qEl.querySelectorAll('[data-question-bonne-index]').forEach(radio => {
+          radio.addEventListener('change', () => {
+            if (!c) return;
+            c.bonneReponse = radio.dataset.questionBonneIndex;
+            sauvegarderCorrige();
+          });
+        });
+      }
+
+      if (q.type === 'remise_en_ordre') {
+        qEl.querySelectorAll('[data-question-rang-index]').forEach(input => {
+          input.addEventListener('input', () => {
+            if (!c) return;
+            const i = parseInt(input.dataset.questionRangIndex, 10);
+            const rang = parseInt(input.value, 10);
+            const ordreActuel = Array.isArray(c.bonneReponse) ? c.bonneReponse.filter(x => x !== i) : [];
+            const position = Math.max(0, Math.min(ordreActuel.length, (rang || 1) - 1));
+            ordreActuel.splice(position, 0, i);
+            c.bonneReponse = ordreActuel;
+            sauvegarderCorrige();
+          });
+        });
+      }
+
+      if (q.type === 'texte_a_trous') {
+        qEl.querySelectorAll('[data-question-trou-index]').forEach(input => {
+          input.addEventListener('input', () => {
+            if (!c) return;
+            const i = parseInt(input.dataset.questionTrouIndex, 10);
+            c.bonneReponse = Array.isArray(c.bonneReponse) ? [...c.bonneReponse] : [];
+            c.bonneReponse[i] = input.value.split(',').map(s => s.trim()).filter(Boolean);
+            sauvegarderCorrige();
           });
         });
       }
@@ -299,7 +337,7 @@ async function dupliquerBlocDevoir(devoirId, bloc) {
     .insert({ devoir_id: devoirId, type_bloc: bloc.type_bloc, contenu: bloc.contenu, ordre }).select().single();
   if (error) { alert(error.message); return; }
 
-  if (['exercice', 'quiz', 'evaluation'].includes(bloc.type_bloc)) {
+  if (['exercice', 'quiz', 'evaluation', 'activite'].includes(bloc.type_bloc)) {
     const { data: corrigeOriginal } = await supabaseClient.from('corriges_exercices').select('corrige').eq('bloc_id', bloc.id).maybeSingle();
     if (corrigeOriginal) await supabaseClient.from('corriges_exercices').insert({ bloc_id: data.id, corrige: corrigeOriginal.corrige });
   }

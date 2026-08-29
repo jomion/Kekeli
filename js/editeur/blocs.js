@@ -127,11 +127,7 @@ function html_editeurBloc(bloc) {
     case 'tableau':
       return html_editeurTableau(bloc, c);
 
-    case 'activite':
-      return `<textarea data-champ="consigne" placeholder="Consigne de l'activité...">${echapper(c.consigne)}</textarea>
-        <div class="champ-ligne"><label>Palier</label>${html_selectPalier(bloc)}</div>`;
-
-    case 'exercice': case 'quiz': case 'evaluation':
+    case 'activite': case 'exercice': case 'quiz': case 'evaluation':
       return html_editeurExercice(bloc, c);
 
     default:
@@ -311,7 +307,9 @@ const LIBELLES_TYPE_QUESTION = {
   qcm: 'QCM (choix multiple)',
   vrai_faux: 'Vrai / Faux',
   reponse_courte: 'Réponse courte',
-  reponse_longue: 'Réponse longue (corrigée par IA)'
+  reponse_longue: 'Réponse longue (corrigée par IA)',
+  texte_a_trous: 'Texte à trous',
+  remise_en_ordre: 'Remise en ordre'
 };
 
 function html_editeurExercice(bloc, c) {
@@ -319,6 +317,11 @@ function html_editeurExercice(bloc, c) {
   return `
     <textarea data-champ="consigne" placeholder="Consigne générale (ex: Réponds aux questions suivantes)">${echapper(c.consigne)}</textarea>
     <div class="champ-ligne"><label>Palier</label>${html_selectPalier(bloc)}</div>
+    <div class="champ-ligne">
+      <label>Seuil de réussite (%)</label>
+      <input type="number" min="0" max="100" step="0.1" data-champ-seuil-reussite value="${bloc.seuil_reussite ?? 66.7}" style="width:80px">
+    </div>
+    <p class="note-future">Le seuil de réussite sert à valider ce bloc pour la progression par palier et l'attribution des badges (66,7% par défaut).</p>
     <div class="editeur-questions" data-questions-bloc="${bloc.id}">
       <div class="liste-questions" data-liste-questions>
         ${questions.length ? questions.map((q, i) => html_questionEditeur(q, i, null)).join('') : '<p class="note-future">Aucune question pour l\'instant.</p>'}
@@ -370,6 +373,34 @@ function html_questionEditeur(q, index, corrige) {
         <textarea data-question-bareme placeholder="Ex: l'élève doit citer au moins 2 exemples..." ${enAttente ? 'disabled' : ''}>${echapper(bareme)}</textarea>
       </div>
       <p class="note-future">🤖 Réponse ouverte : sera notée par IA (note + commentaire), avec relecture possible ensuite.</p>`;
+  } else if (q.type === 'texte_a_trous') {
+    const nbTrous = (String(q.enonce || '').match(/___/g) || []).length;
+    const reponsesTrous = !enAttente && Array.isArray(c.bonneReponse) ? c.bonneReponse : [];
+    corpsCorrige = `
+      <div class="trous-champ">
+        <p class="note-future">Utilise <code>___</code> (3 tirets bas) dans l'énoncé pour chaque trou à compléter. ${nbTrous} trou${nbTrous > 1 ? 's' : ''} détecté${nbTrous > 1 ? 's' : ''} pour l'instant.</p>
+        ${Array.from({ length: nbTrous }).map((_, i) => `
+          <label>Trou ${i + 1} — réponse(s) acceptée(s) (séparées par une virgule)
+            <input type="text" data-question-trou-index="${i}" value="${echapper(Array.isArray(reponsesTrous[i]) ? reponsesTrous[i].join(', ') : '')}" placeholder="Ex: chat, Chat" ${enAttente ? 'disabled' : ''}>
+          </label>`).join('')}
+      </div>`;
+  } else if (q.type === 'remise_en_ordre') {
+    const options = Array.isArray(q.options) ? q.options : [];
+    const ordreCorrect = !enAttente && Array.isArray(c.bonneReponse) ? c.bonneReponse : [];
+    corpsCorrige = `
+      <div class="options-ordre">
+        <p class="note-future">Indique le rang correct (1, 2, 3...) de chaque élément dans l'ordre attendu.</p>
+        ${options.map((opt, i) => {
+          const pos = ordreCorrect.indexOf(i);
+          return `
+          <div class="option-qcm">
+            <input type="number" min="1" data-question-rang-index="${i}" value="${pos >= 0 ? pos + 1 : ''}" placeholder="Rang" style="width:60px" ${enAttente ? 'disabled' : ''}>
+            <input type="text" data-option-index="${i}" value="${echapper(opt)}" placeholder="Élément ${i + 1}">
+            <button type="button" data-supprimer-option="${i}" title="Supprimer cet élément">✕</button>
+          </div>`;
+        }).join('')}
+        <button type="button" class="btn btn-discret" data-ajouter-option style="align-self:flex-start;font-size:12px">+ Élément</button>
+      </div>`;
   }
 
   return `

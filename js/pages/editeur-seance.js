@@ -615,6 +615,15 @@ function attacherEcouteursQuestions(el, bloc) {
   const majQuestions = (liste) => { bloc.contenu = { ...bloc.contenu, questions: liste }; programmerSauvegardeBloc(bloc); };
   const sauvegarderCorrige = () => { if (corrigeActuel) programmerSauvegardeCorrige(bloc.id, corrigeActuel); };
 
+  // Seuil de réussite (%) : champ hors du conteneur des questions (juste au-dessus),
+  // mais géré ici pour rester à côté de la sauvegarde du reste du bloc.
+  const inputSeuil = el.querySelector(':scope > .bloc-corps [data-champ-seuil-reussite]');
+  if (inputSeuil) inputSeuil.addEventListener('input', () => {
+    const v = parseFloat(inputSeuil.value);
+    bloc.seuil_reussite = Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : 66.7;
+    programmerSauvegardeBloc(bloc);
+  });
+
   function rerender() {
     const qs = questions();
     listeEl.innerHTML = qs.length
@@ -641,6 +650,13 @@ function attacherEcouteursQuestions(el, bloc) {
         q.enonce = e.target.value;
         majQuestions(questions());
       });
+      if (q.type === 'texte_a_trous') {
+        // Le nombre de champs de correction dépend du nombre de "___" dans
+        // l'énoncé : on ne peut pas le recalculer à chaque frappe (ça ferait
+        // perdre le focus du champ en cours d'édition), donc on le fait au
+        // blur (quand l'enseignant quitte le champ énoncé) plutôt qu'au input.
+        qEl.querySelector('[data-question-champ="enonce"]').addEventListener('blur', () => rerender());
+      }
 
       const inputPoints = qEl.querySelector('[data-question-points]');
       if (inputPoints) inputPoints.addEventListener('input', () => {
@@ -655,19 +671,12 @@ function attacherEcouteursQuestions(el, bloc) {
         rerender();
       });
 
-      if (q.type === 'qcm') {
+      if (q.type === 'qcm' || q.type === 'remise_en_ordre') {
         qEl.querySelectorAll('[data-option-index]').forEach(inputOpt => {
           inputOpt.addEventListener('input', () => {
             const i = parseInt(inputOpt.dataset.optionIndex, 10);
             q.options[i] = inputOpt.value;
             majQuestions(questions());
-          });
-        });
-        qEl.querySelectorAll('[data-question-bonne-index]').forEach(radio => {
-          radio.addEventListener('change', () => {
-            if (!c) return;
-            c.bonneReponse = radio.dataset.questionBonneIndex;
-            sauvegarderCorrige();
           });
         });
         const btnAjouterOption = qEl.querySelector('[data-ajouter-option]');
@@ -678,9 +687,55 @@ function attacherEcouteursQuestions(el, bloc) {
         });
         qEl.querySelectorAll('[data-supprimer-option]').forEach(btn => {
           btn.addEventListener('click', () => {
-            q.options.splice(parseInt(btn.dataset.supprimerOption, 10), 1);
+            const i = parseInt(btn.dataset.supprimerOption, 10);
+            q.options.splice(i, 1);
             majQuestions(questions());
+            // Le corrigé QCM/ordre référence les options par index : on retire
+            // aussi l'index supprimé (et on décale les index suivants) pour ne
+            // pas garder une bonne réponse pointant vers un élément disparu.
+            if (c && q.type === 'qcm' && String(c.bonneReponse) === String(i)) c.bonneReponse = undefined;
+            if (c && Array.isArray(c.bonneReponse)) {
+              c.bonneReponse = c.bonneReponse.filter(x => x !== i).map(x => x > i ? x - 1 : x);
+            }
+            if (c) sauvegarderCorrige();
             rerender();
+          });
+        });
+      }
+
+      if (q.type === 'qcm') {
+        qEl.querySelectorAll('[data-question-bonne-index]').forEach(radio => {
+          radio.addEventListener('change', () => {
+            if (!c) return;
+            c.bonneReponse = radio.dataset.questionBonneIndex;
+            sauvegarderCorrige();
+          });
+        });
+      }
+
+      if (q.type === 'remise_en_ordre') {
+        qEl.querySelectorAll('[data-question-rang-index]').forEach(input => {
+          input.addEventListener('input', () => {
+            if (!c) return;
+            const i = parseInt(input.dataset.questionRangIndex, 10);
+            const rang = parseInt(input.value, 10);
+            const ordreActuel = Array.isArray(c.bonneReponse) ? c.bonneReponse.filter(x => x !== i) : [];
+            const position = Math.max(0, Math.min(ordreActuel.length, (rang || 1) - 1));
+            ordreActuel.splice(position, 0, i);
+            c.bonneReponse = ordreActuel;
+            sauvegarderCorrige();
+          });
+        });
+      }
+
+      if (q.type === 'texte_a_trous') {
+        qEl.querySelectorAll('[data-question-trou-index]').forEach(input => {
+          input.addEventListener('input', () => {
+            if (!c) return;
+            const i = parseInt(input.dataset.questionTrouIndex, 10);
+            c.bonneReponse = Array.isArray(c.bonneReponse) ? [...c.bonneReponse] : [];
+            c.bonneReponse[i] = input.value.split(',').map(s => s.trim()).filter(Boolean);
+            sauvegarderCorrige();
           });
         });
       }
@@ -832,7 +887,7 @@ async function enregistrerNouvelOrdre(conteneur, parentBlocId) {
 function programmerSauvegardeBloc(bloc) {
   clearTimeout(minuteriesSauvegarde[bloc.id]);
   minuteriesSauvegarde[bloc.id] = setTimeout(async () => {
-    await supabaseClient.from('blocs_seance').update({ contenu: bloc.contenu, palier: bloc.palier }).eq('id', bloc.id);
+    await supabaseClient.from('blocs_seance').update({ contenu: bloc.contenu, palier: bloc.palier, seuil_reussite: bloc.seuil_reussite }).eq('id', bloc.id);
     await supabaseClient.from('seances').update({ modifie_le: new Date().toISOString(), modifie_par: profilAdmin.id }).eq('id', seance.id);
     afficherSauvegarde();
   }, 700);
@@ -986,15 +1041,15 @@ async function dupliquerBloc(bloc) {
   const ordreMax = Math.max(...fratrie.map(b => b.ordre));
   const { data, error } = await supabaseClient.from('blocs_seance').insert({
     seance_id: idSeance, type_bloc: bloc.type_bloc, contenu: bloc.contenu, palier: bloc.palier,
-    ordre: ordreMax + 1, parent_bloc_id: bloc.parent_bloc_id || null
+    seuil_reussite: bloc.seuil_reussite, ordre: ordreMax + 1, parent_bloc_id: bloc.parent_bloc_id || null
   }).select().single();
   if (error) return alert(error.message);
   blocs.push(data);
 
-  // Pour un exercice/quiz/évaluation, le corrigé vit dans une table séparée
-  // (corriges_exercices) : il faut le copier explicitement vers le nouveau
-  // bloc, sinon la copie garderait des questions sans aucune bonne réponse.
-  if (['exercice', 'quiz', 'evaluation'].includes(bloc.type_bloc)) {
+  // Pour un exercice/quiz/évaluation/activité, le corrigé vit dans une table
+  // séparée (corriges_exercices) : il faut le copier explicitement vers le
+  // nouveau bloc, sinon la copie garderait des questions sans aucune bonne réponse.
+  if (['exercice', 'quiz', 'evaluation', 'activite'].includes(bloc.type_bloc)) {
     const { data: corrigeSource } = await supabaseClient
       .from('corriges_exercices').select('corrige').eq('bloc_id', bloc.id).maybeSingle();
     if (corrigeSource) {
@@ -1048,7 +1103,8 @@ function dupliquerSeance() {
     const topNiveau = blocs.filter(b => !b.parent_bloc_id);
     for (const b of topNiveau) {
       const { data: copie } = await supabaseClient.from('blocs_seance').insert({
-        seance_id: nouvelleSeance.id, type_bloc: b.type_bloc, contenu: b.contenu, palier: b.palier, ordre: b.ordre
+        seance_id: nouvelleSeance.id, type_bloc: b.type_bloc, contenu: b.contenu, palier: b.palier,
+        seuil_reussite: b.seuil_reussite, ordre: b.ordre
       }).select().single();
       correspondance[b.id] = copie.id;
     }
@@ -1056,14 +1112,15 @@ function dupliquerSeance() {
     for (const b of enfants) {
       const { data: copieEnfant } = await supabaseClient.from('blocs_seance').insert({
         seance_id: nouvelleSeance.id, type_bloc: b.type_bloc, contenu: b.contenu, palier: b.palier,
-        ordre: b.ordre, parent_bloc_id: correspondance[b.parent_bloc_id] || null
+        seuil_reussite: b.seuil_reussite, ordre: b.ordre, parent_bloc_id: correspondance[b.parent_bloc_id] || null
       }).select().single();
       if (copieEnfant) correspondance[b.id] = copieEnfant.id;
     }
 
-    // Corrigés des exercices/quiz/évaluations : table séparée, à copier à part
-    // (sinon la séance dupliquée aurait des questions sans aucune bonne réponse).
-    const blocsNotables = blocs.filter(b => ['exercice', 'quiz', 'evaluation'].includes(b.type_bloc));
+    // Corrigés des exercices/quiz/évaluations/activités : table séparée, à
+    // copier à part (sinon la séance dupliquée aurait des questions sans
+    // aucune bonne réponse).
+    const blocsNotables = blocs.filter(b => ['exercice', 'quiz', 'evaluation', 'activite'].includes(b.type_bloc));
     for (const b of blocsNotables) {
       if (!correspondance[b.id]) continue;
       const { data: corrigeSource } = await supabaseClient
@@ -1110,7 +1167,7 @@ function ouvrirApercu() {
       }).join('');
       corps = `${c.titre ? `<p style="font-weight:700;margin-bottom:6px">${echapper(c.titre)}</p>` : ''}<table style="border-collapse:collapse;width:100%">${lignesHtml}</table>`;
     }
-    else if (['exercice', 'quiz', 'evaluation'].includes(b.type_bloc)) {
+    else if (['exercice', 'quiz', 'evaluation', 'activite'].includes(b.type_bloc)) {
       const questions = Array.isArray(c.questions) ? c.questions : [];
       corps = `
         ${c.consigne ? `<p>${echapper(c.consigne)}</p>` : ''}
@@ -1123,6 +1180,10 @@ function ouvrirApercu() {
             champ = `<div style="margin-top:6px;display:flex;gap:16px"><label><input type="radio" disabled> Vrai</label><label><input type="radio" disabled> Faux</label></div>`;
           } else if (q.type === 'reponse_courte') {
             champ = `<input type="text" disabled placeholder="Réponse..." style="margin-top:6px;width:100%;max-width:300px;padding:6px;border:1px solid #E2E8F0;border-radius:6px">`;
+          } else if (q.type === 'texte_a_trous') {
+            champ = `<p style="margin-top:6px;color:#94A3B8;font-style:italic">Les trous (___) deviendront des champs de saisie pour l'élève.</p>`;
+          } else if (q.type === 'remise_en_ordre') {
+            champ = `<ol style="margin-top:6px">${(q.options || []).map(opt => `<li>${echapper(opt)}</li>`).join('')}</ol>`;
           } else {
             champ = `<textarea disabled placeholder="Réponse..." style="margin-top:6px;width:100%;min-height:70px;padding:6px;border:1px solid #E2E8F0;border-radius:6px"></textarea>`;
           }
