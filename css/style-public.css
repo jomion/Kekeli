@@ -186,12 +186,18 @@ body.avec-entete-fixe { padding-top: 68px; }
 .entete-kekeli-categorie-btn:hover { background: rgba(255,255,255,0.12); color: var(--accent-cyan); }
 .entete-kekeli-caret { font-size: 10px; transition: transform .15s; }
 .entete-kekeli-categorie.ouvert .entete-kekeli-caret { transform: rotate(180deg); }
+/* Voir css/style.css pour l'explication : le padding-top remplace un vrai
+   gap pour que la souris reste "en survol" en continu entre le bouton et le
+   sous-menu (sinon le menu se referme avant le clic — surtout sur le
+   premier lien, juste sous le bouton). */
 .entete-kekeli-sousmenu {
-  position: absolute; top: calc(100% + 6px); left: 0; min-width: 210px;
-  background: var(--noir-kekeli); border-radius: 12px; box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+  position: absolute; top: 100%; left: 0; padding-top: 6px;
+  opacity: 0; visibility: hidden; transition: opacity .15s ease, transform .15s ease;
+  transform: translateY(-6px); z-index: 40;
+}
+.entete-kekeli-sousmenu-inner {
+  min-width: 210px; background: var(--noir-kekeli); border-radius: 12px; box-shadow: 0 12px 28px rgba(0,0,0,0.35);
   padding: 6px; display: flex; flex-direction: column; gap: 2px;
-  opacity: 0; visibility: hidden; transform: translateY(-6px); transition: opacity .15s ease, transform .15s ease;
-  z-index: 40;
 }
 .entete-kekeli-sousmenu a { padding: 9px 12px; border-radius: 8px; white-space: nowrap; color: #E2E8F0; }
 .entete-kekeli-sousmenu a:hover { background: rgba(255,255,255,0.12); color: var(--accent-cyan); }
@@ -219,9 +225,10 @@ body.avec-entete-fixe { padding-top: 68px; }
 
   .entete-kekeli-categorie-btn { width: 100%; justify-content: space-between; padding: 12px 14px; border-radius: 10px; }
   .entete-kekeli-sousmenu {
-    position: static; box-shadow: none; opacity: 1; visibility: visible; transform: none; padding: 0 0 0 14px;
+    position: static; opacity: 1; visibility: visible; transform: none; padding: 0 0 0 14px;
     max-height: 0; overflow: hidden; transition: max-height .2s ease;
   }
+  .entete-kekeli-sousmenu-inner { background: none; box-shadow: none; border-radius: 0; padding: 0; }
   .entete-kekeli-categorie.ouvert .entete-kekeli-sousmenu { max-height: 400px; }
 }
 
@@ -250,6 +257,11 @@ body.avec-entete-fixe { padding-top: 68px; }
   font-size: 14px; font-family: inherit; color: var(--text-dark);
 }
 .champ-modal textarea { min-height: 60px; resize: vertical; }
+.champ-modal-checkboxes-titre { display: block; margin-bottom: 6px; }
+.liste-checkboxes-modal { max-height: 190px; overflow-y: auto; border: 1px solid var(--bordure,#E2E8F0); border-radius: 7px; padding: 4px 8px; background: #FAFBFF; }
+.checkbox-modal { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--text-dark); padding: 6px 2px; text-transform: none; }
+.checkbox-modal input { width: auto; margin: 0; }
+.checkbox-modal-tout { font-weight: 700; padding-bottom: 8px; margin-bottom: 4px; border-bottom: 1px solid var(--bordure,#E2E8F0); }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
 .btn-discret { background: var(--bordure); color: var(--text-dark); }
 .btn-danger { background: #FCEBEB; color: var(--rouge); }
@@ -489,6 +501,10 @@ body.avec-entete-fixe { padding-top: 68px; }
    .carte-champ/.survol-enfants-champ ci-dessus, réutilisable sur d'autres
    cartes (carte-action-tb, carte-bienvenue...). */
 .carte-apercu-hover { position: relative; }
+/* z-index explicite : dès qu'une carte voisine applique un transform au
+   survol (ex. translateY), elle forme un nouveau contexte d'empilement et
+   peut sinon passer devant la bulle d'une carte précédente survolée. */
+.carte-apercu-hover:hover { z-index: 5; }
 .bulle-apercu-hover { position: absolute; left: 12px; right: 12px; top: calc(100% - 8px); background: var(--bleu-kekeli-fonce); color: white; border-radius: 10px; padding: 12px 14px; box-shadow: 0 12px 28px rgba(0,0,0,0.28); opacity: 0; visibility: hidden; transform: translateY(-6px); transition: opacity .16s ease, transform .16s ease; pointer-events: none; z-index: 30; }
 .carte-apercu-hover:hover .bulle-apercu-hover { opacity: 1; visibility: visible; transform: translateY(0); }
 .bulle-apercu-hover-titre { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--accent-cyan); margin-bottom: 6px; }

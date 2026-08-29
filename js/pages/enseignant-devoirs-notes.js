@@ -77,11 +77,16 @@ async function afficherGestionEns() {
   const { data: rendus } = devoirs && devoirs.length
     ? await supabaseClient.from('devoirs_rendus').select('devoir_id, eleve_id').in('devoir_id', devoirs.map(d => d.id))
     : { data: [] };
+  const { data: destinatairesTous } = devoirs && devoirs.length
+    ? await supabaseClient.from('devoirs_destinataires').select('devoir_id, eleve_id').in('devoir_id', devoirs.map(d => d.id))
+    : { data: [] };
 
   const evalParEleve = {};
   (evaluations || []).forEach(e => { (evalParEleve[e.eleve_id] ??= []).push(e); });
   const rendusParDevoir = {};
   (rendus || []).forEach(r => { rendusParDevoir[r.devoir_id] = (rendusParDevoir[r.devoir_id] || 0) + 1; });
+  const destinatairesParDevoir = {};
+  (destinatairesTous || []).forEach(d => { (destinatairesParDevoir[d.devoir_id] ??= []).push(d.eleve_id); });
 
   let panneauRendusEns = '';
   if (devoirOuvertEns) {
@@ -114,6 +119,10 @@ async function afficherGestionEns() {
           <div><div class="titre-ligne-pub">${echapperEns2(d.titre)}</div><div class="sous-ligne-pub">${sousLigne}</div></div>
           <button type="button" class="btn btn-discret" data-toggle-rendus-ens="${d.id}" style="padding:6px 14px;font-size:12px">${devoirOuvertEns === d.id ? '▲ Fermer' : (estBlocs ? '📂 Gérer' : '📋 Voir les rendus')}</button>
         </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px">
+          <span style="font-size:11px;color:var(--text-gris)">${libelleDestinatairesDevoir((destinatairesParDevoir[d.id] || []).length, (eleves || []).length)}</span>
+          <button type="button" class="btn btn-discret" data-destinataires-devoir="${d.id}" style="padding:2px 10px;font-size:11px">Modifier</button>
+        </div>
         ${devoirOuvertEns === d.id ? panneauRendusEns : ''}
       </div>`;
     }).join('')}</div>` : '<p style="color:var(--text-gris);font-size:14px">Aucun devoir.</p>'}
@@ -134,7 +143,7 @@ async function afficherGestionEns() {
       </div>`).join('')}</div>
   `;
 
-  document.getElementById('btnNouveauDevoirEns').addEventListener('click', ouvrirNouveauDevoirEns);
+  document.getElementById('btnNouveauDevoirEns').addEventListener('click', () => ouvrirNouveauDevoirEns(eleves || []));
   zone.querySelectorAll('[data-noter-ens]').forEach(btn => {
     btn.addEventListener('click', () => ouvrirNouvelleNoteEns(btn.dataset.noterEns));
   });
@@ -163,6 +172,11 @@ async function afficherGestionEns() {
       afficherGestionEns();
     });
   });
+  zone.querySelectorAll('[data-destinataires-devoir]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      ouvrirSelectionDestinatairesDevoir(parseInt(btn.dataset.destinatairesDevoir, 10), eleves || [], afficherGestionEns);
+    });
+  });
 
   if (devoirOuvertEns) {
     const devoirOuvert = (devoirs || []).find(d => d.id === devoirOuvertEns);
@@ -173,7 +187,7 @@ async function afficherGestionEns() {
   }
 }
 
-async function ouvrirNouveauDevoirEns() {
+async function ouvrirNouveauDevoirEns(eleves) {
   const seances = await chargerSeancesPourMatiere(classeSelectionneeEns, champSelectionneEns);
   if (!seances.length) {
     alert("Aucune séance publiée n'existe pour cette matière dans cette classe. Créez (ou faites créer par un admin) une séance dans le parcours avant de donner un devoir.");
@@ -185,16 +199,28 @@ async function ouvrirNouveauDevoirEns() {
       { nom: 'titre', label: 'Titre' },
       { nom: 'seance_id', label: 'Séance à évaluer', type: 'select', options: seances.map(s => ({ valeur: s.id, label: s.label })) },
       { nom: 'consigne', label: 'Consigne générale (optionnelle)', type: 'textarea', requis: false },
-      { nom: 'date_limite', label: 'À rendre pour le', type: 'date' }
+      { nom: 'date_limite', label: 'À rendre pour le', type: 'date' },
+      {
+        nom: 'destinataires', label: 'Destinataires', type: 'checkboxes',
+        toutCocherLabel: 'Tous les élèves de la classe',
+        options: eleves.map(e => ({ valeur: e.id, label: `${e.profils?.prenom || ''} ${e.profils?.nom || ''}`.trim() || '(sans nom)' })),
+        valeur: eleves.map(e => e.id)
+      }
     ],
     texteValider: 'Créer',
-    onValider: async ({ titre, seance_id, consigne, date_limite }) => {
+    onValider: async ({ titre, seance_id, consigne, date_limite, destinataires }) => {
+      if (!destinataires.length) { alert('Sélectionnez au moins un élève, ou cochez "Tous les élèves de la classe".'); return; }
       const { data, error } = await supabaseClient.from('devoirs').insert({
         classe_id: classeSelectionneeEns, champ_formation_id: champSelectionneEns, titre, consigne: consigne || null,
         seance_id: parseInt(seance_id, 10), statut: 'brouillon',
         date_limite: new Date(date_limite).toISOString(), cree_par: profilEnseignant.id
       }).select().single();
       if (error) return alert(error.message);
+      if (destinataires.length < eleves.length) {
+        const { error: erreurDest } = await supabaseClient.from('devoirs_destinataires')
+          .insert(destinataires.map(eleveId => ({ devoir_id: data.id, eleve_id: eleveId })));
+        if (erreurDest) alert("Devoir créé, mais erreur lors de l'enregistrement des destinataires : " + erreurDest.message);
+      }
       devoirOuvertEns = data.id;
       afficherGestionEns();
     }

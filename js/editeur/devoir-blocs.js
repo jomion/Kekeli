@@ -180,7 +180,7 @@ function attacherEcouteursQuestionsDevoir(devoirId, el, bloc) {
         rerender();
       });
 
-      qEl.querySelector('[data-champ="enonce"]').addEventListener('input', (e) => {
+      qEl.querySelector('[data-question-champ="enonce"]').addEventListener('input', (e) => {
         q.enonce = e.target.value;
         majQuestions(questions());
       });

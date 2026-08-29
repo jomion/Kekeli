@@ -355,6 +355,55 @@ function html_gestionRendusDevoirBlocs(devoir, eleves, blocs, reponsesExercices,
   </div>`;
 }
 
+// Résume le ciblage d'un devoir pour affichage compact dans les panneaux
+// enseignant/admin (ex. "🎯 Tous les élèves" ou "🎯 3 élève(s) sélectionné(s)").
+// nbDestinataires : nombre de lignes dans devoirs_destinataires pour ce devoir
+// (0 = pas de ciblage précis = visible par toute la classe).
+function libelleDestinatairesDevoir(nbDestinataires, nbElevesClasse) {
+  return nbDestinataires > 0
+    ? `🎯 ${nbDestinataires} élève${nbDestinataires > 1 ? 's' : ''} sélectionné${nbDestinataires > 1 ? 's' : ''}`
+    : `🎯 Tous les élèves${nbElevesClasse ? ` (${nbElevesClasse})` : ''}`;
+}
+
+// Ouvre la sélection des destinataires d'un devoir : soit tous les élèves de
+// la classe (comportement historique, aucune ligne stockée), soit une liste
+// précise (voir table devoirs_destinataires et devoir_cible_eleve() côté
+// base — RLS + edge function corriger-exercice appliquent le même ciblage).
+// eleves : lignes { id, profils:{prenom,nom} } de la classe concernée.
+async function ouvrirSelectionDestinatairesDevoir(devoirId, eleves, onValide) {
+  const { data: destinatairesActuels, error: erreurLecture } = await supabaseClient
+    .from('devoirs_destinataires').select('eleve_id').eq('devoir_id', devoirId);
+  if (erreurLecture) { alert(erreurLecture.message); return; }
+  const idsActuels = (destinatairesActuels || []).map(d => d.eleve_id);
+  const tousParDefaut = idsActuels.length === 0;
+
+  ouvrirModal({
+    titre: '🎯 Destinataires du devoir',
+    champs: [{
+      nom: 'destinataires', label: 'Élèves concernés', type: 'checkboxes',
+      toutCocherLabel: 'Tous les élèves de la classe',
+      options: eleves.map(e => ({ valeur: e.id, label: `${e.profils?.prenom || ''} ${e.profils?.nom || ''}`.trim() || '(sans nom)' })),
+      valeur: tousParDefaut ? eleves.map(e => e.id) : idsActuels
+    }],
+    texteValider: 'Enregistrer',
+    onValider: async ({ destinataires }) => {
+      if (!destinataires.length) {
+        alert('Sélectionnez au moins un élève, ou cochez "Tous les élèves de la classe".');
+        return;
+      }
+      const tousCoches = destinataires.length === eleves.length;
+      const { error: erreurSuppr } = await supabaseClient.from('devoirs_destinataires').delete().eq('devoir_id', devoirId);
+      if (erreurSuppr) { alert(erreurSuppr.message); return; }
+      if (!tousCoches) {
+        const { error } = await supabaseClient.from('devoirs_destinataires')
+          .insert(destinataires.map(eleveId => ({ devoir_id: devoirId, eleve_id: eleveId })));
+        if (error) { alert(error.message); return; }
+      }
+      onValide();
+    }
+  });
+}
+
 // Ouvre le formulaire de correction pour un rendu "texte" (devoir sans bloc),
 // puis appelle onValide() (généralement pour rafraîchir l'affichage).
 function ouvrirCorrectionDevoir(renduId, correcteurId, onValide) {

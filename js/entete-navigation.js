@@ -64,7 +64,9 @@ function liensNavHtml(liensVisibles) {
       <div class="entete-kekeli-categorie">
         <button type="button" class="entete-kekeli-categorie-btn">${info.icone ? `${info.icone} ` : ''}${info.label} <span class="entete-kekeli-caret">▾</span></button>
         <div class="entete-kekeli-sousmenu">
-          ${g.liens.map(l => `<a href="${l.href}">${l.icone ? `${l.icone} ` : ''}${l.label}</a>`).join('')}
+          <div class="entete-kekeli-sousmenu-inner">
+            ${g.liens.map(l => `<a href="${l.href}">${l.icone ? `${l.icone} ` : ''}${l.label}</a>`).join('')}
+          </div>
         </div>
       </div>`;
   }).join('');
@@ -176,6 +178,18 @@ async function initEnteteNavigation(config) {
   const liensVisibles = [...(config.liens || []).filter(l => l.essentiel || !liensMasques.includes(l.id)), ...raccourcisPerso];
   const fnDeconnexion = config.role === 'admin' ? 'deconnecterAdmin' : 'deconnecterUtilisateur';
 
+  // Le bouton "📌 Épingler cette page" n'a pas de sens si la page courante
+  // est déjà accessible depuis le menu (lien de navigation OU raccourci déjà
+  // épinglé) : on compare le chemin absolu de chaque lien visible à celui de
+  // la page courante plutôt que les chaînes brutes, car les liens du menu
+  // sont écrits en relatif (voir js/navigation-config.js) alors que le
+  // raccourci épinglé depuis l'en-tête stocke un chemin absolu.
+  const cheminActuel = window.location.pathname;
+  const pageDejaDansMenu = liensVisibles.some(l => {
+    try { return new URL(l.href, window.location.href).pathname === cheminActuel; }
+    catch (_e) { return false; }
+  });
+
   // Petit "top" de dernière activité pour le contrôle parental (voir
   // pages/parent/tableau-de-bord.html) — sans bloquer l'affichage de la page,
   // et sans faire échouer quoi que ce soit si ça ne passe pas.
@@ -200,7 +214,7 @@ async function initEnteteNavigation(config) {
       <div class="entete-kekeli-actions">
         <div id="zoneCloche"></div>
         ${config.badgeHtml ? `<span class="entete-kekeli-badge">${config.badgeHtml}</span>` : ''}
-        ${config.utilisateurId ? `<button type="button" class="entete-kekeli-icone-btn" id="btnEpinglerPageEntete" title="Épingler cette page dans mes raccourcis">📌</button>` : ''}
+        ${config.utilisateurId && !pageDejaDansMenu ? `<button type="button" class="entete-kekeli-icone-btn" id="btnEpinglerPageEntete" title="Épingler cette page dans mes raccourcis">📌</button>` : ''}
         ${config.utilisateurId ? `<a href="${racine}pages/parametres.html" class="entete-kekeli-icone-btn" title="Paramètres">⚙️</a>` : ''}
         ${config.utilisateurId ? `<button class="entete-kekeli-icone-btn" id="btnDeconnexionEntete" title="Déconnexion">🚪</button>` : ''}
       </div>
