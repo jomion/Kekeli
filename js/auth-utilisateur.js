@@ -42,8 +42,10 @@ async function resoudreEmailConnexion(identifiantOuEmail) {
 //     directement — voir attribuer_classe_initiale_enseignant() côté base ;
 //     toute classe SUPPLÉMENTAIRE repasse par la demande d'accès existante).
 //   - autorite_pedagogique : departement, commune (sauf Directeur Départemental
-//     qui n'a que departement), + selon la fonction : circonscriptionScolaire,
-//     zonePedagogique, ecole (voir FONCTIONS_AUTORITE_PEDAGOGIQUE ci-dessous).
+//     qui n'a que departement), + selon la fonction : arrondissement (Directeur,
+//     Conseiller Pédagogique, Inspecteur — pas Directeur Départemental),
+//     circonscriptionScolaire, zonePedagogique, ecole (voir
+//     FONCTIONS_AUTORITE_PEDAGOGIQUE ci-dessous).
 
 const ROLES_INSCRIPTIBLES = ['parent', 'enseignant', 'autorite_pedagogique'];
 
@@ -54,11 +56,14 @@ const ROLES_AVEC_LOCALISATION_OBLIGATOIRE = ['parent', 'enseignant', 'autorite_p
 
 // Pour chaque fonction de l'Autorité Pédagogique, la liste des champs
 // supplémentaires à demander et à enregistrer (en plus de departement).
+// Arrondissement est exigé pour les fonctions qui se situent DANS la
+// structure école (Directeur, Conseiller Pédagogique, Inspecteur) — pas
+// pour le Directeur Départemental, qui s'arrête au niveau Département.
 const FONCTIONS_AUTORITE_PEDAGOGIQUE = {
-  directeur: { commune: true, circonscriptionScolaire: true, zonePedagogique: true, ecole: true },
-  conseiller_pedagogique: { commune: true, circonscriptionScolaire: true, zonePedagogique: true, ecole: false },
-  inspecteur: { commune: true, circonscriptionScolaire: true, zonePedagogique: false, ecole: false },
-  directeur_departemental: { commune: false, circonscriptionScolaire: false, zonePedagogique: false, ecole: false }
+  directeur: { commune: true, arrondissement: true, circonscriptionScolaire: true, zonePedagogique: true, ecole: true },
+  conseiller_pedagogique: { commune: true, arrondissement: true, circonscriptionScolaire: true, zonePedagogique: true, ecole: false },
+  inspecteur: { commune: true, arrondissement: true, circonscriptionScolaire: true, zonePedagogique: false, ecole: false },
+  directeur_departemental: { commune: false, arrondissement: false, circonscriptionScolaire: false, zonePedagogique: false, ecole: false }
 };
 
 async function inscrire({ role, prenom, nom, email, motDePasse, fonction, departement, commune, arrondissement, circonscriptionScolaire, zonePedagogique, ecole, classeId }) {
@@ -81,7 +86,7 @@ async function inscrire({ role, prenom, nom, email, motDePasse, fonction, depart
     id: userId, role, nom, prenom, email,
     departement: departement || null,
     commune: role === 'autorite_pedagogique' ? (champsFonction.commune ? (commune || null) : null) : (commune || null),
-    arrondissement: role === 'autorite_pedagogique' ? null : (arrondissement || null)
+    arrondissement: role === 'autorite_pedagogique' ? (champsFonction.arrondissement ? (arrondissement || null) : null) : (arrondissement || null)
   });
   if (erreurProfil) return { error: erreurProfil };
 
@@ -211,6 +216,7 @@ async function profilEstIncomplet(profil) {
   const champs = FONCTIONS_AUTORITE_PEDAGOGIQUE[autorite.fonction];
   if (!champs) return false;
   if (champs.commune && !profil.commune) return true;
+  if (champs.arrondissement && !profil.arrondissement) return true;
   if (champs.circonscriptionScolaire && !autorite.circonscription_scolaire) return true;
   if (champs.zonePedagogique && !autorite.zone_pedagogique) return true;
   if (champs.ecole && !autorite.ecole) return true;

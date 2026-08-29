@@ -24,6 +24,7 @@ const LIBELLES_FONCTION_AUTORITE = {
   const lignesLocalisation = [
     ['Département', profil.departement],
     ['Commune', profil.commune],
+    ['Arrondissement', profil.arrondissement],
     ['Circonscription Scolaire', autorite?.circonscription_scolaire],
     ['Zone Pédagogique', autorite?.zone_pedagogique],
     ['École', autorite?.ecole]

@@ -56,10 +56,8 @@
 
         <!-- Localisation : les champs affichés dépendent du rôle (et, pour
              l'Autorité Pédagogique, de la fonction) — voir majChampsLocalisation()
-             plus bas. Département/Commune sont deux listes déroulantes en
-             cascade (js/geo-benin.js) ; Arrondissement et Circonscription
-             Scolaire restent en saisie libre (aucune liste officielle fiable
-             disponible pour l'instant — à me signaler si vous en avez une). -->
+             plus bas. Département, Commune, Arrondissement et Circonscription
+             Scolaire sont des listes déroulantes en cascade (js/geo-benin.js). -->
         <div class="champ-auth" id="champDepartement">
           <label>Département</label>
           <select id="departement"></select>
@@ -70,11 +68,11 @@
         </div>
         <div class="champ-auth" id="champArrondissement">
           <label>Arrondissement</label>
-          <input type="text" id="arrondissement">
+          <select id="arrondissement"></select>
         </div>
         <div class="champ-auth" id="champCirconscription">
           <label>Circonscription Scolaire</label>
-          <input type="text" id="circonscriptionScolaire">
+          <select id="circonscriptionScolaire"></select>
         </div>
         <div class="champ-auth" id="champZone">
           <label>Zone Pédagogique</label>
@@ -121,7 +119,7 @@
     const champEcole = document.getElementById('champEcole');
     const champClasse = document.getElementById('champClasse');
 
-    initialiserSelectDepartementCommune(document.getElementById('departement'), document.getElementById('commune'));
+    initialiserCascadeGeoBenin(document.getElementById('departement'), document.getElementById('commune'), document.getElementById('arrondissement'), document.getElementById('circonscriptionScolaire'));
     document.getElementById('zonePedagogique').innerHTML = ZONES_PEDAGOGIQUES.map(z => `<option value="${z}">${z}</option>`).join('');
 
     // Liste des classes, pour que l'enseignant en choisisse une à l'inscription
@@ -168,18 +166,17 @@
         return;
       }
 
-      // Autorité Pédagogique : dépend de la fonction choisie.
-      const parFonction = {
-        directeur: { commune: true, circonscription: true, zone: true, ecole: true },
-        conseiller_pedagogique: { commune: true, circonscription: true, zone: true, ecole: false },
-        inspecteur: { commune: true, circonscription: true, zone: false, ecole: false },
-        directeur_departemental: { commune: false, circonscription: false, zone: false, ecole: false }
-      }[fonction] || {};
+      // Autorité Pédagogique : dépend de la fonction choisie. Arrondissement
+      // est exigé pour les fonctions situées dans la structure école
+      // (Directeur, Conseiller Pédagogique, Inspecteur) — pas pour le
+      // Directeur Départemental (voir FONCTIONS_AUTORITE_PEDAGOGIQUE dans
+      // js/auth-utilisateur.js, dont cette liste est le miroir côté affichage).
+      const parFonction = FONCTIONS_AUTORITE_PEDAGOGIQUE[fonction] || {};
 
-      champArrondissement.style.display = 'none';
       champCommune.style.display = parFonction.commune ? '' : 'none';
-      champCirconscription.style.display = parFonction.circonscription ? '' : 'none';
-      champZone.style.display = parFonction.zone ? '' : 'none';
+      champArrondissement.style.display = parFonction.arrondissement ? '' : 'none';
+      champCirconscription.style.display = parFonction.circonscriptionScolaire ? '' : 'none';
+      champZone.style.display = parFonction.zonePedagogique ? '' : 'none';
       champEcole.style.display = parFonction.ecole ? '' : 'none';
     }
 

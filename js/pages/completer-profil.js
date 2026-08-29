@@ -40,12 +40,19 @@ let enseignantCP = null;
 })();
 
 async function initialiserFormulaireCP() {
-  initialiserSelectDepartementCommune(document.getElementById('departement'), document.getElementById('commune'));
+  initialiserCascadeGeoBenin(document.getElementById('departement'), document.getElementById('commune'), document.getElementById('arrondissement'), document.getElementById('circonscriptionScolaire'));
   document.getElementById('departement').value = profilCP.departement || '';
   document.getElementById('commune').innerHTML = (COMMUNES_PAR_DEPARTEMENT[profilCP.departement] || [])
     .map(c => `<option value="${c}">${c}</option>`).join('');
   document.getElementById('commune').value = profilCP.commune || '';
+  document.getElementById('commune').disabled = false;
+  document.getElementById('arrondissement').innerHTML = (ARRONDISSEMENTS_PAR_COMMUNE[profilCP.commune] || [])
+    .map(a => `<option value="${a}">${a}</option>`).join('');
   document.getElementById('arrondissement').value = profilCP.arrondissement || '';
+  document.getElementById('arrondissement').disabled = false;
+  document.getElementById('circonscriptionScolaire').innerHTML = (CIRCONSCRIPTIONS_PAR_COMMUNE[profilCP.commune] || [])
+    .map(c => `<option value="${c}">${c}</option>`).join('');
+  document.getElementById('circonscriptionScolaire').disabled = false;
   document.getElementById('zonePedagogique').innerHTML = ZONES_PEDAGOGIQUES.map(z => `<option value="${z}">${z}</option>`).join('');
 
   const champCommune = document.getElementById('champCommune');
@@ -91,7 +98,7 @@ async function initialiserFormulaireCP() {
     // choisie à l'inscription (non modifiable ici).
     const champs = FONCTIONS_AUTORITE_PEDAGOGIQUE[autoriteCP?.fonction] || {};
     champCommune.style.display = champs.commune ? '' : 'none';
-    champArrondissement.style.display = 'none';
+    champArrondissement.style.display = champs.arrondissement ? '' : 'none';
     champCirconscription.style.display = champs.circonscriptionScolaire ? '' : 'none';
     champZone.style.display = champs.zonePedagogique ? '' : 'none';
     champEcole.style.display = champs.ecole ? '' : 'none';
@@ -122,7 +129,7 @@ async function enregistrerCompletionCP(e) {
 
   const majProfil = { departement: departement || null };
   if (document.getElementById('champCommune').style.display !== 'none') majProfil.commune = commune || null;
-  if (profilCP.role !== 'autorite_pedagogique') majProfil.arrondissement = arrondissement || null;
+  if (document.getElementById('champArrondissement').style.display !== 'none') majProfil.arrondissement = arrondissement || null;
 
   const { error: erreurProfil } = await supabaseClient.from('profils').update(majProfil).eq('id', profilCP.id);
   if (erreurProfil) return echec(erreurProfil.message);

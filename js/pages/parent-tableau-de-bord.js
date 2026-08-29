@@ -189,7 +189,7 @@ async function ouvrirInscriptionEnfant() {
       { nom: 'motDePasse', label: 'Mot de passe', type: 'password', placeholder: '6 caractères min.' },
       { nom: 'departement', label: 'Département', type: 'select', valeur: departementParDefaut, options: DEPARTEMENTS_BENIN.map(d => ({ valeur: d, label: d })) },
       { nom: 'commune', label: 'Commune', type: 'select', valeur: profilParent.commune, options: communesDisponibles.map(c => ({ valeur: c, label: c })), dependDe: 'departement', optionsSelonDependance: (dep) => (COMMUNES_PAR_DEPARTEMENT[dep] || []).map(c => ({ valeur: c, label: c })) },
-      { nom: 'arrondissement', label: 'Arrondissement', valeur: profilParent.arrondissement || '', requis: false }
+      { nom: 'arrondissement', label: 'Arrondissement', type: 'select', valeur: profilParent.arrondissement || '', options: (ARRONDISSEMENTS_PAR_COMMUNE[profilParent.commune] || []).map(a => ({ valeur: a, label: a })), dependDe: 'commune', optionsSelonDependance: (com) => (ARRONDISSEMENTS_PAR_COMMUNE[com] || []).map(a => ({ valeur: a, label: a })) }
     ],
     texteValider: 'Créer le compte',
     onValider: (valeurs) => confirmerInscriptionEnfant(valeurs)
@@ -243,7 +243,7 @@ function ouvrirCompletionLocalisationEnfant(enfant) {
     champs: [
       { nom: 'departement', label: 'Département', type: 'select', valeur: departementParDefaut, options: DEPARTEMENTS_BENIN.map(d => ({ valeur: d, label: d })) },
       { nom: 'commune', label: 'Commune', type: 'select', valeur: enfant.commune || '', options: communesDisponibles.map(c => ({ valeur: c, label: c })), dependDe: 'departement', optionsSelonDependance: (dep) => (COMMUNES_PAR_DEPARTEMENT[dep] || []).map(c => ({ valeur: c, label: c })) },
-      { nom: 'arrondissement', label: 'Arrondissement', valeur: enfant.arrondissement || '', requis: false }
+      { nom: 'arrondissement', label: 'Arrondissement', type: 'select', valeur: enfant.arrondissement || '', options: (ARRONDISSEMENTS_PAR_COMMUNE[enfant.commune] || []).map(a => ({ valeur: a, label: a })), dependDe: 'commune', optionsSelonDependance: (com) => (ARRONDISSEMENTS_PAR_COMMUNE[com] || []).map(a => ({ valeur: a, label: a })) }
     ],
     texteValider: 'Enregistrer',
     onValider: async ({ departement, commune, arrondissement }) => {
