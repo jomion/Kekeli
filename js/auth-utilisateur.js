@@ -143,6 +143,11 @@ async function seConnecter(identifiantOuEmail, motDePasse) {
     await supabaseClient.auth.signOut();
     return { error: { message: "Ce compte a été désactivé." } };
   }
+  const acces = await verifierAccesEleveAutorise(profil);
+  if (!acces.autorise) {
+    await supabaseClient.auth.signOut();
+    return { error: { message: acces.message } };
+  }
   return { data, profil };
 }
 
@@ -150,6 +155,42 @@ async function chargerProfil(userId) {
   const { data, error } = await supabaseClient.from('profils').select('*').eq('id', userId).single();
   if (error) return null;
   return data;
+}
+
+// --- CONTRÔLE PARENTAL DE LA CONNECTIVITÉ (élève uniquement) --------------
+//
+// Un parent peut, depuis son tableau de bord (voir pages/parent/tableau-de-
+// bord.html) : couper l'accès de son enfant (eleves.compte_actif), et/ou
+// limiter les heures de connexion (eleves.horaires_autorises — plages par
+// jour de semaine). Vérifié à la fois à la connexion (seConnecter) et à
+// chaque chargement de page protégée (chargerSessionEtProfil), pour qu'une
+// restriction posée par le parent prenne effet immédiatement, même si
+// l'enfant était déjà connecté.
+
+// horaires_autorises : { "0": [["07:00","19:00"]], "1": [...], ... }
+// clé = Date#getDay() (0 = dimanche ... 6 = samedi). Jour absent ou vide =
+// bloqué ce jour-là. null/undefined = pas de restriction horaire du tout.
+function horaireActuelAutorise(horaires) {
+  if (!horaires) return true;
+  const maintenant = new Date();
+  const plagesDuJour = horaires[String(maintenant.getDay())];
+  if (!plagesDuJour || plagesDuJour.length === 0) return false;
+  const hhmm = maintenant.toTimeString().slice(0, 5); // "HH:MM"
+  return plagesDuJour.some(([debut, fin]) => debut && fin && hhmm >= debut && hhmm <= fin);
+}
+
+async function verifierAccesEleveAutorise(profil) {
+  if (!profil || profil.role !== 'eleve') return { autorise: true };
+  const { data: eleve } = await supabaseClient.from('eleves')
+    .select('compte_actif, horaires_autorises').eq('id', profil.id).maybeSingle();
+  if (!eleve) return { autorise: true }; // ligne introuvable -> on ne bloque pas par erreur technique
+  if (eleve.compte_actif === false) {
+    return { autorise: false, message: "Ton accès a été suspendu par un parent. Demande-lui de le réactiver." };
+  }
+  if (!horaireActuelAutorise(eleve.horaires_autorises)) {
+    return { autorise: false, message: "Ton accès est limité à certaines heures par un parent. Réessaie plus tard." };
+  }
+  return { autorise: true };
 }
 
 function urlTableauDeBord(role) {
@@ -182,7 +223,26 @@ async function chargerSessionEtProfil() {
     window.location.href = urlLogin();
     return null;
   }
+  const acces = await verifierAccesEleveAutorise(profil);
+  if (!acces.autorise) {
+    await supabaseClient.auth.signOut();
+    window.location.href = `${urlLogin()}?bloque=${encodeURIComponent(acces.message)}`;
+    return null;
+  }
+  memoriserDernierePageVisitee();
   return profil;
+}
+
+// Retient la page courante comme "dernière page visitée dans son espace",
+// pour que le bouton "Accéder à mon espace" de l'accueil (index.html) y
+// ramène directement au lieu de repasser par l'écran de connexion — voir
+// index.html. On exclut volontairement les pages de connexion/inscription :
+// il n'y a aucun sens à "revenir" dessus.
+function memoriserDernierePageVisitee() {
+  try {
+    if (/\/(login|inscription|completer-profil)\.html$/i.test(window.location.pathname)) return;
+    localStorage.setItem('kekeli_derniere_page', window.location.pathname + window.location.search);
+  } catch (_e) { /* stockage indisponible -> tant pis, comportement par défaut conservé */ }
 }
 
 // Détermine si un compte doit passer par "compléter mon profil" avant de

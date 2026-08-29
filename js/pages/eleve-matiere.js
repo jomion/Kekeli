@@ -114,13 +114,25 @@ async function afficherChamps() {
     .from('classes_champs_formation').select('champs_formation(id, nom, code)').eq('classe_id', classeIdEleve);
   const champs = (data || []).map(d => d.champs_formation);
 
+  // Aperçu au survol (Task #34) : les niveaux racine de chaque matière
+  // (Thème/Unité/Semaine/Dossier selon la matière), pour un avant-goût du
+  // contenu sans avoir à cliquer — voir js/apercu-survol.js.
+  const idsChampsMat = champs.map(c => c.id);
+  let racinesParChampMat = {};
+  if (idsChampsMat.length) {
+    const { data: racines } = await supabaseClient.from('noeuds_parcours')
+      .select('titre, champ_formation_id').eq('classe_id', classeIdEleve).in('champ_formation_id', idsChampsMat).is('parent_id', null).order('ordre');
+    (racines || []).forEach(n => { (racinesParChampMat[n.champ_formation_id] ??= []).push(n.titre); });
+  }
+
   conteneur.innerHTML = `
     ${filArianeMat([{ label: '🏠 Mes matières' }])}
     <div class="carte-bienvenue"><h1 style="margin:0">Choisis une matière</h1></div>
     <div class="grille-champs-eleve" id="grilleChampsMat">
-      ${champs.map(c => `<div class="carte-champ-eleve" data-champ-id="${c.id}">
+      ${champs.map(c => `<div class="carte-champ-eleve carte-apercu-hover" data-champ-id="${c.id}">
         <div class="icone-champ-eleve">${(PRESENTATION_CHAMPS_ELEVE[c.code] || {}).icone || '📘'}</div>
         <strong>${echapper(c.nom)}</strong>
+        ${bulleApercuHtml('Au programme', (racinesParChampMat[c.id] || []).slice(0, 6), echapper)}
       </div>`).join('') || '<p style="color:var(--text-gris)">Aucune matière pour ta classe pour l\'instant.</p>'}
     </div>
   `;

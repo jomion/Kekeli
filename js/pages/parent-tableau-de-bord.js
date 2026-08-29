@@ -21,6 +21,7 @@ async function afficherTableauDeBord() {
 
   let enfants = [];
   let abonnementsParEnfant = {};
+  let connectiviteParEnfant = {};
   if (idsEnfants.length > 0) {
     const { data: profilsEnfants } = await supabaseClient.from('profils').select('id, prenom, nom, departement, commune, arrondissement').in('id', idsEnfants);
     enfants = profilsEnfants || [];
@@ -30,19 +31,49 @@ async function afficherTableauDeBord() {
       .select('*, enseignants(profils(prenom, nom))')
       .in('eleve_id', idsEnfants);
     (abonnements || []).forEach(a => { (abonnementsParEnfant[a.eleve_id] ??= []).push(a); });
+
+    // Contrôle parental de la connectivité (Task #38) : compte_actif,
+    // horaires_autorises et derniere_activite vivent sur `eleves`, pas `profils`.
+    // classe_id sert aussi à l'aperçu au survol ci-dessous (Task #34).
+    const { data: statutsConnectivite } = await supabaseClient.from('eleves')
+      .select('id, classe_id, compte_actif, horaires_autorises, derniere_activite').in('id', idsEnfants);
+    (statutsConnectivite || []).forEach(s => { connectiviteParEnfant[s.id] = s; });
   }
+
+  // Aperçu au survol (Task #34) — voir js/apercu-survol.js.
+  const idsClassesEnfants = [...new Set(Object.values(connectiviteParEnfant).map(s => s.classe_id).filter(Boolean))];
+  let apercuDevoirsParent = [];
+  if (idsClassesEnfants.length) {
+    const aujourdhui = new Date().toISOString().slice(0, 10);
+    const { data: devoirsAVenirParent } = await supabaseClient.from('devoirs')
+      .select('titre, date_limite').in('classe_id', idsClassesEnfants).eq('statut', 'publie').gte('date_limite', aujourdhui).order('date_limite').limit(8);
+    apercuDevoirsParent = (devoirsAVenirParent || []).map(d => `${d.titre} — ${new Date(d.date_limite).toLocaleDateString('fr-FR')}`);
+  }
+  const apercuEnseignantsParent = [...new Set(Object.values(abonnementsParEnfant).flat()
+    .filter(a => a.statut === 'accepte')
+    .map(a => `${a.enseignants?.profils?.prenom || ''} ${a.enseignants?.profils?.nom || ''}`.trim())
+    .filter(Boolean))];
 
   const LIBELLES_STATUT_AB = { en_attente: 'En attente', accepte: 'Accepté', refuse: 'Refusé' };
   const blocEnfants = enfants.length > 0 ? enfants.map(e => {
     const localisationIncomplete = !e.departement || !e.commune || !e.arrondissement;
+    const statutConn = connectiviteParEnfant[e.id] || { compte_actif: true, horaires_autorises: null, derniere_activite: null };
+    const acces = statutConn.compte_actif === false
+      ? '<span style="font-size:12px;color:var(--rouge)">🔴 Accès suspendu</span>'
+      : (statutConn.horaires_autorises ? '<span style="font-size:12px;color:#B45309">🟡 Horaires limités</span>' : '<span style="font-size:12px;color:#15803D">🟢 Accès libre</span>');
     return `
     <div style="border-bottom:1px solid var(--bordure);padding:12px 0">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <strong>${e.prenom} ${e.nom}</strong>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           ${localisationIncomplete ? `<button class="btn btn-deconnexion-public" data-completer-localisation="${e.id}" style="padding:6px 14px;font-size:12px;color:#B45309;border-color:#B45309">⚠️ Compléter les informations</button>` : ''}
           <button class="btn btn-filled" data-suivre-enfant="${e.id}" style="padding:6px 14px;font-size:12px">🔗 Suivre un enseignant</button>
+          <button class="btn btn-deconnexion-public" data-controle-connectivite="${e.id}" style="padding:6px 14px;font-size:12px">🔒 Contrôle d'accès</button>
         </div>
+      </div>
+      <div style="margin-top:6px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        ${acces}
+        <span style="font-size:12px;color:var(--text-gris)">Dernière activité : ${formaterDerniereActivite(statutConn.derniere_activite)}</span>
       </div>
       <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
         ${(abonnementsParEnfant[e.id] || []).map(a => rendreLignePastilleAB(a)).join('') || '<span style="font-size:12px;color:var(--text-gris)">Aucun enseignant suivi pour l\'instant.</span>'}
@@ -89,16 +120,18 @@ async function afficherTableauDeBord() {
         <p>Créer le compte de votre enfant pour qu'il accède à son espace.</p>
         <button class="btn btn-filled" id="btnInscrireEnfant">Inscrire</button>
       </div>
-      <a href="devoirs-notes.html" class="carte-action-tb disponible" style="text-decoration:none;color:inherit;display:block">
+      <a href="devoirs-notes.html" class="carte-action-tb disponible carte-apercu-hover" style="text-decoration:none;color:inherit;display:block">
         <div class="icone-action-tb">📊</div>
         <h3>Suivi des devoirs et notes</h3>
         <p>Consulter les devoirs et évaluations de vos enfants.</p>
+        ${bulleApercuHtml('Devoirs à venir', apercuDevoirsParent)}
       </a>
       ${Object.values(abonnementsParEnfant).some(liste => liste.some(a => a.statut === 'accepte')) ? `
-      <a href="messagerie.html" class="carte-action-tb disponible" style="text-decoration:none;color:inherit;display:block">
+      <a href="messagerie.html" class="carte-action-tb disponible carte-apercu-hover" style="text-decoration:none;color:inherit;display:block">
         <div class="icone-action-tb">💬</div>
         <h3>Messagerie enseignant</h3>
         <p>Échanger avec les enseignants qui suivent vos enfants.</p>
+        ${bulleApercuHtml('Enseignants suivis', apercuEnseignantsParent, echapperParentTB)}
       </a>` : `
       <div class="carte-action-tb a-venir">
         <div class="icone-action-tb">💬</div>
@@ -121,6 +154,13 @@ async function afficherTableauDeBord() {
     btn.addEventListener('click', () => {
       const enfant = enfants.find(e => e.id === btn.dataset.completerLocalisation);
       if (enfant) ouvrirCompletionLocalisationEnfant(enfant);
+    });
+  });
+  document.querySelectorAll('[data-controle-connectivite]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const enfant = enfants.find(e => e.id === btn.dataset.controleConnectivite);
+      const statutConn = connectiviteParEnfant[btn.dataset.controleConnectivite] || { compte_actif: true, horaires_autorises: null, derniere_activite: null };
+      if (enfant) ouvrirControleConnectiviteEnfant(enfant, statutConn);
     });
   });
   document.querySelectorAll('[data-annuler-abonnement]').forEach(btn => {
@@ -179,8 +219,20 @@ async function ouvrirInscriptionEnfant() {
   // Département/Commune/Arrondissement sont désormais demandés pour l'élève
   // aussi (comme pour parent/enseignant) — préremplis avec ceux du parent
   // par défaut (rarement différents), mais modifiables ici.
+  //
+  // Important : la Commune et l'Arrondissement affichés au départ doivent
+  // être calculés à partir de LA MÊME commune "effective", sinon la liste
+  // d'Arrondissement se retrouve vide dès l'ouverture (donc ne se déploie
+  // pas au clic) — par exemple si le parent n'a pas encore de commune
+  // enregistrée, ou si sa commune ne correspond pas au département par
+  // défaut retenu ci-dessous.
   const departementParDefaut = profilParent.departement || DEPARTEMENTS_BENIN[0];
   const communesDisponibles = COMMUNES_PAR_DEPARTEMENT[departementParDefaut] || [];
+  const communeParDefaut = (profilParent.commune && communesDisponibles.includes(profilParent.commune))
+    ? profilParent.commune
+    : (communesDisponibles[0] || '');
+  const arrondissementsDisponibles = ARRONDISSEMENTS_PAR_COMMUNE[communeParDefaut] || [];
+  const arrondissementParDefaut = (communeParDefaut === profilParent.commune) ? (profilParent.arrondissement || '') : '';
 
   ouvrirModal({
     titre: 'Inscrire un enfant',
@@ -191,8 +243,8 @@ async function ouvrirInscriptionEnfant() {
       { nom: 'identifiant', label: 'Identifiant de connexion', placeholder: 'Ex: prenom.classe (ex: biodun.cm2)' },
       { nom: 'motDePasse', label: 'Mot de passe', type: 'password', placeholder: '6 caractères min.' },
       { nom: 'departement', label: 'Département', type: 'select', valeur: departementParDefaut, options: DEPARTEMENTS_BENIN.map(d => ({ valeur: d, label: d })) },
-      { nom: 'commune', label: 'Commune', type: 'select', valeur: profilParent.commune, options: communesDisponibles.map(c => ({ valeur: c, label: c })), dependDe: 'departement', optionsSelonDependance: (dep) => (COMMUNES_PAR_DEPARTEMENT[dep] || []).map(c => ({ valeur: c, label: c })) },
-      { nom: 'arrondissement', label: 'Arrondissement', type: 'select', valeur: profilParent.arrondissement || '', options: (ARRONDISSEMENTS_PAR_COMMUNE[profilParent.commune] || []).map(a => ({ valeur: a, label: a })), dependDe: 'commune', optionsSelonDependance: (com) => (ARRONDISSEMENTS_PAR_COMMUNE[com] || []).map(a => ({ valeur: a, label: a })) }
+      { nom: 'commune', label: 'Commune', type: 'select', valeur: communeParDefaut, options: communesDisponibles.map(c => ({ valeur: c, label: c })), dependDe: 'departement', optionsSelonDependance: (dep) => (COMMUNES_PAR_DEPARTEMENT[dep] || []).map(c => ({ valeur: c, label: c })) },
+      { nom: 'arrondissement', label: 'Arrondissement', type: 'select', valeur: arrondissementParDefaut, options: arrondissementsDisponibles.map(a => ({ valeur: a, label: a })), dependDe: 'commune', optionsSelonDependance: (com) => (ARRONDISSEMENTS_PAR_COMMUNE[com] || []).map(a => ({ valeur: a, label: a })) }
     ],
     texteValider: 'Créer le compte',
     onValider: (valeurs) => confirmerInscriptionEnfant(valeurs)
@@ -240,13 +292,20 @@ async function confirmerInscriptionEnfant({ prenom, nom, classe, identifiant, mo
 function ouvrirCompletionLocalisationEnfant(enfant) {
   const departementParDefaut = enfant.departement || profilParent.departement || DEPARTEMENTS_BENIN[0];
   const communesDisponibles = COMMUNES_PAR_DEPARTEMENT[departementParDefaut] || [];
+  // Même précaution que pour l'inscription d'un enfant : caler l'Arrondissement
+  // initial sur la commune réellement affichée, pas sur enfant.commune brut.
+  const communeParDefaut = (enfant.commune && communesDisponibles.includes(enfant.commune))
+    ? enfant.commune
+    : (communesDisponibles[0] || '');
+  const arrondissementsDisponibles = ARRONDISSEMENTS_PAR_COMMUNE[communeParDefaut] || [];
+  const arrondissementParDefaut = (communeParDefaut === enfant.commune) ? (enfant.arrondissement || '') : '';
 
   ouvrirModal({
     titre: `Compléter les informations de ${enfant.prenom}`,
     champs: [
       { nom: 'departement', label: 'Département', type: 'select', valeur: departementParDefaut, options: DEPARTEMENTS_BENIN.map(d => ({ valeur: d, label: d })) },
-      { nom: 'commune', label: 'Commune', type: 'select', valeur: enfant.commune || '', options: communesDisponibles.map(c => ({ valeur: c, label: c })), dependDe: 'departement', optionsSelonDependance: (dep) => (COMMUNES_PAR_DEPARTEMENT[dep] || []).map(c => ({ valeur: c, label: c })) },
-      { nom: 'arrondissement', label: 'Arrondissement', type: 'select', valeur: enfant.arrondissement || '', options: (ARRONDISSEMENTS_PAR_COMMUNE[enfant.commune] || []).map(a => ({ valeur: a, label: a })), dependDe: 'commune', optionsSelonDependance: (com) => (ARRONDISSEMENTS_PAR_COMMUNE[com] || []).map(a => ({ valeur: a, label: a })) }
+      { nom: 'commune', label: 'Commune', type: 'select', valeur: communeParDefaut, options: communesDisponibles.map(c => ({ valeur: c, label: c })), dependDe: 'departement', optionsSelonDependance: (dep) => (COMMUNES_PAR_DEPARTEMENT[dep] || []).map(c => ({ valeur: c, label: c })) },
+      { nom: 'arrondissement', label: 'Arrondissement', type: 'select', valeur: arrondissementParDefaut, options: arrondissementsDisponibles.map(a => ({ valeur: a, label: a })), dependDe: 'commune', optionsSelonDependance: (com) => (ARRONDISSEMENTS_PAR_COMMUNE[com] || []).map(a => ({ valeur: a, label: a })) }
     ],
     texteValider: 'Enregistrer',
     onValider: async ({ departement, commune, arrondissement }) => {
@@ -256,6 +315,109 @@ function ouvrirCompletionLocalisationEnfant(enfant) {
       if (error) return alert(error.message);
       afficherTableauDeBord();
     }
+  });
+}
+
+// --- CONTRÔLE PARENTAL DE LA CONNECTIVITÉ (Task #38) ----------------------
+// Le parent choisit ici, pour chaque enfant : couper l'accès entièrement
+// (compte_actif), et/ou le limiter à des plages horaires par jour de la
+// semaine (horaires_autorises — voir js/auth-utilisateur.js, qui applique
+// ces réglages à la connexion ET en cours de session). Un jour non coché =
+// bloqué ce jour-là ; "Limiter aux heures suivantes" décoché = pas de
+// restriction horaire du tout (horaires_autorises = null).
+
+const JOURS_SEMAINE_CONNECTIVITE = [
+  { cle: '1', label: 'Lundi' },
+  { cle: '2', label: 'Mardi' },
+  { cle: '3', label: 'Mercredi' },
+  { cle: '4', label: 'Jeudi' },
+  { cle: '5', label: 'Vendredi' },
+  { cle: '6', label: 'Samedi' },
+  { cle: '0', label: 'Dimanche' }
+];
+
+function formaterDerniereActivite(iso) {
+  if (!iso) return "Jamais connecté(e)";
+  return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function ouvrirControleConnectiviteEnfant(enfant, statut) {
+  const horaires = statut.horaires_autorises || null;
+  const restreint = !!horaires;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-boite">
+      <h3>🔒 Contrôle d'accès — ${echapperParentTB(enfant.prenom)}</h3>
+      <p style="font-size:13px;color:var(--text-gris);margin-top:-8px">Dernière activité : ${formaterDerniereActivite(statut.derniere_activite)}</p>
+      <form id="formControleConnectivite">
+        <label class="champ-modal" style="flex-direction:row;align-items:center;gap:8px">
+          <input type="checkbox" name="compteActif" ${statut.compte_actif !== false ? 'checked' : ''}> Accès autorisé
+        </label>
+        <label class="champ-modal" style="flex-direction:row;align-items:center;gap:8px">
+          <input type="checkbox" id="chkRestreindreHoraires" ${restreint ? 'checked' : ''}> Limiter aux heures suivantes
+        </label>
+        <div id="zoneHorairesConnectivite" style="${restreint ? '' : 'display:none'}">
+          ${JOURS_SEMAINE_CONNECTIVITE.map(j => {
+            const plage = horaires && horaires[j.cle] && horaires[j.cle][0];
+            const coche = !!plage;
+            const debut = plage ? plage[0] : '07:00';
+            const fin = plage ? plage[1] : '19:00';
+            return `
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <label style="display:flex;align-items:center;gap:6px;min-width:100px;font-weight:normal">
+                <input type="checkbox" class="chk-jour-horaire" data-jour="${j.cle}" ${coche ? 'checked' : ''}> ${j.label}
+              </label>
+              <input type="time" class="heure-debut-jour" data-jour="${j.cle}" value="${debut}" ${coche ? '' : 'disabled'}>
+              <span>à</span>
+              <input type="time" class="heure-fin-jour" data-jour="${j.cle}" value="${fin}" ${coche ? '' : 'disabled'}>
+            </div>`;
+          }).join('')}
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-discret" data-fermer-modal>Annuler</button>
+          <button type="submit" class="btn btn-primaire">Enregistrer</button>
+        </div>
+      </form>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const fermer = () => overlay.remove();
+  overlay.querySelector('[data-fermer-modal]').addEventListener('click', fermer);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) fermer(); });
+  document.addEventListener('keydown', function echap(e) { if (e.key === 'Escape') { fermer(); document.removeEventListener('keydown', echap); } });
+
+  const chkRestreindre = overlay.querySelector('#chkRestreindreHoraires');
+  const zoneHoraires = overlay.querySelector('#zoneHorairesConnectivite');
+  chkRestreindre.addEventListener('change', () => { zoneHoraires.style.display = chkRestreindre.checked ? '' : 'none'; });
+
+  overlay.querySelectorAll('.chk-jour-horaire').forEach(chk => {
+    chk.addEventListener('change', () => {
+      const jour = chk.dataset.jour;
+      overlay.querySelector(`.heure-debut-jour[data-jour="${jour}"]`).disabled = !chk.checked;
+      overlay.querySelector(`.heure-fin-jour[data-jour="${jour}"]`).disabled = !chk.checked;
+    });
+  });
+
+  overlay.querySelector('#formControleConnectivite').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const compteActif = overlay.querySelector('[name="compteActif"]').checked;
+    let horairesAutorises = null;
+    if (chkRestreindre.checked) {
+      horairesAutorises = {};
+      overlay.querySelectorAll('.chk-jour-horaire').forEach(chk => {
+        if (!chk.checked) return;
+        const jour = chk.dataset.jour;
+        const debut = overlay.querySelector(`.heure-debut-jour[data-jour="${jour}"]`).value;
+        const fin = overlay.querySelector(`.heure-fin-jour[data-jour="${jour}"]`).value;
+        if (debut && fin) horairesAutorises[jour] = [[debut, fin]];
+      });
+    }
+    fermer();
+    const { error } = await supabaseClient.from('eleves').update({ compte_actif: compteActif, horaires_autorises: horairesAutorises }).eq('id', enfant.id);
+    if (error) return alert(error.message);
+    afficherTableauDeBord();
   });
 }
 

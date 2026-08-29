@@ -53,6 +53,23 @@ const LIBELLES_PALIER_TB = {
     progressionPct = totalPublie ? Math.min(100, Math.round(((totalTermine || 0) / totalPublie) * 100)) : 0;
   }
 
+  // Aperçu au survol (Task #34) : déploie le contenu important de chaque
+  // carte d'action sans avoir besoin de cliquer — voir js/apercu-survol.js.
+  let apercuMatieresTb = [];
+  let apercuBadgesTb = [];
+  let apercuDevoirsTb = [];
+  if (fiche?.classe_id) {
+    const aujourdhui = new Date().toISOString().slice(0, 10);
+    const [{ data: champsClasseTb }, { data: badgesRecentsTb }, { data: devoirsAVenirTb }] = await Promise.all([
+      supabaseClient.from('classes_champs_formation').select('champs_formation(nom)').eq('classe_id', fiche.classe_id),
+      supabaseClient.from('badges_eleves').select('badges(nom)').eq('eleve_id', profil.id).order('attribue_le', { ascending: false }).limit(6),
+      supabaseClient.from('devoirs').select('titre, date_limite').eq('classe_id', fiche.classe_id).eq('statut', 'publie').gte('date_limite', aujourdhui).order('date_limite').limit(6)
+    ]);
+    apercuMatieresTb = (champsClasseTb || []).map(c => c.champs_formation?.nom).filter(Boolean);
+    apercuBadgesTb = (badgesRecentsTb || []).map(b => b.badges?.nom).filter(Boolean);
+    apercuDevoirsTb = (devoirsAVenirTb || []).map(d => `${d.titre} — ${new Date(d.date_limite).toLocaleDateString('fr-FR')}`);
+  }
+
   document.getElementById('contenu').innerHTML = `
     <div class="profile-card-eleve">
       <h2 style="margin:0">👋 Content de te revoir, ${echapperTb(profil.prenom)} !</h2>
@@ -85,20 +102,23 @@ const LIBELLES_PALIER_TB = {
         </div>
 
         <div class="grille-actions-tb">
-          <a href="matiere.html" class="carte-action-tb disponible" style="text-decoration:none;color:inherit">
+          <a href="matiere.html" class="carte-action-tb disponible carte-apercu-hover" style="text-decoration:none;color:inherit">
             <div class="icone-action-tb">📖</div>
             <h3>Mes cours</h3>
             <p>Découvrir les leçons de ta classe.</p>
+            ${bulleApercuHtml('Tes matières', apercuMatieresTb)}
           </a>
-          <a href="badges.html" class="carte-action-tb disponible" style="text-decoration:none;color:inherit;display:block">
+          <a href="badges.html" class="carte-action-tb disponible carte-apercu-hover" style="text-decoration:none;color:inherit;display:block">
             <div class="icone-action-tb">🎯</div>
             <h3>Mes badges</h3>
             <p>Voir les badges que tu as obtenus.</p>
+            ${bulleApercuHtml('Tes derniers badges', apercuBadgesTb)}
           </a>
-          <a href="devoirs-notes.html" class="carte-action-tb disponible" style="text-decoration:none;color:inherit;display:block">
+          <a href="devoirs-notes.html" class="carte-action-tb disponible carte-apercu-hover" style="text-decoration:none;color:inherit;display:block">
             <div class="icone-action-tb">📊</div>
             <h3>Mes notes et devoirs</h3>
             <p>Voir mes devoirs à rendre et mes notes.</p>
+            ${bulleApercuHtml('Devoirs à venir', apercuDevoirsTb)}
           </a>
         </div>
       </main>

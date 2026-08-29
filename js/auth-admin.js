@@ -53,6 +53,15 @@ async function requireAdmin() {
     window.location.href = `${_racine()}pages/admin/connexion.html`;
     return null;
   }
+  // Retient la page courante pour que "Accéder à mon espace" sur l'accueil
+  // y ramène directement (voir index.html et la même logique dans
+  // js/auth-utilisateur.js — dupliquée ici car les pages purement admin ne
+  // chargent pas ce fichier-là).
+  try {
+    if (!/\/connexion\.html$/i.test(window.location.pathname)) {
+      localStorage.setItem('kekeli_derniere_page', window.location.pathname + window.location.search);
+    }
+  } catch (_e) { /* tant pis */ }
   return profil;
 }
 

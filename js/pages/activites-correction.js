@@ -15,6 +15,7 @@ let profilActivites = null;
 let blocsActivites = [];
 let filtreClasseActivites = '';
 let filtrePalierActivites = '';
+let triActivites = 'recent'; // 'recent' | 'a_corriger' | 'classe'
 
 const LIBELLES_PALIER_ACT = { azovi: '🌱 Azɔ̀ví', devi: '🪘 Dèví', ogan: '🦁 Ògán', axosu: '👑 Axɔ́sú' };
 
@@ -95,6 +96,16 @@ async function rendrePageActivites() {
   const rendusParBloc = {};
   (rendus || []).forEach(r => { (rendusParBloc[r.bloc_id] ??= []).push(r); });
 
+  // Tris (Task #36) : par défaut les plus récentes d'abord (comme avant),
+  // ou en priorité celles qui ont le plus de rendus à corriger — utile dès
+  // qu'il y a beaucoup d'activités à traiter — ou groupées par classe.
+  const enAttenteDe = (b) => (rendusParBloc[b.id] || []).filter(r => !r.corrige_le).length;
+  const blocsTries = [...blocsFiltres].sort((a, b) => {
+    if (triActivites === 'a_corriger') return enAttenteDe(b) - enAttenteDe(a);
+    if (triActivites === 'classe') return (noeud(a)?.classes?.nom || '').localeCompare(noeud(b)?.classes?.nom || '', 'fr');
+    return b.id - a.id; // 'recent'
+  });
+
   zone.innerHTML = `
     <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
       <select id="selectClasseAct" style="padding:9px;border-radius:8px;border:1px solid var(--bordure)">
@@ -105,9 +116,14 @@ async function rendrePageActivites() {
         <option value="">— Tous les paliers —</option>
         ${Object.entries(LIBELLES_PALIER_ACT).map(([v, l]) => `<option value="${v}" ${filtrePalierActivites === v ? 'selected' : ''}>${l}</option>`).join('')}
       </select>
+      <select id="selectTriAct" style="padding:9px;border-radius:8px;border:1px solid var(--bordure)">
+        <option value="recent" ${triActivites === 'recent' ? 'selected' : ''}>Plus récentes d'abord</option>
+        <option value="a_corriger" ${triActivites === 'a_corriger' ? 'selected' : ''}>À corriger en priorité</option>
+        <option value="classe" ${triActivites === 'classe' ? 'selected' : ''}>Par classe</option>
+      </select>
     </div>
 
-    ${blocsFiltres.length ? blocsFiltres.map(b => {
+    ${blocsTries.length ? blocsTries.map(b => {
       const c = b.contenu || {};
       const rendusBloc = rendusParBloc[b.id] || [];
       const enAttente = rendusBloc.filter(r => !r.corrige_le).length;
@@ -139,6 +155,7 @@ async function rendrePageActivites() {
 
   document.getElementById('selectClasseAct').addEventListener('change', (e) => { filtreClasseActivites = e.target.value; rendrePageActivites(); });
   document.getElementById('selectPalierAct').addEventListener('change', (e) => { filtrePalierActivites = e.target.value; rendrePageActivites(); });
+  document.getElementById('selectTriAct').addEventListener('change', (e) => { triActivites = e.target.value; rendrePageActivites(); });
   zone.querySelectorAll('[data-corriger-rendu]').forEach(btn => {
     btn.addEventListener('click', () => corrigerRendu(parseInt(btn.dataset.corrigerRendu, 10)));
   });

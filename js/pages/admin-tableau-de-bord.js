@@ -9,6 +9,7 @@ let profilAdminTB = null;
 let classesTB = [];
 let champsTB = [];
 let seancesTB = [];
+let devoirsTB = [];
 const filtresTB = { matiere: '', classe: '', statut: '', recherche: '', unite: '', semaine: '', dossier: '', sa: '' };
 
 const LIBELLES_STATUT_TB = { brouillon: 'Brouillon', publie: 'Publié', archive: 'Archivé' };
@@ -33,11 +34,12 @@ async function init() {
     supabaseClient.from('sa').select('id, noeud_id, titre, numero'),
     supabaseClient.from('seances').select('id, sa_id, titre, statut, discipline, ordre, modifie_le').order('modifie_le', { ascending: false }),
     supabaseClient.from('enseignants').select('id'),
-    supabaseClient.from('devoirs').select('id, date_limite')
+    supabaseClient.from('devoirs').select('id, titre, date_limite')
   ]);
 
   classesTB = classes || [];
   champsTB = champs || [];
+  devoirsTB = devoirs || [];
 
   // Petites tables (quelques dizaines de lignes au total) : on résout les
   // rattachements côté client plutôt que d'imbriquer des jointures PostgREST
@@ -111,20 +113,28 @@ function afficherTaches(enseignants, devoirs) {
 
 function afficherActions() {
   const estSuperAdmin = !!profilAdminTB.est_super_admin;
+  const maintenantTB = new Date();
+  const apercuDevoirsAdmin = devoirsTB
+    .filter(d => d.date_limite && new Date(d.date_limite) > maintenantTB)
+    .sort((a, b) => new Date(a.date_limite) - new Date(b.date_limite))
+    .slice(0, 6)
+    .map(d => `${d.titre} — ${new Date(d.date_limite).toLocaleDateString('fr-FR')}`);
 
   document.getElementById('zoneActions').innerHTML = [
-    `<a href="../navigation.html" class="carte-action-tb disponible">
+    `<a href="../navigation.html" class="carte-action-tb disponible carte-apercu-hover">
       <div class="icone-action-tb">🌳</div>
       <h3>Arborescence complète</h3>
       <p>Créer de nouvelles classes, matières, unités, SA ou séances.</p>
+      ${bulleApercuHtml('Classes', classesTB.map(c => c.nom))}
     </a>`,
     // Le suivi des devoirs et notes reste un outil du quotidien pour les
     // admins de terrain ; le super_admin, dont le rôle est plus transversal
     // (supervision, gestion des comptes admin), n'en a pas besoin ici.
-    !estSuperAdmin ? `<a href="devoirs-notes.html" class="carte-action-tb disponible">
+    !estSuperAdmin ? `<a href="devoirs-notes.html" class="carte-action-tb disponible carte-apercu-hover">
       <div class="icone-action-tb">📊</div>
       <h3>Devoirs &amp; notes</h3>
       <p>Attribuer des devoirs et des notes par classe et par matière.</p>
+      ${bulleApercuHtml('Devoirs à venir', apercuDevoirsAdmin)}
     </a>` : '',
     `<a href="messagerie.html" class="carte-action-tb disponible">
       <div class="icone-action-tb">💬</div>

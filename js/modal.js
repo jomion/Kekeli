@@ -40,6 +40,11 @@ function ouvrirModal({ titre, champs, texteValider = 'Enregistrer', onValider })
     champDont.addEventListener('change', () => {
       const options = c.optionsSelonDependance(champDont.value) || [];
       champDependant.innerHTML = options.map(o => `<option value="${o.valeur}">${o.label}</option>`).join('');
+      // Redéclenche un "change" sur le champ qu'on vient de recalculer, pour
+      // qu'une éventuelle cascade à un niveau de plus (ex. Commune →
+      // Arrondissement quand c'est Département qui vient de changer) se
+      // remette aussi à jour — sinon elle garde ses anciennes options.
+      champDependant.dispatchEvent(new Event('change'));
     });
   });
 

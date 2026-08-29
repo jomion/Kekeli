@@ -87,6 +87,8 @@ header.entete-kekeli {
   padding: 12px 24px; background: var(--blanc); box-shadow: 0 2px 14px rgba(0,0,0,0.08);
 }
 body.avec-entete-fixe { padding-top: 68px; }
+/* Pour qu'un lien d'ancre (#...) ne cache pas sa cible sous l'en-tête fixe. */
+.ancre-scroll-entete { scroll-margin-top: 84px; }
 .entete-kekeli-logo { display: flex; align-items: center; gap: 8px; font-size: 19px; font-weight: 800; color: var(--bleu-principal); }
 .entete-kekeli-logo img { height: 30px; width: auto; }
 .entete-kekeli-hamburger { display: none; flex-direction: column; justify-content: center; align-items: center; gap: 4px; width: 34px; height: 34px; background: none; border: none; cursor: pointer; flex-shrink: 0; }
@@ -103,6 +105,30 @@ body.avec-entete-fixe { padding-top: 68px; }
 .entete-kekeli-icone-btn { background: none; border: 1px solid var(--bordure); color: var(--texte-gris); width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; cursor: pointer; transition: background .15s, border-color .15s, color .15s; text-decoration: none; }
 .entete-kekeli-icone-btn:hover { background: var(--bleu-clair); border-color: var(--bleu-principal); color: var(--bleu-principal); }
 .entete-kekeli-overlay { display: none; }
+
+/* Catégories de liens regroupés en menu déroulant (ex: admin — "Pédagogie",
+   "Comptes", "Finances") — désencombre la barre quand un rôle a beaucoup de
+   liens. Ouverture au survol (souris) ET au clic (tactile/clavier) — voir
+   initCategoriesNavEntete() dans js/entete-navigation.js. */
+.entete-kekeli-categorie { position: relative; }
+.entete-kekeli-categorie-btn {
+  background: none; border: none; font: inherit; cursor: pointer;
+  padding: 8px 13px; border-radius: 20px; font-size: 13.5px; font-weight: 700; color: var(--texte-gris);
+  transition: background .15s, color .15s; display: inline-flex; align-items: center; gap: 4px;
+}
+.entete-kekeli-categorie-btn:hover { background: var(--bleu-clair); color: var(--bleu-principal); }
+.entete-kekeli-caret { font-size: 10px; transition: transform .15s; }
+.entete-kekeli-categorie.ouvert .entete-kekeli-caret { transform: rotate(180deg); }
+.entete-kekeli-sousmenu {
+  position: absolute; top: calc(100% + 6px); left: 0; min-width: 210px;
+  background: var(--blanc); border-radius: 12px; box-shadow: 0 12px 28px rgba(0,0,0,0.16);
+  padding: 6px; display: flex; flex-direction: column; gap: 2px;
+  opacity: 0; visibility: hidden; transform: translateY(-6px); transition: opacity .15s ease, transform .15s ease;
+  z-index: 40;
+}
+.entete-kekeli-sousmenu a { padding: 9px 12px; border-radius: 8px; white-space: nowrap; }
+.entete-kekeli-categorie:hover .entete-kekeli-sousmenu,
+.entete-kekeli-categorie.ouvert .entete-kekeli-sousmenu { opacity: 1; visibility: visible; transform: translateY(0); }
 
 @media (max-width: 860px) {
   .entete-kekeli-hamburger { display: flex; }
@@ -122,6 +148,16 @@ body.avec-entete-fixe { padding-top: 68px; }
     opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 550;
   }
   .entete-kekeli-overlay.visible { opacity: 1; pointer-events: auto; }
+
+  /* Dans le tiroir mobile, une catégorie se déplie SUR PLACE (colonne),
+     plutôt qu'en bulle flottante qui n'aurait pas de sens dans un panneau
+     déjà étroit. */
+  .entete-kekeli-categorie-btn { width: 100%; justify-content: space-between; padding: 12px 14px; border-radius: 10px; }
+  .entete-kekeli-sousmenu {
+    position: static; box-shadow: none; opacity: 1; visibility: visible; transform: none; padding: 0 0 0 14px;
+    max-height: 0; overflow: hidden; transition: max-height .2s ease;
+  }
+  .entete-kekeli-categorie.ouvert .entete-kekeli-sousmenu { max-height: 400px; }
 }
 
 /* ===== Page d'accueil publique ===== */
@@ -217,6 +253,26 @@ body.avec-entete-fixe { padding-top: 68px; }
   padding: 9px 12px; border-radius: 8px; border: 1px solid var(--bordure); font-size: 13px; background: white;
 }
 .barre-filtres-admin input[type="search"] { flex-grow: 1; min-width: 180px; }
+
+/* ===== pages/seances.html — liste partagée par tous les rôles ===== */
+.barre-filtres-seances { display: flex; gap: 10px; flex-wrap: wrap; margin: 18px 0; align-items: center; }
+.barre-filtres-seances select, .barre-filtres-seances input[type="search"] {
+  padding: 9px 12px; border-radius: 8px; border: 1px solid var(--bordure); font-size: 13px; background: var(--blanc);
+}
+.barre-filtres-seances input[type="search"] { flex-grow: 1; min-width: 180px; }
+.case-epingles-sea { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.liste-lignes-seances { display: flex; flex-direction: column; gap: 8px; }
+.ligne-seance-partagee {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  background: var(--blanc); border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.details-ligne-seance-partagee { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.titre-ligne-seance-partagee { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.chemin-ligne-seance-partagee { font-size: 12px; color: var(--texte-gris); }
+.actions-ligne-seance-partagee { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.bouton-epingler-sea { background: none; border: 1px solid var(--bordure); border-radius: 50%; width: 34px; height: 34px; font-size: 15px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: background .15s, border-color .15s; }
+.bouton-epingler-sea:hover { background: var(--bleu-clair); border-color: var(--bleu-principal); }
+.bouton-epingler-sea.epinglee { border-color: var(--accent); background: var(--accent-clair); }
 
 .groupe-matiere-admin { margin-bottom: 22px; }
 .groupe-matiere-admin .titre-groupe-matiere {
@@ -437,3 +493,14 @@ body.avec-entete-fixe { padding-top: 68px; }
 .table-enseignants th, .table-enseignants td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--bordure); font-size: 13px; }
 .pastille-classe-ens { display: inline-block; background: var(--bleu-clair); color: var(--bleu-principal); border-radius: 20px; padding: 2px 10px; font-size: 11px; font-weight: 700; margin: 2px 3px 2px 0; }
 .pastille-classe-ens button { background: none; border: none; cursor: pointer; color: inherit; font-size: 10px; margin-left: 4px; }
+
+/* Aperçu générique au survol d'une carte (tableau de bord admin) — même
+   principe que .carte-champ/.survol-enfants-champ ci-dessus, réutilisable
+   sur d'autres cartes. Voir js/apercu-survol.js. */
+.carte-apercu-hover { position: relative; }
+.bulle-apercu-hover { position: absolute; left: 12px; right: 12px; top: calc(100% - 8px); background: var(--bleu-fonce); color: white; border-radius: 10px; padding: 12px 14px; box-shadow: 0 12px 28px rgba(0,0,0,0.28); opacity: 0; visibility: hidden; transform: translateY(-6px); transition: opacity .16s ease, transform .16s ease; pointer-events: none; z-index: 30; }
+.carte-apercu-hover:hover .bulle-apercu-hover { opacity: 1; visibility: visible; transform: translateY(0); }
+.bulle-apercu-hover-titre { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--accent); margin-bottom: 6px; }
+.bulle-apercu-hover ul { list-style: none; margin: 0; padding: 0; max-height: 168px; overflow: hidden; }
+.bulle-apercu-hover li { font-size: 13px; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.bulle-apercu-hover li:last-child { border-bottom: none; }

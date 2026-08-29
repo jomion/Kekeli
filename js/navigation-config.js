@@ -8,42 +8,67 @@
 // dossier (ex. pages/navigation.html doit préfixer par "admin/" ou
 // "enseignant/" ; pages/parametres.html doit préfixer par "<role>/").
 //
+// `racine: true` : l'href est déjà écrite depuis la RACINE DU SITE (ex.
+// 'pages/seances.html') plutôt que depuis le dossier du rôle — utilisé pour
+// les quelques pages partagées qui ne vivent pas dans un dossier de rôle
+// (pages/navigation.html, pages/seances.html...). liensAvecPrefixe() la
+// préfixe alors avec RACINE_SITE (déjà défini par la page appelante) au lieu
+// du préfixe de dossier habituel.
+//
+// `categorie` : regroupe plusieurs liens sous un même menu déroulant dans
+// l'en-tête (voir CATEGORIES_NAV ci-dessous et js/entete-navigation.js) —
+// utile pour un rôle qui a beaucoup de liens (admin). Un lien sans
+// `categorie` reste affiché directement dans la barre.
+//
 // `superAdminSeulement: true` : à ne garder que si l'appelant sait que le
 // profil courant est super_admin (filtré via l'option superAdmin ci-dessous).
+
+const CATEGORIES_NAV = {
+  pedagogie: { label: 'Pédagogie', icone: '📚' },
+  comptes: { label: 'Comptes', icone: '👥' },
+  finances: { label: 'Finances', icone: '💳' }
+};
 
 const LIENS_PAR_ROLE = {
   eleve: [
     { id: 'tableau-de-bord', href: 'tableau-de-bord.html', icone: '🏠', label: 'Tableau de bord', essentiel: true },
     { id: 'matieres', href: 'matiere.html', icone: '📘', label: 'Mes matières' },
+    { id: 'seances', href: 'pages/seances.html', racine: true, icone: '📌', label: 'Séances' },
     { id: 'devoirs-notes', href: 'devoirs-notes.html', icone: '📊', label: 'Devoirs & notes' },
     { id: 'badges', href: 'badges.html', icone: '🏅', label: 'Mes badges' }
   ],
   parent: [
     { id: 'tableau-de-bord', href: 'tableau-de-bord.html', icone: '🏠', label: 'Tableau de bord', essentiel: true },
+    { id: 'seances', href: 'pages/seances.html', racine: true, icone: '📌', label: 'Séances' },
     { id: 'devoirs-notes', href: 'devoirs-notes.html', icone: '📊', label: 'Devoirs & notes' },
     { id: 'paiements', href: 'paiements.html', icone: '💳', label: 'Paiements' },
     { id: 'messagerie', href: 'messagerie.html', icone: '💬', label: 'Messagerie' }
   ],
   enseignant: [
     { id: 'tableau-de-bord', href: 'tableau-de-bord.html', icone: '🏠', label: 'Tableau de bord', essentiel: true },
+    { id: 'seances', href: 'pages/seances.html', racine: true, icone: '📌', label: 'Séances' },
     { id: 'devoirs-notes', href: 'devoirs-notes.html', icone: '📊', label: 'Devoirs & notes' },
     { id: 'messagerie', href: 'messagerie.html', icone: '💬', label: 'Messagerie' },
     { id: 'messagerie-admin', href: 'messagerie-admin.html', icone: '📨', label: "Contacter l'administration" }
   ],
   autorite: [
-    { id: 'bienvenue', href: 'bienvenue.html', icone: '🏠', label: 'Tableau de bord', essentiel: true }
+    { id: 'bienvenue', href: 'bienvenue.html', icone: '🏠', label: 'Tableau de bord', essentiel: true },
+    { id: 'seances', href: 'pages/seances.html', racine: true, icone: '📌', label: 'Séances' }
   ],
   admin: [
     { id: 'tableau-de-bord', href: 'tableau-de-bord.html', icone: '🏠', label: 'Tableau de bord', essentiel: true },
-    { id: 'enseignants-classes', href: 'enseignants-classes.html', icone: '🏫', label: 'Enseignants & classes' },
-    { id: 'devoirs-notes', href: 'devoirs-notes.html', icone: '📊', label: 'Devoirs & notes' },
-    { id: 'activites', href: 'activites.html', icone: '✅', label: 'Corriger activités' },
-    { id: 'badges', href: 'badges.html', icone: '🏅', label: 'Badges' },
-    { id: 'abonnements', href: 'abonnements.html', icone: '💳', label: 'Abonnements' },
-    { id: 'paiements', href: 'paiements.html', icone: '💰', label: 'Paiements' },
-    { id: 'messagerie', href: 'messagerie.html', icone: '💬', label: 'Messagerie' },
-    { id: 'gestion-administrateurs', href: 'gestion-administrateurs.html', icone: '🛠️', label: 'Administrateurs', superAdminSeulement: true },
-    { id: 'roles', href: 'roles.html', icone: '🎛️', label: 'Rôles admin', superAdminSeulement: true }
+    { id: 'navigation-arbo', href: 'pages/navigation.html', racine: true, icone: '🌳', label: 'Arborescence', categorie: 'pedagogie' },
+    { id: 'editer-seance', href: 'tableau-de-bord.html#ancre-liste-seances', icone: '✏️', label: 'Éditer une séance', categorie: 'pedagogie' },
+    { id: 'seances', href: 'pages/seances.html', racine: true, icone: '📌', label: 'Séances', categorie: 'pedagogie' },
+    { id: 'activites', href: 'activites.html', icone: '✅', label: 'Corriger activités', categorie: 'pedagogie' },
+    { id: 'devoirs-notes', href: 'devoirs-notes.html', icone: '📊', label: 'Devoirs & notes', categorie: 'pedagogie' },
+    { id: 'badges', href: 'badges.html', icone: '🏅', label: 'Badges', categorie: 'pedagogie' },
+    { id: 'enseignants-classes', href: 'enseignants-classes.html', icone: '🏫', label: 'Enseignants & classes', categorie: 'comptes' },
+    { id: 'gestion-administrateurs', href: 'gestion-administrateurs.html', icone: '🛠️', label: 'Administrateurs', categorie: 'comptes', superAdminSeulement: true },
+    { id: 'roles', href: 'roles.html', icone: '🎛️', label: 'Rôles admin', categorie: 'comptes', superAdminSeulement: true },
+    { id: 'abonnements', href: 'abonnements.html', icone: '💳', label: 'Abonnements', categorie: 'finances' },
+    { id: 'paiements', href: 'paiements.html', icone: '💰', label: 'Paiements', categorie: 'finances' },
+    { id: 'messagerie', href: 'messagerie.html', icone: '💬', label: 'Messagerie' }
   ]
 };
 
@@ -54,7 +79,8 @@ const LIBELLES_ROLE = {
 
 function liensAvecPrefixe(cle, prefixe, opts) {
   const options = opts || {};
+  const racineSite = typeof RACINE_SITE === 'string' ? RACINE_SITE : '';
   return (LIENS_PAR_ROLE[cle] || [])
     .filter(l => !l.superAdminSeulement || options.superAdmin)
-    .map(l => ({ ...l, href: prefixe + l.href }));
+    .map(l => ({ ...l, href: l.racine ? (racineSite + l.href) : (prefixe + l.href) }));
 }

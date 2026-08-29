@@ -14,9 +14,23 @@ const saOuvertes = new Set();
 const contenu = document.getElementById('contenu');
 const filAriane = document.getElementById('filAriane');
 
+// Charge la feuille de style du bon thème AVANT de construire l'en-tête et
+// le contenu — cette page est partagée par tous les rôles (admin, enseignant,
+// élève, invité) mais ne chargeait jusqu'ici QUE le thème admin clair
+// (css/style.css) pour tout le monde, ce qui détonnait avec le reste de
+// l'espace élève/enseignant (thème sombre). Voir pages/parametres.html pour
+// le même principe.
+function chargerFeuilleDeStyle(estAdmin) {
+  const feuille = document.createElement('link');
+  feuille.rel = 'stylesheet';
+  feuille.href = estAdmin ? '../css/style.css' : '../css/style-public.css';
+  document.head.appendChild(feuille);
+}
+
 async function initEntete() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) {
+    chargerFeuilleDeStyle(false);
     await initEnteteNavigation({
       role: 'invite', avecCloche: false,
       liens: [{ id: 'connexion-admin', href: 'admin/connexion.html', icone: '🔑', label: 'Connexion admin', essentiel: true }]
@@ -28,6 +42,7 @@ async function initEntete() {
   const profil = await chargerProfilAdmin(session.user.id);
   if (profil) {
     etat.profilAdmin = profil;
+    chargerFeuilleDeStyle(true);
     await initEnteteNavigation({
       role: 'admin', utilisateurId: profil.id,
       badgeHtml: `${profil.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${echapper(profil.prenom)}`,
@@ -43,6 +58,7 @@ async function initEntete() {
   if (profilGenerique?.role === 'enseignant') {
     const { data: enseignant } = await supabaseClient.from('enseignants').select('*').eq('id', session.user.id).single();
     etat.profilEnseignant = { ...profilGenerique, ...enseignant };
+    chargerFeuilleDeStyle(false);
     await initEnteteNavigation({
       role: 'enseignant', utilisateurId: profilGenerique.id,
       badgeHtml: `🧑‍🏫 Enseignant : ${echapper(profilGenerique.prenom)}`,
@@ -51,6 +67,7 @@ async function initEntete() {
     return;
   }
   if (profilGenerique?.role === 'eleve') etat.estEleve = true;
+  chargerFeuilleDeStyle(false);
   await initEnteteNavigation({ role: 'invite', avecCloche: false, liens: [] });
 }
 
@@ -169,10 +186,35 @@ async function afficherClasses() {
   const { data, error } = await supabaseClient.from('classes').select('*').order('ordre');
   if (error) return erreur(error);
 
+  // Un enseignant ne doit consulter/gérer que le contenu pédagogique des
+  // classes qui lui ont été accordées (première classe attribuée à
+  // l'inscription, ou classe supplémentaire validée par un admin) — pas le
+  // catalogue complet de toutes les classes de l'école, qui reste un outil
+  // de consultation publique pour les autres rôles (visiteur, élève...).
+  const classesDisponibles = etat.profilEnseignant
+    ? (data || []).filter(c => (etat.profilEnseignant.classes_assignees || []).includes(c.id))
+    : (data || []);
+
+  if (etat.profilEnseignant) {
+    if (classesDisponibles.length === 0) {
+      contenu.innerHTML = `<p class="message-erreur" style="text-align:center;padding:30px 0">Aucune classe ne vous est encore accordée par l'administration — depuis votre tableau de bord, utilisez « + Demander une classe ».</p>`;
+      return;
+    }
+    if (classesDisponibles.length === 1) {
+      etat.classe = classesDisponibles[0];
+      return afficher();
+    }
+  }
+
+  const nomsAutorises = etat.profilEnseignant ? new Set(classesDisponibles.map(c => c.nom)) : null;
+  const cyclesAffiches = nomsAutorises
+    ? CYCLES_CLASSES.map(cycle => ({ ...cycle, classes: cycle.classes.filter(c => nomsAutorises.has(c.nom)) })).filter(cycle => cycle.classes.length)
+    : CYCLES_CLASSES;
+
   contenu.innerHTML = `
-    <div class="titre-page centre">Choisissez votre Classe</div>
-    <div class="sous-titre-page centre">Accédez aux programmes officiels et aux activités adaptées à chaque niveau scolaire.</div>
-    ${CYCLES_CLASSES.map(cycle => `
+    <div class="titre-page centre">${etat.profilEnseignant ? 'Vos classes' : 'Choisissez votre Classe'}</div>
+    <div class="sous-titre-page centre">${etat.profilEnseignant ? 'Sélectionnez la classe dont vous voulez consulter le contenu pédagogique.' : 'Accédez aux programmes officiels et aux activités adaptées à chaque niveau scolaire.'}</div>
+    ${cyclesAffiches.map(cycle => `
       <div class="titre-cycle">${cycle.titre}</div>
       <div class="grille-classes">
         ${cycle.classes.map(c => `
@@ -196,7 +238,7 @@ async function afficherClasses() {
 
   contenu.querySelectorAll('[data-nom]').forEach(carte => {
     carte.addEventListener('click', () => {
-      etat.classe = data.find(x => x.nom === carte.dataset.nom);
+      etat.classe = classesDisponibles.find(x => x.nom === carte.dataset.nom);
       if (!etat.classe) return alert("Cette classe n'existe pas encore en base — ajoutez-la dans la table 'classes'.");
       afficher();
     });
@@ -1032,7 +1074,10 @@ async function initDepuisURL() {
 
   if (classeId) {
     const { data: classe } = await supabaseClient.from('classes').select('*').eq('id', classeId).single();
-    if (classe) etat.classe = classe;
+    // Un enseignant ne peut pas se retrouver, via un lien direct, sur une
+    // classe qui ne lui a pas été accordée — voir afficherClasses().
+    const autorisee = !etat.profilEnseignant || (etat.profilEnseignant.classes_assignees || []).includes(classe?.id);
+    if (classe && autorisee) etat.classe = classe;
   }
   if (etat.classe && champId) {
     const { data: champ } = await supabaseClient.from('champs_formation').select('*').eq('id', champId).single();

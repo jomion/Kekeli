@@ -12,6 +12,7 @@
       <div class="logo"><img src="../assets/logo/logo.png" alt="KEKELI"> KEKELI</div>
       <div class="sous-titre">Connectez-vous à votre espace</div>
       <p class="bandeau-succes" id="bandeauSucces" style="display:none">✅ Compte enfant créé — reconnectez-vous à votre espace parent pour continuer.</p>
+      <p class="message-erreur-auth" id="bandeauBloque" style="display:none"></p>
 
       <form id="formLogin">
         <div class="champ-auth">
@@ -51,6 +52,13 @@
     if (new URLSearchParams(window.location.search).get('enfant_cree') === '1') {
       document.getElementById('bandeauSucces').style.display = 'block';
       document.getElementById('role').value = 'parent';
+    }
+    const messageBloque = new URLSearchParams(window.location.search).get('bloque');
+    if (messageBloque) {
+      const bandeauBloque = document.getElementById('bandeauBloque');
+      bandeauBloque.textContent = `🔒 ${messageBloque}`;
+      bandeauBloque.style.display = 'block';
+      document.getElementById('role').value = 'eleve';
     }
     document.getElementById('formLogin').addEventListener('submit', async (e) => {
       e.preventDefault();

@@ -29,7 +29,7 @@
     <div class="hero-text">
       <h1>Apprendre, progresser et <span>réussir ensemble</span>.</h1>
       <p>La plateforme éducative interactive adaptée aux élèves du primaire. Accédez à vos cours, relevez des défis par paliers et suivez vos progrès en temps réel.</p>
-      <a href="pages/login.html" class="btn btn-filled" style="padding:15px 30px;font-size:16px">Accéder à mon espace 🚀</a>
+      <a href="pages/login.html" class="btn btn-filled" id="lienAccederEspace" style="padding:15px 30px;font-size:16px">Accéder à mon espace 🚀</a>
     </div>
     <div class="hero-image">☀️</div>
   </section>
@@ -70,5 +70,30 @@
   <footer class="pied-de-page-public">
     ☀️ KEKELI — La Lumière du Savoir
   </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/supabaseClient.js"></script>
+  <script>const RACINE_SITE = "";</script>
+  <script src="js/auth-utilisateur.js"></script>
+  <script>
+    // Si un utilisateur déjà connecté revient sur l'accueil, "Accéder à mon
+    // espace" doit le ramener où il était (pas repasser par l'écran de
+    // connexion) — voir memoriserDernierePageVisitee() dans
+    // js/auth-utilisateur.js (et son équivalent dans js/auth-admin.js) qui
+    // enregistre cette page à chaque chargement d'une page protégée.
+    (async function () {
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) return;
+        const profil = await chargerProfil(session.user.id);
+        if (!profil || !profil.actif) return;
+        const lien = document.getElementById('lienAccederEspace');
+        if (!lien) return;
+        lien.href = localStorage.getItem('kekeli_derniere_page') || urlTableauDeBord(profil.role);
+        lien.textContent = 'Continuer mon espace →';
+      } catch (_e) { /* pas de session exploitable -> on garde le lien par défaut vers la connexion */ }
+    })();
+  </script>
 </body>
 </html>

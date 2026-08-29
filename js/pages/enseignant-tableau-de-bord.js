@@ -43,6 +43,17 @@ async function afficherTableauBordEns() {
   const classesDisponibles = (toutesClasses || []).filter(c => !classesAssignees.includes(c.id) && !demandesEnAttente.some(d => d.classe_id === c.id));
   const aAccesClasse = acceptes.length > 0 || classesAssignees.length > 0;
 
+  // Aperçu au survol (Task #34) — voir js/apercu-survol.js.
+  const apercuClassesEns = classesAssigneesInfos.map(c => c.nom);
+  const apercuElevesSuivisEns = acceptes.map(a => `${a.eleves?.profils?.prenom || ''} ${a.eleves?.profils?.nom || ''}`.trim()).filter(Boolean);
+  let apercuDevoirsEns = [];
+  if (classesAssignees.length) {
+    const aujourdhui = new Date().toISOString().slice(0, 10);
+    const { data: devoirsAVenirEns } = await supabaseClient.from('devoirs')
+      .select('titre, date_limite').in('classe_id', classesAssignees).gte('date_limite', aujourdhui).order('date_limite').limit(6);
+    apercuDevoirsEns = (devoirsAVenirEns || []).map(d => `${d.titre} — ${new Date(d.date_limite).toLocaleDateString('fr-FR')}`);
+  }
+
   // Noms de classes pour affichage (suivi élève par élève)
   const idsClasses = [...new Set(acceptes.map(a => a.eleves?.classe_id).filter(Boolean))];
   let classesParId = {};
@@ -118,28 +129,31 @@ async function afficherTableauBordEns() {
     </div>
 
     <div class="grille-actions-tb">
-      ${aAccesClasse ? `<a href="devoirs-notes.html" class="carte-action-tb disponible" style="text-decoration:none;color:inherit;display:block">
+      ${aAccesClasse ? `<a href="devoirs-notes.html" class="carte-action-tb disponible carte-apercu-hover" style="text-decoration:none;color:inherit;display:block">
         <div class="icone-action-tb">📊</div>
         <h3>Devoirs &amp; notes</h3>
         <p>Attribuer des devoirs et des notes à vos élèves.</p>
+        ${bulleApercuHtml('Devoirs à venir', apercuDevoirsEns)}
       </a>` : `<div class="carte-action-tb a-venir">
         <div class="icone-action-tb">📊</div>
         <h3>Devoirs &amp; notes</h3>
         <p>Disponible dès qu'un élève vous suit ou qu'une classe vous est accordée.</p>
       </div>`}
-      ${aAccesClasse ? `<a href="../navigation.html" class="carte-action-tb disponible" style="text-decoration:none;color:inherit;display:block">
+      ${aAccesClasse ? `<a href="../navigation.html" class="carte-action-tb disponible carte-apercu-hover" style="text-decoration:none;color:inherit;display:block">
         <div class="icone-action-tb">📚</div>
         <h3>Contenu pédagogique</h3>
         <p>Consulter les séances de vos classes.</p>
+        ${bulleApercuHtml('Vos classes', apercuClassesEns)}
       </a>` : `<div class="carte-action-tb a-venir">
         <div class="icone-action-tb">📚</div>
         <h3>Contenu pédagogique</h3>
         <p>Disponible dès qu'une classe vous est accordée.</p>
       </div>`}
-      ${acceptes.length > 0 ? `<a href="messagerie.html" class="carte-action-tb disponible" style="text-decoration:none;color:inherit;display:block">
+      ${acceptes.length > 0 ? `<a href="messagerie.html" class="carte-action-tb disponible carte-apercu-hover" style="text-decoration:none;color:inherit;display:block">
         <div class="icone-action-tb">💬</div>
         <h3>Messagerie parent</h3>
         <p>Échanger avec les parents de vos élèves suivis.</p>
+        ${bulleApercuHtml('Élèves suivis', apercuElevesSuivisEns, echapperEns)}
       </a>` : `<div class="carte-action-tb a-venir">
         <div class="icone-action-tb">💬</div>
         <h3>Messagerie parent</h3>
