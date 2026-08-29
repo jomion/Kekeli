@@ -17,9 +17,11 @@ async function init() {
   profilAdminEC = await requireAdmin();
   if (!profilAdminEC) return;
 
-  document.getElementById('zoneDroite').insertAdjacentHTML('afterbegin', `
-    <span class="badge-utilisateur">${profilAdminEC.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${echapperEC(profilAdminEC.prenom)}</span>
-  `);
+  await initEnteteNavigation({
+    role: 'admin', utilisateurId: profilAdminEC.id,
+    badgeHtml: `${profilAdminEC.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${echapperEC(profilAdminEC.prenom)}`,
+    liens: liensAvecPrefixe('admin', '', { superAdmin: profilAdminEC.est_super_admin })
+  });
 
   await rendrePage();
 }

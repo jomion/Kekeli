@@ -22,6 +22,10 @@ const LIBELLES_MEDAILLE_DEVOIR = { bronze: '🥉 Bronze', argent: '🥈 Argent',
 (async function () {
   profilEleveDevoir = await requireRole('eleve');
   if (!profilEleveDevoir) return;
+  await initEnteteNavigation({
+    role: 'eleve', utilisateurId: profilEleveDevoir.id, badgeHtml: `🟢 ${echapper(profilEleveDevoir.prenom)}`,
+    liens: liensAvecPrefixe('eleve', '')
+  });
   await chargerDevoir();
 })();
 

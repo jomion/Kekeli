@@ -7,7 +7,10 @@ let conversationOuverte = null; // id de l'abonnement actuellement affiché
   profilParentMsg = await requireRole('parent');
   if (!profilParentMsg) return;
 
-  initClocheNotifications('zoneCloche', profilParentMsg.id);
+  await initEnteteNavigation({
+    role: 'parent', utilisateurId: profilParentMsg.id, badgeHtml: `🟢 ${echapperMsgParent(profilParentMsg.prenom)}`,
+    liens: liensAvecPrefixe('parent', '')
+  });
 
   const params = new URLSearchParams(window.location.search);
   conversationOuverte = params.get('abonnement') ? parseInt(params.get('abonnement'), 10) : null;

@@ -31,9 +31,11 @@ async function init() {
   profilAdminAbo = await requireAdmin();
   if (!profilAdminAbo) return;
 
-  document.getElementById('zoneDroite').insertAdjacentHTML('afterbegin', `
-    <span class="badge-utilisateur">${profilAdminAbo.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${echapperAbo(profilAdminAbo.prenom)}</span>
-  `);
+  await initEnteteNavigation({
+    role: 'admin', utilisateurId: profilAdminAbo.id,
+    badgeHtml: `${profilAdminAbo.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${echapperAbo(profilAdminAbo.prenom)}`,
+    liens: liensAvecPrefixe('admin', '', { superAdmin: profilAdminAbo.est_super_admin })
+  });
 
   const [{ data: plans }, { data: essais }, { data: classes }, { data: parents }] = await Promise.all([
     supabaseClient.from('plans_tarifaires').select('*').order('cree_le'),

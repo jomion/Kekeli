@@ -15,6 +15,10 @@ const LIBELLES_MOYEN_PAIEMENT_PARENT = {
 (async function () {
   profilParentPaiements = await requireRole('parent');
   if (!profilParentPaiements) return;
+  await initEnteteNavigation({
+    role: 'parent', utilisateurId: profilParentPaiements.id, badgeHtml: `🟢 ${echapperParentPaiements(profilParentPaiements.prenom)}`,
+    liens: liensAvecPrefixe('parent', '')
+  });
 
   const { data: liens } = await supabaseClient.from('parent_eleve').select('eleve_id').eq('parent_id', profilParentPaiements.id);
   const ids = (liens || []).map(l => l.eleve_id);

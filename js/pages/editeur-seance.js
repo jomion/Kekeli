@@ -29,10 +29,12 @@ async function init() {
   profilAdmin = await requireAdmin();
   if (!profilAdmin) return;
 
-  document.getElementById('zoneDroite').innerHTML = `
-    <span class="badge-utilisateur">${profilAdmin.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${profilAdmin.prenom}</span>
-    <button class="btn btn-discret" onclick="deconnecterAdmin()">Déconnexion</button>
-  `;
+  await initEnteteNavigation({
+    role: 'admin', utilisateurId: profilAdmin.id,
+    badgeHtml: `${profilAdmin.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${echapper(profilAdmin.prenom)}`,
+    liens: liensAvecPrefixe('admin', 'admin/', { superAdmin: profilAdmin.est_super_admin }),
+    avecCloche: false
+  });
 
   if (!idSeance) { contenu.innerHTML = '<p class="message-erreur">Aucune séance spécifiée.</p>'; return; }
 
@@ -42,8 +44,8 @@ async function init() {
   // Le retour "Navigation" ramène directement au parent immédiat (la SA),
   // pas à la racine — on ne peut construire ce lien qu'une fois le contexte chargé.
   const urlRetourSA = urlNavigationVersSA();
-  document.getElementById('zoneDroite').insertAdjacentHTML('afterbegin',
-    `<a href="${urlRetourSA}" class="btn btn-discret">← Retour à la SA</a>`);
+  const zoneLiensEntete = document.querySelector('.entete-kekeli-liens');
+  if (zoneLiensEntete) zoneLiensEntete.insertAdjacentHTML('afterbegin', `<a href="${urlRetourSA}">← Retour à la SA</a>`);
 
   peutEditer = await appelerPermission('peut_editer_perimetre');
   peutValider = await appelerPermission('peut_valider_perimetre');

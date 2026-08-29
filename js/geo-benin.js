@@ -30,7 +30,7 @@ const COMMUNES_PAR_DEPARTEMENT = {
 
 const DEPARTEMENTS_BENIN = Object.keys(COMMUNES_PAR_DEPARTEMENT);
 
-const ZONES_PEDAGOGIQUES = Array.from({ length: 10 }, (_, i) => `Zone ${i + 1}`);
+const ZONES_PEDAGOGIQUES = Array.from({ length: 5 }, (_, i) => `Zone ${i + 1}`);
 
 // Arrondissements par commune (clé = nom de commune, unique au niveau
 // national — voir vérification dans le commentaire d'en-tête).

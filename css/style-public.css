@@ -109,19 +109,38 @@ nav.nav-publique a:hover { color: var(--accent-cyan); }
 
 /* ===== Cartes de connexion / inscription ===== */
 .page-auth { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; background: linear-gradient(135deg, var(--noir-kekeli) 0%, var(--bleu-kekeli) 100%); }
-.carte-auth { background: white; padding: 34px; border-radius: 14px; box-shadow: 0 12px 30px rgba(0,0,0,0.3); width: 100%; max-width: 400px; border-top: 6px solid var(--accent-cyan); }
+.carte-auth {
+  background: white; padding: 34px; border-radius: 14px; box-shadow: 0 12px 30px rgba(0,0,0,0.3); width: 100%; max-width: 400px;
+  border-top: 6px solid var(--accent-cyan); animation: apparitionCarteAuth .35s ease both;
+}
+/* Variante plus large pour l'inscription : beaucoup plus de champs qu'à la
+   connexion — les regrouper par paires (voir .rangee-champs-auth) sur une
+   carte plus large évite l'interminable colonne unique d'origine. */
+.carte-auth.carte-auth-large { max-width: 660px; }
+@keyframes apparitionCarteAuth { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .carte-auth .logo { color: var(--noir-kekeli); justify-content: center; margin-bottom: 4px; }
 .carte-auth .sous-titre { text-align: center; font-size: 13px; color: var(--text-gris); margin-bottom: 24px; }
 .champ-auth { margin-bottom: 16px; text-align: left; }
 .champ-auth label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
-.champ-auth input, .champ-auth select { width: 100%; padding: 11px; border: 2px solid var(--bordure); border-radius: 8px; font-size: 14px; font-family: inherit; }
-.champ-auth input:focus, .champ-auth select:focus { outline: none; border-color: var(--bleu-kekeli); }
-.btn-auth-principal { width: 100%; padding: 13px; background: var(--bleu-kekeli); color: white; border: none; border-radius: 8px; font-weight: 800; font-size: 15px; cursor: pointer; }
+.champ-auth input, .champ-auth select { width: 100%; padding: 11px; border: 2px solid var(--bordure); border-radius: 8px; font-size: 14px; font-family: inherit; transition: border-color .15s, box-shadow .15s; }
+.champ-auth input:focus, .champ-auth select:focus { outline: none; border-color: var(--bleu-kekeli); box-shadow: 0 0 0 3px rgba(0,0,209,0.1); }
+/* Regroupe deux (ou trois) champs sur une même rangée sur les écrans assez
+   larges, pour une saisie plus fluide et moins verticale — repasse à une
+   colonne sur mobile (voir la media query plus bas). */
+.rangee-champs-auth { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 0 16px; }
+.btn-auth-principal {
+  width: 100%; padding: 13px; background: var(--bleu-kekeli); color: white; border: none; border-radius: 8px;
+  font-weight: 800; font-size: 15px; cursor: pointer; transition: background .15s, transform .1s;
+}
 .btn-auth-principal:hover { background: var(--bleu-kekeli-fonce); }
-.btn-auth-principal:disabled { opacity: .6; cursor: default; }
+.btn-auth-principal:active { transform: scale(.98); }
+.btn-auth-principal:disabled { opacity: .6; cursor: default; transform: none; }
 .lien-auth-secondaire { text-align: center; margin-top: 18px; font-size: 13px; color: var(--text-gris); }
 .lien-auth-secondaire a { color: var(--bleu-kekeli); font-weight: 700; }
 .message-erreur-auth { color: var(--rouge); font-size: 13px; margin-bottom: 10px; text-align: center; }
+@media (max-width: 560px) {
+  .rangee-champs-auth { grid-template-columns: 1fr; }
+}
 
 /* ===== Tableaux de bord (parent / enseignant / élève) ===== */
 .entete-tableau-bord {
@@ -130,6 +149,52 @@ nav.nav-publique a:hover { color: var(--accent-cyan); }
 }
 .badge-utilisateur-public { background: rgba(255,255,255,0.12); color: white; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
 .btn-deconnexion-public { background: none; border: 1px solid rgba(255,255,255,0.4); color: #E2E8F0; padding: 6px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; }
+
+/* ===== En-tête fixe partagé (js/entete-navigation.js) — thème sombre ===== */
+header.entete-kekeli {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 500;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 24px; background: var(--noir-kekeli); border-bottom: 4px solid var(--bleu-kekeli);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+body.avec-entete-fixe { padding-top: 68px; }
+.entete-kekeli-logo { display: flex; align-items: center; gap: 8px; font-size: 19px; font-weight: 800; color: white; }
+.entete-kekeli-logo img { height: 30px; width: auto; }
+.entete-kekeli-hamburger { display: none; flex-direction: column; justify-content: center; align-items: center; gap: 4px; width: 34px; height: 34px; background: none; border: none; cursor: pointer; flex-shrink: 0; }
+.entete-kekeli-hamburger span { display: block; width: 20px; height: 2.5px; border-radius: 2px; background: white; transition: transform .2s ease, opacity .2s ease; }
+.entete-kekeli-hamburger[aria-expanded="true"] span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+.entete-kekeli-hamburger[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+.entete-kekeli-hamburger[aria-expanded="true"] span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+.entete-kekeli-zone { display: flex; align-items: center; gap: 22px; }
+.entete-kekeli-liens { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.entete-kekeli-liens a { padding: 8px 13px; border-radius: 20px; font-size: 13.5px; font-weight: 700; color: #E2E8F0; transition: background .15s, color .15s; white-space: nowrap; }
+.entete-kekeli-liens a:hover { background: rgba(255,255,255,0.12); color: var(--accent-cyan); }
+.entete-kekeli-actions { display: flex; align-items: center; gap: 10px; }
+.entete-kekeli-badge { background: rgba(255,255,255,0.12); color: white; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.entete-kekeli-icone-btn { background: none; border: 1px solid rgba(255,255,255,0.35); color: #E2E8F0; width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; cursor: pointer; transition: background .15s, border-color .15s, color .15s; text-decoration: none; }
+.entete-kekeli-icone-btn:hover { background: rgba(255,255,255,0.15); border-color: var(--accent-cyan); color: var(--accent-cyan); }
+.entete-kekeli-overlay { display: none; }
+
+@media (max-width: 860px) {
+  .entete-kekeli-hamburger { display: flex; }
+  .entete-kekeli-zone {
+    position: fixed; top: 0; right: 0; height: 100vh; width: min(78vw, 320px);
+    background: var(--noir-kekeli); flex-direction: column; align-items: stretch; justify-content: flex-start;
+    padding: 78px 22px 22px; gap: 18px; box-shadow: -10px 0 30px rgba(0,0,0,0.4); overflow-y: auto;
+    transform: translateX(100%); transition: transform .28s cubic-bezier(.22,.9,.35,1); z-index: 600;
+  }
+  .entete-kekeli-zone.ouvert { transform: translateX(0); }
+  .entete-kekeli-liens { flex-direction: column; align-items: stretch; gap: 4px; }
+  .entete-kekeli-liens a { padding: 12px 14px; border-radius: 10px; }
+  .entete-kekeli-actions { flex-direction: column; align-items: stretch; gap: 10px; }
+  .entete-kekeli-badge { text-align: center; }
+  .entete-kekeli-overlay {
+    display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 550;
+  }
+  .entete-kekeli-overlay.visible { opacity: 1; pointer-events: auto; }
+}
+
 .conteneur-tableau-bord { max-width: 900px; margin: 40px auto; padding: 0 20px; }
 .carte-bienvenue { background: white; border-radius: 14px; padding: 32px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-top: 6px solid var(--accent-cyan); margin-bottom: 26px; }
 .carte-bienvenue h1 { color: var(--noir-kekeli); font-size: 24px; margin: 0 0 8px; }
@@ -296,6 +361,9 @@ nav.nav-publique a:hover { color: var(--accent-cyan); }
    de la séance apparaît désormais ; le grand titre en double a été retiré,
    remplacé par la discipline mise en avant ci-dessous. */
 .miniature-arborescence-eleve { font-size: 12px; color: var(--text-gris); line-height: 1.5; }
+.miniature-arborescence-eleve a { color: var(--bleu-kekeli); text-decoration: none; font-weight: 700; }
+.miniature-arborescence-eleve a:hover { text-decoration: underline; }
+.miniature-arborescence-eleve .sep-arbo-eleve { color: var(--text-gris); }
 .badge-discipline-seance { display: inline-block; font-size: 17px; font-weight: 800; padding: 5px 14px; border-radius: 20px; margin-top: 8px; background: #F1F5F9; color: var(--bleu-kekeli); }
 .badge-palier-seance { display: inline-block; font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 20px; margin-top: 6px; }
 .badge-palier-azovi { background: #E8F8EF; color: #22A559; }

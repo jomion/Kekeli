@@ -17,13 +17,11 @@ async function init() {
   profilAdminTB = await requireAdmin();
   if (!profilAdminTB) return;
 
-  document.getElementById('zoneDroite').innerHTML = `
-    <div id="zoneCloche"></div>
-    <span class="badge-utilisateur">${profilAdminTB.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${echapperTB(profilAdminTB.prenom)}</span>
-    <button class="btn btn-discret" id="btnDeconnexionTB">Déconnexion</button>
-  `;
-  document.getElementById('btnDeconnexionTB').addEventListener('click', deconnecterAdmin);
-  initClocheNotifications('zoneCloche', profilAdminTB.id);
+  await initEnteteNavigation({
+    role: 'admin', utilisateurId: profilAdminTB.id,
+    badgeHtml: `${profilAdminTB.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${echapperTB(profilAdminTB.prenom)}`,
+    liens: liensAvecPrefixe('admin', '', { superAdmin: profilAdminTB.est_super_admin })
+  });
 
   const [
     { data: classes }, { data: champs }, { data: noeuds }, { data: sa }, { data: seances },
@@ -162,6 +160,11 @@ function afficherActions() {
       <div class="icone-action-tb">🛡️</div>
       <h3>Gestion des administrateurs</h3>
       <p>Ajouter un administrateur et définir ses droits d'édition.</p>
+    </a>` : '',
+    estSuperAdmin ? `<a href="roles.html" class="carte-action-tb disponible">
+      <div class="icone-action-tb">🎛️</div>
+      <h3>Rôles administrateurs</h3>
+      <p>Créer des rôles personnalisés (ex. Correcteur d'activités) et les assigner.</p>
     </a>` : ''
   ].filter(Boolean).join('');
 }

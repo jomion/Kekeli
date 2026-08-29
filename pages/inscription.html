@@ -8,7 +8,7 @@
 </head>
 <body>
   <div class="page-auth">
-    <div class="carte-auth">
+    <div class="carte-auth carte-auth-large">
       <div class="logo"><img src="../assets/logo/logo.png" alt="KEKELI"> KEKELI</div>
       <div class="sous-titre">Créez votre compte</div>
 
@@ -33,54 +33,69 @@
           </select>
         </div>
 
-        <div class="champ-auth">
-          <label>Prénom</label>
-          <input type="text" id="prenom" required>
+        <div class="rangee-champs-auth">
+          <div class="champ-auth">
+            <label>Prénom</label>
+            <input type="text" id="prenom" required>
+          </div>
+          <div class="champ-auth">
+            <label>Nom</label>
+            <input type="text" id="nom" required>
+          </div>
         </div>
-        <div class="champ-auth">
-          <label>Nom</label>
-          <input type="text" id="nom" required>
-        </div>
+
         <div class="champ-auth">
           <label>E-mail</label>
           <input type="email" id="email" placeholder="nom@exemple.com" required>
         </div>
-        <div class="champ-auth">
-          <label>Mot de passe</label>
-          <input type="password" id="motDePasse" minlength="6" placeholder="•••••••• (6 caractères min.)" required>
-        </div>
-        <div class="champ-auth">
-          <label>Confirmer le mot de passe</label>
-          <input type="password" id="motDePasseConfirmation" minlength="6" placeholder="••••••••" required>
+
+        <div class="rangee-champs-auth">
+          <div class="champ-auth">
+            <label>Mot de passe</label>
+            <input type="password" id="motDePasse" minlength="6" placeholder="•••••••• (6 caractères min.)" required>
+          </div>
+          <div class="champ-auth">
+            <label>Confirmer le mot de passe</label>
+            <input type="password" id="motDePasseConfirmation" minlength="6" placeholder="••••••••" required>
+          </div>
         </div>
 
         <!-- Localisation : les champs affichés dépendent du rôle (et, pour
              l'Autorité Pédagogique, de la fonction) — voir majChampsLocalisation()
              plus bas. Département, Commune, Arrondissement et Circonscription
-             Scolaire sont des listes déroulantes en cascade (js/geo-benin.js). -->
-        <div class="champ-auth" id="champDepartement">
-          <label>Département</label>
-          <select id="departement"></select>
+             Scolaire sont des listes déroulantes en cascade (js/geo-benin.js).
+             Regroupés par deux (rangee-champs-auth) pour une saisie moins
+             verticale — chaque bloc peut être masqué indépendamment par
+             majChampsLocalisation() sans casser la mise en page de l'autre. -->
+        <div class="rangee-champs-auth">
+          <div class="champ-auth" id="champDepartement">
+            <label>Département</label>
+            <select id="departement"></select>
+          </div>
+          <div class="champ-auth" id="champCommune">
+            <label>Commune</label>
+            <select id="commune"></select>
+          </div>
         </div>
-        <div class="champ-auth" id="champCommune">
-          <label>Commune</label>
-          <select id="commune"></select>
+        <div class="rangee-champs-auth">
+          <div class="champ-auth" id="champArrondissement">
+            <label>Arrondissement</label>
+            <select id="arrondissement"></select>
+          </div>
+          <div class="champ-auth" id="champCirconscription">
+            <label>Circonscription Scolaire</label>
+            <select id="circonscriptionScolaire"></select>
+          </div>
         </div>
-        <div class="champ-auth" id="champArrondissement">
-          <label>Arrondissement</label>
-          <select id="arrondissement"></select>
-        </div>
-        <div class="champ-auth" id="champCirconscription">
-          <label>Circonscription Scolaire</label>
-          <select id="circonscriptionScolaire"></select>
-        </div>
-        <div class="champ-auth" id="champZone">
-          <label>Zone Pédagogique</label>
-          <select id="zonePedagogique"></select>
-        </div>
-        <div class="champ-auth" id="champEcole">
-          <label>École</label>
-          <input type="text" id="ecole">
+        <div class="rangee-champs-auth">
+          <div class="champ-auth" id="champZone">
+            <label>Zone Pédagogique</label>
+            <select id="zonePedagogique"></select>
+          </div>
+          <div class="champ-auth" id="champEcole">
+            <label>École</label>
+            <input type="text" id="ecole">
+          </div>
         </div>
         <div class="champ-auth" id="champClasse" style="display:none">
           <label>Classe</label>

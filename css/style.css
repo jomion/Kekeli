@@ -78,6 +78,52 @@ a { text-decoration: none; color: inherit; }
 .badge-utilisateur { background: var(--bleu-clair); color: var(--bleu-principal); padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
 .btn-deconnexion { background: none; border: 1px solid var(--bordure); color: var(--texte-gris); padding: 6px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; }
 
+/* ===== En-tête fixe + navigation partagés (js/entete-navigation.js) =====
+   S'applique à tout <header> une fois réécrit par initEnteteNavigation() :
+   remplace l'ancien header sticky ci-dessus sur les pages qui l'utilisent. */
+header.entete-kekeli {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 500;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 24px; background: var(--blanc); box-shadow: 0 2px 14px rgba(0,0,0,0.08);
+}
+body.avec-entete-fixe { padding-top: 68px; }
+.entete-kekeli-logo { display: flex; align-items: center; gap: 8px; font-size: 19px; font-weight: 800; color: var(--bleu-principal); }
+.entete-kekeli-logo img { height: 30px; width: auto; }
+.entete-kekeli-hamburger { display: none; flex-direction: column; justify-content: center; align-items: center; gap: 4px; width: 34px; height: 34px; background: none; border: none; cursor: pointer; flex-shrink: 0; }
+.entete-kekeli-hamburger span { display: block; width: 20px; height: 2.5px; border-radius: 2px; background: var(--bleu-principal); transition: transform .2s ease, opacity .2s ease; }
+.entete-kekeli-hamburger[aria-expanded="true"] span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+.entete-kekeli-hamburger[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+.entete-kekeli-hamburger[aria-expanded="true"] span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+.entete-kekeli-zone { display: flex; align-items: center; gap: 22px; }
+.entete-kekeli-liens { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.entete-kekeli-liens a { padding: 8px 13px; border-radius: 20px; font-size: 13.5px; font-weight: 700; color: var(--texte-gris); transition: background .15s, color .15s; white-space: nowrap; }
+.entete-kekeli-liens a:hover { background: var(--bleu-clair); color: var(--bleu-principal); }
+.entete-kekeli-actions { display: flex; align-items: center; gap: 10px; }
+.entete-kekeli-badge { background: var(--bleu-clair); color: var(--bleu-principal); padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.entete-kekeli-icone-btn { background: none; border: 1px solid var(--bordure); color: var(--texte-gris); width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; cursor: pointer; transition: background .15s, border-color .15s, color .15s; text-decoration: none; }
+.entete-kekeli-icone-btn:hover { background: var(--bleu-clair); border-color: var(--bleu-principal); color: var(--bleu-principal); }
+.entete-kekeli-overlay { display: none; }
+
+@media (max-width: 860px) {
+  .entete-kekeli-hamburger { display: flex; }
+  .entete-kekeli-zone {
+    position: fixed; top: 0; right: 0; height: 100vh; width: min(78vw, 320px);
+    background: var(--blanc); flex-direction: column; align-items: stretch; justify-content: flex-start;
+    padding: 78px 22px 22px; gap: 18px; box-shadow: -10px 0 30px rgba(0,0,0,0.18); overflow-y: auto;
+    transform: translateX(100%); transition: transform .28s cubic-bezier(.22,.9,.35,1); z-index: 600;
+  }
+  .entete-kekeli-zone.ouvert { transform: translateX(0); }
+  .entete-kekeli-liens { flex-direction: column; align-items: stretch; gap: 4px; }
+  .entete-kekeli-liens a { padding: 12px 14px; border-radius: 10px; }
+  .entete-kekeli-actions { flex-direction: column; align-items: stretch; gap: 10px; }
+  .entete-kekeli-badge { text-align: center; }
+  .entete-kekeli-overlay {
+    display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+    opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 550;
+  }
+  .entete-kekeli-overlay.visible { opacity: 1; pointer-events: auto; }
+}
+
 /* ===== Page d'accueil publique ===== */
 .hero {
   text-align: center; padding: 70px 20px 60px;
@@ -310,9 +356,27 @@ a { text-decoration: none; color: inherit; }
   display: flex;
   flex-direction: column;
   cursor: pointer;
-  transition: border-color .2s, transform .2s;
+  transition: border-color .2s, transform .2s, box-shadow .2s;
+  position: relative;
 }
-.carte-champ:hover { border-left-color: var(--accent); transform: translateY(-2px); }
+.carte-champ:hover { border-left-color: var(--accent); transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,51,102,0.14); z-index: 5; }
+
+/* Bulle au survol : montre "ses fils" (thèmes/unités/dossiers, ou SA pour un
+   champ à un seul niveau) sans avoir à cliquer sur "Accéder". Cachée par
+   défaut, apparaît avec un léger fondu+glissement au survol de la carte. */
+.survol-enfants-champ {
+  position: absolute; left: 12px; right: 12px; top: calc(100% - 8px);
+  background: var(--bleu-fonce); color: white; border-radius: 10px; padding: 12px 14px;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.28);
+  opacity: 0; visibility: hidden; transform: translateY(-6px);
+  transition: opacity .16s ease, transform .16s ease;
+  pointer-events: none; z-index: 20;
+}
+.carte-champ:hover .survol-enfants-champ { opacity: 1; visibility: visible; transform: translateY(0); }
+.survol-enfants-titre { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--accent); margin-bottom: 6px; }
+.survol-enfants-champ ul { list-style: none; margin: 0; padding: 0; max-height: 168px; overflow: hidden; }
+.survol-enfants-champ li { font-size: 13px; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.survol-enfants-champ li:last-child { border-bottom: none; }
 .entete-carte-champ { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
 .icone-champ {
   flex-shrink: 0; width: 48px; height: 48px; border-radius: 8px;

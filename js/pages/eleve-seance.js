@@ -35,7 +35,10 @@ const LIBELLES_MEDAILLE = { bronze: '🥉 Bronze', argent: '🥈 Argent', or: '�
 (async function () {
   profilEleveSeance = await requireRole('eleve');
   if (!profilEleveSeance) return;
-  initClocheNotifications('zoneCloche', profilEleveSeance.id);
+  await initEnteteNavigation({
+    role: 'eleve', utilisateurId: profilEleveSeance.id, badgeHtml: `🟢 ${echapper(profilEleveSeance.prenom)}`,
+    liens: liensAvecPrefixe('eleve', '')
+  });
   await charger();
 })();
 
@@ -43,13 +46,15 @@ const LIBELLES_MEDAILLE = { bronze: '🥉 Bronze', argent: '🥈 Argent', or: '�
 // séance) jusqu'à la racine, pour afficher l'arborescence complète dans le
 // fil d'ariane (miniature) — quelle que soit la profondeur réelle de la
 // matière (ex: Thème > Unité > Semaine pour le français, juste Dossier pour
-// les maths). Retourne les titres dans l'ordre racine → feuille.
+// les maths). Retourne [{id, titre}] dans l'ordre racine → feuille (chaque
+// niveau garde son id pour permettre de cliquer dessus — voir rendre() —
+// et sauter directement à ce niveau sur pages/eleve/matiere.html).
 async function remonterCheminNoeudsEleve(noeudDepart) {
   const chemin = [];
   let n = noeudDepart;
   let garde = 0; // filet de sécurité si une chaîne de parent_id bouclait par erreur
   while (n && garde++ < 20) {
-    chemin.unshift(n.titre);
+    chemin.unshift({ id: n.id, titre: n.titre });
     if (!n.parent_id) break;
     const { data: parent } = await supabaseClient.from('noeuds_parcours').select('id, parent_id, titre').eq('id', n.parent_id).single();
     n = parent;
@@ -76,11 +81,13 @@ async function charger() {
   const noeud = seance.sa?.noeuds_parcours;
   cheminSeance = {
     classeNom: noeud?.classes?.nom || '',
+    champId: noeud?.champ_formation_id || null,
     champNom: noeud?.champs_formation?.nom || '',
     // Arborescence complète (Thème/Unité/Semaine/Dossier...) remontée depuis
     // le noeud immédiat de la SA jusqu'à la racine — quel que soit le nombre
     // de niveaux, pour un fil d'ariane fidèle même quand la structure change
     // d'une matière à l'autre (voir remonterCheminNoeudsEleve ci-dessous).
+    // Le dernier élément est le noeud qui porte directement la SA.
     cheminNoeuds: await remonterCheminNoeudsEleve(noeud),
     saTitre: seance.sa?.titre || ''
   };
@@ -148,11 +155,27 @@ function rendre() {
   // Arborescence complète dans la miniature (fil d'ariane) — le titre de la
   // séance n'apparaît plus qu'ici, plus dans un grand titre dupliqué juste
   // en dessous (voir entete-seance-eleve : c'est maintenant la discipline
-  // qui tient ce rôle, mise en avant).
-  const filAriane = [
-    cheminSeance.classeNom, cheminSeance.champNom, ...(cheminSeance.cheminNoeuds || []),
-    cheminSeance.saTitre, seanceCourante.titre
-  ].filter(Boolean).join(' › ');
+  // qui tient ce rôle, mise en avant). Chaque niveau (sauf le dernier, la
+  // séance actuelle) est cliquable et ramène directement à ce niveau sur
+  // pages/eleve/matiere.html — voir js/pages/eleve-matiere.js.
+  const dernierNoeud = (cheminSeance.cheminNoeuds || [])[(cheminSeance.cheminNoeuds || []).length - 1];
+  const segmentsArbo = [];
+  if (cheminSeance.classeNom) segmentsArbo.push({ label: cheminSeance.classeNom });
+  if (cheminSeance.champNom) segmentsArbo.push({ label: cheminSeance.champNom, href: cheminSeance.champId ? `matiere.html?champId=${cheminSeance.champId}` : null });
+  (cheminSeance.cheminNoeuds || []).forEach(n => segmentsArbo.push({
+    label: n.titre, href: cheminSeance.champId ? `matiere.html?champId=${cheminSeance.champId}&noeudId=${n.id}` : null
+  }));
+  if (cheminSeance.saTitre) segmentsArbo.push({
+    label: cheminSeance.saTitre,
+    href: (cheminSeance.champId && dernierNoeud && seanceCourante.sa_id) ? `matiere.html?champId=${cheminSeance.champId}&noeudId=${dernierNoeud.id}&saId=${seanceCourante.sa_id}` : null
+  });
+  segmentsArbo.push({ label: seanceCourante.titre }); // niveau actuel — pas de lien
+
+  const filAriane = segmentsArbo.map((s, i) => {
+    const dernier = i === segmentsArbo.length - 1;
+    const texte = echapper(s.label);
+    return (s.href && !dernier) ? `<a href="${s.href}">${texte}</a>` : `<span>${texte}</span>`;
+  }).join(' <span class="sep-arbo-eleve">›</span> ');
 
   const boutonMarquerTermine = (blocsTravail.length === 0 && !aDesPaliers)
     ? (seanceDejaTerminee
@@ -171,7 +194,7 @@ function rendre() {
   document.getElementById('contenu').innerHTML = `
     <div class="fil-ariane-eleve"><a href="matiere.html">← Retour à mes matières</a></div>
     <div class="entete-seance-eleve">
-      ${filAriane ? `<p style="margin:0" class="miniature-arborescence-eleve">${echapper(filAriane)}</p>` : ''}
+      <p style="margin:0" class="miniature-arborescence-eleve">${filAriane}</p>
       ${seanceCourante.discipline ? `<span class="badge-discipline-seance">${echapper(seanceCourante.discipline)}</span>` : ''}
     </div>
 

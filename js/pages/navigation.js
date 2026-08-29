@@ -16,22 +16,23 @@ const filAriane = document.getElementById('filAriane');
 
 async function initEntete() {
   const { data: { session } } = await supabaseClient.auth.getSession();
-  if (!session) return;
+  if (!session) {
+    await initEnteteNavigation({
+      role: 'invite', avecCloche: false,
+      liens: [{ id: 'connexion-admin', href: 'admin/connexion.html', icone: '🔑', label: 'Connexion admin', essentiel: true }]
+    });
+    return;
+  }
   etat.userId = session.user.id;
 
   const profil = await chargerProfilAdmin(session.user.id);
   if (profil) {
     etat.profilAdmin = profil;
-    document.getElementById('zoneDroite').innerHTML = `
-      <div id="zoneCloche"></div>
-      <span class="badge-utilisateur">${profil.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${profil.prenom}</span>
-      <a href="admin/tableau-de-bord.html" class="btn btn-discret">🏠 Tableau de bord</a>
-      <a href="admin/devoirs-notes.html" class="btn btn-discret">📊 Devoirs &amp; notes</a>
-      <a href="admin/messagerie.html" class="btn btn-discret">💬 Messagerie</a>
-      <button class="btn btn-discret" id="btnDeconnexion">Déconnexion</button>
-    `;
-    document.getElementById('btnDeconnexion').addEventListener('click', deconnecterAdmin);
-    initClocheNotifications('zoneCloche', profil.id);
+    await initEnteteNavigation({
+      role: 'admin', utilisateurId: profil.id,
+      badgeHtml: `${profil.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${echapper(profil.prenom)}`,
+      liens: liensAvecPrefixe('admin', 'admin/', { superAdmin: profil.est_super_admin })
+    });
     return;
   }
 
@@ -42,19 +43,15 @@ async function initEntete() {
   if (profilGenerique?.role === 'enseignant') {
     const { data: enseignant } = await supabaseClient.from('enseignants').select('*').eq('id', session.user.id).single();
     etat.profilEnseignant = { ...profilGenerique, ...enseignant };
-    document.getElementById('zoneDroite').innerHTML = `
-      <div id="zoneCloche"></div>
-      <span class="badge-utilisateur">🧑‍🏫 Enseignant : ${echapper(profilGenerique.prenom)}</span>
-      <a href="enseignant/tableau-de-bord.html" class="btn btn-discret">🏠 Tableau de bord</a>
-      <a href="enseignant/activites.html" class="btn btn-discret">📝 Activités à corriger</a>
-      <a href="enseignant/devoirs-notes.html" class="btn btn-discret">📊 Devoirs &amp; notes</a>
-      <button class="btn btn-discret" id="btnDeconnexion">Déconnexion</button>
-    `;
-    document.getElementById('btnDeconnexion').addEventListener('click', deconnecterUtilisateur);
-    initClocheNotifications('zoneCloche', profilGenerique.id);
+    await initEnteteNavigation({
+      role: 'enseignant', utilisateurId: profilGenerique.id,
+      badgeHtml: `🧑‍🏫 Enseignant : ${echapper(profilGenerique.prenom)}`,
+      liens: liensAvecPrefixe('enseignant', 'enseignant/')
+    });
     return;
   }
   if (profilGenerique?.role === 'eleve') etat.estEleve = true;
+  await initEnteteNavigation({ role: 'invite', avecCloche: false, liens: [] });
 }
 
 // --- FIL D'ARIANE ------------------------------------------------------
@@ -226,8 +223,12 @@ async function afficherChamps() {
   // Nombre d'"unités" par champ : niveau unite/dossier si présent,
   // sinon nombre de SA rattachées directement (champs à un seul niveau).
   const comptes = await Promise.all(champs.map(c => compterUnitesChamp(c)));
-  const droitsEdition = (etat.profilAdmin || etat.profilEnseignant)
-    ? await Promise.all(champs.map(c => supabaseClient.rpc('peut_gerer_classe_champ', { p_id: etat.userId, p_classe_id: etat.classe.id, p_champ_id: c.id }).then(r => !!r.data)))
+  const apercusEnfants = await Promise.all(champs.map(c => recupererApercuEnfantsChamp(c)));
+  // L'édition de l'arborescence (bouton "✏️ Éditer" ci-dessous) est réservée
+  // aux administrateurs du périmètre — plus aux enseignants (voir migration
+  // "retire_edition_seance_et_correction_activites_aux_enseignants").
+  const droitsEdition = etat.profilAdmin
+    ? await Promise.all(champs.map(c => supabaseClient.rpc('peut_editer_perimetre', { p_id: etat.userId, p_classe_id: etat.classe.id, p_champ_id: c.id }).then(r => !!r.data)))
     : champs.map(() => false);
 
   contenu.innerHTML = `
@@ -243,6 +244,11 @@ async function afficherChamps() {
             <div class="titre-carte-champ">${echapper(c.nom)}</div>
           </div>
           <div class="description-carte-champ">${echapper(p.description)}</div>
+          ${apercusEnfants[i].length ? `
+          <div class="survol-enfants-champ">
+            <div class="survol-enfants-titre">Contenu de ${echapper(c.nom)}</div>
+            <ul>${apercusEnfants[i].map(t => `<li>${echapper(t)}</li>`).join('')}</ul>
+          </div>` : ''}
           <div class="pied-carte-champ">
             <span class="nb-unites-champ">${comptes[i]} Unité${comptes[i] > 1 ? 's' : ''}</span>
             <div style="display:flex;gap:6px">
@@ -267,6 +273,31 @@ async function afficherChamps() {
     await verifierPermissions();
     afficher();
   });
+}
+
+// Aperçu au survol : les tout premiers niveaux (racines) de ce champ, pour
+// que l'admin/enseignant voie "ses fils" sans avoir à cliquer sur "Accéder".
+// Plafonné à 6 éléments (avec un "+N autres" au besoin) pour rester lisible
+// dans une petite bulle.
+async function recupererApercuEnfantsChamp(champ) {
+  const { data: racines } = await supabaseClient
+    .from('noeuds_parcours').select('titre')
+    .eq('classe_id', etat.classe.id).eq('champ_formation_id', champ.id).is('parent_id', null)
+    .order('ordre').limit(7);
+  if (racines && racines.length) {
+    const titres = racines.slice(0, 6).map(r => r.titre);
+    if (racines.length > 6) titres.push(`+ ${racines.length - 6} autre(s)`);
+    return titres;
+  }
+  // Champ à un seul niveau (pas de sous-noeud) : on montre directement les SA.
+  const { data: sasDirectes } = await supabaseClient
+    .from('sa').select('titre, noeuds_parcours!inner(classe_id, champ_formation_id)')
+    .eq('noeuds_parcours.classe_id', etat.classe.id).eq('noeuds_parcours.champ_formation_id', champ.id)
+    .order('ordre').limit(7);
+  if (!sasDirectes || !sasDirectes.length) return [];
+  const titres = sasDirectes.slice(0, 6).map(s => s.titre);
+  if (sasDirectes.length > 6) titres.push(`+ ${sasDirectes.length - 6} autre(s)`);
+  return titres;
 }
 
 async function compterUnitesChamp(champ) {
@@ -297,14 +328,11 @@ async function verifierPermissions() {
     etat.peutValider = !!peutValider;
     return;
   }
-  if (etat.profilEnseignant) {
-    // Un enseignant gère son périmètre (suivi élève accepté ou classe
-    // assignée) : il peut éditer ET publier son propre contenu — pas de
-    // validation admin séparée pour l'instant.
-    const { data: peutGerer } = await supabaseClient.rpc('peut_gerer_classe_champ', { p_id: etat.userId, p_classe_id: etat.classe.id, p_champ_id: etat.champ.id });
-    etat.peutEditer = !!peutGerer;
-    etat.peutValider = !!peutGerer;
-  }
+  // L'enseignant ne peut plus éditer l'arborescence/les séances : ce droit
+  // est désormais réservé aux administrateurs (voir migration
+  // "retire_edition_seance_et_correction_activites_aux_enseignants"). Il
+  // garde en revanche la gestion de ses devoirs, qui passe par un autre
+  // écran (pages/*/devoirs-notes.html), pas par cette page.
 }
 
 // Structures hiérarchiques IMPOSÉES pour certains champs (clé = code du champ).
@@ -368,18 +396,26 @@ async function afficherNoeudsEtSA() {
 
   if (noeuds.length > 0) {
     html += `<div class="titre-cycle" style="margin-top:6px">Niveaux</div>
-      <div class="grille-cartes" id="grilleNoeuds">${noeuds.map(n => `
+      <div class="grille-cartes" id="grilleNoeuds">${noeuds.map((n, i) => `
         <div class="carte" data-id="${n.id}" style="position:relative">
-          ${etat.peutEditer ? `<button data-supprimer-noeud="${n.id}" title="Supprimer" style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;font-size:14px">🗑️</button>` : ''}
+          ${etat.peutEditer ? `<div style="position:absolute;top:8px;right:8px;display:flex;gap:2px">
+            ${i > 0 ? `<button data-monter-noeud="${n.id}" title="Monter" style="background:none;border:none;cursor:pointer;font-size:13px">⬆️</button>` : ''}
+            ${i < noeuds.length - 1 ? `<button data-descendre-noeud="${n.id}" title="Descendre" style="background:none;border:none;cursor:pointer;font-size:13px">⬇️</button>` : ''}
+            <button data-supprimer-noeud="${n.id}" title="Supprimer" style="background:none;border:none;cursor:pointer;font-size:14px">🗑️</button>
+          </div>` : ''}
           <div class="titre-carte">${echapper(n.titre)}</div><div class="sous-titre-carte">${etiquetteType(n.type_noeud)}${compteFilleulsNoeud[n.id] ? ` · ${compteFilleulsNoeud[n.id]} élément${compteFilleulsNoeud[n.id] > 1 ? 's' : ''}` : ''}</div>
         </div>`).join('')}</div>`;
   }
 
   if (sas.length > 0) {
     html += `<div class="titre-cycle">Situations d'Apprentissage</div>
-      <div class="grille-cartes" id="grilleSA">${sas.map(s => `
+      <div class="grille-cartes" id="grilleSA">${sas.map((s, i) => `
         <div class="carte" data-id="${s.id}" style="position:relative">
-          ${etat.peutEditer ? `<button data-supprimer-sa="${s.id}" title="Supprimer" style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;font-size:14px">🗑️</button>` : ''}
+          ${etat.peutEditer ? `<div style="position:absolute;top:8px;right:8px;display:flex;gap:2px">
+            ${i > 0 ? `<button data-monter-sa="${s.id}" title="Monter" style="background:none;border:none;cursor:pointer;font-size:13px">⬆️</button>` : ''}
+            ${i < sas.length - 1 ? `<button data-descendre-sa="${s.id}" title="Descendre" style="background:none;border:none;cursor:pointer;font-size:13px">⬇️</button>` : ''}
+            <button data-supprimer-sa="${s.id}" title="Supprimer" style="background:none;border:none;cursor:pointer;font-size:14px">🗑️</button>
+          </div>` : ''}
           <div class="titre-carte">${s.numero ? 'SA' + s.numero + ' — ' : ''}${echapper(s.titre)}</div><div class="sous-titre-carte">${s.description ? echapper(s.description) + ' · ' : ''}${compteFilleulsSA[s.id] || 0} séance${(compteFilleulsSA[s.id] || 0) > 1 ? 's' : ''}</div>
         </div>`).join('')}</div>`;
   }
@@ -394,6 +430,10 @@ async function afficherNoeudsEtSA() {
   if (grilleNoeuds) grilleNoeuds.addEventListener('click', (e) => {
     const btnSupprimer = e.target.closest('[data-supprimer-noeud]');
     if (btnSupprimer) { e.stopPropagation(); return supprimerNoeud(parseInt(btnSupprimer.dataset.supprimerNoeud, 10)); }
+    const btnMonter = e.target.closest('[data-monter-noeud]');
+    if (btnMonter) { e.stopPropagation(); return deplacerNoeud(noeuds, parseInt(btnMonter.dataset.monterNoeud, 10), -1); }
+    const btnDescendre = e.target.closest('[data-descendre-noeud]');
+    if (btnDescendre) { e.stopPropagation(); return deplacerNoeud(noeuds, parseInt(btnDescendre.dataset.descendreNoeud, 10), 1); }
     const carte = e.target.closest('[data-id]');
     if (!carte) return;
     etat.cheminNoeuds.push(noeuds.find(x => String(x.id) === carte.dataset.id));
@@ -404,6 +444,10 @@ async function afficherNoeudsEtSA() {
   if (grilleSA) grilleSA.addEventListener('click', (e) => {
     const btnSupprimer = e.target.closest('[data-supprimer-sa]');
     if (btnSupprimer) { e.stopPropagation(); return supprimerSA(parseInt(btnSupprimer.dataset.supprimerSa, 10)); }
+    const btnMonter = e.target.closest('[data-monter-sa]');
+    if (btnMonter) { e.stopPropagation(); return deplacerSA(sas, parseInt(btnMonter.dataset.monterSa, 10), -1); }
+    const btnDescendre = e.target.closest('[data-descendre-sa]');
+    if (btnDescendre) { e.stopPropagation(); return deplacerSA(sas, parseInt(btnDescendre.dataset.descendreSa, 10), 1); }
     const carte = e.target.closest('[data-id]');
     if (!carte) return;
     etat.sa = sas.find(x => String(x.id) === carte.dataset.id);
@@ -416,6 +460,36 @@ async function afficherNoeudsEtSA() {
   if (btnCreerSA) btnCreerSA.addEventListener('click', () => creerSA(parentId));
   const btnVueArbo = document.getElementById('btnVueArbo');
   if (btnVueArbo) btnVueArbo.addEventListener('click', () => { etat.vueArborescence = true; etat.cheminNoeuds = []; etat.sa = null; afficher(); });
+}
+
+// Échange l'"ordre" entre deux frères adjacents (dans la liste actuellement
+// affichée, déjà triée par ordre) pour permettre de réordonner manuellement
+// — utile pour corriger un contenu créé avant la correction du bug qui
+// donnait ordre=0 à tout, ou simplement pour réorganiser.
+async function deplacerNoeud(liste, id, sens) {
+  const idx = liste.findIndex(n => n.id === id);
+  const idxVoisin = idx + sens;
+  if (idx < 0 || idxVoisin < 0 || idxVoisin >= liste.length) return;
+  const a = liste[idx], b = liste[idxVoisin];
+  const [{ error: e1 }, { error: e2 }] = await Promise.all([
+    supabaseClient.from('noeuds_parcours').update({ ordre: b.ordre }).eq('id', a.id),
+    supabaseClient.from('noeuds_parcours').update({ ordre: a.ordre }).eq('id', b.id)
+  ]);
+  if (e1 || e2) return alert((e1 || e2).message);
+  afficher();
+}
+
+async function deplacerSA(liste, id, sens) {
+  const idx = liste.findIndex(s => s.id === id);
+  const idxVoisin = idx + sens;
+  if (idx < 0 || idxVoisin < 0 || idxVoisin >= liste.length) return;
+  const a = liste[idx], b = liste[idxVoisin];
+  const [{ error: e1 }, { error: e2 }] = await Promise.all([
+    supabaseClient.from('sa').update({ ordre: b.ordre }).eq('id', a.id),
+    supabaseClient.from('sa').update({ ordre: a.ordre }).eq('id', b.id)
+  ]);
+  if (e1 || e2) return alert((e1 || e2).message);
+  afficher();
 }
 
 async function supprimerNoeud(id) {
@@ -472,6 +546,24 @@ async function supprimerSeance(id, callbackApresSuppression) {
 
 // --- CRÉATION / RENOMMAGE (formulaires dynamiques) ------------------------
 
+// Prochain "ordre" séquentiel pour un nouveau niveau/SA — sans ça, tout
+// nouveau niveau/SA héritait de ordre=0, ce qui empêchait tout tri
+// hiérarchique fiable (Thème 1 devant obligatoirement passer avant Thème 2,
+// etc. — cf. demande explicite). Même logique que pour les séances
+// (creerSeanceDans ci-dessous), qui elle calculait déjà bien son ordre.
+async function prochainOrdreNoeud(classeId, champId, parentId) {
+  let requete = supabaseClient.from('noeuds_parcours').select('id', { count: 'exact', head: true })
+    .eq('classe_id', classeId).eq('champ_formation_id', champId);
+  requete = parentId ? requete.eq('parent_id', parentId) : requete.is('parent_id', null);
+  const { count } = await requete;
+  return count || 0;
+}
+
+async function prochainOrdreSA(noeudParentId) {
+  const { count } = await supabaseClient.from('sa').select('id', { count: 'exact', head: true }).eq('noeud_id', noeudParentId);
+  return count || 0;
+}
+
 // creerNoeudDans(classe, champ, parentId, profondeur, apresCreation)
 // Version générique réutilisée par la navigation pas-à-pas ET par l'arborescence.
 function creerNoeudDans(classeId, champId, champCode, parentId, profondeur, apresCreation) {
@@ -483,8 +575,9 @@ function creerNoeudDans(classeId, champId, champCode, parentId, profondeur, apre
       champs: [{ nom: 'titre', label: 'Titre', placeholder: 'Ex: Thème 1, Unité 3, Semaine 1...' }],
       texteValider: 'Créer',
       onValider: async ({ titre }) => {
+        const ordre = await prochainOrdreNoeud(classeId, champId, parentId);
         const { error } = await supabaseClient.from('noeuds_parcours').insert({
-          classe_id: classeId, champ_formation_id: champId, parent_id: parentId, type_noeud: type, titre, ordre: 0
+          classe_id: classeId, champ_formation_id: champId, parent_id: parentId, type_noeud: type, titre, ordre
         });
         if (error) return alert(error.message);
         apresCreation();
@@ -507,8 +600,9 @@ function creerNoeudDans(classeId, champId, champCode, parentId, profondeur, apre
       ],
       texteValider: 'Créer',
       onValider: async ({ titre, type }) => {
+        const ordre = await prochainOrdreNoeud(classeId, champId, parentId);
         const { error } = await supabaseClient.from('noeuds_parcours').insert({
-          classe_id: classeId, champ_formation_id: champId, parent_id: parentId, type_noeud: type, titre, ordre: 0
+          classe_id: classeId, champ_formation_id: champId, parent_id: parentId, type_noeud: type, titre, ordre
         });
         if (error) return alert(error.message);
         apresCreation();
@@ -537,8 +631,9 @@ function creerSADans(noeudParentId, typeNoeudParent, champCode, apresCreation) {
     ],
     texteValider: 'Créer',
     onValider: async ({ titre, numero, description }) => {
+      const ordre = await prochainOrdreSA(noeudParentId);
       const { error } = await supabaseClient.from('sa').insert({
-        noeud_id: noeudParentId, titre, numero: numero ? parseInt(numero, 10) : null, description: description || null, ordre: 0
+        noeud_id: noeudParentId, titre, numero: numero ? parseInt(numero, 10) : null, description: description || null, ordre
       });
       if (error) return alert(error.message);
       apresCreation();

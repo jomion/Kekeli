@@ -6,8 +6,10 @@
   const profil = await requireRole('eleve');
   if (!profil) return;
 
-  document.getElementById('badgeUtilisateur').textContent = `🟢 ${profil.prenom}`;
-  initClocheNotifications('zoneCloche', profil.id);
+  await initEnteteNavigation({
+    role: 'eleve', utilisateurId: profil.id, badgeHtml: `🟢 ${echapperBv(profil.prenom)}`,
+    liens: liensAvecPrefixe('eleve', '')
+  });
 
   const { data: fiche } = await supabaseClient.from('eleves').select('mascotte, classe_id').eq('id', profil.id).single();
   const mascotte = fiche?.mascotte || '🦁';

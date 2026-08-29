@@ -1,15 +1,22 @@
 // Page pages/eleve/matiere.html
-// Parcours de l'élève dans le contenu de sa classe : Matière → Situation
+// Parcours de l'élève dans le contenu de sa classe : Matière → (niveaux de
+// l'arborescence : Thème/Unité/Semaine/Dossier, selon la matière) → Situation
 // d'Apprentissage → Séances, avec verrouillage séquentiel simple entre
 // séances (etat_seances_sa). Les paliers d'agilité (azovi/devi/ogan/axosu)
 // ne groupent plus les séances : ils gèrent le déblocage progressif des
 // activités À L'INTÉRIEUR d'une séance — voir eleve-seance.js. Un élève ne
 // voit jamais que le contenu publié de sa propre classe (RLS sur
 // seances/blocs_seance).
+//
+// Chaque niveau de l'arborescence est cliquable (carte, et fil d'ariane) :
+// on peut arriver directement sur un niveau précis via les paramètres d'URL
+// ?champId=&noeudId=&saId= — utilisé par le fil d'ariane de la page séance
+// (js/pages/eleve-seance.js) pour permettre de remonter à n'importe quel
+// niveau depuis une séance.
 
 let profilEleveMat = null;
 let classeIdEleve = null;
-let etatMat = { champ: null, sa: null };
+let etatMat = { champ: null, cheminNoeuds: [], sa: null }; // cheminNoeuds : [{id, titre}] du plus haut au plus bas
 
 const PRESENTATION_CHAMPS_ELEVE = {
   francais:     { icone: '📚' }, mathematique: { icone: '📐' }, es: { icone: '🌍' },
@@ -19,7 +26,10 @@ const PRESENTATION_CHAMPS_ELEVE = {
 (async function () {
   profilEleveMat = await requireRole('eleve');
   if (!profilEleveMat) return;
-  initClocheNotifications('zoneCloche', profilEleveMat.id);
+  await initEnteteNavigation({
+    role: 'eleve', utilisateurId: profilEleveMat.id, badgeHtml: `🟢 ${echapper(profilEleveMat.prenom)}`,
+    liens: liensAvecPrefixe('eleve', '')
+  });
 
   const { data: fiche } = await supabaseClient.from('eleves').select('classe_id').eq('id', profilEleveMat.id).single();
   classeIdEleve = fiche?.classe_id;
@@ -28,8 +38,43 @@ const PRESENTATION_CHAMPS_ELEVE = {
     return;
   }
 
+  // Arrivée directe sur un niveau précis (depuis le fil d'ariane d'une séance).
+  const params = new URLSearchParams(window.location.search);
+  const champId = params.get('champId');
+  const noeudId = params.get('noeudId');
+  const saId = params.get('saId');
+
+  if (champId) {
+    const { data: champ } = await supabaseClient.from('champs_formation').select('id, nom, code').eq('id', champId).single();
+    if (champ) {
+      etatMat.champ = champ;
+      if (noeudId) etatMat.cheminNoeuds = await remonterAncetresNoeudMat(parseInt(noeudId, 10));
+      if (saId) {
+        const { data: sa } = await supabaseClient.from('sa').select('*').eq('id', saId).single();
+        if (sa) { etatMat.sa = sa; await afficherSeancesListe(); return; }
+      }
+      await afficherNiveau();
+      return;
+    }
+  }
+
   afficherChamps();
 })();
+
+// Remonte la chaîne parent_id d'un noeud jusqu'à la racine (voir la fonction
+// jumelle côté séance : eleve-seance.js#remonterCheminNoeudsEleve).
+async function remonterAncetresNoeudMat(id) {
+  const chemin = [];
+  let n = id;
+  let garde = 0;
+  while (n && garde++ < 20) {
+    const { data: noeud } = await supabaseClient.from('noeuds_parcours').select('id, parent_id, titre').eq('id', n).single();
+    if (!noeud) break;
+    chemin.unshift({ id: noeud.id, titre: noeud.titre });
+    n = noeud.parent_id;
+  }
+  return chemin;
+}
 
 function filArianeMat(segments) {
   return `<div class="fil-ariane-eleve">${segments.map((s, i) => {
@@ -38,12 +83,25 @@ function filArianeMat(segments) {
   }).join('')}</div>`;
 }
 
-function attacherFilAriane(nb) {
+function segmentsArianeMat() {
+  const segments = [{ label: '🏠 Mes matières' }];
+  if (etatMat.champ) segments.push({ label: etatMat.champ.nom });
+  etatMat.cheminNoeuds.forEach(n => segments.push({ label: n.titre }));
+  if (etatMat.sa) segments.push({ label: etatMat.sa.titre });
+  return segments;
+}
+
+function attacherFilAriane() {
   document.querySelectorAll('[data-fil-mat]').forEach(el => {
     el.addEventListener('click', () => {
       const i = parseInt(el.dataset.filMat, 10);
-      if (i === 0) { etatMat = { champ: null, sa: null }; afficherChamps(); }
-      else if (i === 1) { etatMat.sa = null; afficherSA(); }
+      if (i === 0) { etatMat = { champ: null, cheminNoeuds: [], sa: null }; afficherChamps(); return; }
+      if (i === 1) { etatMat.cheminNoeuds = []; etatMat.sa = null; afficherNiveau(); return; }
+      // i - 2 = index dans cheminNoeuds du niveau cliqué : on tronque la
+      // chaîne à ce niveau (inclus) et on réaffiche ses propres enfants.
+      etatMat.cheminNoeuds = etatMat.cheminNoeuds.slice(0, i - 1);
+      etatMat.sa = null;
+      afficherNiveau();
     });
   });
 }
@@ -70,44 +128,66 @@ async function afficherChamps() {
   document.getElementById('grilleChampsMat').querySelectorAll('[data-champ-id]').forEach(el => {
     el.addEventListener('click', () => {
       etatMat.champ = champs.find(c => String(c.id) === el.dataset.champId);
-      afficherSA();
+      etatMat.cheminNoeuds = [];
+      etatMat.sa = null;
+      afficherNiveau();
     });
   });
 }
 
-async function afficherSA() {
+// Affiche le contenu d'un niveau de l'arborescence (les sous-niveaux et/ou
+// les SA rattachées directement à ce niveau) — ou, quand cheminNoeuds est
+// vide, les niveaux racine de la matière choisie.
+async function afficherNiveau() {
   const conteneur = document.getElementById('contenu');
-  const segments = [{ label: '🏠 Mes matières' }, { label: etatMat.champ.nom }];
+  const segments = segmentsArianeMat();
   conteneur.innerHTML = filArianeMat(segments) + '<div class="chargement">Chargement...</div>';
 
-  const { data: noeuds } = await supabaseClient
-    .from('noeuds_parcours').select('id, titre').eq('classe_id', classeIdEleve).eq('champ_formation_id', etatMat.champ.id);
-  const idsNoeuds = (noeuds || []).map(n => n.id);
-  const titreNoeud = {};
-  (noeuds || []).forEach(n => { titreNoeud[n.id] = n.titre; });
+  const parentId = etatMat.cheminNoeuds.length ? etatMat.cheminNoeuds[etatMat.cheminNoeuds.length - 1].id : null;
 
-  const { data: sas } = idsNoeuds.length
-    ? await supabaseClient.from('sa').select('*').in('noeud_id', idsNoeuds).order('ordre')
-    : { data: [] };
+  let requeteNoeuds = supabaseClient.from('noeuds_parcours').select('id, titre, type_noeud')
+    .eq('classe_id', classeIdEleve).eq('champ_formation_id', etatMat.champ.id).order('ordre');
+  requeteNoeuds = parentId ? requeteNoeuds.eq('parent_id', parentId) : requeteNoeuds.is('parent_id', null);
+  const { data: noeuds } = await requeteNoeuds;
+
+  let sas = [];
+  if (parentId) {
+    const { data } = await supabaseClient.from('sa').select('*').eq('noeud_id', parentId).order('ordre');
+    sas = data || [];
+  }
 
   conteneur.innerHTML = `
     ${filArianeMat(segments)}
-    <div class="carte-bienvenue"><h1 style="margin:0">${echapper(etatMat.champ.nom)} — choisis un sujet</h1></div>
-    <div class="grille-sa-eleve" id="grilleSaMat">
-      ${(sas || []).map(s => `<div class="carte-sa-eleve" data-sa-id="${s.id}">
+    <div class="carte-bienvenue"><h1 style="margin:0">${echapper(etatMat.cheminNoeuds.length ? etatMat.cheminNoeuds[etatMat.cheminNoeuds.length - 1].titre : etatMat.champ.nom)}</h1></div>
+    ${(noeuds && noeuds.length) ? `<div class="grille-champs-eleve" id="grilleNiveauxMat">${noeuds.map(n => `
+      <div class="carte-champ-eleve" data-noeud-id="${n.id}">
+        <div class="icone-champ-eleve">📂</div>
+        <strong>${echapper(n.titre)}</strong>
+      </div>`).join('')}</div>` : ''}
+    ${(sas && sas.length) ? `<div class="grille-sa-eleve" id="grilleSaMat" style="margin-top:16px">${sas.map(s => `
+      <div class="carte-sa-eleve" data-sa-id="${s.id}">
         <div>
           <div class="session-title-eleve">${s.numero ? `SA${s.numero} — ` : ''}${echapper(s.titre)}</div>
           ${s.description ? `<p style="margin:2px 0 0;font-size:13px;color:var(--text-gris)">${echapper(s.description)}</p>` : ''}
-          <p style="margin:2px 0 0;font-size:12px;color:var(--text-gris)">${echapper(titreNoeud[s.noeud_id] || '')}</p>
         </div>
         <span style="font-size:20px">➔</span>
-      </div>`).join('') || '<p style="color:var(--text-gris)">Rien à afficher pour cette matière pour l\'instant.</p>'}
-    </div>
+      </div>`).join('')}</div>` : ''}
+    ${(!noeuds || !noeuds.length) && (!sas || !sas.length) ? '<p style="color:var(--text-gris)">Rien à afficher ici pour l\'instant.</p>' : ''}
   `;
   attacherFilAriane();
-  document.getElementById('grilleSaMat').querySelectorAll('[data-sa-id]').forEach(el => {
+
+  const grilleNiveaux = document.getElementById('grilleNiveauxMat');
+  if (grilleNiveaux) grilleNiveaux.querySelectorAll('[data-noeud-id]').forEach(el => {
     el.addEventListener('click', () => {
-      etatMat.sa = (sas || []).find(s => String(s.id) === el.dataset.saId);
+      const n = noeuds.find(x => String(x.id) === el.dataset.noeudId);
+      etatMat.cheminNoeuds.push(n);
+      afficherNiveau();
+    });
+  });
+  const grilleSA = document.getElementById('grilleSaMat');
+  if (grilleSA) grilleSA.querySelectorAll('[data-sa-id]').forEach(el => {
+    el.addEventListener('click', () => {
+      etatMat.sa = sas.find(x => String(x.id) === el.dataset.saId);
       afficherSeancesListe();
     });
   });
@@ -115,7 +195,7 @@ async function afficherSA() {
 
 async function afficherSeancesListe() {
   const conteneur = document.getElementById('contenu');
-  const segments = [{ label: '🏠 Mes matières' }, { label: etatMat.champ.nom }, { label: etatMat.sa.titre }];
+  const segments = segmentsArianeMat();
   conteneur.innerHTML = filArianeMat(segments) + '<div class="chargement">Chargement...</div>';
 
   const { data: seances } = await supabaseClient.rpc('etat_seances_sa', {

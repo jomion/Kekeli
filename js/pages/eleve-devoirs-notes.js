@@ -5,6 +5,10 @@ let profilEleve = null;
 (async function () {
   profilEleve = await requireRole('eleve');
   if (!profilEleve) return;
+  await initEnteteNavigation({
+    role: 'eleve', utilisateurId: profilEleve.id, badgeHtml: `🟢 ${echapperTexte(profilEleve.prenom)}`,
+    liens: liensAvecPrefixe('eleve', '')
+  });
   await charger();
 })();
 

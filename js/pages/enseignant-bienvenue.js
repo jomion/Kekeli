@@ -6,12 +6,14 @@
   const profil = await requireRole('enseignant');
   if (!profil) return;
 
-  document.getElementById('badgeUtilisateur').textContent = `🟢 ${profil.prenom} ${profil.nom}`;
-  initClocheNotifications('zoneCloche', profil.id);
+  await initEnteteNavigation({
+    role: 'enseignant', utilisateurId: profil.id, badgeHtml: `🟢 ${echapperEnsBv(profil.prenom)} ${echapperEnsBv(profil.nom)}`,
+    liens: liensAvecPrefixe('enseignant', '')
+  });
 
-  const [{ data: enseignant }, { count: nbEnAttenteActivites }] = await Promise.all([
+  const [{ data: enseignant }, { count: nbDevoirsAVenir }] = await Promise.all([
     supabaseClient.from('enseignants').select('classes_assignees').eq('id', profil.id).single(),
-    supabaseClient.from('rendus_activites').select('id', { count: 'exact', head: true }).is('corrige_le', null)
+    supabaseClient.from('devoirs').select('id', { count: 'exact', head: true }).eq('statut', 'brouillon')
   ]);
   const nbClasses = (enseignant?.classes_assignees || []).length;
 
@@ -24,16 +26,16 @@
 
     <div class="section-title-eleve">Que souhaites-tu faire aujourd'hui ?</div>
     <div class="actions-grid-eleve">
-      <a href="activites.html" class="action-card-eleve">
-        <div class="action-icon-eleve">📝</div>
-        <div class="action-title-eleve">Corriger des activités</div>
-        <div class="action-desc-eleve">${nbEnAttenteActivites ? `<strong>${nbEnAttenteActivites}</strong> rendu${nbEnAttenteActivites > 1 ? 's' : ''} en attente (tous périmètres confondus).` : 'Rien en attente pour le moment.'}</div>
-        <div class="btn-start-eleve" style="background:#3498DB">Corriger 📝</div>
+      <a href="devoirs-notes.html" class="action-card-eleve">
+        <div class="action-icon-eleve">📊</div>
+        <div class="action-title-eleve">Devoirs &amp; notes</div>
+        <div class="action-desc-eleve">${nbDevoirsAVenir ? `<strong>${nbDevoirsAVenir}</strong> devoir${nbDevoirsAVenir > 1 ? 's' : ''} en brouillon à publier.` : 'Créer ou corriger un devoir.'}</div>
+        <div class="btn-start-eleve" style="background:#3498DB">Gérer 📊</div>
       </a>
       <a href="../navigation.html" class="action-card-eleve">
         <div class="action-icon-eleve">📚</div>
         <div class="action-title-eleve">Contenu pédagogique</div>
-        <div class="action-desc-eleve">Consulter et éditer les séances de tes classes.</div>
+        <div class="action-desc-eleve">Consulter les séances de tes classes.</div>
         <div class="btn-start-eleve" style="background:#2ECC71">Explorer 📚</div>
       </a>
       <a href="tableau-de-bord.html" class="action-card-eleve">

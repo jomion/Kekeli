@@ -13,14 +13,11 @@ async function init() {
   profilMsgAdmin = await requireAdmin();
   if (!profilMsgAdmin) return;
 
-  document.getElementById('zoneDroite').innerHTML = `
-    <div id="zoneCloche"></div>
-    <span class="badge-utilisateur">${profilMsgAdmin.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${echapperMsgAdmin(profilMsgAdmin.prenom)}</span>
-    <a href="tableau-de-bord.html" class="btn btn-discret">🏠 Tableau de bord</a>
-    <button class="btn btn-discret" id="btnDeconnexionMsgAdmin">Déconnexion</button>
-  `;
-  document.getElementById('btnDeconnexionMsgAdmin').addEventListener('click', deconnecterAdmin);
-  initClocheNotifications('zoneCloche', profilMsgAdmin.id);
+  await initEnteteNavigation({
+    role: 'admin', utilisateurId: profilMsgAdmin.id,
+    badgeHtml: `${profilMsgAdmin.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${echapperMsgAdmin(profilMsgAdmin.prenom)}`,
+    liens: liensAvecPrefixe('admin', '', { superAdmin: profilMsgAdmin.est_super_admin })
+  });
 
   const params = new URLSearchParams(window.location.search);
   const avec = params.get('avec');

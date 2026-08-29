@@ -23,9 +23,11 @@ async function init() {
   profilAdminBadges = await requireAdmin();
   if (!profilAdminBadges) return;
 
-  document.getElementById('zoneDroite').insertAdjacentHTML('afterbegin', `
-    <span class="badge-utilisateur">${profilAdminBadges.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${echapperBadges(profilAdminBadges.prenom)}</span>
-  `);
+  await initEnteteNavigation({
+    role: 'admin', utilisateurId: profilAdminBadges.id,
+    badgeHtml: `${profilAdminBadges.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${echapperBadges(profilAdminBadges.prenom)}`,
+    liens: liensAvecPrefixe('admin', '', { superAdmin: profilAdminBadges.est_super_admin })
+  });
 
   const [{ data: badges }, { data: classes }] = await Promise.all([
     supabaseClient.from('badges').select('*').order('cree_le'),

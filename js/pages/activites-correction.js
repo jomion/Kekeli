@@ -1,10 +1,15 @@
-// Fichier partagé par pages/admin/activites.html et pages/enseignant/activites.html
-// — la page définit au préalable `const ROLE_ACTIVITES = 'admin' | 'enseignant';`
-// avant de charger ce script. Les blocs de type "activite" et les rendus des
-// élèves (rendus_activites) sont filtrés automatiquement par la RLS selon le
-// périmètre de l'utilisateur connecté (peut_gerer_classe_champ) : cette page
-// n'a donc besoin d'aucune logique de permission côté client, seulement
-// d'afficher ce que la base accepte déjà de lui renvoyer.
+// Fichier chargé par pages/admin/activites.html — la correction des
+// activités est réservée aux administrateurs qui en ont explicitement le
+// droit (rôle admin personnalisé avec "peut_corriger_activites", ou
+// super_admin qui a tous les droits). Ce n'est plus accessible aux
+// enseignants (voir migration
+// "retire_edition_seance_et_correction_activites_aux_enseignants") : dès
+// qu'une activité est proposée par un administrateur habilité, c'est lui
+// (ou un autre administrateur habilité) qui la corrige — plus l'enseignant.
+// Les blocs de type "activite" et les rendus des élèves (rendus_activites)
+// restent filtrés par la RLS (admin_peut_corriger_activites côté base) :
+// cette page vérifie aussi le droit côté client pour afficher un message
+// clair plutôt qu'une page vide si l'admin connecté n'a pas ce droit.
 
 let profilActivites = null;
 let blocsActivites = [];
@@ -20,12 +25,20 @@ function echapperAct(v) {
 }
 
 async function init() {
-  profilActivites = ROLE_ACTIVITES === 'admin' ? await requireAdmin() : await requireRole('enseignant');
+  profilActivites = await requireAdmin();
   if (!profilActivites) return;
 
-  document.getElementById('zoneDroite').insertAdjacentHTML('afterbegin', ROLE_ACTIVITES === 'admin'
-    ? `<span class="badge-utilisateur">${profilActivites.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${echapperAct(profilActivites.prenom)}</span>`
-    : `<span class="badge-utilisateur">🧑‍🏫 ${echapperAct(profilActivites.prenom)}</span>`);
+  await initEnteteNavigation({
+    role: 'admin', utilisateurId: profilActivites.id,
+    badgeHtml: `${profilActivites.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${echapperAct(profilActivites.prenom)}`,
+    liens: liensAvecPrefixe('admin', '', { superAdmin: profilActivites.est_super_admin })
+  });
+
+  const { data: aLeDroit } = await supabaseClient.rpc('admin_a_droit', { p_id: profilActivites.id, p_droit: 'corriger_activites' });
+  if (!aLeDroit) {
+    document.getElementById('contenu').innerHTML = `<p class="chargement">⛔ Cette page est réservée aux administrateurs habilités à corriger les activités. Demandez au super administrateur de vous attribuer ce droit (page "Rôles administrateurs").</p>`;
+    return;
+  }
 
   await chargerActivites();
 }
@@ -51,7 +64,7 @@ async function chargerActivites() {
   blocsActivites = data || [];
 
   if (!blocsActivites.length) {
-    zone.innerHTML = `<p class="chargement">Aucune activité pour l'instant${ROLE_ACTIVITES === 'enseignant' ? ' dans votre périmètre' : ''} — créez un bloc "Activité" depuis l'éditeur de séance.</p>`;
+    zone.innerHTML = `<p class="chargement">Aucune activité pour l'instant — créez un bloc "Activité" depuis l'éditeur de séance.</p>`;
     return;
   }
 

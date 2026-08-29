@@ -7,7 +7,10 @@ let conversationOuverteEns = null; // id de l'abonnement actuellement affiché
   profilEnseignantMsg = await requireRole('enseignant');
   if (!profilEnseignantMsg) return;
 
-  initClocheNotifications('zoneCloche', profilEnseignantMsg.id);
+  await initEnteteNavigation({
+    role: 'enseignant', utilisateurId: profilEnseignantMsg.id, badgeHtml: `🟢 ${echapperMsgEns(profilEnseignantMsg.prenom)}`,
+    liens: liensAvecPrefixe('enseignant', '')
+  });
 
   const params = new URLSearchParams(window.location.search);
   conversationOuverteEns = params.get('abonnement') ? parseInt(params.get('abonnement'), 10) : null;

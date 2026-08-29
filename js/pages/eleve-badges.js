@@ -5,6 +5,10 @@
 (async function () {
   const profil = await requireRole('eleve');
   if (!profil) return;
+  await initEnteteNavigation({
+    role: 'eleve', utilisateurId: profil.id, badgeHtml: `🟢 ${echapperBadgesEleve(profil.prenom)}`,
+    liens: liensAvecPrefixe('eleve', '')
+  });
 
   const { data: attributions } = await supabaseClient
     .from('badges_eleves').select('*, badges(*)').eq('eleve_id', profil.id).order('attribue_le', { ascending: false });

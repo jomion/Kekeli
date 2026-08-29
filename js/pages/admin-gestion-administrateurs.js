@@ -14,14 +14,11 @@ async function init() {
   profilGA = await requireAdmin();
   if (!profilGA) return;
 
-  document.getElementById('zoneDroite').innerHTML = `
-    <div id="zoneCloche"></div>
-    <span class="badge-utilisateur">${profilGA.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${echapperGA(profilGA.prenom)}</span>
-    <a href="tableau-de-bord.html" class="btn btn-discret">🏠 Tableau de bord</a>
-    <button class="btn btn-discret" id="btnDeconnexionGA">Déconnexion</button>
-  `;
-  document.getElementById('btnDeconnexionGA').addEventListener('click', deconnecterAdmin);
-  initClocheNotifications('zoneCloche', profilGA.id);
+  await initEnteteNavigation({
+    role: 'admin', utilisateurId: profilGA.id,
+    badgeHtml: `${profilGA.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${echapperGA(profilGA.prenom)}`,
+    liens: liensAvecPrefixe('admin', '', { superAdmin: profilGA.est_super_admin })
+  });
 
   if (!profilGA.est_super_admin) {
     document.getElementById('contenu').innerHTML = `

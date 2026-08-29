@@ -12,8 +12,11 @@ function echapperEns(v) {
   profilEnseignantTB = await requireRole('enseignant');
   if (!profilEnseignantTB) return;
 
-  document.getElementById('badgeUtilisateur').textContent = `🟢 ${profilEnseignantTB.prenom} ${profilEnseignantTB.nom}`;
-  initClocheNotifications('zoneCloche', profilEnseignantTB.id);
+  await initEnteteNavigation({
+    role: 'enseignant', utilisateurId: profilEnseignantTB.id,
+    badgeHtml: `🟢 ${echapperEns(profilEnseignantTB.prenom)} ${echapperEns(profilEnseignantTB.nom)}`,
+    liens: liensAvecPrefixe('enseignant', '')
+  });
 
   await afficherTableauBordEns();
 })();
@@ -124,19 +127,10 @@ async function afficherTableauBordEns() {
         <h3>Devoirs &amp; notes</h3>
         <p>Disponible dès qu'un élève vous suit ou qu'une classe vous est accordée.</p>
       </div>`}
-      ${aAccesClasse ? `<a href="activites.html" class="carte-action-tb disponible" style="text-decoration:none;color:inherit;display:block">
-        <div class="icone-action-tb">📝</div>
-        <h3>Activités à corriger</h3>
-        <p>Corriger les activités rendues par vos élèves, filtrées par palier.</p>
-      </a>` : `<div class="carte-action-tb a-venir">
-        <div class="icone-action-tb">📝</div>
-        <h3>Activités à corriger</h3>
-        <p>Disponible dès qu'un élève vous suit ou qu'une classe vous est accordée.</p>
-      </div>`}
       ${aAccesClasse ? `<a href="../navigation.html" class="carte-action-tb disponible" style="text-decoration:none;color:inherit;display:block">
         <div class="icone-action-tb">📚</div>
         <h3>Contenu pédagogique</h3>
-        <p>Consulter et éditer les séances de vos classes.</p>
+        <p>Consulter les séances de vos classes.</p>
       </a>` : `<div class="carte-action-tb a-venir">
         <div class="icone-action-tb">📚</div>
         <h3>Contenu pédagogique</h3>

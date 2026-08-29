@@ -7,6 +7,10 @@ let enfantSelectionneId = null;
 (async function () {
   profilParentDN = await requireRole('parent');
   if (!profilParentDN) return;
+  await initEnteteNavigation({
+    role: 'parent', utilisateurId: profilParentDN.id, badgeHtml: `🟢 ${echapperTexte(profilParentDN.prenom)}`,
+    liens: liensAvecPrefixe('parent', '')
+  });
 
   const { data: liens } = await supabaseClient.from('parent_eleve').select('eleve_id').eq('parent_id', profilParentDN.id);
   const ids = (liens || []).map(l => l.eleve_id);

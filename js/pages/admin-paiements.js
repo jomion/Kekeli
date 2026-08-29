@@ -18,9 +18,11 @@ async function init() {
   profilAdminPaiements = await requireAdmin();
   if (!profilAdminPaiements) return;
 
-  document.getElementById('zoneDroite').insertAdjacentHTML('afterbegin', `
-    <span class="badge-utilisateur">${profilAdminPaiements.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${echapperPaiements(profilAdminPaiements.prenom)}</span>
-  `);
+  await initEnteteNavigation({
+    role: 'admin', utilisateurId: profilAdminPaiements.id,
+    badgeHtml: `${profilAdminPaiements.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${echapperPaiements(profilAdminPaiements.prenom)}`,
+    liens: liensAvecPrefixe('admin', '', { superAdmin: profilAdminPaiements.est_super_admin })
+  });
 
   const { data: classes } = await supabaseClient.from('classes').select('*').order('ordre');
   classesPaiements = classes || [];

@@ -9,7 +9,10 @@ let contactsEnsMsgAdmin = [];
   profilEnsMsgAdmin = await requireRole('enseignant');
   if (!profilEnsMsgAdmin) return;
 
-  initClocheNotifications('zoneCloche', profilEnsMsgAdmin.id);
+  await initEnteteNavigation({
+    role: 'enseignant', utilisateurId: profilEnsMsgAdmin.id, badgeHtml: `🟢 ${echapperEnsMsgAdmin(profilEnsMsgAdmin.prenom)}`,
+    liens: liensAvecPrefixe('enseignant', '')
+  });
 
   const params = new URLSearchParams(window.location.search);
   const avec = params.get('avec');

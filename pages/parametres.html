@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KEKELI - Paramètres</title>
+<style>
+  /* Cette page est accessible depuis n'importe quel rôle (lien ⚙️ de
+     l'en-tête) : elle ne charge pas style.css / style-public.css au
+     chargement (l'un est thème clair, l'autre sombre) mais l'ajoute
+     dynamiquement selon le rôle détecté (voir js/pages/parametres.js), pour
+     que l'en-tête partagé (js/entete-navigation.js) garde le bon thème. Le
+     contenu propre à cette page reste donc en style neutre autonome
+     ci-dessous, indépendant des deux feuilles de style. */
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #F0F2F8; color: #1A1A1A; }
+  .conteneur-parametres { max-width: 640px; margin: 40px auto; padding: 0 20px 40px; }
+  .titre-page-param { font-size: 24px; font-weight: 800; color: #0000D1; margin: 0 0 6px; }
+  .sous-titre-page-param { color: #64748B; font-size: 14px; margin: 0 0 24px; }
+  .carte-param { background: white; border-radius: 14px; padding: 26px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); margin-bottom: 20px; }
+  .carte-param h2 { margin: 0 0 4px; font-size: 16px; color: #1A1A1A; }
+  .carte-param .desc-param { margin: 0 0 16px; font-size: 13px; color: #64748B; }
+  .ligne-lien-param { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #E2E8F0; }
+  .ligne-lien-param:last-child { border-bottom: none; }
+  .ligne-lien-param label { display: flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer; flex: 1; }
+  .ligne-lien-param input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: #0000D1; }
+  .btn-param-enregistrer { background: #0000D1; color: white; border: none; padding: 12px 22px; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; margin-top: 6px; }
+  .btn-param-enregistrer:hover { background: #080696; }
+  .btn-param-enregistrer:disabled { opacity: .6; cursor: default; }
+  .message-param-succes { color: #22A559; font-size: 13px; font-weight: 700; margin-top: 12px; }
+  .message-param-vide { color: #64748B; font-size: 13px; }
+</style>
+</head>
+<body>
+  <header></header>
+
+  <div class="conteneur-parametres" id="contenu">
+    <p style="text-align:center">Chargement...</p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/supabaseClient.js"></script>
+  <script>const RACINE_SITE = "../";</script>
+  <script src="../js/auth-admin.js"></script>
+  <script src="../js/auth-utilisateur.js"></script>
+  <script src="../js/notifications.js"></script>
+  <script src="../js/navigation-config.js"></script>
+  <script src="../js/entete-navigation.js"></script>
+  <script src="../js/pages/parametres.js"></script>
+</body>
+</html>

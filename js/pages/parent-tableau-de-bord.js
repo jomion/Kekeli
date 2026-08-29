@@ -6,8 +6,11 @@ let profilParent = null;
   profilParent = await requireRole('parent');
   if (!profilParent) return;
 
-  document.getElementById('badgeUtilisateur').textContent = `🟢 ${profilParent.prenom} ${profilParent.nom}`;
-  initClocheNotifications('zoneCloche', profilParent.id);
+  await initEnteteNavigation({
+    role: 'parent', utilisateurId: profilParent.id,
+    badgeHtml: `🟢 ${echapperParentTB(profilParent.prenom)} ${echapperParentTB(profilParent.nom)}`,
+    liens: liensAvecPrefixe('parent', '')
+  });
 
   await afficherTableauDeBord();
 })();
@@ -254,4 +257,10 @@ function ouvrirCompletionLocalisationEnfant(enfant) {
       afficherTableauDeBord();
     }
   });
+}
+
+function echapperParentTB(v) {
+  const d = document.createElement('div');
+  d.textContent = v ?? '';
+  return d.innerHTML;
 }

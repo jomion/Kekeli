@@ -11,6 +11,10 @@ let devoirOuvertEns = null; // id du devoir dont le panneau de rendus est dépli
 (async function () {
   profilEnseignant = await requireRole('enseignant');
   if (!profilEnseignant) return;
+  await initEnteteNavigation({
+    role: 'enseignant', utilisateurId: profilEnseignant.id, badgeHtml: `🟢 ${echapperEns2(profilEnseignant.prenom)}`,
+    liens: liensAvecPrefixe('enseignant', '')
+  });
 
   const { data: abonnements } = await supabaseClient
     .from('abonnements_enseignant_eleve')

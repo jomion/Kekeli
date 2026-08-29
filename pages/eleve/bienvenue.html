@@ -7,14 +7,7 @@
 <link rel="stylesheet" href="../../css/style-public.css">
 </head>
 <body>
-  <header class="entete-tableau-bord">
-    <a href="../../index.html" class="logo"><img src="../../assets/logo/logo.png" alt="KEKELI"> KEKELI</a>
-    <div style="display:flex;align-items:center;gap:12px">
-      <div id="zoneCloche"></div>
-      <span class="badge-utilisateur-public" id="badgeUtilisateur">Connexion...</span>
-      <button class="btn-deconnexion-public" onclick="deconnecterUtilisateur()">Déconnexion</button>
-    </div>
-  </header>
+  <header></header>
 
   <div class="welcome-container-eleve" id="contenu">
     <p style="text-align:center;color:var(--text-gris)">Chargement...</p>
@@ -26,6 +19,8 @@
   <script>const RACINE_SITE = "../../";</script>
   <script src="../../js/auth-utilisateur.js"></script>
   <script src="../../js/notifications.js"></script>
+  <script src="../../js/navigation-config.js"></script>
+  <script src="../../js/entete-navigation.js"></script>
   <script src="../../js/pages/eleve-bienvenue.js"></script>
 </body>
 </html>

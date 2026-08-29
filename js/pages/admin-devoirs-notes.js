@@ -9,9 +9,11 @@ async function init() {
   profilAdminDN = await requireAdmin();
   if (!profilAdminDN) return;
 
-  document.getElementById('zoneDroite').insertAdjacentHTML('afterbegin', `
-    <span class="badge-utilisateur">${profilAdminDN.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${profilAdminDN.prenom}</span>
-  `);
+  await initEnteteNavigation({
+    role: 'admin', utilisateurId: profilAdminDN.id,
+    badgeHtml: `${profilAdminDN.est_super_admin ? '👑 Super admin' : '🛠️ Admin'} : ${echapperAdmin(profilAdminDN.prenom)}`,
+    liens: liensAvecPrefixe('admin', '', { superAdmin: profilAdminDN.est_super_admin })
+  });
 
   const [{ data: classes }, { data: champs }] = await Promise.all([
     supabaseClient.from('classes').select('*').order('ordre'),

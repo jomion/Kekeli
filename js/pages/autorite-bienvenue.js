@@ -16,7 +16,10 @@ const LIBELLES_FONCTION_AUTORITE = {
   const profil = await requireRole('autorite_pedagogique');
   if (!profil) return;
 
-  document.getElementById('badgeUtilisateur').textContent = `🟢 ${profil.prenom} ${profil.nom}`;
+  await initEnteteNavigation({
+    role: 'autorite', utilisateurId: profil.id, badgeHtml: `🟢 ${echapper(profil.prenom)} ${echapper(profil.nom)}`,
+    liens: liensAvecPrefixe('autorite', '')
+  });
 
   const { data: autorite } = await supabaseClient.from('autorites_pedagogiques').select('*').eq('id', profil.id).single();
   const libelleFonction = LIBELLES_FONCTION_AUTORITE[autorite?.fonction] || autorite?.fonction || '';
