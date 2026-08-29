@@ -237,6 +237,13 @@ async function initEnteteNavigation(config) {
     initClocheNotifications('zoneCloche', config.utilisateurId);
   }
 
+  // Bannière dynamique du super admin (voir js/banniere-site.js) : toute
+  // page connectée passant par l'en-tête partagé l'affiche automatiquement,
+  // ciblée sur son rôle — rien à ajouter dans chaque page.
+  if (typeof initBanniereSite === 'function') {
+    initBanniereSite(config.role);
+  }
+
   const btnMenu = document.getElementById('btnMenuMobile');
   const zone = document.getElementById('enteteKekeliZone');
   const overlay = document.getElementById('enteteKekeliOverlay');

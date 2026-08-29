@@ -163,6 +163,31 @@ header.entete-kekeli {
   box-shadow: 0 2px 10px rgba(0,0,0,0.2);
 }
 body.avec-entete-fixe { padding-top: 68px; }
+
+/* Bannière dynamique du super admin — voir js/banniere-site.js. */
+.banniere-site {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 700;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px;
+  padding: 10px 44px 10px 16px; text-align: center;
+  font-size: 13.5px; font-weight: 600; line-height: 1.4; color: white;
+}
+.banniere-site a { color: inherit; text-decoration: underline; font-weight: 800; white-space: nowrap; }
+.banniere-site-fermer {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: inherit; opacity: .75; cursor: pointer;
+  font-size: 15px; line-height: 1; padding: 4px;
+}
+.banniere-site-fermer:hover { opacity: 1; }
+.banniere-site--info    { background: #2563EB; }
+.banniere-site--succes  { background: #16A34A; }
+.banniere-site--alerte  { background: #D97706; }
+.banniere-site--urgence { background: #DC2626; }
+/* Pousse le contenu (et l'en-tête fixe/sticky) sous la bannière quand elle
+   est affichée — hauteur réelle mesurée en JS (--hauteur-banniere-site). */
+body.avec-banniere-site { padding-top: var(--hauteur-banniere-site, 0px); }
+body.avec-entete-fixe.avec-banniere-site { padding-top: calc(68px + var(--hauteur-banniere-site, 0px)); }
+body.avec-banniere-site .entete-kekeli,
+body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px); }
 .entete-kekeli-logo { display: flex; align-items: center; gap: 8px; font-size: 19px; font-weight: 800; color: white; }
 .entete-kekeli-logo img { height: 30px; width: auto; }
 .entete-kekeli-hamburger { display: none; flex-direction: column; justify-content: center; align-items: center; gap: 4px; width: 34px; height: 34px; background: none; border: none; cursor: pointer; flex-shrink: 0; }

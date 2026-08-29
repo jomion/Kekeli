@@ -76,6 +76,25 @@
   <script src="js/supabaseClient.js"></script>
   <script>const RACINE_SITE = "";</script>
   <script src="js/auth-utilisateur.js"></script>
+  <script src="js/banniere-site.js"></script>
+  <script>
+    // Bannière dynamique du super admin (voir js/banniere-site.js) : sur
+    // l'accueil publique, un visiteur non connecté est ciblé comme
+    // 'visiteur' ; un visiteur déjà connecté (qui n'a pas encore cliqué
+    // "Continuer mon espace") reçoit directement la bannière de son rôle.
+    (async function () {
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const profil = session ? await chargerProfil(session.user.id) : null;
+        // profils.role peut valoir 'super_admin' (littéral) pour un compte
+        // admin — les bannières ciblent seulement 'admin' (comme le fait
+        // déjà chaque page admin, qui passe toujours role: 'admin' à
+        // initEnteteNavigation, super admin inclus).
+        const roleBanniere = profil ? (profil.role === 'super_admin' ? 'admin' : profil.role) : 'visiteur';
+        initBanniereSite(roleBanniere);
+      } catch (_e) { initBanniereSite('visiteur'); }
+    })();
+  </script>
   <script>
     // Si un utilisateur déjà connecté revient sur l'accueil, "Accéder à mon
     // espace" doit le ramener où il était (pas repasser par l'écran de

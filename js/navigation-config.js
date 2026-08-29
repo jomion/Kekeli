@@ -68,7 +68,8 @@ const LIENS_PAR_ROLE = {
     { id: 'roles', href: 'roles.html', icone: '🎛️', label: 'Rôles admin', categorie: 'comptes', superAdminSeulement: true },
     { id: 'abonnements', href: 'abonnements.html', icone: '💳', label: 'Abonnements', categorie: 'finances' },
     { id: 'paiements', href: 'paiements.html', icone: '💰', label: 'Paiements', categorie: 'finances' },
-    { id: 'messagerie', href: 'messagerie.html', icone: '💬', label: 'Messagerie' }
+    { id: 'messagerie', href: 'messagerie.html', icone: '💬', label: 'Messagerie' },
+    { id: 'bannieres', href: 'bannieres.html', icone: '📣', label: 'Bannière', superAdminSeulement: true }
   ]
 };
 
