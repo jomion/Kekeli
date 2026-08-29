@@ -160,6 +160,14 @@ function rendre() {
         : `<button class="btn btn-filled bouton-marquer-termine" id="btnMarquerTermine">✅ J'ai terminé cette séance</button>`)
     : '';
 
+  // Quand cette séance n'a aucun exercice "général" (hors paliers) à afficher
+  // dans la colonne de droite, cette colonne resterait vide alors que la
+  // grille réserve quand même la moitié de la largeur pour elle — ce qui
+  // rétrécit la colonne de lecture par rapport à la section "Paliers" plus
+  // bas (qui, elle, prend toute la largeur). On repasse alors sur une seule
+  // colonne pleine largeur pour que tout s'aligne au même niveau.
+  const colonneExerciceVide = blocsTravail.length === 0 && aDesPaliers;
+
   document.getElementById('contenu').innerHTML = `
     <div class="fil-ariane-eleve"><a href="matiere.html">← Retour à mes matières</a></div>
     <div class="entete-seance-eleve">
@@ -167,14 +175,14 @@ function rendre() {
       ${seanceCourante.discipline ? `<span class="badge-discipline-seance">${echapper(seanceCourante.discipline)}</span>` : ''}
     </div>
 
-    <div class="zone-travail-seance">
+    <div class="zone-travail-seance"${colonneExerciceVide ? ' style="grid-template-columns:1fr"' : ''}>
       <div class="colonne-lecture-seance">
         ${blocsLecture.length ? blocsLecture.map(b => rendreBlocLecture(b)).join('') : '<p style="color:var(--text-gris)">Aucun support de cours pour cette séance.</p>'}
         ${boutonMarquerTermine}
       </div>
-      <div class="colonne-exercice-seance">
-        ${blocsTravail.length ? blocsTravail.map(rendreBlocTravail).join('') : (aDesPaliers ? '' : '<div class="bloc-lecture" style="border-left-color:#94A3B8"><p style="color:var(--text-gris);margin:0">Aucun exercice ni activité pour cette séance — profite bien de la lecture !</p></div>')}
-      </div>
+      ${colonneExerciceVide ? '' : `<div class="colonne-exercice-seance">
+        ${blocsTravail.length ? blocsTravail.map(rendreBlocTravail).join('') : '<div class="bloc-lecture" style="border-left-color:#94A3B8"><p style="color:var(--text-gris);margin:0">Aucun exercice ni activité pour cette séance — profite bien de la lecture !</p></div>'}
+      </div>`}
     </div>
 
     ${aDesPaliers ? html_sectionPaliers(blocsParPalier) : ''}
