@@ -98,7 +98,10 @@ async function charger() {
     conteneur.innerHTML = `<p class="message-erreur-auth">Erreur : ${echapper(erreurBlocs.message)}</p>`;
     return;
   }
-  blocsCourants = blocs || [];
+  // Un bloc "brouillon" (ex: un résumé IA pas encore relu par un admin) ne
+  // doit jamais apparaître ici, même si la séance est déjà publiée — la RLS
+  // le bloque déjà côté base, ce filtre est une seconde barrière côté client.
+  blocsCourants = (blocs || []).filter(b => b.statut_bloc !== 'brouillon');
 
   // Depuis la refonte des Activités, un bloc "activite" est noté comme un
   // exercice (questions + corrigé) — on récupère donc aussi ses réponses

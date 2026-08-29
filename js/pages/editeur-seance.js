@@ -129,6 +129,7 @@ function rendre() {
         </select>
         ${(peutValider && seance.statut !== 'publie') ? `<button class="btn btn-primaire" id="btnValider">✅ Valider et publier</button>` : ''}
         <button class="btn btn-discret" onclick="dupliquerSeance()">📑 Dupliquer la séance</button>
+        <button class="btn btn-discret" onclick="ouvrirGenerationResume()">🗒️ Résumé IA</button>
         <button class="btn btn-accent" onclick="ouvrirApercu()">👁️ Aperçu élève</button>
       </div>
     </div>
@@ -211,6 +212,8 @@ function htmlBloc(b) {
 
   const champIa = champIA(b.type_bloc);
   const texteExistantIa = champIa && b.contenu && (b.contenu[champIa] || '').toString().replace(/<[^>]*>/g, '').trim();
+  const estResume = b.type_bloc === 'resume';
+  const resumeBrouillon = estResume && b.statut_bloc !== 'publie';
 
   return `
     <div class="bloc" draggable="true" data-bloc-id="${b.id}" style="border-left-color:${couleur};background:${teinteClaire(couleur)}">
@@ -220,6 +223,9 @@ function htmlBloc(b) {
           <input type="text" class="libelle-bloc-editable" data-libelle-bloc value="${echapper(libelle)}" style="color:${couleur}">
         </span>
         <div class="bloc-actions">
+          ${estResume ? `
+          <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;${resumeBrouillon ? 'background:#FEF3C7;color:#92620A' : 'background:#DCFCE7;color:#15803D'}" title="${resumeBrouillon ? 'Non visible des élèves tant que non publié' : 'Visible des élèves'}">${resumeBrouillon ? '🔸 Brouillon' : '✅ Publié'}</span>
+          <button type="button" data-toggle-statut-resume title="${resumeBrouillon ? 'Publier ce résumé (le rendre visible des élèves)' : 'Repasser en brouillon (le masquer aux élèves)'}">${resumeBrouillon ? '📤 Publier' : '↩️ Dépublier'}</button>` : ''}
           <label title="Afficher ce nom dans l'aperçu élève" style="display:flex;align-items:center;gap:3px;font-size:11px;font-weight:400;color:var(--texte-gris)">
             <input type="checkbox" data-toggle-titre-bloc ${afficherTitre ? 'checked' : ''}> Titre visible
           </label>
@@ -478,6 +484,17 @@ function attacherEcouteursBloc(bloc) {
 
   attacherEcouteursTableau(el, bloc);
   attacherEcouteursQuestions(el, bloc);
+
+  // Résumé IA : bascule brouillon ↔ publié, indépendante du statut de la
+  // séance elle-même (voir gererChangementStatut, qui ne touche jamais les blocs).
+  const boutonToggleResume = el.querySelector(':scope > .bloc-entete [data-toggle-statut-resume]');
+  if (boutonToggleResume) boutonToggleResume.addEventListener('click', async () => {
+    const nouveauStatut = bloc.statut_bloc === 'publie' ? 'brouillon' : 'publie';
+    const { error } = await supabaseClient.from('blocs_seance').update({ statut_bloc: nouveauStatut }).eq('id', bloc.id);
+    if (error) return alert(error.message);
+    bloc.statut_bloc = nouveauStatut;
+    rendreListeBlocs();
+  });
 
   // Assistant IA (générer un brouillon / améliorer le texte existant)
   const boutonGenererIA = el.querySelector(':scope > .bloc-entete [data-action-ia="generer"]');
@@ -1020,6 +1037,123 @@ function ouvrirGenerationIA(bloc) {
   });
 }
 
+// --- RÉSUMÉ IA (une ou plusieurs séances, "progressif") ---------------------
+// Génère un nouveau bloc de type "resume" à partir du contenu texte des
+// blocs de la séance courante, éventuellement complété par celui de séances
+// précédentes déjà publiées de la même SA (résumé cumulatif). Le résultat
+// est toujours inséré en BROUILLON (bloc.statut_bloc = 'brouillon') : il
+// n'est jamais visible des élèves tant que l'admin ne l'a pas relu et
+// explicitement publié (bouton "📤 Publier", voir htmlBloc/attacherEcouteursBloc).
+// Le corrigé des exercices n'est jamais chargé ici : seuls les blocs eux-mêmes
+// (déjà présents en mémoire ou rechargés via blocs_seance) sont utilisés,
+// donc aucune bonne réponse ne peut fuiter dans le résumé.
+
+// Extrait le texte "utile" d'un bloc pour la synthèse — ignore les blocs non
+// textuels (image/vidéo/ressource) et ne reprend, pour un exercice/quiz/
+// évaluation/activité, que la consigne et les énoncés (jamais le corrigé,
+// qui vit dans une table séparée et n'est de toute façon pas chargé ici).
+function texteBlocPourResume(bloc) {
+  const c = bloc.contenu || {};
+  if (TYPES_TEXTE_LIBRE.includes(bloc.type_bloc)) return texteBrutDepuisHtml(c.texte);
+  if (bloc.type_bloc === 'titre') return c.texte ? `— ${c.texte} —` : '';
+  if (bloc.type_bloc === 'consigne' || bloc.type_bloc === 'autre') return [c.nom, c.texte].filter(Boolean).join(' : ');
+  if (['exercice', 'quiz', 'evaluation', 'activite'].includes(bloc.type_bloc)) {
+    const questions = Array.isArray(c.questions) ? c.questions : [];
+    return [c.consigne, ...questions.map(q => q.enonce)].filter(Boolean).join('\n');
+  }
+  if (bloc.type_bloc === 'tableau') return c.titre || '';
+  if (bloc.type_bloc === 'formule') return c.formule || '';
+  return ''; // image / video / ressource : rien de textuel à résumer
+}
+
+// Agrège tous les blocs (racine + enfants de section) d'une séance en un
+// seul texte, sous un petit en-tête "### Séance : ...".
+function texteSeancePourResume(titreSeance, blocsDeCetteSeance) {
+  const parNiveau = blocsDeCetteSeance.filter(b => !b.parent_bloc_id).sort((a, b) => a.ordre - b.ordre);
+  const texteListe = (liste) => liste.map(b => {
+    const texte = texteBlocPourResume(b);
+    const enfants = blocsDeCetteSeance.filter(x => x.parent_bloc_id === b.id).sort((a, b2) => a.ordre - b2.ordre);
+    return [texte, enfants.length ? texteListe(enfants) : ''].filter(Boolean).join('\n');
+  }).filter(Boolean).join('\n');
+  return `### Séance : ${titreSeance}\n${texteListe(parNiveau)}`;
+}
+
+function ouvrirGenerationResume() {
+  supabaseClient.from('seances').select('id, titre, ordre')
+    .eq('sa_id', chaineNavigation.sa.id).eq('statut', 'publie').lt('ordre', seance.ordre).order('ordre')
+    .then(({ data: seancesPrecedentes }) => {
+      const liste = seancesPrecedentes || [];
+      if (!liste.length) {
+        confirmerAction(`Générer un résumé IA de cette séance (« ${seance.titre} ») ? Il sera ajouté en brouillon, à relire avant de le publier.`, () => lancerGenerationResume([], []));
+        return;
+      }
+      ouvrirModal({
+        titre: '🗒️ Générer un résumé avec l\'IA',
+        champs: [{
+          nom: 'seances',
+          label: `Un bloc "Résumé" sera ajouté à cette séance (« ${seance.titre} »), en brouillon — à relire avant de le publier. Inclure aussi ces séances précédentes déjà publiées de cette SA, pour un résumé progressif (facultatif) :`,
+          type: 'checkboxes', requis: false, options: liste.map(s => ({ valeur: s.id, label: s.titre })), valeur: []
+        }],
+        texteValider: 'Générer',
+        onValider: ({ seances: idsChoisis }) => {
+          const idsSelectionnes = (idsChoisis || []).map(v => parseInt(v, 10));
+          lancerGenerationResume(idsSelectionnes, liste);
+        }
+      });
+    });
+}
+
+async function lancerGenerationResume(idsAutresSeances, seancesDisponibles) {
+  // Le bloc brouillon est créé tout de suite (avec un texte d'attente),
+  // pour que l'admin voie immédiatement qu'une génération est en cours —
+  // l'appel IA peut prendre plusieurs secondes.
+  const fratrie = blocs.filter(b => !b.parent_bloc_id);
+  const ordreMax = fratrie.length ? Math.max(...fratrie.map(b => b.ordre)) : -1;
+  const { data: nouveauBloc, error: erreurInsertion } = await supabaseClient.from('blocs_seance').insert({
+    seance_id: idSeance, type_bloc: 'resume',
+    contenu: { texte: '<p><em>⏳ Génération du résumé en cours...</em></p>' },
+    ordre: ordreMax + 1, statut_bloc: 'brouillon'
+  }).select().single();
+  if (erreurInsertion) return alert(erreurInsertion.message);
+  blocs.push(nouveauBloc);
+  rendreListeBlocs();
+  afficherSauvegarde();
+
+  const enregistrerTexteBloc = async (html) => {
+    const b = blocs.find(x => x.id === nouveauBloc.id);
+    if (!b) return; // supprimé entre-temps par l'admin
+    b.contenu = { texte: html };
+    await supabaseClient.from('blocs_seance').update({ contenu: b.contenu }).eq('id', nouveauBloc.id);
+    rendreListeBlocs();
+    afficherSauvegarde();
+  };
+
+  try {
+    const seancesChoisies = seancesDisponibles.filter(s => idsAutresSeances.includes(s.id)).sort((a, b) => a.ordre - b.ordre);
+    let source = '';
+    for (const s of seancesChoisies) {
+      const { data: blocsAutreSeance } = await supabaseClient.from('blocs_seance').select('*').eq('seance_id', s.id).order('ordre');
+      source += texteSeancePourResume(s.titre, blocsAutreSeance || []) + '\n\n';
+    }
+    source += texteSeancePourResume(seance.titre, blocs.filter(b => b.id !== nouveauBloc.id));
+
+    // Garde-fou de taille (contexte du modèle IA, temps de réponse) : si le
+    // résumé porte sur beaucoup de séances, on garde le contenu le plus
+    // récent (la séance courante en dernier dans `source`) plutôt que de
+    // tronquer arbitrairement le début.
+    const LIMITE_CARACTERES = 14000;
+    if (source.length > LIMITE_CARACTERES) source = source.slice(source.length - LIMITE_CARACTERES);
+
+    const resultat = await appelerAssistantIA({
+      action: 'resumer', contenuSource: source,
+      classe: chaineNavigation?.classeNom, champ: chaineNavigation?.champNom
+    });
+    await enregistrerTexteBloc(markdownVersHtml(resultat));
+  } catch (e) {
+    await enregistrerTexteBloc(`<p><em>⚠️ Échec de la génération IA : ${echapper(e.message)}. Vous pouvez réessayer (🪄) ou rédiger ce résumé vous-même.</em></p>`);
+  }
+}
+
 // --- AJOUT / DUPLICATION / SUPPRESSION DE BLOCS -----------------------------
 
 async function ajouterBloc(type, parentBlocId) {
@@ -1197,8 +1331,10 @@ function ouvrirApercu() {
     else corps = `<p>${echapper(c.consigne)}</p>${b.palier ? `<p><em>Palier : ${b.palier}</em></p>` : ''}`;
 
     const enfants = blocs.filter(x => x.parent_bloc_id === b.id).sort((a, b2) => a.ordre - b2.ordre);
+    const noteBrouillonResume = b.type_bloc === 'resume' && b.statut_bloc !== 'publie'
+      ? ' <span style="font-weight:400;text-transform:none;color:#B45309">(brouillon — pas encore visible des élèves)</span>' : '';
     const contenuInterieur = `
-      ${afficherTitre ? `<div style="font-size:12px;font-weight:bold;color:${couleur};text-transform:uppercase;margin-bottom:6px">${info.icone} ${echapper(libelle)}</div>` : ''}
+      ${afficherTitre ? `<div style="font-size:12px;font-weight:bold;color:${couleur};text-transform:uppercase;margin-bottom:6px">${info.icone} ${echapper(libelle)}${noteBrouillonResume}</div>` : ''}
       ${corps}
       ${enfants.length ? `<div style="margin-top:10px">${enfants.map(x => rendreBlocApercu(x, true)).join('')}</div>` : ''}
     `;

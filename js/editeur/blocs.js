@@ -20,7 +20,8 @@ const TYPES_BLOCS = [
   { valeur: 'ressource',  label: 'Ressource',   icone: '📎', usage: 'Document ou média',   couleur: '#64748B' },
   { valeur: 'consigne',   label: 'Consigne',    icone: '📋', usage: 'Section pouvant contenir des items', couleur: '#003366' },
   { valeur: 'item',       label: 'Item',        icone: '▫️', usage: 'Élément d\'une consigne (Item 1, Item 2...)', couleur: '#475569' },
-  { valeur: 'autre',      label: 'Autre',       icone: '🧩', usage: 'Bloc personnalisé (nom libre)', couleur: '#64748B' }
+  { valeur: 'autre',      label: 'Autre',       icone: '🧩', usage: 'Bloc personnalisé (nom libre)', couleur: '#64748B' },
+  { valeur: 'resume',     label: 'Résumé',      icone: '🗒️', usage: 'Synthèse (à la main ou générée par IA)', couleur: '#334155' }
 ];
 
 // Convertit une couleur hexadécimale en fond très clair (pour harmoniser
@@ -54,7 +55,7 @@ function infoType(valeur) {
   return TYPES_BLOCS.find(t => t.valeur === valeur) || { label: valeur, icone: '❔' };
 }
 
-const TYPES_TEXTE_LIBRE = ['texte', 'a_retenir', 'definition', 'exemple', 'attention', 'astuce', 'item'];
+const TYPES_TEXTE_LIBRE = ['texte', 'a_retenir', 'definition', 'exemple', 'attention', 'astuce', 'item', 'resume'];
 
 // Types dont le contenu textuel peut être assisté par l'IA (bouton "Générer"/"Améliorer"
 // dans l'entête du bloc). On indique, par type, quel champ de `contenu` contient le texte.
@@ -107,7 +108,7 @@ function html_editeurBloc(bloc) {
         <div class="champ-ligne"><label>Nom du bloc</label><input type="text" data-champ="nom" placeholder="Ex: Anecdote, Citation, Remarque..." value="${echapper(c.nom)}"></div>
         <textarea data-champ="texte" placeholder="Contenu...">${echapper(c.texte)}</textarea>`;
 
-    case 'texte': case 'a_retenir': case 'definition': case 'exemple': case 'attention': case 'astuce': case 'item':
+    case 'texte': case 'a_retenir': case 'definition': case 'exemple': case 'attention': case 'astuce': case 'item': case 'resume':
       return html_editeurTexteRiche(bloc, c);
 
     case 'image': case 'video':
