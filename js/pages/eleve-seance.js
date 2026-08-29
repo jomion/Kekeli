@@ -169,7 +169,7 @@ function rendre() {
 
     <div class="zone-travail-seance">
       <div class="colonne-lecture-seance">
-        ${blocsLecture.length ? blocsLecture.map(rendreBlocLecture).join('') : '<p style="color:var(--text-gris)">Aucun support de cours pour cette séance.</p>'}
+        ${blocsLecture.length ? blocsLecture.map(b => rendreBlocLecture(b)).join('') : '<p style="color:var(--text-gris)">Aucun support de cours pour cette séance.</p>'}
         ${boutonMarquerTermine}
       </div>
       <div class="colonne-exercice-seance">
@@ -225,7 +225,7 @@ function rendreBlocTravail(b) {
   </div>`;
 }
 
-function rendreBlocLecture(b) {
+function rendreBlocLecture(b, estEnfant = false) {
   const info = infoType(b.type_bloc);
   const c = b.contenu || {};
   const couleur = c.couleurBloc || info.couleur || '#0000D1';
@@ -256,11 +256,16 @@ function rendreBlocLecture(b) {
   else corps = `<p>${echapper(c.consigne || c.texte || '')}</p>`;
 
   const enfants = blocsCourants.filter(x => x.parent_bloc_id === b.id).sort((a, b2) => a.ordre - b2.ordre);
-  return `<div class="bloc-lecture" style="border-left-color:${couleur};background:${teinteClaire(couleur, 0.04)}">
+  const contenuInterieur = `
     ${afficherTitre ? `<div class="bloc-lecture-titre" style="color:${couleur}">${info.icone} ${echapper(libelle)}</div>` : ''}
     ${corps}
-    ${enfants.length ? `<div style="margin-top:10px">${enfants.filter(x => !TYPES_TRAVAIL.includes(x.type_bloc)).map(rendreBlocLecture).join('')}</div>` : ''}
-  </div>`;
+    ${enfants.length ? `<div style="margin-top:10px">${enfants.filter(x => !TYPES_TRAVAIL.includes(x.type_bloc)).map(x => rendreBlocLecture(x, true)).join('')}</div>` : ''}
+  `;
+  // Un bloc rattaché à une section (Titre/Consigne) n'a pas sa propre carte :
+  // il s'affiche dans le prolongement direct du contenu parent, parfaitement
+  // aligné avec lui (pas de fond, pas de bordure, pas de padding qui décale).
+  if (estEnfant) return contenuInterieur;
+  return `<div class="bloc-lecture" style="border-left-color:${couleur};background:${teinteClaire(couleur, 0.04)}">${contenuInterieur}</div>`;
 }
 
 function libelleMedaille(medaille, numeroEssai) {

@@ -1080,7 +1080,7 @@ function dupliquerSeance() {
 function ouvrirApercu() {
   const fenetre = window.open('', '_blank');
 
-  function rendreBlocApercu(b) {
+  function rendreBlocApercu(b, estEnfant = false) {
     const info = infoType(b.type_bloc);
     const c = b.contenu || {};
     const couleur = c.couleurBloc || info.couleur;
@@ -1134,15 +1134,19 @@ function ouvrirApercu() {
     else corps = `<p>${echapper(c.consigne)}</p>${b.palier ? `<p><em>Palier : ${b.palier}</em></p>` : ''}`;
 
     const enfants = blocs.filter(x => x.parent_bloc_id === b.id).sort((a, b2) => a.ordre - b2.ordre);
-    return `<div style="margin-bottom:18px;padding:14px;border-left:4px solid ${couleur};background:${teinteClaire(couleur, 0.06)};border-radius:8px">
+    const contenuInterieur = `
       ${afficherTitre ? `<div style="font-size:12px;font-weight:bold;color:${couleur};text-transform:uppercase;margin-bottom:6px">${info.icone} ${echapper(libelle)}</div>` : ''}
       ${corps}
-      ${enfants.length ? `<div style="margin-top:10px">${enfants.map(rendreBlocApercu).join('')}</div>` : ''}
-    </div>`;
+      ${enfants.length ? `<div style="margin-top:10px">${enfants.map(x => rendreBlocApercu(x, true)).join('')}</div>` : ''}
+    `;
+    // Un bloc rattaché à une section (Titre/Consigne) n'a pas sa propre carte :
+    // il s'affiche dans le prolongement direct du contenu parent, aligné avec lui.
+    if (estEnfant) return contenuInterieur;
+    return `<div style="margin-bottom:18px;padding:14px;border-left:4px solid ${couleur};background:${teinteClaire(couleur, 0.06)};border-radius:8px">${contenuInterieur}</div>`;
   }
 
   const topNiveau = blocs.filter(b => !b.parent_bloc_id).sort((a, b) => a.ordre - b.ordre);
-  const html = topNiveau.map(rendreBlocApercu).join('');
+  const html = topNiveau.map(b => rendreBlocApercu(b)).join('');
 
   // La discipline est mise en avant (au-dessus du titre), comme dans l'arborescence.
   const enTeteTitre = seance.discipline
