@@ -55,12 +55,19 @@ async function init() {
     const saInfo = saParId.get(s.sa_id) || null;
     const noeud = saInfo ? noeudParId.get(saInfo.noeud_id) : null;
     const chemin = saInfo ? remonterCheminHierarchiqueTB(saInfo.noeud_id, noeudParId) : { unite: null, semaine: null, dossier: null };
+    // Chemin complet (Thème › Unité › ... › SA), même principe que la page
+    // "Séances" partagée (pages/seances.html) — pour retrouver une séance
+    // sans avoir à deviner sa place dans l'arborescence depuis cette liste.
+    const cheminTitres = saInfo
+      ? [...cheminTitresNoeudTB(saInfo.noeud_id, noeudParId), `${saInfo.numero ? 'SA' + saInfo.numero + ' — ' : ''}${saInfo.titre}`]
+      : [];
     return {
       ...s,
       saInfo,
       classe: noeud ? classeParId.get(noeud.classe_id) || null : null,
       champ: noeud ? champParId.get(noeud.champ_formation_id) || null : null,
-      unite: chemin.unite, semaine: chemin.semaine, dossier: chemin.dossier
+      unite: chemin.unite, semaine: chemin.semaine, dossier: chemin.dossier,
+      cheminTitres
     };
   });
 
@@ -75,6 +82,18 @@ async function init() {
 // que soit le nombre de niveaux entre eux (ex: Thème > Unité > Semaine pour
 // le français). Sert à filtrer/regrouper les séances sans avoir à connaître
 // à l'avance la profondeur exacte de la hiérarchie de chaque matière.
+// Chemin des titres d'un noeud en remontant sa chaîne de parent_id (ex:
+// ["Thème 1", "Unité 3"]) — même logique que cheminTitresNoeudSea de
+// js/pages/seances.js, dupliquée ici car les deux pages ne partagent pas de
+// module commun.
+function cheminTitresNoeudTB(noeudId, noeudParId, garde) {
+  garde = garde || 0;
+  const n = noeudParId.get(noeudId);
+  if (!n || garde > 30) return [];
+  const chemin = n.parent_id ? cheminTitresNoeudTB(n.parent_id, noeudParId, garde + 1) : [];
+  return [...chemin, n.titre];
+}
+
 function remonterCheminHierarchiqueTB(noeudId, noeudParId) {
   const chemin = { unite: null, semaine: null, dossier: null };
   let n = noeudParId.get(noeudId);
@@ -353,15 +372,16 @@ function rendreSeances() {
 
 function ligneSeanceHtmlTB(s) {
   const meta = [
-    s.saInfo ? `${s.saInfo.numero ? 'SA' + s.saInfo.numero + ' — ' : ''}${echapperTB(s.saInfo.titre)}` : null,
     s.discipline || null,
     `Modifiée le ${formaterDateTB(s.modifie_le)}`
   ].filter(Boolean).join(' · ');
+  const chemin = (s.cheminTitres || []).map(t => echapperTB(t)).join(' › ');
 
   return `
     <div class="ligne ligne-seance-admin">
       <div class="details-seance-admin">
         <span class="titre-ligne">${echapperTB(s.titre)}${s.classe ? ` <span class="badge-classe-admin">${echapperTB(s.classe.nom)}</span>` : ''}</span>
+        ${chemin ? `<span class="chemin-ligne-seance-partagee">${chemin}</span>` : ''}
         <span class="meta-seance-admin">${meta}</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
