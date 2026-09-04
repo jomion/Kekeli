@@ -30,6 +30,16 @@
 
 const RUPTURE_PREMIUM_MOBILE = 900;
 
+// Icônes par matière (code de champs_formation) — copie volontaire de
+// PRESENTATION_CHAMPS_ELEVE (js/pages/eleve-matiere.js) : ce fichier est
+// chargé sur TOUTES les pages élève (pas seulement matiere.html), il a donc
+// besoin de sa propre petite copie plutôt que de dépendre du chargement d'un
+// autre fichier de page. Garder les deux synchronisées si une matière change.
+const PRESENTATION_CHAMPS_PREMIUM = {
+  francais:     { icone: '📚' }, mathematique: { icone: '📐' }, es: { icone: '🌍' },
+  est:          { icone: '🔬' }, ea:           { icone: '🎨' }, eps: { icone: '⚽' }
+};
+
 function echapperPremEleve(v) {
   const d = document.createElement('div');
   d.textContent = v ?? '';
@@ -50,22 +60,45 @@ async function construireShellPremiumEleve(config, liensVisibles) {
 
   const prenom = prenomDepuisBadgePremEleve(config.badgeHtml);
 
-  // Nom de classe : petite requête dédiée (pas systématiquement déjà chargée
-  // par la page appelante) — non bloquante si elle échoue.
+  // Nom de classe + matières réelles de la classe : deux petites requêtes
+  // dédiées (pas systématiquement déjà chargées par la page appelante) —
+  // non bloquantes si elles échouent. Les matières servent au panneau
+  // "MATIÈRES" de la sidebar (voir plus bas) : toujours les matières RÉELLES
+  // de la classe de l'élève, jamais une liste figée.
   let classeNom = '';
+  let champsEleve = [];
   try {
     const { data: fiche } = await supabaseClient.from('eleves').select('classe_id').eq('id', config.utilisateurId).maybeSingle();
     if (fiche?.classe_id) {
-      const { data: classe } = await supabaseClient.from('classes').select('nom').eq('id', fiche.classe_id).maybeSingle();
+      const [{ data: classe }, { data: champsLies }] = await Promise.all([
+        supabaseClient.from('classes').select('nom').eq('id', fiche.classe_id).maybeSingle(),
+        supabaseClient.from('classes_champs_formation').select('champs_formation(id, nom, code)').eq('classe_id', fiche.classe_id),
+      ]);
       classeNom = classe?.nom || '';
+      champsEleve = (champsLies || []).map(c => c.champs_formation).filter(Boolean);
     }
-  } catch (_e) { /* pas bloquant : la topbar s'affiche sans le nom de classe */ }
+  } catch (_e) { /* pas bloquant : la topbar/sidebar s'affichent sans ces infos */ }
 
   const nomFichierActuel = (window.location.pathname.split('/').pop() || '').toLowerCase();
+
+  // Matière actuellement consultée (matiere.html?champId=...), pour
+  // surligner la bonne entrée dans le panneau MATIÈRES.
+  let champIdActuel = null;
+  if (nomFichierActuel === 'matiere.html') {
+    try { champIdActuel = new URLSearchParams(window.location.search).get('champId'); } catch (_e) { /* ignore */ }
+  }
+  // Panneau MATIÈRES déployé automatiquement dès que l'élève est déjà dans
+  // le parcours d'une matière (matiere.html) — voir demande utilisateur :
+  // "quand l'enfant sélectionne séance, les matières se développent
+  // automatiquement". Peut aussi être déplié/replié à la main via le bouton
+  // "📌 Séances" (voir plus bas), qui n'est plus un lien de navigation mais
+  // un simple bouton d'ouverture/fermeture de ce panneau.
+  const matieresOuvertesInitialement = nomFichierActuel === 'matiere.html';
 
   // Liens de la sidebar : les vrais liens du rôle (déjà filtrés selon les
   // préférences de masquage — voir js/entete-navigation.js), plus "Jeux
   // éducatifs" (réel) et deux entrées visuelles seulement.
+  const lienMatieres = liensVisibles.find(l => l.id === 'matieres');
   const liensSidebar = [
     ...liensVisibles.map(l => ({ ...l, reel: true })),
     { href: 'jeux-educatifs.html', icone: '🎮', label: 'Jeux éducatifs', reel: true },
@@ -73,7 +106,18 @@ async function construireShellPremiumEleve(config, liensVisibles) {
     { href: '#', icone: '❤️', label: 'Favoris', reel: false },
   ];
 
+  // Le lien "Séances" (id 'seances') n'ouvre plus pages/seances.html
+  // directement : il devient un bouton qui déplie/replie le panneau
+  // "MATIÈRES" juste en dessous de la nav (voir sectionMatieresHtml), comme
+  // dans la maquette fournie. L'accès direct à pages/seances.html (recherche/
+  // épinglage transversal à toutes les matières) reste possible via le lien
+  // "🔎 Toutes mes séances" à l'intérieur du panneau déplié.
   const ligneSidebarHtml = (l) => {
+    if (l.id === 'seances') {
+      return `<a href="#" class="prem-sidebar-lien${matieresOuvertesInitialement ? ' selected' : ''}" id="premBoutonToggleMatieres" data-sidebar-toggle-matieres>
+        <span class="prem-sidebar-icone">${l.icone}</span><span>${echapperPremEleve(l.label)}</span>
+      </a>`;
+    }
     const basename = (l.href.split('/').pop() || '').toLowerCase();
     const actif = l.reel && basename && basename === nomFichierActuel;
     if (!l.reel) {
@@ -87,6 +131,24 @@ async function construireShellPremiumEleve(config, liensVisibles) {
     </a>`;
   };
 
+  // Panneau "MATIÈRES" : liste réelle des matières de la classe (jamais de
+  // valeurs figées) + un lien vers pages/seances.html (recherche/épinglage
+  // transversal à toutes les matières, fonctionnalité déjà existante et
+  // conservée telle quelle). Absent du DOM si l'élève n'a aucune classe/
+  // matière connue, ou si le lien "Séances" a été masqué par l'élève dans
+  // Paramètres.
+  const lienSeances = liensVisibles.find(l => l.id === 'seances');
+  const hrefMatiereBase = lienMatieres ? lienMatieres.href : 'matiere.html';
+  const sectionMatieresHtml = (lienSeances && champsEleve.length) ? `
+    <div class="prem-sidebar-matieres${matieresOuvertesInitialement ? ' ouvert' : ''}" id="premSidebarMatieres">
+      <div class="prem-sidebar-section-titre">MATIÈRES</div>
+      ${champsEleve.map(c => `
+        <a href="${hrefMatiereBase}?champId=${c.id}" class="prem-sidebar-matiere${String(c.id) === String(champIdActuel) ? ' active' : ''}" data-champ-id="${c.id}">
+          <span class="prem-sidebar-matiere-badge">${(PRESENTATION_CHAMPS_PREMIUM[c.code] || {}).icone || '📘'}</span>${echapperPremEleve(c.nom)}
+        </a>`).join('')}
+      <a href="${lienSeances.href}" class="prem-sidebar-toutes-seances">🔎 <span>Toutes mes séances</span></a>
+    </div>` : '';
+
   // --- Sidebar ---
   const sidebar = document.createElement('aside');
   sidebar.className = 'prem-sidebar';
@@ -94,6 +156,7 @@ async function construireShellPremiumEleve(config, liensVisibles) {
   sidebar.innerHTML = `
     <div class="prem-sidebar-logo"><img src="${racine}assets/logo/logo.png" alt="KEKELI"> KEKELI</div>
     <nav class="prem-sidebar-nav">${liensSidebar.map(ligneSidebarHtml).join('')}</nav>
+    ${sectionMatieresHtml}
     <div class="prem-sidebar-pied">
       <a href="${racine}pages/parametres.html" class="prem-sidebar-lien">⚙️ <span>Paramètres</span></a>
       <a href="#" class="prem-sidebar-lien" id="premLienDeconnexion">🚪 <span>Déconnexion</span></a>
@@ -168,7 +231,23 @@ async function construireShellPremiumEleve(config, liensVisibles) {
   }
   if (btnMenu) btnMenu.addEventListener('click', basculerSidebarMobile);
   overlaySidebar.addEventListener('click', fermerSidebarMobile);
-  sidebar.querySelectorAll('a').forEach(a => a.addEventListener('click', fermerSidebarMobile));
+  // Le bouton "Séances" (déplie/replie MATIÈRES) ne doit pas refermer le
+  // tiroir mobile : sans ça, sur mobile, déplier le panneau le cacherait
+  // aussitôt derrière la fermeture du tiroir.
+  sidebar.querySelectorAll('a').forEach(a => {
+    if (a.id !== 'premBoutonToggleMatieres') a.addEventListener('click', fermerSidebarMobile);
+  });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermerSidebarMobile(); });
   window.addEventListener('resize', () => { if (window.innerWidth > RUPTURE_PREMIUM_MOBILE) fermerSidebarMobile(); });
+
+  // --- Panneau MATIÈRES : déplier/replier au clic sur "Séances" ---
+  const boutonToggleMatieres = document.getElementById('premBoutonToggleMatieres');
+  const panneauMatieres = document.getElementById('premSidebarMatieres');
+  if (boutonToggleMatieres && panneauMatieres) {
+    boutonToggleMatieres.addEventListener('click', (e) => {
+      e.preventDefault();
+      const ouvert = panneauMatieres.classList.toggle('ouvert');
+      boutonToggleMatieres.classList.toggle('selected', ouvert);
+    });
+  }
 }

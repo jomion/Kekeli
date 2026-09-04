@@ -516,6 +516,42 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .ligne-structure-champ { padding: 3px 0; color: var(--texte-fonce); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ligne-structure-champ .type-arbo { font-size: 10px; color: var(--texte-gris); background: var(--bordure); padding: 1px 7px; border-radius: 8px; margin-left: 6px; }
 
+/* ===== Panneau LATÉRAL "🗂️ Structure" (déployable/repliable, cliquable) —
+   voir js/structure-laterale.js. Remplace l'ancien panneau inline
+   ci-dessus (classes .panneau-structure-champ/.structure-champ-liste/
+   .ligne-structure-champ, laissées telles quelles mais plus générées). */
+.structure-laterale { position: fixed; inset: 0; z-index: 900; visibility: hidden; }
+.structure-laterale.ouvert { visibility: visible; }
+.structure-laterale-overlay { position: absolute; inset: 0; background: rgba(15,23,42,.35); opacity: 0; transition: opacity .2s ease; }
+.structure-laterale.ouvert .structure-laterale-overlay { opacity: 1; }
+.structure-laterale-panneau {
+  position: absolute; top: 0; right: 0; bottom: 0; width: min(420px, 92vw); background: var(--blanc);
+  box-shadow: -8px 0 30px rgba(15,23,42,.18); display: flex; flex-direction: column;
+  transform: translateX(100%); transition: transform .25s ease;
+}
+.structure-laterale.ouvert .structure-laterale-panneau { transform: translateX(0); }
+.structure-laterale-entete { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid var(--bordure); flex-shrink: 0; }
+.structure-laterale-titre { font-weight: 700; font-size: 15px; color: var(--texte-fonce); }
+.structure-laterale-fermer { background: none; border: none; font-size: 16px; cursor: pointer; color: var(--texte-gris); padding: 4px 8px; }
+.structure-laterale-corps { flex: 1; overflow-y: auto; padding: 10px 12px 24px; }
+.structure-laterale-ligne { display: flex; align-items: center; gap: 6px; padding: 6px 4px; border-radius: 6px; }
+.structure-laterale-ligne:hover { background: var(--bleu-clair); }
+.structure-laterale-bascule { background: none; border: none; cursor: pointer; font-size: 12px; width: 18px; flex-shrink: 0; color: var(--texte-gris); }
+.structure-laterale-bascule-vide { display: inline-block; width: 18px; flex-shrink: 0; }
+.structure-laterale-icone { flex-shrink: 0; }
+.structure-laterale-libelle { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--texte-fonce); font-size: 13.5px; }
+.structure-laterale-libelle.cliquable { cursor: pointer; }
+.structure-laterale-libelle.cliquable:hover { text-decoration: underline; color: var(--bleu-principal); }
+.structure-laterale-ligne-sa .structure-laterale-libelle { color: var(--texte-gris); }
+.structure-laterale .type-arbo { font-size: 10px; color: var(--texte-gris); background: var(--bordure); padding: 1px 7px; border-radius: 8px; flex-shrink: 0; }
+
+/* Puce du filtre "Structure" actif sur pages/seances.html */
+.puce-filtre-structure-sea {
+  display: inline-flex; align-items: center; gap: 8px; background: var(--bleu-clair); border: 1px solid var(--bordure);
+  border-radius: 20px; padding: 6px 8px 6px 14px; font-size: 12.5px; color: var(--texte-fonce); margin: 0 0 14px;
+}
+.puce-filtre-structure-sea button { background: none; border: none; cursor: pointer; color: var(--texte-gris); font-size: 13px; padding: 2px 6px; }
+
 /* ===== Page "Choisissez votre Classe" (groupée par cycle) ===== */
 .titre-page.centre, .sous-titre-page.centre { text-align: center; }
 .titre-page.centre { font-size: 28px; }

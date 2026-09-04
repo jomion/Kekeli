@@ -341,7 +341,13 @@ function html_editeurExercice(bloc, c) {
       <div class="liste-questions" data-liste-questions>
         ${questions.length ? questions.map((q, i) => html_questionEditeur(q, i, null)).join('') : '<p class="note-future">Aucune question pour l\'instant.</p>'}
       </div>
-      <button type="button" class="btn btn-discret" data-ajouter-question>+ Ajouter une question</button>
+      <div class="champ-ligne" style="gap:8px;flex-wrap:wrap">
+        <button type="button" class="btn btn-discret" data-ajouter-question>+ Ajouter une question</button>
+        <button type="button" class="btn btn-discret" data-generer-activite-ia ${bloc.palier ? '' : 'disabled'}
+          title="${bloc.palier ? 'Générer des questions (avec leur corrigé) adaptées au palier choisi, à partir du contenu de la séance — le bloc reste en brouillon jusqu\'à relecture' : 'Choisis d\'abord un palier ci-dessus : l\'IA adapte la difficulté des questions à ce palier'}">
+          🧠 Générer des questions (IA)
+        </button>
+      </div>
       <p class="note-future" data-etat-corrige>Chargement du corrigé...</p>
     </div>`;
 }

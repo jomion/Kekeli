@@ -327,7 +327,6 @@ async function afficherChamps() {
               <button class="bouton-acceder-champ" data-acceder-champ="${c.id}" type="button">Accéder ➔</button>
             </div>
           </div>
-          <div class="panneau-structure-champ" data-panneau-structure="${c.id}" style="display:none"></div>
         </div>`;
       }).join('')}
     </div>`;
@@ -336,7 +335,34 @@ async function afficherChamps() {
     const btnStructure = e.target.closest('[data-structure-champ]');
     if (btnStructure) {
       e.stopPropagation();
-      return basculerPanneauStructureChamp(btnStructure.dataset.structureChamp, champs);
+      const champ = champs.find(c => String(c.id) === btnStructure.dataset.structureChamp);
+      // Panneau LATÉRAL déployable/repliable et cliquable (voir
+      // js/structure-laterale.js) : cliquer sur un noeud ou une SA saute
+      // directement à ce niveau dans la présentation par cartes, sans
+      // repasser par tous les niveaux intermédiaires un par un.
+      return ouvrirStructureLaterale({
+        classeId: etat.classe.id, champId: champ.id, champNom: champ.nom,
+        onNoeud: async (noeud) => {
+          fermerStructureLaterale();
+          etat.champ = champ;
+          etat.vueArborescence = false;
+          etat.sa = null;
+          etat.cheminNoeuds = await remonterAncetresNoeudNav(noeud.id);
+          noeudsOuverts.clear(); saOuvertes.clear();
+          await verifierPermissions();
+          afficher();
+        },
+        onSa: async (sa) => {
+          fermerStructureLaterale();
+          etat.champ = champ;
+          etat.vueArborescence = false;
+          etat.cheminNoeuds = await remonterAncetresNoeudNav(sa.noeud_id);
+          etat.sa = sa;
+          noeudsOuverts.clear(); saOuvertes.clear();
+          await verifierPermissions();
+          afficher();
+        },
+      });
     }
     const btnEditer = e.target.closest('[data-editer-champ]');
     const btnAcceder = e.target.closest('[data-acceder-champ]');
@@ -352,58 +378,10 @@ async function afficherChamps() {
   });
 }
 
-// --- STRUCTURE D'UNE MATIÈRE (liste déroulante depuis la carte champ) ------
-// Affiche, pour une matière donnée, sa hiérarchie complète (Thème/Unité/
-// Semaine/Dossier/... puis SA) sous forme de liste indentée, directement
-// depuis la carte de la page "Champs de Formation" — sans avoir à cliquer
-// sur "Accéder" puis descendre niveau par niveau. Chargée à la demande (au
-// premier clic) et mise en cache dans le panneau lui-même (data-charge="1")
-// pour ne pas refaire les requêtes à chaque ouverture/fermeture.
-async function basculerPanneauStructureChamp(champId, champs) {
-  const panneau = document.querySelector(`[data-panneau-structure="${champId}"]`);
-  if (!panneau) return;
-
-  const ouvert = panneau.style.display !== 'none';
-  if (ouvert) { panneau.style.display = 'none'; return; }
-
-  panneau.style.display = 'block';
-  if (panneau.dataset.charge === '1') return;
-
-  panneau.innerHTML = '<p class="chargement" style="margin:8px 0 0">Chargement de la structure...</p>';
-  const champ = champs.find(c => String(c.id) === champId);
-  const html = await construireHtmlStructureChamp(champ);
-  panneau.innerHTML = html;
-  panneau.dataset.charge = '1';
-}
-
-async function construireHtmlStructureChamp(champ) {
-  const { data: noeuds } = await supabaseClient.from('noeuds_parcours').select('id, parent_id, ordre, titre, type_noeud')
-    .eq('classe_id', etat.classe.id).eq('champ_formation_id', champ.id).order('ordre');
-  const idsNoeuds = (noeuds || []).map(n => n.id);
-  const { data: sasBrut } = idsNoeuds.length
-    ? await supabaseClient.from('sa').select('id, noeud_id, ordre, titre, numero').in('noeud_id', idsNoeuds).order('ordre')
-    : { data: [] };
-
-  if (!noeuds || !noeuds.length) {
-    return '<p class="chargement" style="margin:8px 0 0">Rien à afficher pour l\'instant — cette matière est vide.</p>';
-  }
-
-  const enfantsParParent = {};
-  noeuds.forEach(n => { const cle = n.parent_id ?? 'racine'; (enfantsParParent[cle] ??= []).push(n); });
-  const saParNoeud = {};
-  (sasBrut || []).forEach(s => { (saParNoeud[s.noeud_id] ??= []).push(s); });
-
-  function rendreNiveau(n, profondeur) {
-    const enfants = enfantsParParent[n.id] || [];
-    const sas = saParNoeud[n.id] || [];
-    return `<div class="ligne-structure-champ" style="padding-left:${profondeur * 16}px">📁 ${echapper(n.titre)} <span class="type-arbo">${etiquetteType(n.type_noeud)}</span></div>` +
-      sas.map(s => `<div class="ligne-structure-champ" style="padding-left:${(profondeur + 1) * 16}px">📄 ${s.numero ? 'SA' + s.numero + ' — ' : ''}${echapper(s.titre)}</div>`).join('') +
-      enfants.map(e => rendreNiveau(e, profondeur + 1)).join('');
-  }
-
-  const racines = enfantsParParent['racine'] || [];
-  return `<div class="structure-champ-liste">${racines.map(r => rendreNiveau(r, 0)).join('')}</div>`;
-}
+// La structure complète d'une matière (Thème/Unité/Semaine/Dossier/... puis
+// SA) est affichée via le panneau LATÉRAL partagé — voir
+// js/structure-laterale.js#ouvrirStructureLaterale, appelé depuis le
+// gestionnaire de clic de la grille de cartes ci-dessus.
 
 // Aperçu au survol : les tout premiers niveaux (racines) de ce champ, pour
 // que l'admin/enseignant voie "ses fils" sans avoir à cliquer sur "Accéder".

@@ -17,7 +17,7 @@ let champsAutorisesSeances = [];   // [{id, nom, code}]
 let seancesEpingleesIds = new Set();
 let listeAffichee = []; // dernière liste calculée (pour le clic sur une ligne)
 
-const filtresSeances = { classeId: '', champId: '', recherche: '', statut: '', tri: 'hierarchique', epinglesSeulement: false };
+const filtresSeances = { classeId: '', champId: '', recherche: '', statut: '', tri: 'hierarchique', epinglesSeulement: false, noeudId: '', saId: '' };
 
 const LIBELLES_STATUT_SEANCES = { brouillon: 'Brouillon', publie: 'Publié', archive: 'Archivé' };
 
@@ -172,7 +172,7 @@ function afficherPageSeances() {
       </label>
     </div>
 
-    <div id="panneauStructureSea" class="panneau-structure-champ" style="display:none;margin-bottom:14px"></div>
+    <div id="pucesFiltreStructureSea"></div>
 
     <div id="zoneListeSea" class="chargement">Choisissez une matière pour voir ses séances.</div>
   `;
@@ -192,76 +192,65 @@ function afficherPageSeances() {
   const selectStatut = document.getElementById('selectStatutSea');
   if (selectStatut) selectStatut.addEventListener('change', (e) => { filtresSeances.statut = e.target.value; rafraichirListeSea(); });
 
-  // Structure de la matière choisie : chargée à la demande (voir
-  // construireHtmlStructureSea), mise en cache dans le panneau tant que la
-  // matière ne change pas (mettreAJourBoutonStructureSea invalide le cache).
-  document.getElementById('btnStructureSea').addEventListener('click', async () => {
-    const panneau = document.getElementById('panneauStructureSea');
-    if (!panneau) return;
-    const ouvert = panneau.style.display !== 'none';
-    if (ouvert) { panneau.style.display = 'none'; return; }
-    panneau.style.display = 'block';
-    if (panneau.dataset.charge === '1') return;
-    panneau.innerHTML = '<p class="chargement" style="margin:8px 0 0">Chargement de la structure...</p>';
-    panneau.innerHTML = await construireHtmlStructureSea(filtresSeances.classeId, filtresSeances.champId);
-    panneau.dataset.charge = '1';
+  // Structure de la matière choisie : panneau LATÉRAL déployable/repliable
+  // et cliquable (voir js/structure-laterale.js) — cliquer sur un noeud ou
+  // une SA filtre directement la liste de séances ci-dessous sur ce
+  // périmètre, au lieu de se contenter d'un aperçu statique.
+  document.getElementById('btnStructureSea').addEventListener('click', () => {
+    const champ = champsAutorisesSeances.find(c => String(c.id) === filtresSeances.champId);
+    if (!champ) return;
+    ouvrirStructureLaterale({
+      classeId: filtresSeances.classeId, champId: champ.id, champNom: champ.nom,
+      onNoeud: (noeud) => {
+        fermerStructureLaterale();
+        filtresSeances.noeudId = String(noeud.id);
+        filtresSeances.saId = '';
+        rafraichirListeSea();
+      },
+      onSa: (sa) => {
+        fermerStructureLaterale();
+        filtresSeances.saId = String(sa.id);
+        filtresSeances.noeudId = '';
+        rafraichirListeSea();
+      },
+    });
   });
 
   chargerChampsPourClasse().then(() => { synchroniserUrlSeances(); rafraichirListeSea(); });
 }
 
 // Affiche/masque le bouton "Structure" selon qu'une matière est sélectionnée,
-// et invalide le panneau (et son cache) dès que la matière change — sinon on
-// risquerait d'afficher la structure de l'ancienne matière après un
-// changement de sélection.
+// et efface le filtre noeud/SA (venant du panneau latéral) dès que la
+// matière change — sinon on risquerait de filtrer la nouvelle matière avec
+// un id de noeud/SA appartenant à l'ancienne.
 function mettreAJourBoutonStructureSea() {
   const bouton = document.getElementById('btnStructureSea');
-  const panneau = document.getElementById('panneauStructureSea');
-  if (!bouton || !panneau) return;
+  if (!bouton) return;
   bouton.style.display = filtresSeances.champId ? 'inline-flex' : 'none';
-  if (panneau.dataset.champId !== filtresSeances.champId) {
-    panneau.style.display = 'none';
-    panneau.innerHTML = '';
-    delete panneau.dataset.charge;
-    panneau.dataset.champId = filtresSeances.champId || '';
+  if (bouton.dataset.champId !== filtresSeances.champId) {
+    filtresSeances.noeudId = '';
+    filtresSeances.saId = '';
+    bouton.dataset.champId = filtresSeances.champId || '';
   }
 }
 
-// Structure complète d'une matière (Thème/Unité/Semaine/Dossier/... puis SA)
-// sous forme de liste indentée — même principe que
-// construireHtmlStructureChamp() dans js/pages/navigation.js, dupliqué ici
-// (pas de module partagé entre les deux pages) car les deux vivent dans des
-// contextes différents (etat.classe.id côté navigation, filtresSeances côté
-// ici).
-async function construireHtmlStructureSea(classeId, champId) {
-  const { data: noeuds } = await supabaseClient.from('noeuds_parcours').select('id, parent_id, ordre, titre, type_noeud')
-    .eq('classe_id', classeId).eq('champ_formation_id', champId).order('ordre');
-  const idsNoeuds = (noeuds || []).map(n => n.id);
-  const { data: sasBrut } = idsNoeuds.length
-    ? await supabaseClient.from('sa').select('id, noeud_id, ordre, titre, numero').in('noeud_id', idsNoeuds).order('ordre')
-    : { data: [] };
-
-  if (!noeuds || !noeuds.length) {
-    return '<p class="chargement" style="margin:8px 0 0">Rien à afficher pour l\'instant — cette matière est vide.</p>';
-  }
-
-  const enfantsParParent = {};
-  noeuds.forEach(n => { const cle = n.parent_id ?? 'racine'; (enfantsParParent[cle] ??= []).push(n); });
-  const saParNoeud = {};
-  (sasBrut || []).forEach(s => { (saParNoeud[s.noeud_id] ??= []).push(s); });
-  const ETIQUETTES_TYPE_SEA = { theme: 'Thème', unite: 'Unité', semaine: 'Semaine', dossier: 'Dossier', discipline: 'Discipline' };
-
-  function rendreNiveau(n, profondeur) {
-    const enfants = enfantsParParent[n.id] || [];
-    const sas = saParNoeud[n.id] || [];
-    return `<div class="ligne-structure-champ" style="padding-left:${profondeur * 16}px">📁 ${echapperSea(n.titre)} <span class="type-arbo">${ETIQUETTES_TYPE_SEA[n.type_noeud] || n.type_noeud}</span></div>` +
-      sas.map(s => `<div class="ligne-structure-champ" style="padding-left:${(profondeur + 1) * 16}px">📄 ${s.numero ? 'SA' + s.numero + ' — ' : ''}${echapperSea(s.titre)}</div>`).join('') +
-      enfants.map(e => rendreNiveau(e, profondeur + 1)).join('');
-  }
-
-  const racines = enfantsParParent['racine'] || [];
-  return `<div class="structure-champ-liste">${racines.map(r => rendreNiveau(r, 0)).join('')}</div>`;
+// Puce affichant le filtre noeud/SA actif (venant du panneau latéral
+// "🗂️ Structure"), avec un bouton pour le retirer — sans ça, la liste
+// filtrée sans indication visible serait déroutante.
+function rendrePuceFiltreStructureSea(libelle) {
+  const zone = document.getElementById('pucesFiltreStructureSea');
+  if (!zone) return;
+  if (!libelle) { zone.innerHTML = ''; return; }
+  zone.innerHTML = `<div class="puce-filtre-structure-sea">🗂️ Filtré sur : <strong>${echapperSea(libelle)}</strong> <button type="button" data-effacer-filtre-structure title="Retirer ce filtre">✕</button></div>`;
+  zone.querySelector('[data-effacer-filtre-structure]').addEventListener('click', () => {
+    filtresSeances.noeudId = ''; filtresSeances.saId = '';
+    rafraichirListeSea();
+  });
 }
+
+// La structure complète d'une matière est affichée via le panneau LATÉRAL
+// partagé — voir js/structure-laterale.js#ouvrirStructureLaterale, appelé
+// depuis le gestionnaire de clic de "🗂️ Structure" ci-dessus.
 
 async function chargerChampsPourClasse() {
   const { data } = await supabaseClient.from('classes_champs_formation')
@@ -354,6 +343,34 @@ async function rafraichirListeSea() {
     const cheminOrdre = sa ? [...cheminOrdreNoeudSea(sa.noeud_id, noeudParId), sa.ordre ?? 0, s.ordre ?? 0] : [s.ordre ?? 0];
     return { ...s, cheminTitres, cheminOrdre, epinglee: seancesEpingleesIds.has(s.id) };
   });
+
+  // Filtre venant du panneau latéral "🗂️ Structure" (voir
+  // js/structure-laterale.js) : sur une SA précise (comparaison directe),
+  // ou sur un noeud (la SA de la séance doit être ce noeud ou un de ses
+  // descendants — on remonte sa chaîne de parent_id jusqu'à le retrouver).
+  let libellePuceFiltre = '';
+  if (filtresSeances.saId) {
+    const saCible = saParId.get(parseInt(filtresSeances.saId, 10));
+    liste = liste.filter(s => String(s.sa_id) === filtresSeances.saId);
+    if (saCible) libellePuceFiltre = `${saCible.numero ? 'SA' + saCible.numero + ' — ' : ''}${saCible.titre}`;
+  } else if (filtresSeances.noeudId) {
+    const idCible = parseInt(filtresSeances.noeudId, 10);
+    function estDescendantOuEgalSea(noeudId) {
+      let n = noeudId, garde = 0;
+      while (n != null && garde++ < 30) {
+        if (n === idCible) return true;
+        n = noeudParId.get(n)?.parent_id ?? null;
+      }
+      return false;
+    }
+    liste = liste.filter(s => {
+      const sa = saParId.get(s.sa_id);
+      return sa && estDescendantOuEgalSea(sa.noeud_id);
+    });
+    const noeudCible = noeudParId.get(idCible);
+    if (noeudCible) libellePuceFiltre = noeudCible.titre;
+  }
+  rendrePuceFiltreStructureSea(libellePuceFiltre);
 
   const recherche = filtresSeances.recherche.trim().toLowerCase();
   if (recherche) liste = liste.filter(s => (s.titre || '').toLowerCase().includes(recherche));

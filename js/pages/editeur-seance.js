@@ -228,7 +228,14 @@ function htmlBloc(b) {
   const champIa = champIA(b.type_bloc);
   const texteExistantIa = champIa && b.contenu && (b.contenu[champIa] || '').toString().replace(/<[^>]*>/g, '').trim();
   const estResume = b.type_bloc === 'resume';
-  const resumeBrouillon = estResume && b.statut_bloc !== 'publie';
+  // Le statut brouillon/publié (déjà utilisé pour le Résumé IA) s'applique
+  // aussi aux blocs d'exercice/quiz/évaluation/activité : leurs questions
+  // peuvent désormais être générées par l'IA (voir "🧠 Générer des questions
+  // (IA)", js/editeur/blocs.js) et doivent rester masquées aux élèves tant
+  // que l'admin ne les a pas relues et explicitement publiées.
+  const estExerciceType = ['exercice', 'quiz', 'evaluation', 'activite'].includes(b.type_bloc);
+  const estBrouillonable = estResume || estExerciceType;
+  const resumeBrouillon = estBrouillonable && b.statut_bloc !== 'publie';
   // Verrou IA : exclut ce bloc de la génération groupée "🧠 Générer avec
   // l'IA" (voir ouvrirGenerationSeanceIA). N'a de sens que pour les blocs de
   // contenu (pas les sections Contenu/Consigne, qui n'y sont de toute façon
@@ -244,9 +251,9 @@ function htmlBloc(b) {
           <input type="text" class="libelle-bloc-editable" data-libelle-bloc value="${echapper(libelle)}" style="color:${couleur}" title="Nom personnalisé affiché (repère interne : ${echapper(info.label)})">
         </span>
         <div class="bloc-actions">
-          ${estResume ? `
+          ${estBrouillonable ? `
           <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;${resumeBrouillon ? 'background:#FEF3C7;color:#92620A' : 'background:#DCFCE7;color:#15803D'}" title="${resumeBrouillon ? 'Non visible des élèves tant que non publié' : 'Visible des élèves'}">${resumeBrouillon ? '🔸 Brouillon' : '✅ Publié'}</span>
-          <button type="button" data-toggle-statut-resume title="${resumeBrouillon ? 'Publier ce résumé (le rendre visible des élèves)' : 'Repasser en brouillon (le masquer aux élèves)'}">${resumeBrouillon ? '📤 Publier' : '↩️ Dépublier'}</button>` : ''}
+          <button type="button" data-toggle-statut-resume title="${resumeBrouillon ? 'Publier (le rendre visible des élèves)' : 'Repasser en brouillon (le masquer aux élèves)'}">${resumeBrouillon ? '📤 Publier' : '↩️ Dépublier'}</button>` : ''}
           <label title="Afficher ce nom dans l'aperçu élève" style="display:flex;align-items:center;gap:3px;font-size:11px;font-weight:400;color:var(--texte-gris)">
             <input type="checkbox" data-toggle-titre-bloc ${afficherTitre ? 'checked' : ''}> Titre visible
           </label>
@@ -512,8 +519,10 @@ function attacherEcouteursBloc(bloc) {
   attacherEcouteursTableau(el, bloc);
   attacherEcouteursQuestions(el, bloc);
 
-  // Résumé IA : bascule brouillon ↔ publié, indépendante du statut de la
-  // séance elle-même (voir gererChangementStatut, qui ne touche jamais les blocs).
+  // Brouillon ↔ publié (Résumé IA, et maintenant aussi les blocs d'exercice/
+  // quiz/évaluation/activité dont les questions ont été générées par IA) :
+  // indépendant du statut de la séance elle-même (voir gererChangementStatut,
+  // qui ne touche jamais les blocs).
   const boutonToggleResume = el.querySelector(':scope > .bloc-entete [data-toggle-statut-resume]');
   if (boutonToggleResume) boutonToggleResume.addEventListener('click', async () => {
     const nouveauStatut = bloc.statut_bloc === 'publie' ? 'brouillon' : 'publie';
@@ -985,6 +994,9 @@ function attacherEcouteursQuestions(el, bloc) {
     });
   }
 
+  const btnGenererActiviteIA = conteneur.querySelector('[data-generer-activite-ia]');
+  if (btnGenererActiviteIA) btnGenererActiviteIA.addEventListener('click', () => ouvrirGenerationActiviteIA(bloc));
+
   supabaseClient.from('corriges_exercices').select('corrige').eq('bloc_id', bloc.id).maybeSingle()
     .then(({ data }) => {
       corrigeActuel = (data && data.corrige) || {};
@@ -1003,6 +1015,200 @@ function programmerSauvegardeCorrige(blocId, corrige) {
     );
     afficherSauvegarde();
   }, 700);
+}
+
+// --- GÉNÉRATION IA D'ACTIVITÉS (questions + corrigé) -----------------------
+// Bouton "🧠 Générer des questions (IA)" de l'éditeur d'exercice/quiz/
+// évaluation/activité (voir html_editeurExercice, js/editeur/blocs.js).
+// Décisions prises avec l'administrateur avant l'implémentation :
+// - l'IA génère les questions ET leur corrigé (jamais envoyé à l'élève,
+//   comme pour toute question saisie à la main — table corriges_exercices) ;
+// - tous les types de question automatisables (qcm, qcm_multiple, vrai_faux,
+//   reponse_courte, texte_a_trous, remise_en_ordre, association, classement)
+//   sont autorisés, JAMAIS reponse_longue (correction ouverte, hors périmètre) ;
+// - l'admin choisit le palier AVANT de générer (bloc.palier, déjà présent
+//   dans l'éditeur) : l'IA adapte la difficulté à ce seul palier ;
+// - la génération tient compte du contenu déjà présent dans la séance
+//   (texteContextePourActiviteIA), pour rester cohérente avec le cours.
+// Comme le Résumé IA, le résultat reste en BROUILLON (bloc.statut_bloc)
+// jusqu'à relecture et publication explicite par l'admin — voir htmlBloc/
+// attacherEcouteursBloc, dont l'affichage brouillon/publié est maintenant
+// commun au résumé ET aux blocs d'exercice.
+
+// Contenu texte des AUTRES blocs de la séance courante (jamais le bloc
+// qu'on est en train de générer, jamais un corrigé) — sert de contexte à
+// l'IA pour qu'elle propose des questions cohérentes avec ce qui a été
+// enseigné dans cette séance précise. Réutilise texteBlocPourResume (voir
+// plus haut, section Résumé IA).
+function texteContextePourActiviteIA(blocCible) {
+  const parNiveau = blocs.filter(b => !b.parent_bloc_id).sort((a, b) => a.ordre - b.ordre);
+  function texteListe(liste) {
+    return liste.map(b => {
+      if (b.id === blocCible.id) return '';
+      const texte = texteBlocPourResume(b);
+      const enfants = blocs.filter(x => x.parent_bloc_id === b.id).sort((a, b2) => a.ordre - b2.ordre);
+      return [texte, enfants.length ? texteListe(enfants) : ''].filter(Boolean).join('\n');
+    }).filter(Boolean).join('\n');
+  }
+  return texteListe(parNiveau);
+}
+
+function ouvrirGenerationActiviteIA(bloc) {
+  if (!bloc.palier) {
+    alert("Choisis d'abord un palier pour ce bloc (Azɔ̀ví/Dèví/Ògán/Axɔ́sú) : l'IA adapte la difficulté des questions à ce palier.");
+    return;
+  }
+  ouvrirModal({
+    titre: "🧠 Générer des questions avec l'IA",
+    champs: [
+      { nom: 'nombre', label: 'Nombre de questions à générer', type: 'number', valeur: 5, placeholder: '5' },
+      {
+        nom: 'instructions', requis: false, type: 'textarea',
+        label: "Consignes pour l'IA (facultatif) — ex : privilégie les QCM, insiste sur le vocabulaire de la séance...",
+        placeholder: 'Laisser vide pour une sélection libre des types de questions'
+      }
+    ],
+    texteValider: 'Générer',
+    onValider: ({ nombre, instructions }) => {
+      const n = Math.max(1, Math.min(12, parseInt(nombre, 10) || 5));
+      lancerGenerationActiviteIA(bloc, n, (instructions || '').trim());
+    }
+  });
+}
+
+// Convertit UNE question reçue de l'IA (forme "auteur", proche de ce que
+// saisirait un admin dans l'éditeur — voir le prompt côté serveur) en
+// {question, corrigeEntree} exploitables par le reste de l'éditeur. Rejette
+// (renvoie question:null) toute question dont la forme ne correspond pas
+// exactement à ce qui est attendu, plutôt que d'enregistrer un contenu
+// à moitié valide qui casserait le rendu élève.
+function construireQuestionDepuisIA(qBrute, id) {
+  const type = qBrute && typeof qBrute.type === 'string' ? qBrute.type : '';
+  const enonce = (qBrute && typeof qBrute.enonce === 'string' ? qBrute.enonce : '').trim();
+  if (!enonce) return { question: null };
+  const base = { id, type, enonce, consigne: '' };
+  const corrigeEntree = { points: 1 };
+
+  if (type === 'qcm') {
+    const options = Array.isArray(qBrute.options) ? qBrute.options.map(String).filter(Boolean) : [];
+    const idx = Number.isInteger(qBrute.bonneReponseIndex) ? qBrute.bonneReponseIndex : -1;
+    if (options.length < 2 || idx < 0 || idx >= options.length) return { question: null };
+    corrigeEntree.bonneReponse = String(idx);
+    return { question: { ...base, options }, corrigeEntree };
+  }
+  if (type === 'qcm_multiple') {
+    const options = Array.isArray(qBrute.options) ? qBrute.options.map(String).filter(Boolean) : [];
+    const idxs = Array.isArray(qBrute.bonnesReponsesIndex) ? qBrute.bonnesReponsesIndex.filter(i => Number.isInteger(i) && i >= 0 && i < options.length) : [];
+    if (options.length < 2 || !idxs.length) return { question: null };
+    corrigeEntree.bonneReponse = idxs.map(String);
+    return { question: { ...base, options }, corrigeEntree };
+  }
+  if (type === 'vrai_faux') {
+    if (typeof qBrute.bonneReponse !== 'boolean') return { question: null };
+    corrigeEntree.bonneReponse = qBrute.bonneReponse;
+    return { question: base, corrigeEntree };
+  }
+  if (type === 'reponse_courte') {
+    const reponses = Array.isArray(qBrute.reponsesAcceptees) ? qBrute.reponsesAcceptees.map(String).filter(Boolean) : [];
+    if (!reponses.length) return { question: null };
+    corrigeEntree.bonneReponse = reponses;
+    return { question: base, corrigeEntree };
+  }
+  if (type === 'texte_a_trous') {
+    const nbTrous = (enonce.match(/___/g) || []).length;
+    const reponsesParTrou = Array.isArray(qBrute.reponsesParTrou)
+      ? qBrute.reponsesParTrou.map(r => (Array.isArray(r) ? r.map(String).filter(Boolean) : [String(r)].filter(Boolean)))
+      : [];
+    if (!nbTrous || reponsesParTrou.length !== nbTrous || reponsesParTrou.some(r => !r.length)) return { question: null };
+    corrigeEntree.bonneReponse = reponsesParTrou;
+    return { question: base, corrigeEntree };
+  }
+  if (type === 'remise_en_ordre') {
+    const elements = Array.isArray(qBrute.elementsEnOrdre) ? qBrute.elementsEnOrdre.map(String).filter(Boolean) : [];
+    if (elements.length < 2 || new Set(elements).size !== elements.length) return { question: null }; // doublons -> corrigé non fiable
+    // Mélange pour l'affichage (jamais dans l'ordre correct par défaut,
+    // sinon l'exercice serait déjà résolu), puis calcule le corrigé (index,
+    // dans ce mélange, de chaque élément dans l'ordre attendu).
+    const options = [...elements];
+    for (let i = options.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [options[i], options[j]] = [options[j], options[i]];
+    }
+    const bonneReponse = elements.map(texte => options.indexOf(texte));
+    corrigeEntree.bonneReponse = bonneReponse;
+    return { question: { ...base, options }, corrigeEntree };
+  }
+  if (type === 'association') {
+    const paires = Array.isArray(qBrute.paires)
+      ? qBrute.paires.map(p => ({ gauche: String((p && p.gauche) || ''), droite: String((p && p.droite) || '') })).filter(p => p.gauche && p.droite)
+      : [];
+    if (paires.length < 2) return { question: null };
+    const q = { ...base, paires };
+    recalculerAssociation(q, corrigeEntree); // dérive q.gauche/q.droite + corrigeEntree.bonneReponse (js/editeur/blocs.js)
+    return { question: q, corrigeEntree };
+  }
+  if (type === 'classement') {
+    const categories = Array.isArray(qBrute.categories) ? qBrute.categories.map(String).filter(Boolean) : [];
+    const items = Array.isArray(qBrute.items)
+      ? qBrute.items
+          .map(it => ({ mot: String((it && it.mot) || ''), categorieIndex: Number.isInteger(it && it.categorieIndex) ? it.categorieIndex : null }))
+          .filter(it => it.mot && it.categorieIndex !== null && it.categorieIndex >= 0 && it.categorieIndex < categories.length)
+      : [];
+    if (categories.length < 2 || items.length < 2) return { question: null };
+    const q = { ...base, categories, items };
+    recalculerClassement(q, corrigeEntree); // dérive q.motsAClasser/q.categories + corrigeEntree.bonneReponse
+    return { question: q, corrigeEntree };
+  }
+  return { question: null };
+}
+
+async function lancerGenerationActiviteIA(bloc, nombre, instructions) {
+  const btn = document.querySelector(`.bloc[data-bloc-id="${bloc.id}"] [data-generer-activite-ia]`);
+  const texteBoutonOriginal = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Génération en cours...'; }
+  try {
+    const contexteSeance = texteContextePourActiviteIA(bloc);
+    // Réponse en forme { questions, fournisseur } (pas { texte }) : on passe
+    // par appelerAssistantIABlocs, comme la génération groupée "genererSeance"
+    // (voir invoquerAssistantIA plus bas dans ce fichier).
+    const resultat = await appelerAssistantIABlocs({
+      action: 'genererActivite', typeBloc: bloc.type_bloc, palier: bloc.palier,
+      consigne: (bloc.contenu && bloc.contenu.consigne) || '', contexteSeance, nombre, instructions,
+      classe: chaineNavigation?.classeNom, champ: chaineNavigation?.champNom
+    });
+    const questionsRecues = Array.isArray(resultat.questions) ? resultat.questions : [];
+
+    const { data: corrigeRow } = await supabaseClient.from('corriges_exercices').select('corrige').eq('bloc_id', bloc.id).maybeSingle();
+    const corrige = (corrigeRow && corrigeRow.corrige) || {};
+    const questionsExistantes = Array.isArray(bloc.contenu && bloc.contenu.questions) ? bloc.contenu.questions : [];
+    const nouvellesQuestions = [];
+
+    questionsRecues.forEach((qBrute, i) => {
+      const id = 'q_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 7);
+      const { question, corrigeEntree } = construireQuestionDepuisIA(qBrute, id);
+      if (!question) return;
+      nouvellesQuestions.push(question);
+      corrige[id] = corrigeEntree;
+    });
+
+    if (!nouvellesQuestions.length) {
+      alert("L'IA n'a renvoyé aucune question exploitable — réessaie, ou reformule les consignes.");
+      return;
+    }
+
+    bloc.contenu = { ...bloc.contenu, questions: [...questionsExistantes, ...nouvellesQuestions] };
+    bloc.statut_bloc = 'brouillon'; // toujours à relire avant publication, comme le Résumé IA
+    await Promise.all([
+      supabaseClient.from('blocs_seance').update({ contenu: bloc.contenu, statut_bloc: 'brouillon' }).eq('id', bloc.id),
+      supabaseClient.from('corriges_exercices').upsert({ bloc_id: bloc.id, corrige, modifie_le: new Date().toISOString() }, { onConflict: 'bloc_id' })
+    ]);
+    afficherSauvegarde();
+    rendreListeBlocs();
+  } catch (e) {
+    alert('Erreur IA : ' + e.message);
+  } finally {
+    if (btn && btn.isConnected) { btn.disabled = false; btn.textContent = texteBoutonOriginal; }
+  }
 }
 
 // --- GLISSER-DÉPOSER (scopé par conteneur : racine ou une section) --------

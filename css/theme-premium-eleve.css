@@ -79,7 +79,34 @@ body.theme-premium-actif .titre-seance-eleve, body.theme-premium-actif .titre-pa
 .prem-sidebar-lien.bientot { opacity: .55; cursor: default; }
 .prem-sidebar-lien.bientot:hover { background: none; color: #C9C4EE; }
 .prem-sidebar-pastille-bientot { margin-left: auto; font-size: 9px; font-weight: 800; background: rgba(255,255,255,0.14); color: #E4E1FF; padding: 2px 7px; border-radius: 10px; text-transform: uppercase; letter-spacing: .3px; }
+/* "Séances" replié/déplié : distinct de .actif (page courante) — fond clair
+   + liseré, comme dans la maquette fournie ("selected" ≠ "active"). */
+.prem-sidebar-lien.selected { background: rgba(255,255,255,0.12); color: white; border-left: 3px solid var(--prem-accent); padding-left: 11px; }
 .prem-sidebar-pied { border-top: 1px solid rgba(255,255,255,0.12); padding-top: 14px; margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
+
+/* ===== Panneau "MATIÈRES" (sous la nav, déplié/replié) ===== */
+.prem-sidebar-matieres {
+  display: flex; flex-direction: column; gap: 3px; max-height: 0; overflow: hidden;
+  opacity: 0; transition: max-height .28s ease, opacity .2s ease, margin .28s ease; margin-top: 0;
+}
+.prem-sidebar-matieres.ouvert { max-height: 420px; opacity: 1; margin-top: 6px; }
+.prem-sidebar-section-titre { font-size: 11px; font-weight: 800; letter-spacing: .4px; color: #9089C4; padding: 6px 12px 4px; text-transform: uppercase; }
+.prem-sidebar-matiere {
+  display: flex; align-items: center; gap: 11px; padding: 9px 12px; border-radius: 10px;
+  color: #C9C4EE; font-weight: 700; font-size: 13.5px; text-decoration: none; transition: background .15s, color .15s;
+}
+.prem-sidebar-matiere:hover { background: rgba(255,255,255,0.08); color: white; }
+.prem-sidebar-matiere.active { background: var(--prem-primaire-clair); color: var(--prem-primaire-fonce); }
+.prem-sidebar-matiere-badge {
+  width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,0.12); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 12px;
+}
+.prem-sidebar-matiere.active .prem-sidebar-matiere-badge { background: white; }
+.prem-sidebar-toutes-seances {
+  display: flex; align-items: center; gap: 8px; padding: 9px 12px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.12);
+  color: #9089C4; font-weight: 700; font-size: 12px; text-decoration: none;
+}
+.prem-sidebar-toutes-seances:hover { color: white; }
 
 /* ===== Barre du haut (topbar) ===== */
 .prem-topbar {
@@ -213,6 +240,7 @@ body.theme-premium-actif .fil-ariane-eleve a { color: var(--prem-primaire); }
   background: linear-gradient(120deg, var(--prem-primaire) 0%, #8B7BF0 60%, var(--prem-rose) 130%);
   display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
 }
+.prem-hero-matiere-mini { font-weight: 800; font-size: 13px; color: #F0EDFF; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
 .prem-hero-matiere-texte h1 { margin: 0 0 8px; font-size: 26px; }
 .prem-hero-matiere-texte p { margin: 0; color: #F0EDFF; font-size: 14px; max-width: 480px; }
 .prem-hero-matiere-illustration { font-size: 56px; opacity: .9; }
