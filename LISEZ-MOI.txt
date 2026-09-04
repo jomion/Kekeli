@@ -1,51 +1,55 @@
-KEKELI — Nouvelle fonctionnalité du 4 septembre 2026 : bandeau d'accueil dynamique
-====================================================================================
+KEKELI — Fond d'écran "ciel" appliqué au site (4 septembre 2026)
+==================================================================
 
-Comme demandé : le grand bandeau tout en haut de la page d'accueil publique
-(index.html) — celui avec "Apprendre, progresser et réussir ensemble" — est
-maintenant une section dynamique. Tu peux créer, modifier, supprimer et
-réordonner librement des blocs (image ou emoji + titre + texte), sans toucher
-au code, depuis un nouvel écran d'administration.
+Comme demandé : l'image de ciel que tu as envoyée est maintenant le fond
+d'écran de tout le site, pour tous les utilisateurs (élève, parent,
+enseignant, admin, super admin), SAUF les pages de connexion et
+d'inscription qui gardent leur fond bleu nuit habituel.
 
-OÙ TROUVER ÇA
--------------
-Connecte-toi en super admin, puis dans le menu, clique sur
-"🖼️ Accueil (bandeau)" (nouveau lien, tout en bas de la barre admin,
-juste après "Bannière" — réservé au super admin comme la bannière).
+OÙ ÇA S'APPLIQUE
+-----------------
+- La page d'accueil publique (index.html) et toutes les pages "après
+  connexion" de chaque rôle (tableaux de bord, séances, devoirs, badges,
+  messagerie, paramètres, toutes les pages d'administration, etc.).
+- Le thème premium élève (sidebar + carte) a aussi été mis à jour pour
+  rester cohérent avec le reste du site.
 
-COMMENT ÇA MARCHE
-------------------
-- "➕ Ajouter un bloc" : titre (obligatoire), texte (optionnel), une image
-  (optionnelle, à envoyer depuis ton ordinateur) et un emoji de secours
-  (utilisé seulement si tu ne mets pas d'image).
-- Les flèches ↑ ↓ réordonnent les blocs.
-- La case "Actif" permet de masquer un bloc sans le supprimer.
-- S'il y a plusieurs blocs actifs, ils s'affichent en carrousel sur
-  l'accueil (rotation automatique toutes les 6 secondes + petits points
-  cliquables en dessous du bouton "Accéder à mon espace").
-- Si tu ne crées aucun bloc, l'accueil garde exactement son texte actuel
-  (aucune régression) — la section ne s'active que si au moins un bloc
-  existe.
-- Le bouton "Accéder à mon espace" reste toujours à sa place, avec son
-  comportement habituel (devient "Continuer mon espace →" pour quelqu'un
-  déjà connecté) — il ne fait pas partie des blocs, donc pas besoin de le
-  recréer dans chaque bloc.
+OÙ ÇA NE S'APPLIQUE PAS (volontairement)
+------------------------------------------
+- pages/login.html (connexion)
+- pages/inscription.html (créer un compte)
+- La page de connexion admin séparée (pages/admin/connexion.html) — elle a
+  toujours eu son propre fond distinct (dégradé bleu nuit) et n'a pas été
+  touchée.
 
-CE QUI A ÉTÉ FAIT CÔTÉ BASE DE DONNÉES (déjà en ligne)
---------------------------------------------------------
-- Nouvelle table `blocs_accueil_hero` (titre, texte, image_url, emoji,
-  ordre, actif) avec les mêmes règles de sécurité que la bannière : lecture
-  publique des blocs actifs, écriture réservée au super admin.
-- Les images sont stockées dans un dossier dédié (accueil-hero/) d'un espace
-  de stockage déjà existant sur le projet mais jamais utilisé jusqu'ici ;
-  ce dossier est désormais réservé au super admin (les autres comptes ne
-  peuvent ni y déposer ni en supprimer de fichiers).
+COMMENT C'EST FAIT TECHNIQUEMENT
+------------------------------------
+- L'image a été compressée et enregistrée dans assets/fond/fond-ciel.jpg
+  (environ 150 Ko au lieu de 1,8 Mo à l'origine, pour que les pages restent
+  rapides à charger).
+- Elle est posée en fond de page (body), redimensionnée pour couvrir tout
+  l'écran et rester fixe pendant le défilement.
+- Comme login.html et inscription.html partagent la même feuille de style
+  que le reste du site public (css/style-public.css), une classe dédiée
+  ("page-sans-fond-ciel") a été ajoutée sur ces deux pages pour qu'elles
+  gardent leur ancien fond — sans dupliquer la feuille de style.
+
+UN POINT D'ATTENTION HONNÊTE
+------------------------------
+Le site utilise beaucoup de cartes blanches avec ombre portée, donc la
+lisibilité du contenu ne devrait pas être affectée. Mais certains titres et
+textes qui sont directement sur le fond (pas dans une carte blanche)
+pourraient, sur certains écrans très lumineux, être un peu moins contrastés
+qu'avant avec le fond bleu clair uni. Si tu remarques un endroit précis où
+c'est gênant, dis-le moi (avec une capture si possible) et j'ajusterai —
+par exemple avec un léger voile semi-transparent derrière le texte à cet
+endroit précis.
 
 FICHIERS INCLUS DANS CE ZIP
 -----------------------------
-- index.html (bandeau devenu dynamique, avec repli statique)
-- js/accueil-hero.js (nouveau — affichage du carrousel côté visiteur)
-- js/pages/admin-section-accueil.js (nouveau — écran de gestion)
-- pages/admin/section-accueil.html (nouveau — la page elle-même)
-- js/navigation-config.js (ajout du lien "Accueil (bandeau)")
-- css/style-public.css, css/style.css (styles du carrousel et du formulaire)
+- assets/fond/fond-ciel.jpg (nouveau — l'image de fond compressée)
+- css/style.css (fond ciel pour les pages "app" : admin, séances, etc.)
+- css/style-public.css (fond ciel pour les pages publiques/élève/parent/
+  enseignant, avec exclusion pour connexion/inscription)
+- css/theme-premium-eleve.css (fond ciel pour le thème premium élève)
+- pages/login.html, pages/inscription.html (classe d'exclusion ajoutée)

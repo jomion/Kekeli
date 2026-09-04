@@ -68,7 +68,15 @@
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, Arial, sans-serif;
   color: var(--texte-fonce);
-  background: var(--bleu-clair);
+  /* Fond ciel demandé le 4 septembre 2026, pour toutes les pages sauf
+     connexion/inscription (voir css/style-public.css, qui gère ces deux
+     pages à part). background-color de secours si l'image ne charge pas. */
+  background-color: var(--bleu-clair);
+  background-image: url('../assets/fond/fond-ciel.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   margin: 0;
   line-height: 1.5;
 }

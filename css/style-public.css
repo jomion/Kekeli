@@ -56,8 +56,21 @@
 * { box-sizing: border-box; }
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  /* Fond ciel demandé le 4 septembre 2026, pour toutes les pages sauf
+     connexion/inscription. Ce fichier CSS est partagé par ces deux pages ET
+     par le reste du site, donc l'exclusion se fait via la classe
+     "page-sans-fond-ciel" posée sur leur <body> (voir pages/login.html et
+     pages/inscription.html) plutôt qu'en modifiant chaque page une par une. */
   background-color: var(--bg-light);
+  background-image: url('../assets/fond/fond-ciel.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   margin: 0; padding: 0; color: var(--text-dark); line-height: 1.5;
+}
+body.page-sans-fond-ciel {
+  background-image: none;
 }
 a { text-decoration: none; }
 

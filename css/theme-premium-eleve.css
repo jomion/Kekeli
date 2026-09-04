@@ -58,7 +58,16 @@ body.theme-premium-actif {
   --prem-sidebar-largeur: 264px;
   --prem-topbar-hauteur: 72px;
 
-  background: var(--prem-bg);
+  /* Fond ciel demandé le 4 septembre 2026, appliqué aussi au thème premium
+     élève pour rester cohérent avec le reste du site (voir css/style.css et
+     css/style-public.css pour les autres pages — jamais les pages de
+     connexion/inscription, qui n'utilisent pas ce thème). */
+  background-color: var(--prem-bg);
+  background-image: url('../assets/fond/fond-ciel.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   color: var(--prem-texte);
   font-family: 'Inter', 'Segoe UI', sans-serif;
   padding-top: var(--prem-topbar-hauteur);
