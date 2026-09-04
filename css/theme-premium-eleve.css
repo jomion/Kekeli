@@ -88,6 +88,18 @@ body.theme-premium-actif .prem-sidebar-logo-texte {
      corrigé le 4 septembre 2026. */
   overflow-y: auto;
 }
+/* Cause réelle du blocage malgré overflow-y:auto ci-dessus (trouvée et
+   corrigée le 4 septembre 2026, après nouveau signalement) : en Flexbox,
+   un enfant qui a lui-même overflow:hidden (ici .prem-sidebar-matieres,
+   utilisé pour l'animation d'ouverture/fermeture) obtient une taille
+   minimale automatique de 0 — le moteur le compressait donc en priorité
+   pour que tout tienne dans la hauteur de l'écran, au lieu de laisser la
+   sidebar déborder et défiler. Résultat concret : le panneau MATIÈRES
+   déplié se retrouvait écrasé à quelques pixels (ses matières invisibles)
+   alors que rien ne débordait jamais, donc aucune barre de défilement
+   n'apparaissait. flex-shrink:0 empêche ce tassement sur chaque section
+   de la sidebar, qui déborde désormais réellement et défile normalement. */
+.prem-sidebar > * { flex-shrink: 0; }
 body.theme-premium-actif.prem-sidebar-repliee .prem-sidebar { width: 84px; padding: 18px 12px; }
 @media (max-width: 900px) {
   .prem-sidebar { transform: translateX(-100%); width: min(80vw, 280px) !important; }
