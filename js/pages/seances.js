@@ -339,7 +339,11 @@ async function rafraichirListeSea() {
 
   let liste = (seancesBrut || []).map(s => {
     const sa = saParId.get(s.sa_id) || null;
-    const cheminTitres = sa ? [...cheminTitresNoeudSea(sa.noeud_id, noeudParId), `${sa.numero ? 'SA' + sa.numero + ' — ' : ''}${sa.titre}`] : [];
+    // La séquence (SA) n'apparaît plus du tout à l'affichage, y compris dans
+    // cette ligne de chemin (demande explicite du 4 septembre 2026) — seuls
+    // les niveaux intermédiaires réels (Thème/Unité/Semaine/Dossier...) y
+    // restent.
+    const cheminTitres = sa ? cheminTitresNoeudSea(sa.noeud_id, noeudParId) : [];
     const cheminOrdre = sa ? [...cheminOrdreNoeudSea(sa.noeud_id, noeudParId), sa.ordre ?? 0, s.ordre ?? 0] : [s.ordre ?? 0];
     return { ...s, cheminTitres, cheminOrdre, epinglee: seancesEpingleesIds.has(s.id) };
   });
@@ -403,8 +407,7 @@ function rendreListeSea(liste) {
     <div class="ligne-seance-partagee">
       <div class="details-ligne-seance-partagee">
         <div class="titre-ligne-seance-partagee">
-          <span class="texte-titre-seance-partagee">${echapperSea(s.titre)}</span>
-          ${s.discipline ? `<span class="statut-pill" style="background:${couleurDisciplineSea(s.discipline)}22;color:${couleurDisciplineSea(s.discipline)};border:1px solid ${couleurDisciplineSea(s.discipline)}55">${echapperSea(s.discipline)}</span>` : ''}
+          <span class="texte-titre-seance-partagee" ${s.discipline ? `style="color:${couleurDisciplineSea(s.discipline)}"` : ''}>${echapperSea(s.discipline || s.titre)}</span>
           ${roleSeances === 'admin' || roleSeances === 'autorite' ? `<span class="statut-pill statut-${s.statut}">${LIBELLES_STATUT_SEANCES[s.statut] || s.statut}</span>` : ''}
         </div>
         <div class="chemin-ligne-seance-partagee">${s.cheminTitres.map(t => echapperSea(t)).join(' › ')}</div>

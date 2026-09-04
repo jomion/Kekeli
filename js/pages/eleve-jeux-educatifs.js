@@ -91,8 +91,7 @@ async function chargerJeuxEducatifs() {
             <div class="palier-card-eleve" style="border-top-color:${info.couleur};text-align:left">
               <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
                 <div>
-                  <div style="font-weight:800">${echapperJeux(s.titre)}</div>
-                  ${s.discipline ? `<div style="font-size:12px;color:var(--text-gris);margin-top:2px">${echapperJeux(s.discipline)}</div>` : ''}
+                  <div style="font-weight:800">${echapperJeux(s.discipline || s.titre)}</div>
                 </div>
                 <div class="palier-icon-eleve" style="margin:0;font-size:1.4rem">${info.icone}</div>
               </div>

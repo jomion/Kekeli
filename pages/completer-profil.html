@@ -13,11 +13,18 @@
       <div class="sous-titre">Bonjour <span id="badgeUtilisateur"></span> — encore une étape</div>
       <p style="font-size:13px;color:var(--text-gris);margin:-8px 0 16px">
         KEKELI vous demande maintenant quelques informations complémentaires
-        (localisation<span id="texteComplement"></span>). Merci de les renseigner
+        (<span id="texteComplement"></span>). Merci de les renseigner
         pour continuer à utiliser votre espace.
       </p>
 
       <form id="formCompleterProfil">
+        <div class="champ-auth" id="champSexe" style="display:none">
+          <label>Sexe</label>
+          <select id="sexe">
+            <option value="M">Masculin</option>
+            <option value="F">Féminin</option>
+          </select>
+        </div>
         <div class="champ-auth" id="champDepartement">
           <label>Département</label>
           <select id="departement"></select>

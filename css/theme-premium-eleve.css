@@ -81,6 +81,12 @@ body.theme-premium-actif .prem-sidebar-logo-texte {
   background: var(--prem-carte); border-right: 1px solid var(--prem-bordure);
   color: var(--prem-texte); display: flex; flex-direction: column; padding: 18px 14px;
   transition: transform .25s ease, width .2s ease;
+  /* La sidebar reste en position fixe sur toute la hauteur de l'écran ; sans
+     défilement propre, un contenu plus haut que l'écran (panneau MATIÈRES
+     déplié + carte pub + pied) dépassait simplement en bas, inaccessible —
+     signalé par l'utilisateur ("la barre latérale a besoin d'être scrollée"),
+     corrigé le 4 septembre 2026. */
+  overflow-y: auto;
 }
 body.theme-premium-actif.prem-sidebar-repliee .prem-sidebar { width: 84px; padding: 18px 12px; }
 @media (max-width: 900px) {

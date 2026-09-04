@@ -1,160 +1,66 @@
-KEKELI — Livraison : navigation admin, messagerie instantanée Premium, mises en avant
-d'affichage, masquage de classes, et champ sexe à l'inscription
-================================================================================================================
+KEKELI — Livraison du 4 septembre 2026 (session suivante)
+==========================================================
 
-Cette livraison répond à ton message listant 9 demandes. Je les reprends une par une,
-dans l'ordre où tu les as données.
+Ce zip contient uniquement les fichiers créés ou modifiés depuis la
+dernière livraison. À copier par-dessus tes fichiers existants (mêmes
+chemins).
 
+RÉSUMÉ DES CHANGEMENTS
+-----------------------
 
-1) CHEMIN COMPLET CLIQUABLE DANS L'ÉDITEUR DE SÉANCE (ADMIN)
-------------------------------------------------------------------
-Avant : le fil d'ariane en haut de l'éditeur de séance sautait directement de la matière à
-la Situation d'Apprentissage (SA), sans les niveaux intermédiaires (Thème, Unité, Semaine,
-Dossier...) quand il y en avait.
-Maintenant : le chemin complet s'affiche, du niveau le plus haut (classe) jusqu'à la séance
-elle-même, EN PASSANT PAR chaque niveau intermédiaire réel — et chaque segment est cliquable,
-il te ramène directement à cet endroit précis de l'arborescence.
+1. Barre latérale premium enfin scrollable
+   Fichier : css/theme-premium-eleve.css
+   La sidebar du thème premium élève ne défilait pas quand son contenu
+   dépassait la hauteur de l'écran (position fixe sans overflow) : le
+   bas de la liste des matières devenait inaccessible. Corrigé en une
+   ligne (overflow-y: auto).
 
+2. Discipline seule à l'affichage, séquence retirée partout (y compris
+   du chemin/fil d'ariane)
+   Fichiers : js/pages/eleve-seance.js, js/pages/editeur-seance.js,
+   js/pages/navigation.js, js/pages/admin-gestion-seances.js,
+   js/pages/seances.js, js/pages/eleve-matiere.js,
+   js/pages/eleve-jeux-educatifs.js
 
-2) DÉPLACER FACILEMENT UN BLOC D'UNE SECTION À UNE AUTRE
----------------------------------------------------------------
-Le glisser-déposer existant est conservé (pratique pour réordonner des blocs proches), mais
-j'ai ajouté un nouveau bouton 📦 sur chaque bloc : « Déplacer vers... ». Il ouvre une petite
-fenêtre avec la liste de toutes les sections valides de la séance (+ « Racine, hors section »)
-— un clic suffit pour y déplacer le bloc, même s'il est loin dans une longue séance ou que tu
-es sur mobile. Les mêmes règles qu'avant s'appliquent (une section "Contenu" n'accepte toujours
-pas les exercices/quiz/évaluations/activités/consignes/items).
+   Comme demandé, le titre technique de la séance (souvent générique :
+   "Séquence 1", "Séance 3"...) n'est plus affiché nulle part sur le
+   site — seule la discipline (ex. "Vocabulaire Thématique",
+   "Arithmétique") est montrée, sur TOUTES les pages où une séance
+   apparaît (lecture élève, éditeur/aperçu admin, arborescence,
+   gestion des séances, page Séances, cartes matière, jeux éducatifs).
+   Le nom de la séquence (SA) a aussi été retiré des lignes de chemin
+   où il apparaissait encore.
 
+   IMPORTANT : le champ "titre" en base de données n'a PAS été touché.
+   Il reste modifiable dans l'éditeur de séance et continue d'être
+   utilisé tel quel par l'IA pour générer le contenu — seul l'AFFICHAGE
+   a changé, jamais la donnée.
 
-3) LE TITRE DEVANT LES DISCIPLINES, DISCIPLINES MISES EN AVANT, SÉQUENCE DANS LE CHEMIN
-------------------------------------------------------------------------------------------------
-Suite à ta précision (« pas de miniature pour les séquences, plutôt mettre en avant les
-disciplines, la séquence passe dans le chemin ») :
-- Partout où une séance apparaît en liste (gestion des séances admin, page Séances partagée,
-  Mes matières côté élève), le TITRE de la séance s'affiche maintenant en premier, suivi d'une
-  pastille de discipline COLORÉE (une couleur stable par discipline, ex. toujours la même
-  teinte pour "Lecture") — nettement plus visible qu'avant (texte gris uni).
-- Le nom de la séquence (SA) n'apparaît plus comme un badge à côté du titre : il reste
-  seulement dans la ligne de chemin (ex. « CP › Français › Unité 2 › SA3 — Les fractions »),
-  cohérent avec ta demande de ne pas le mettre en avant.
-- Le thème "look premium" (côté élève) faisait déjà ça très bien (icône + couleur par
-  discipline) — je l'ai laissé tel quel, seul le formatage "classique" avait besoin du
-  rattrapage.
+3. Indicateurs "à compléter" étendus à pages/navigation.html
+   Fichier : js/pages/navigation.js
+   Les deux vues détaillées de navigation.html (liste des séances d'une
+   SA, et arborescence complète) affichent désormais, comme sur la page
+   de gestion des séances, un badge de remplissage (○ Vide / ● N blocs)
+   et les icônes des paliers déjà présents dans chaque séance. Utile
+   aussi bien pour voir ce qui reste à compléter que pour distinguer
+   des séances qui partagent la même discipline (une même SA peut avoir
+   plusieurs séances "Arithmétique", par exemple).
 
+4. Sexe obligatoire pour les comptes déjà créés
+   Fichiers : js/auth-utilisateur.js, pages/completer-profil.html,
+   js/pages/completer-profil.js, js/pages/parent-tableau-de-bord.js
+   + migrations Supabase (déjà en ligne)
 
-4) UN SEUL CHAMP TITRE POUR LES SÉANCES
---------------------------------------------
-Tu m'as laissé choisir lequel garder entre les deux titres possibles d'une séance — j'ai gardé
-`titre` (utilisé partout dans le site : listes, fil d'ariane, IA, aperçu élève...) et retiré
-`titre_contenu` (un champ optionnel ajouté plus tard, seulement éditable depuis l'éditeur de
-séance). Concrètement :
-- Le titre de la séance devient directement modifiable en haut de l'éditeur de séance (avant,
-  il fallait passer par le champ "Titre du contenu" séparé pour ajouter un repère — maintenant
-  c'est le titre principal qui joue ce rôle).
-- Le champ "Titre du contenu" et son badge 🔖 dans les listes ont disparu.
-- Rien n'est perdu en base (la colonne existe toujours, juste plus utilisée) — je n'ai pas fait
-  de suppression destructrice, au cas où tu voudrais revenir dessus.
+   Les comptes parent/enseignant/Autorité Pédagogique créés avant
+   l'ajout du champ sexe sont désormais automatiquement renvoyés vers
+   "Compléter mon profil" pour le renseigner (comme pour la
+   localisation). Pour un enfant (élève), c'est le parent qui est
+   sollicité depuis son tableau de bord, avec un nouveau champ dans la
+   fenêtre "Compléter les informations".
 
+   Les comptes administrateur/super_admin ne sont PAS concernés : ils
+   n'ont jamais eu de champ sexe dans leurs écrans — à signaler si ça
+   doit changer.
 
-5) INFOS SUPPLÉMENTAIRES SUR LES SÉANCES CÔTÉ ADMIN
----------------------------------------------------------
-Dans la liste "Gestion des séances", chaque séance affiche maintenant :
-- ○ Vide (gris) si aucun bloc de contenu n'y a encore été ajouté, ou ● X blocs (vert) sinon —
-  pour repérer en un coup d'œil les séances encore à démarrer.
-- Les icônes des paliers déjà présents parmi ses blocs (🌱 Azɔ̀ví, 🪘 Dèví, 🦁 Ògán, 👑 Axɔ́sú),
-  dans l'ordre — pour voir immédiatement quels paliers restent à couvrir sans ouvrir la séance.
-
-
-6) ICÔNES DE PALIERS POUR LES BADGES
--------------------------------------------
-Suivant ta proposition, les deux badges liés à la progression par palier utilisent maintenant
-les vraies icônes de paliers plutôt que des icônes génériques :
-  🪘 Grimpeur de paliers (5 paliers franchis) — au lieu de 🪜
-  👑 Maître des paliers (15 paliers franchis) — au lieu de 🗻
-Déjà en ligne, rien à faire de ton côté.
-
-
-7) MESSAGERIE INSTANTANÉE — NOUVELLE FONCTIONNALITÉ PREMIUM
---------------------------------------------------------------------
-C'est le plus gros morceau de cette livraison. Comme tu l'as validé, "Premium" combine les deux
-mécanismes qui existaient déjà séparément dans le code : le vrai système d'abonnement payant
-(jusqu'ici prêt mais inutilisé) ET le thème visuel "look premium" côté élève (jusqu'ici gratuit
-et sans lien avec un paiement) — les deux sont maintenant réunis sous UNE seule offre Premium.
-
-Ce qui change :
-- TEMPS RÉEL partout : les messageries qui existaient déjà (parent ↔ enseignant, admin ↔
-  enseignant, admin ↔ administrateurs) sont passées en instantané — un message apparaît chez le
-  destinataire sans qu'il ait besoin de recharger la page. C'est une simple amélioration
-  technique, gratuite, disponible pour tout le monde comme avant.
-- DEUX NOUVELLES MESSAGERIES, réservées à l'offre Premium :
-    · Élève ↔ enseignant (l'élève peut maintenant écrire lui-même à l'enseignant qui le suit,
-      en plus de son parent — les trois participants partagent le même fil).
-    · Élève ↔ élève, entre camarades de la MÊME classe uniquement.
-- Pour un élève, écrire nécessite les DEUX conditions à la fois :
-    1. Un abonnement Premium actif pour lui ou sa famille (payant — voir ci-dessous).
-    2. L'autorisation explicite d'un parent, activable depuis son tableau de bord (nouveau
-       bouton "✨ Messagerie Premium" à côté de chaque enfant) — les deux réglages sont
-       indépendants et affichés séparément, pour que tu voies immédiatement lequel manque.
-  Si l'une des deux conditions manque, la page de messagerie de l'élève explique clairement
-  laquelle, plutôt que de simplement disparaître.
-- Par transparence, chaque message échangé ENTRE ÉLÈVES notifie aussi les parents des deux
-  côtés (en plus des deux élèves) — canal plus sensible qu'un échange avec un enseignant.
-- Le nouveau thème visuel premium (Paramètres, côté élève) est désormais réservé aux élèves
-  ayant un abonnement Premium actif — la case à cocher reste visible mais grisée/expliquée sinon
-  (elle ne se réactive pas automatiquement si l'abonnement expire pendant que l'élève est
-  ailleurs sur le site : la vérification se fait quand il revient sur la page Paramètres, pas en
-  continu sur chaque page — un compromis pour ne pas ralentir chaque chargement de page).
-- Tarification : j'ai créé UNE formule de départ, modifiable/supprimable depuis Abonnements
-  (admin) comme n'importe quelle autre formule : « Premium — Messagerie instantanée », 1000 XOF
-  / mois, par famille (couvre tous les enfants du foyer). C'est une proposition de départ, pas
-  un prix imposé — change-la à volonté depuis la page Abonnements, comme pour les autres
-  services.
-- Pas d'essai gratuit proposé pour ce service (contrairement à la correction IA, etc.) : ce
-  n'est pas un service "à l'usage", donc moins adapté au système d'essais existant. Dis-moi si
-  tu en veux un quand même, c'est un réglage rapide à ajouter.
-
-Limite honnête à connaître : la messagerie élève-élève est restreinte aux camarades de la MÊME
-classe (pas de messagerie inter-classes pour l'instant) — plus simple et plus sûr comme premier
-jet ; à élargir facilement si besoin.
-
-
-8) MASQUER UNE CLASSE POUR FACILITER UNE MISE À JOUR
-------------------------------------------------------------
-Chaque classe peut maintenant être masquée/affichée d'un clic (bouton 🙈/👁️ sur la page
-Arborescence — visible seulement pour l'admin, qui continue à voir aussi les classes masquées,
-signalées par un badge "🙈 Masquée"). Une classe masquée :
-- N'apparaît plus dans le catalogue public de classes (visiteurs, nouveaux élèves).
-- N'est plus proposée pour inscrire un nouvel enseignant ou un nouvel enfant.
-- MAIS reste pleinement accessible à qui y est déjà — un enseignant déjà accordé sur cette
-  classe, ou un élève déjà inscrit, continue à y accéder normalement : masquer sert à éviter que
-  de nouvelles personnes arrivent pendant une mise à jour, pas à couper l'accès à ceux qui
-  travaillent déjà dedans.
-
-Limite honnête à connaître : pour l'instant, seule une CLASSE ENTIÈRE peut être masquée — pas un
-contenu précis à l'intérieur (une unité ou une semaine en particulier). J'ai ajouté la même
-colonne technique sur les niveaux de l'arborescence pour préparer ça, mais je n'ai pas fini de la
-brancher partout où il faudrait (le risque de casser l'affichage de contenu déjà publié sans plus
-de temps de vérification était trop élevé pour cette livraison) — dis-moi si tu veux ce niveau de
-détail, je le termine dans un prochain lot.
-
-
-9) CHAMP SEXE MANQUANT À L'INSCRIPTION
----------------------------------------------
-Ajouté (Masculin/Féminin) :
-- Sur la page d'inscription générale (parent, enseignant, autorité pédagogique).
-- Sur le formulaire "Inscrire un enfant" du tableau de bord parent.
-Une nouvelle colonne `sexe` a été ajoutée à la table des profils (nullable, donc les comptes
-déjà créés ne sont pas affectés).
-
-
-CE QUI N'A PAS CHANGÉ
-----------------------
-- `git push` échoue toujours avec une erreur 403 — c'est normal et attendu dans cet environnement,
-  ce n'est pas un bug à corriger.
-- Cette archive ne contient QUE les fichiers créés/modifiés depuis la dernière livraison
-  (kekeli-livraison-paliers-badges-lecture.zip) : à décompresser par-dessus ton dossier de
-  travail existant.
-- Tous les changements de base de données (nouvelle colonne `sexe`, `messagerie_autorisee`,
-  `visible`, nouvelles tables de messagerie entre élèves, fonctions et policies de sécurité,
-  formule tarifaire de départ, activation du temps réel) sont déjà en ligne sur ton projet
-  Supabase — rien à déployer de ton côté pour ces parties.
+Aucune action de ta part n'est nécessaire côté base de données : tout
+est déjà en ligne. Il suffit de déployer ces fichiers.

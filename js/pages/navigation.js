@@ -640,6 +640,19 @@ async function supprimerNoeud(id) {
   });
 }
 
+// Pastille de remplissage + paliers d'une séance — même repère que
+// pages/admin/gestion-seances.html (pastilleContenuGS), dupliqué ici car ce
+// fichier ne partage pas de module avec lui (convention du reste du code).
+const ICONES_PALIER_NAV = { azovi: '🌱', devi: '🪘', ogan: '🦁', axosu: '👑' };
+const ORDRE_PALIER_NAV = ['azovi', 'devi', 'ogan', 'axosu'];
+function pastilleContenuNav(info) {
+  if (!info || !info.nbBlocs) return `<span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;background:#F1F5F9;color:#64748B">○ Vide</span>`;
+  const paliersOrdonnes = ORDRE_PALIER_NAV.filter(p => info.paliersPresents.includes(p));
+  const iconesPaliers = paliersOrdonnes.map(p => ICONES_PALIER_NAV[p]).join(' ');
+  return `<span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;background:#DCFCE7;color:#15803D" title="${info.nbBlocs} bloc(s) de contenu">● ${info.nbBlocs} bloc${info.nbBlocs > 1 ? 's' : ''}</span>` +
+    (iconesPaliers ? ` <span style="font-size:12px" title="Paliers déjà présents : ${paliersOrdonnes.join(', ')}">${iconesPaliers}</span>` : '');
+}
+
 function etiquetteType(t) {
   return { theme: 'Thème', unite: 'Unité', semaine: 'Semaine', dossier: 'Dossier', discipline: 'Discipline' }[t] || t;
 }
@@ -658,9 +671,24 @@ async function afficherSeances() {
   const pillsStatut = { brouillon: 'Brouillon', publie: 'Publié', archive: 'Archivé' };
   const boutonAjout = etat.peutEditer ? `<button class="btn btn-accent" id="btnCreerSeance" style="margin-bottom:14px">+ Nouvelle séance</button>` : '';
 
+  // Seule la discipline sert de libellé (le titre brut, souvent générique,
+  // n'est plus affiché — voir rendreSeance dans afficherArborescence pour le
+  // même choix) ; la pastille de remplissage + paliers aide à repérer ce qui
+  // reste à compléter, y compris entre séances de même discipline.
+  const idsSeances = (data || []).map(s => s.id);
+  const { data: blocsSA } = idsSeances.length
+    ? await supabaseClient.from('blocs_seance').select('id, seance_id, type_bloc, palier').in('seance_id', idsSeances)
+    : { data: [] };
+  const infoContenuParSeance = {};
+  (blocsSA || []).forEach(b => {
+    const info = (infoContenuParSeance[b.seance_id] ??= { nbBlocs: 0, paliersPresents: [] });
+    info.nbBlocs++;
+    if (b.palier && !info.paliersPresents.includes(b.palier)) info.paliersPresents.push(b.palier);
+  });
+
   contenu.innerHTML = `${boutonAjout}<div class="liste-lignes">${data.map(s => `
     <div class="ligne">
-      <div><div class="titre-ligne">${echapper(s.titre)}${s.discipline ? ` <span class="statut-pill" style="background:var(--accent-clair);color:var(--bleu-principal)">${echapper(s.discipline)}</span>` : ''}</div><span class="statut-pill statut-${s.statut}">${pillsStatut[s.statut]}</span></div>
+      <div><div class="titre-ligne" style="display:flex;align-items:center;gap:6px">${echapper(s.discipline || s.titre)} ${pastilleContenuNav(infoContenuParSeance[s.id])}</div><span class="statut-pill statut-${s.statut}">${pillsStatut[s.statut]}</span></div>
       <div style="display:flex;gap:8px">
         ${etat.peutEditer ? `<a class="btn btn-primaire" href="editeur-seance.html?id=${s.id}">Modifier la séance</a>` : ''}
         ${etat.estEleve && !etat.peutEditer ? `<a class="btn btn-primaire" href="eleve/seance.html?id=${s.id}">📖 Lire la séance</a>` : ''}
@@ -970,6 +998,24 @@ async function afficherArborescence() {
     : { data: [], error: null };
   if (e3) return erreur(e3);
 
+  // Indicateur de remplissage + paliers présents par séance (même principe
+  // que pages/admin/gestion-seances.html — voir "Informations de
+  // reconnaissance rapide sur les séances (admin)") : demandé aussi ici pour
+  // repérer en un coup d'œil ce qu'il reste à compléter, maintenant que le
+  // titre brut de la séance (souvent générique) n'est plus affiché — voir
+  // rendreSeance ci-dessous. Une seule requête groupée pour toute
+  // l'arborescence, agrégée côté client par séance.
+  const idsSeances = (toutesSeances || []).map(se => se.id);
+  const { data: tousBlocsArbo } = idsSeances.length
+    ? await supabaseClient.from('blocs_seance').select('id, seance_id, type_bloc, palier').in('seance_id', idsSeances)
+    : { data: [] };
+  const infoContenuParSeance = {};
+  (tousBlocsArbo || []).forEach(b => {
+    const info = (infoContenuParSeance[b.seance_id] ??= { nbBlocs: 0, paliersPresents: [] });
+    info.nbBlocs++;
+    if (b.palier && !info.paliersPresents.includes(b.palier)) info.paliersPresents.push(b.palier);
+  });
+
   const enfantsParParent = {};
   (tousNoeuds || []).forEach(n => { const cle = n.parent_id ?? 'racine'; (enfantsParParent[cle] ??= []).push(n); });
   const saParNoeud = {};
@@ -1025,13 +1071,19 @@ async function afficherArborescence() {
   }
 
   function rendreSeance(se) {
-    // La discipline est mise en avant (label principal) — le titre de la
-    // séance devient une précision secondaire juste à côté, alignée.
-    const labelPrincipal = se.discipline ? echapper(se.discipline) : echapper(se.titre);
-    const labelSecondaire = se.discipline ? `<span style="color:var(--texte-gris);font-weight:400"> — ${echapper(se.titre)}</span>` : '';
+    // Seule la discipline sert de libellé (demande explicite du 4 septembre
+    // 2026 : ni le titre brut de la séance, souvent générique ("Séquence 1"),
+    // ni le nom de la séquence/SA ne doivent apparaître à l'affichage — le
+    // champ titre continue d'exister en base, inchangé, pour l'IA). À la
+    // place du titre, la pastille de remplissage + paliers (même principe
+    // qu'en gestion-seances.html) aide à repérer ce qu'il reste à compléter,
+    // y compris quand plusieurs séances d'une même SA partagent la même
+    // discipline.
+    const labelPrincipal = echapper(se.discipline || se.titre);
     return `<div class="ligne-arbo type-seance">
       <span class="bascule">·</span>
-      <a class="libelle-arbo" href="editeur-seance.html?id=${se.id}" style="display:flex;align-items:baseline">${labelPrincipal}${labelSecondaire}</a>
+      <a class="libelle-arbo" href="editeur-seance.html?id=${se.id}" style="display:flex;align-items:center;gap:6px">${labelPrincipal}</a>
+      ${pastilleContenuNav(infoContenuParSeance[se.id])}
       <span class="statut-pill statut-${se.statut}" style="margin-left:6px">${pillsStatut[se.statut]}</span>
       ${etat.peutEditer ? `<div class="actions-arbo">
         <a href="editeur-seance.html?id=${se.id}" title="Éditer le contenu">✏️</a>

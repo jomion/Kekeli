@@ -285,8 +285,7 @@ async function afficherSeancesListe() {
           <div class="session-icon-eleve">${icone}</div>
           <div class="session-content-eleve">
             <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-gris)">Séance ${i + 1}</div>
-            <div class="session-title-eleve">${echapper(s.titre)}</div>
-            ${s.discipline ? `<span style="display:inline-block;margin-top:2px;font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;background:${iconeSeanceMat(s.discipline).couleur}22;color:${iconeSeanceMat(s.discipline).couleur}">${echapper(s.discipline)}</span>` : ''}
+            <div class="session-title-eleve">${echapper(s.discipline || s.titre)}</div>
           </div>
           <div>${bouton}</div>
         </div>`;
@@ -661,26 +660,22 @@ function htmlListeSeancesPremiumMat(seances, titreOnglet, positionOnglet) {
     const bouton = s.verrouille
       ? `<span class="prem-btn-commencer verrouille">${iconePrem('fermer', 13)} ${boutonTexte}</span>`
       : `<a class="prem-btn-commencer ${s.termine ? 'termine' : ''}" href="seance.html?id=${s.id}">${iconePrem('jouer', 12)} ${boutonTexte}</a>`;
-    // "Thème : {onglet réel} • Unité N • {chemin intermédiaire...} • SA N" —
-    // reproduit le repère à 4 segments du modèle fourni, en restant générique
-    // (chemin/positionOnglet viennent des vraies données, jamais figés).
+    // "Thème : {onglet réel} • Unité N • {chemin intermédiaire...}" —
+    // reproduit le repère du modèle fourni, en restant générique (chemin/
+    // positionOnglet viennent des vraies données, jamais figés). La séquence
+    // (SA) n'y apparaît plus (demande explicite du 4 septembre 2026).
     const segmentsMeta = [
       titreOnglet ? `Thème : ${titreOnglet}` : null,
       positionOnglet ? `Unité ${positionOnglet}` : null,
       ...(s.chemin || []),
-      s.saLabel,
     ].filter(Boolean);
     return `<div class="prem-timeline-item ${classeItem}">
       <div class="prem-timeline-num">${s.verrouille ? iconePrem('fermer', 13) : i + 1}</div>
       <div class="prem-carte-seance ${classeItem}">
         <div class="prem-carte-seance-icone" style="background:${couleur}">${iconePrem(icone, 20)}</div>
         <div class="prem-carte-seance-corps">
-          <div class="prem-carte-seance-titre">${echapper(s.titre)}</div>
+          <div class="prem-carte-seance-titre">${echapper(s.discipline || s.titre)}</div>
           <div class="prem-carte-seance-repere">${echapper(segmentsMeta.join(' • '))}</div>
-          <div class="prem-tags-seance">
-            ${s.discipline ? `<span class="prem-tag">${echapper(s.discipline)}</span>` : ''}
-            ${s.titreContenu ? `<span class="prem-tag flag">${iconePrem('drapeau', 12)} ${echapper(s.titreContenu)}</span>` : ''}
-          </div>
         </div>
         <button type="button" class="prem-carte-seance-epingle${s.epinglee ? ' epinglee' : ''}" data-epingler-mat="${s.id}" title="${s.epinglee ? 'Retirer des épinglées' : 'Épingler cette séance'}">${iconePrem('coeur', 15)}</button>
         ${bouton}

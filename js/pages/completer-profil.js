@@ -33,13 +33,27 @@ let enseignantCP = null;
   if (profilCP.role === 'enseignant') {
     const { data } = await supabaseClient.from('enseignants').select('*').eq('id', profilCP.id).single();
     enseignantCP = data;
-    document.getElementById('texteComplement').textContent = ', établissement et classe';
   }
 
   await initialiserFormulaireCP();
 })();
 
 async function initialiserFormulaireCP() {
+  // Sexe ajouté le 4 septembre 2026 — n'est montré ici que pour les comptes
+  // créés avant l'ajout de ce champ (les autres ne repassent pas par cette
+  // page pour si peu, voir profilEstIncomplet dans js/auth-utilisateur.js).
+  // Phrase d'intro reconstruite dynamiquement pour rester correcte quelle
+  // que soit la combinaison de champs manquants.
+  const sexeManquant = !profilCP.sexe;
+  document.getElementById('champSexe').style.display = sexeManquant ? '' : 'none';
+  if (!sexeManquant) document.getElementById('sexe').value = profilCP.sexe;
+
+  const elementsAttendus = ['localisation'];
+  if (sexeManquant) elementsAttendus.push('sexe');
+  if (profilCP.role === 'enseignant') elementsAttendus.push('établissement', 'classe');
+  const derniere = elementsAttendus.pop();
+  document.getElementById('texteComplement').textContent = elementsAttendus.length ? `${elementsAttendus.join(', ')} et ${derniere}` : derniere;
+
   initialiserCascadeGeoBenin(document.getElementById('departement'), document.getElementById('commune'), document.getElementById('arrondissement'), document.getElementById('circonscriptionScolaire'));
   document.getElementById('departement').value = profilCP.departement || '';
   document.getElementById('commune').innerHTML = (COMMUNES_PAR_DEPARTEMENT[profilCP.departement] || [])
@@ -130,6 +144,7 @@ async function enregistrerCompletionCP(e) {
   const majProfil = { departement: departement || null };
   if (document.getElementById('champCommune').style.display !== 'none') majProfil.commune = commune || null;
   if (document.getElementById('champArrondissement').style.display !== 'none') majProfil.arrondissement = arrondissement || null;
+  if (document.getElementById('champSexe').style.display !== 'none') majProfil.sexe = document.getElementById('sexe').value || null;
 
   const { error: erreurProfil } = await supabaseClient.from('profils').update(majProfil).eq('id', profilCP.id);
   if (erreurProfil) return echec(erreurProfil.message);

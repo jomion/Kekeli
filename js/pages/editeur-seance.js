@@ -2064,7 +2064,10 @@ async function ouvrirApercu() {
       const { data: parent } = await supabaseClient.from('noeuds_parcours').select('id, parent_id, titre').eq('id', n.parent_id).single();
       n = parent;
     }
-    segmentsChemin.push(chaineNavigation.classeNom, chaineNavigation.champNom, ...titresNoeuds, chaineNavigation.sa.titre, seance.titre);
+    // La séquence (SA) et le titre brut de la séance ne sont plus affichés
+    // (demande explicite du 4 septembre 2026) — seule la discipline reste
+    // visible, comme sur la vraie page élève (js/pages/eleve-seance.js).
+    segmentsChemin.push(chaineNavigation.classeNom, chaineNavigation.champNom, ...titresNoeuds, seance.discipline || seance.titre);
   }
   const filArianeHtml = segmentsChemin.filter(Boolean).map(s => `<span>${echapper(s)}</span>`).join(' <span class="sep-arbo-eleve">›</span> ');
 
@@ -2198,17 +2201,17 @@ async function ouvrirApercu() {
   const aDesPaliers = Object.keys(blocsParPalier).length > 0;
   const colonneExerciceVide = blocsTravail.length === 0 && aDesPaliers;
 
-  // Titre devant la discipline (comme sur la vraie page élève) : le titre de
-  // la séance est l'élément principal de l'en-tête, la discipline vient
-  // ensuite en second plan.
+  // Seule la discipline s'affiche (comme sur la vraie page élève) : ni le
+  // titre brut de la séance ni la séquence (SA) n'apparaissent — voir
+  // js/pages/eleve-seance.js pour le même choix, et le titre reste bien sûr
+  // toujours modifiable plus haut dans l'éditeur (utilisé tel quel par l'IA).
   const enTete = `
     <div style="background:#FFF7DA;border:1px solid #F5D77A;border-radius:8px;padding:6px 12px;font-size:12px;color:#7A5A00;margin-bottom:14px;text-align:center">
       🔍 Aperçu élève — lecture seule, tel qu'affiché à un élève sur la vraie page
     </div>
     <div class="entete-seance-eleve">
       <p style="margin:0" class="miniature-arborescence-eleve">${filArianeHtml}</p>
-      <h1 class="titre-seance-eleve">${echapper(seance.titre)}</h1>
-      ${seance.discipline ? `<span class="badge-discipline-seance">${echapper(seance.discipline)}</span>` : ''}
+      <h1 class="titre-seance-eleve">${echapper(seance.discipline || seance.titre)}</h1>
     </div>`;
 
   const corpsHtml = `

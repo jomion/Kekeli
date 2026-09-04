@@ -66,12 +66,11 @@ async function init() {
     const saInfo = saParId.get(s.sa_id) || null;
     const noeud = saInfo ? noeudParId.get(saInfo.noeud_id) : null;
     const chemin = saInfo ? remonterCheminHierarchiqueGS(saInfo.noeud_id, noeudParId) : { unite: null, semaine: null, dossier: null };
-    // Chemin complet (Thème › Unité › ... › SA), même principe que la page
-    // "Séances" partagée (pages/seances.html) — pour retrouver une séance
-    // sans avoir à deviner sa place dans l'arborescence depuis cette liste.
-    const cheminTitres = saInfo
-      ? [...cheminTitresNoeudGS(saInfo.noeud_id, noeudParId), `${saInfo.numero ? 'SA' + saInfo.numero + ' — ' : ''}${saInfo.titre}`]
-      : [];
+    // Chemin (Thème › Unité › ...), même principe que la page "Séances"
+    // partagée (pages/seances.html). La séquence (SA) n'y apparaît plus du
+    // tout (demande explicite du 4 septembre 2026) — elle reste disponible
+    // comme filtre déroulant plus bas (libelleSA), pas comme texte affiché.
+    const cheminTitres = saInfo ? cheminTitresNoeudGS(saInfo.noeud_id, noeudParId) : [];
     const infosBlocs = infosBlocsParSeanceGS.get(s.id) || { nbBlocs: 0, paliers: new Set() };
     return {
       ...s,
@@ -324,11 +323,17 @@ function pastilleContenuGS(s) {
 function ligneSeanceHtmlGS(s) {
   const meta = `Modifiée le ${formaterDateGS(s.modifie_le)}`;
   const chemin = (s.cheminTitres || []).map(t => echapperGS(t)).join(' › ');
+  // Seule la discipline sert de libellé désormais (le titre brut de la
+  // séance, souvent générique — ex. "Séquence 1" —, n'est plus affiché ; il
+  // reste en base, inchangé, pour l'IA — voir js/pages/eleve-seance.js pour
+  // le même choix). Repli sur le titre uniquement pour la poignée de
+  // séances sans discipline renseignée.
+  const libelle = s.discipline ? pastilleDisciplineGS(s.discipline) : `<span>${echapperGS(s.titre)}</span>`;
 
   return `
     <div class="ligne ligne-seance-admin">
       <div class="details-seance-admin">
-        <span class="titre-ligne">${echapperGS(s.titre)}${s.classe ? ` <span class="badge-classe-admin">${echapperGS(s.classe.nom)}</span>` : ''}${pastilleDisciplineGS(s.discipline)} ${pastilleContenuGS(s)}</span>
+        <span class="titre-ligne">${s.classe ? `<span class="badge-classe-admin">${echapperGS(s.classe.nom)}</span> ` : ''}${libelle} ${pastilleContenuGS(s)}</span>
         ${chemin ? `<span class="chemin-ligne-seance-partagee">${chemin}</span>` : ''}
         <span class="meta-seance-admin">${meta}</span>
       </div>

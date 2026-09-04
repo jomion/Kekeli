@@ -160,23 +160,21 @@ function rendre() {
   tousBlocsTop.filter(b => b.palier).forEach(b => { (blocsParPalier[b.palier] ??= []).push(b); });
   const aDesPaliers = etatPaliersSeance.some(p => p.nb_total > 0);
 
-  // Arborescence complète dans la miniature (fil d'ariane), suivie du titre
-  // de la séance en grand (devant la discipline — demande explicite : le
-  // titre doit primer sur la discipline dans l'en-tête). Chaque niveau (sauf
-  // le dernier, la séance actuelle) est cliquable et ramène directement à ce
-  // niveau sur pages/eleve/matiere.html — voir js/pages/eleve-matiere.js.
-  const dernierNoeud = (cheminSeance.cheminNoeuds || [])[(cheminSeance.cheminNoeuds || []).length - 1];
+  // Arborescence complète dans la miniature (fil d'ariane), suivie de la
+  // discipline de la séance en grand (demande explicite du 4 septembre
+  // 2026 : ni le titre de la séance ni le nom de la séquence/SA ne doivent
+  // apparaître dans l'affichage — seule la discipline reste visible ; le
+  // champ "titre" continue d'exister en base et reste utilisé tel quel par
+  // l'IA pour générer le contenu, voir js/pages/editeur-seance.js). Chaque
+  // niveau (sauf le dernier) est cliquable et ramène directement à ce niveau
+  // sur pages/eleve/matiere.html — voir js/pages/eleve-matiere.js.
   const segmentsArbo = [];
   if (cheminSeance.classeNom) segmentsArbo.push({ label: cheminSeance.classeNom });
   if (cheminSeance.champNom) segmentsArbo.push({ label: cheminSeance.champNom, href: cheminSeance.champId ? `matiere.html?champId=${cheminSeance.champId}` : null });
   (cheminSeance.cheminNoeuds || []).forEach(n => segmentsArbo.push({
     label: n.titre, href: cheminSeance.champId ? `matiere.html?champId=${cheminSeance.champId}&noeudId=${n.id}` : null
   }));
-  if (cheminSeance.saTitre) segmentsArbo.push({
-    label: cheminSeance.saTitre,
-    href: (cheminSeance.champId && dernierNoeud && seanceCourante.sa_id) ? `matiere.html?champId=${cheminSeance.champId}&noeudId=${dernierNoeud.id}&saId=${seanceCourante.sa_id}` : null
-  });
-  segmentsArbo.push({ label: seanceCourante.titre }); // niveau actuel — pas de lien
+  segmentsArbo.push({ label: seanceCourante.discipline || seanceCourante.titre }); // niveau actuel — pas de lien ; discipline seule (repli sur le titre si non renseignée)
 
   const filAriane = segmentsArbo.map((s, i) => {
     const dernier = i === segmentsArbo.length - 1;
@@ -202,8 +200,7 @@ function rendre() {
     <div class="fil-ariane-eleve"><a href="matiere.html">← Retour à mes matières</a></div>
     <div class="entete-seance-eleve">
       <p style="margin:0" class="miniature-arborescence-eleve">${filAriane}</p>
-      <h1 class="titre-seance-eleve">${echapper(seanceCourante.titre)}</h1>
-      ${seanceCourante.discipline ? `<span class="badge-discipline-seance">${echapper(seanceCourante.discipline)}</span>` : ''}
+      <h1 class="titre-seance-eleve">${echapper(seanceCourante.discipline || seanceCourante.titre)}</h1>
     </div>
 
     <div class="zone-travail-seance"${colonneExerciceVide ? ' style="grid-template-columns:1fr"' : ''}>

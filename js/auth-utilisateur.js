@@ -251,6 +251,10 @@ function memoriserDernierePageVisitee() {
 // de l'École/Circonscription Scolaire/Zone Pédagogique/Classe.
 async function profilEstIncomplet(profil) {
   if (!ROLES_AVEC_LOCALISATION_OBLIGATOIRE.includes(profil.role)) return false;
+  // Sexe ajouté le 4 septembre 2026 : rattrape aussi les comptes créés avant
+  // l'ajout de ce champ, avec le même mécanisme que la localisation — voir
+  // "compléter mon profil" (pages/completer-profil.html).
+  if (!profil.sexe) return true;
   if (!profil.departement) return true;
 
   if (profil.role === 'parent') {

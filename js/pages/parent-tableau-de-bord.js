@@ -23,7 +23,7 @@ async function afficherTableauDeBord() {
   let abonnementsParEnfant = {};
   let connectiviteParEnfant = {};
   if (idsEnfants.length > 0) {
-    const { data: profilsEnfants } = await supabaseClient.from('profils').select('id, prenom, nom, departement, commune, arrondissement').in('id', idsEnfants);
+    const { data: profilsEnfants } = await supabaseClient.from('profils').select('id, prenom, nom, sexe, departement, commune, arrondissement').in('id', idsEnfants);
     enfants = profilsEnfants || [];
 
     const { data: abonnements } = await supabaseClient
@@ -56,7 +56,10 @@ async function afficherTableauDeBord() {
 
   const LIBELLES_STATUT_AB = { en_attente: 'En attente', accepte: 'Accepté', refuse: 'Refusé' };
   const blocEnfants = enfants.length > 0 ? enfants.map(e => {
-    const localisationIncomplete = !e.departement || !e.commune || !e.arrondissement;
+    // Regroupe désormais aussi le sexe (demandé le 4 septembre 2026 pour les
+    // comptes enfant créés avant l'ajout de ce champ) — même bouton "⚠️
+    // Compléter les informations", voir ouvrirCompletionLocalisationEnfant.
+    const localisationIncomplete = !e.departement || !e.commune || !e.arrondissement || !e.sexe;
     const statutConn = connectiviteParEnfant[e.id] || { compte_actif: true, horaires_autorises: null, derniere_activite: null };
     const acces = statutConn.compte_actif === false
       ? '<span style="font-size:12px;color:var(--rouge)">🔴 Accès suspendu</span>'
@@ -315,14 +318,19 @@ function ouvrirCompletionLocalisationEnfant(enfant) {
   ouvrirModal({
     titre: `Compléter les informations de ${enfant.prenom}`,
     champs: [
+      // Sexe ajouté le 4 septembre 2026 pour les comptes enfant créés avant
+      // ce champ — même select que l'inscription (voir "Inscrire un enfant"
+      // plus haut).
+      { nom: 'sexe', label: 'Sexe', type: 'select', valeur: enfant.sexe || '', options: [{ valeur: 'M', label: 'Masculin' }, { valeur: 'F', label: 'Féminin' }] },
       { nom: 'departement', label: 'Département', type: 'select', valeur: departementParDefaut, options: DEPARTEMENTS_BENIN.map(d => ({ valeur: d, label: d })) },
       { nom: 'commune', label: 'Commune', type: 'select', valeur: communeParDefaut, options: communesDisponibles.map(c => ({ valeur: c, label: c })), dependDe: 'departement', optionsSelonDependance: (dep) => (COMMUNES_PAR_DEPARTEMENT[dep] || []).map(c => ({ valeur: c, label: c })) },
       { nom: 'arrondissement', label: 'Arrondissement', type: 'select', valeur: arrondissementParDefaut, options: arrondissementsDisponibles.map(a => ({ valeur: a, label: a })), dependDe: 'commune', optionsSelonDependance: (com) => (ARRONDISSEMENTS_PAR_COMMUNE[com] || []).map(a => ({ valeur: a, label: a })) }
     ],
     texteValider: 'Enregistrer',
-    onValider: async ({ departement, commune, arrondissement }) => {
+    onValider: async ({ sexe, departement, commune, arrondissement }) => {
       const { error } = await supabaseClient.rpc('completer_localisation_enfant', {
-        p_eleve_id: enfant.id, p_departement: departement || null, p_commune: commune || null, p_arrondissement: (arrondissement || '').trim() || null
+        p_eleve_id: enfant.id, p_departement: departement || null, p_commune: commune || null, p_arrondissement: (arrondissement || '').trim() || null,
+        p_sexe: sexe || null
       });
       if (error) return alert(error.message);
       afficherTableauDeBord();
