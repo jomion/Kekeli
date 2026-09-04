@@ -149,12 +149,18 @@ async function construireShellPremiumEleve(config, liensVisibles) {
     try { champIdActuel = new URLSearchParams(window.location.search).get('champId'); } catch (_e) { /* ignore */ }
   }
   // Panneau MATIÈRES déployé automatiquement dès que l'élève est déjà dans
-  // le parcours d'une matière (matiere.html) — voir demande utilisateur :
+  // le parcours d'une matière (matiere.html, ET la page de lecture d'une
+  // séance qu'on atteint depuis matiere.html) — voir demande utilisateur :
   // "quand l'enfant sélectionne séance, les matières se développent
-  // automatiquement". Peut aussi être déplié/replié à la main via le bouton
-  // "Séances" (voir plus bas), qui n'est plus un lien de navigation mais un
-  // simple bouton d'ouverture/fermeture de ce panneau.
-  const matieresOuvertesInitialement = nomFichierActuel === 'matiere.html';
+  // automatiquement". Corrigé le 04/09/2026 : seul 'matiere.html' était pris
+  // en compte, donc le panneau se repliait dès qu'on ouvrait une séance
+  // (pages/eleve/seance.html) alors qu'on reste dans le parcours de la même
+  // matière — signalé par l'utilisateur ("quand je clique sur séance le
+  // déploiement de la matière ne s'affiche pas"). Peut aussi être déplié/
+  // replié à la main via le bouton "Séances" (voir plus bas), qui n'est plus
+  // un lien de navigation mais un simple bouton d'ouverture/fermeture de ce
+  // panneau.
+  const matieresOuvertesInitialement = nomFichierActuel === 'matiere.html' || nomFichierActuel === 'seance.html';
 
   // Liens de la sidebar : les vrais liens du rôle (déjà filtrés selon les
   // préférences de masquage — voir js/entete-navigation.js), plus "Jeux
