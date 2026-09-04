@@ -275,7 +275,10 @@ function rendreBlocLecture(b, estEnfant = false) {
   const info = infoType(b.type_bloc);
   const c = b.contenu || {};
   const couleur = c.couleurBloc || info.couleur || '#0000D1';
-  const afficherTitre = !(c.afficherTitre === false);
+  // Le bloc "Contenu" (valeur interne 'titre') est masqué à l'élève par
+  // défaut — voir le même choix dans js/pages/editeur-seance.js (htmlBloc,
+  // rendreBlocApercu) et la case "Titre visible" de l'éditeur.
+  const afficherTitre = typeof c.afficherTitre === 'boolean' ? c.afficherTitre : b.type_bloc !== 'titre';
   const libelle = c.libelle || info.label;
   let corps = '';
 
@@ -410,9 +413,56 @@ function rendreChampQuestion(q, i) {
     const ordreMele = options.map((opt, idx) => ({ opt, idx })).sort(() => Math.random() - 0.5);
     return `<div class="question-lecture">
       <p class="question-enonce">${i + 1}. ${echapper(q.enonce)}</p>
+      ${q.consigne ? `<p class="consigne-question" style="font-size:13px;color:var(--text-gris)">${echapper(q.consigne)}</p>` : ''}
       <ol class="liste-remise-en-ordre" data-ordre-question="${echapper(q.id)}">
         ${ordreMele.map(({ opt, idx }) => `<li data-index-original="${idx}"><span>${echapper(opt)}</span><span class="fleches-ordre"><button type="button" data-monter title="Monter">▲</button><button type="button" data-descendre title="Descendre">▼</button></span></li>`).join('')}
       </ol>
+    </div>`;
+  }
+  if (q.type === 'association') {
+    const gauche = Array.isArray(q.gauche) ? q.gauche : [];
+    const droite = Array.isArray(q.droite) ? q.droite : [];
+    return `<div class="question-lecture">
+      <p class="question-enonce">${i + 1}. ${echapper(q.enonce)}</p>
+      ${q.consigne ? `<p class="consigne-question" style="font-size:13px;color:var(--text-gris)">${echapper(q.consigne)}</p>` : ''}
+      <div class="lignes-association" data-association-question="${echapper(q.id)}">
+        ${gauche.map((g, idx) => `
+          <div class="ligne-association" style="display:flex;align-items:center;gap:8px;margin-top:6px">
+            <span style="flex:1">${echapper(g)}</span>
+            <select data-association-choix-index="${idx}" required>
+              <option value="">— Choisis —</option>
+              ${droite.map((d, k) => `<option value="${k}">${echapper(d)}</option>`).join('')}
+            </select>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  }
+  if (q.type === 'qcm_multiple') {
+    const options = Array.isArray(q.options) ? q.options : [];
+    return `<div class="question-lecture">
+      <p class="question-enonce">${i + 1}. ${echapper(q.enonce)}</p>
+      ${q.consigne ? `<p class="consigne-question" style="font-size:13px;color:var(--text-gris)">${echapper(q.consigne)}</p>` : ''}
+      <div data-qcm-multiple-question="${echapper(q.id)}">
+        ${options.map((opt, idx) => `<label style="display:block;margin-top:4px"><input type="checkbox" data-qcm-multiple-choix-index="${idx}"> ${echapper(opt)}</label>`).join('')}
+      </div>
+    </div>`;
+  }
+  if (q.type === 'classement') {
+    const motsAClasser = Array.isArray(q.motsAClasser) ? q.motsAClasser : [];
+    const categories = Array.isArray(q.categories) ? q.categories : [];
+    return `<div class="question-lecture">
+      <p class="question-enonce">${i + 1}. ${echapper(q.enonce)}</p>
+      ${q.consigne ? `<p class="consigne-question" style="font-size:13px;color:var(--text-gris)">${echapper(q.consigne)}</p>` : ''}
+      <div class="lignes-classement" data-classement-question="${echapper(q.id)}">
+        ${motsAClasser.map((mot, idx) => `
+          <div class="ligne-classement" style="display:flex;align-items:center;gap:8px;margin-top:6px">
+            <span style="flex:1">${echapper(mot)}</span>
+            <select data-classement-choix-index="${idx}" required>
+              <option value="">— Choisis —</option>
+              ${categories.map((cat, k) => `<option value="${k}">${echapper(cat)}</option>`).join('')}
+            </select>
+          </div>`).join('')}
+      </div>
     </div>`;
   }
   let champ = '';
@@ -428,7 +478,7 @@ function rendreChampQuestion(q, i) {
   } else {
     champ = `<textarea name="q_${echapper(q.id)}" required placeholder="Ta réponse..."></textarea>`;
   }
-  return `<div class="question-lecture"><p class="question-enonce">${i + 1}. ${echapper(q.enonce)}</p>${champ}</div>`;
+  return `<div class="question-lecture"><p class="question-enonce">${i + 1}. ${echapper(q.enonce)}</p>${q.consigne ? `<p class="consigne-question" style="font-size:13px;color:var(--text-gris)">${echapper(q.consigne)}</p>` : ''}${champ}</div>`;
 }
 
 // Boutons ▲▼ d'une liste "remise en ordre" : déplace le <li> dans le DOM
@@ -470,6 +520,15 @@ function rendreResultatExercice(b, c, questions, reponse) {
       else if (q.type === 'vrai_faux') texteReponse = donnee === undefined ? texteReponse : ((donnee === true || donnee === 'true') ? 'Vrai' : 'Faux');
       else if (q.type === 'texte_a_trous') texteReponse = Array.isArray(donnee) && donnee.length ? donnee.join(' / ') : texteReponse;
       else if (q.type === 'remise_en_ordre') texteReponse = Array.isArray(donnee) && donnee.length ? donnee.map(idx => (q.options || [])[idx]).join(' → ') : texteReponse;
+      else if (q.type === 'association') texteReponse = Array.isArray(donnee) && donnee.length
+        ? donnee.map((k, idx) => `${(q.gauche || [])[idx] ?? ''} → ${k != null ? ((q.droite || [])[k] ?? '?') : '(sans réponse)'}`).join(' ; ')
+        : texteReponse;
+      else if (q.type === 'qcm_multiple') texteReponse = Array.isArray(donnee) && donnee.length
+        ? donnee.map(idx => (q.options || [])[idx]).filter(Boolean).join(', ')
+        : texteReponse;
+      else if (q.type === 'classement') texteReponse = Array.isArray(donnee) && donnee.length
+        ? donnee.map((k, idx) => `${(q.motsAClasser || [])[idx] ?? ''} → ${k != null ? ((q.categories || [])[k] ?? '?') : '(sans réponse)'}`).join(' ; ')
+        : texteReponse;
       else if (donnee) texteReponse = donnee;
       return `<div class="question-lecture">
         <p class="question-enonce">${i + 1}. ${echapper(q.enonce)}</p>
@@ -513,6 +572,26 @@ function attacherEcouteursExercices() {
         if (q.type === 'remise_en_ordre') {
           const liste = form.querySelector(`[data-ordre-question="${CSS.escape(String(q.id))}"]`);
           reponses[q.id] = liste ? Array.from(liste.children).map(li => parseInt(li.dataset.indexOriginal, 10)) : [];
+          return;
+        }
+        if (q.type === 'association') {
+          const zone = form.querySelector(`[data-association-question="${CSS.escape(String(q.id))}"]`);
+          const selects = zone ? Array.from(zone.querySelectorAll('[data-association-choix-index]')) : [];
+          selects.sort((a, b) => parseInt(a.dataset.associationChoixIndex, 10) - parseInt(b.dataset.associationChoixIndex, 10));
+          reponses[q.id] = selects.map(sel => sel.value === '' ? null : parseInt(sel.value, 10));
+          return;
+        }
+        if (q.type === 'qcm_multiple') {
+          const zone = form.querySelector(`[data-qcm-multiple-question="${CSS.escape(String(q.id))}"]`);
+          const cases = zone ? Array.from(zone.querySelectorAll('[data-qcm-multiple-choix-index]')) : [];
+          reponses[q.id] = cases.filter(cb => cb.checked).map(cb => parseInt(cb.dataset.qcmMultipleChoixIndex, 10));
+          return;
+        }
+        if (q.type === 'classement') {
+          const zone = form.querySelector(`[data-classement-question="${CSS.escape(String(q.id))}"]`);
+          const selects = zone ? Array.from(zone.querySelectorAll('[data-classement-choix-index]')) : [];
+          selects.sort((a, b) => parseInt(a.dataset.classementChoixIndex, 10) - parseInt(b.dataset.classementChoixIndex, 10));
+          reponses[q.id] = selects.map(sel => sel.value === '' ? null : parseInt(sel.value, 10));
           return;
         }
         const champCoche = form.querySelector(`[name="q_${CSS.escape(String(q.id))}"]:checked`);

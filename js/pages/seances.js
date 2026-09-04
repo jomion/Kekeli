@@ -224,7 +224,7 @@ async function rafraichirListeSea() {
   const idsSA = (sasBrut || []).map(s => s.id);
 
   let requeteSeances = idsSA.length
-    ? supabaseClient.from('seances').select('id, sa_id, titre, statut, discipline, ordre, modifie_le').in('sa_id', idsSA)
+    ? supabaseClient.from('seances').select('id, sa_id, titre, statut, discipline, titre_contenu, ordre, modifie_le').in('sa_id', idsSA)
     : null;
   // Seul l'admin peut choisir de voir brouillons/archives — tous les autres
   // rôles (y compris l'enseignant, qui les verrait de toute façon via les
@@ -264,6 +264,7 @@ function rendreListeSea(liste) {
         <div class="titre-ligne-seance-partagee">
           ${echapperSea(s.titre)}
           ${s.discipline ? `<span class="statut-pill" style="background:rgba(0,0,0,0.06)">${echapperSea(s.discipline)}</span>` : ''}
+          ${s.titre_contenu ? `<span class="statut-pill" style="background:rgba(0,0,0,0.06)">🔖 ${echapperSea(s.titre_contenu)}</span>` : ''}
           ${roleSeances === 'admin' || roleSeances === 'autorite' ? `<span class="statut-pill statut-${s.statut}">${LIBELLES_STATUT_SEANCES[s.statut] || s.statut}</span>` : ''}
         </div>
         <div class="chemin-ligne-seance-partagee">${s.cheminTitres.map(t => echapperSea(t)).join(' › ')}</div>

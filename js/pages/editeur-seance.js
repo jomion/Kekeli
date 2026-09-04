@@ -121,6 +121,9 @@ function rendre() {
         <h2 style="margin:0 0 4px;color:var(--bleu-principal)">${echapper(seance.titre)}</h2>
         <input type="text" id="inputDiscipline" placeholder="Discipline (ex: Lecture, Grammaire, Conjugaison...)" value="${echapper(seance.discipline)}"
           style="border:1px solid var(--bordure);border-radius:6px;padding:4px 8px;font-size:12px;margin:4px 0;width:260px">
+        <input type="text" id="inputTitreContenu" placeholder="Titre du contenu (repère pour les listes et l'IA)" value="${echapper(seance.titre_contenu)}"
+          title="Texte libre décrivant le sujet exact de cette séance (ex: « Les fractions »). S'affiche dans les listes de séances — utile notamment depuis que le titre du bloc « Contenu » n'est plus affiché."
+          style="border:1px solid var(--bordure);border-radius:6px;padding:4px 8px;font-size:12px;margin:4px 0 4px 6px;width:260px">
         <br><span class="infos-sauvegarde" id="infoSauvegarde">Dernier enregistrement : ${seance.modifie_le ? new Date(seance.modifie_le).toLocaleString('fr-FR') : '—'}</span>
       </div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -155,6 +158,11 @@ function rendre() {
   document.getElementById('inputDiscipline').addEventListener('change', async (e) => {
     seance.discipline = e.target.value || null;
     await supabaseClient.from('seances').update({ discipline: seance.discipline }).eq('id', seance.id);
+    afficherSauvegarde();
+  });
+  document.getElementById('inputTitreContenu').addEventListener('change', async (e) => {
+    seance.titre_contenu = e.target.value || null;
+    await supabaseClient.from('seances').update({ titre_contenu: seance.titre_contenu }).eq('id', seance.id);
     afficherSauvegarde();
   });
   document.getElementById('listeTypes').addEventListener('click', (e) => {
@@ -203,7 +211,13 @@ function htmlBloc(b) {
   const enfants = estSection ? blocs.filter(x => x.parent_bloc_id === b.id).sort((a, b2) => a.ordre - b2.ordre) : [];
   const ouvert = sectionsOuvertes.has(b.id);
   const couleur = (b.contenu && b.contenu.couleurBloc) || info.couleur;
-  const afficherTitre = !(b.contenu && b.contenu.afficherTitre === false);
+  // Le bloc "Contenu" (valeur interne 'titre') est masqué à l'élève par
+  // défaut (son propre nom n'a pas de sens à afficher, seuls les blocs
+  // qu'il contient comptent) — les autres types restent visibles par
+  // défaut comme avant. Reste modifiable au cas par cas via la case
+  // "Titre visible" ci-dessous.
+  const afficherTitreParDefaut = b.type_bloc !== 'titre';
+  const afficherTitre = typeof (b.contenu && b.contenu.afficherTitre) === 'boolean' ? b.contenu.afficherTitre : afficherTitreParDefaut;
   const libelle = (b.contenu && b.contenu.libelle) || info.label;
 
   const swatchesBloc = PALETTE_COULEURS.map(col =>
@@ -523,12 +537,29 @@ function attacherEcouteursBloc(bloc) {
   });
 }
 
+// Une section "Contenu" (valeur interne 'titre') ne doit contenir que des
+// blocs d'édition de contenu pédagogique — jamais un bloc évalué/noté
+// (exercice, quiz, évaluation, activité) ni les blocs propres aux consignes
+// à items (consigne, item), qui gardent leur propre logique de correction
+// indépendante. La section "Consigne" (l'autre section existante) n'est pas
+// concernée par cette restriction : elle continue d'accepter tout type.
+const TYPES_INTERDITS_DANS_CONTENU = ['exercice', 'quiz', 'evaluation', 'activite', 'consigne', 'item'];
+
+function typesAutorisesPourParent(parentBlocId) {
+  if (!parentBlocId) return TYPES_BLOCS;
+  const parent = blocs.find(b => b.id === parentBlocId);
+  if (parent && parent.type_bloc === 'titre') {
+    return TYPES_BLOCS.filter(t => !TYPES_INTERDITS_DANS_CONTENU.includes(t.valeur));
+  }
+  return TYPES_BLOCS;
+}
+
 function ouvrirAjoutBlocDansSection(parentBlocId) {
   ouvrirModal({
     titre: 'Ajouter un bloc dans cette section',
     champs: [{
       nom: 'type', label: 'Type de bloc', type: 'select',
-      options: TYPES_BLOCS.map(t => ({ valeur: t.valeur, label: `${t.icone} ${t.label}` }))
+      options: typesAutorisesPourParent(parentBlocId).map(t => ({ valeur: t.valeur, label: `${t.icone} ${t.label}` }))
     }],
     texteValider: 'Ajouter',
     onValider: ({ type }) => ajouterBloc(type, parentBlocId)
@@ -658,13 +689,28 @@ function attacherEcouteursQuestions(el, bloc) {
 
       qEl.querySelector('[data-question-champ="type"]').addEventListener('change', (e) => {
         q.type = e.target.value;
-        if (q.type === 'qcm' && !Array.isArray(q.options)) q.options = ['', ''];
+        if ((q.type === 'qcm' || q.type === 'qcm_multiple' || q.type === 'remise_en_ordre') && !Array.isArray(q.options)) q.options = ['', ''];
+        if (q.type === 'association' && !Array.isArray(q.paires)) {
+          q.paires = [{ gauche: '', droite: '' }, { gauche: '', droite: '' }];
+          recalculerAssociation(q, c);
+        }
+        if (q.type === 'classement' && !Array.isArray(q.categories)) {
+          q.categories = ['', ''];
+          q.items = [{ mot: '', categorieIndex: null }, { mot: '', categorieIndex: null }];
+          recalculerClassement(q, c);
+        }
         majQuestions(questions());
+        if (c) sauvegarderCorrige();
         rerender();
       });
 
       qEl.querySelector('[data-question-champ="enonce"]').addEventListener('input', (e) => {
         q.enonce = e.target.value;
+        majQuestions(questions());
+      });
+      const inputConsigne = qEl.querySelector('[data-question-champ="consigne"]');
+      if (inputConsigne) inputConsigne.addEventListener('input', (e) => {
+        q.consigne = e.target.value;
         majQuestions(questions());
       });
       if (q.type === 'texte_a_trous') {
@@ -688,7 +734,7 @@ function attacherEcouteursQuestions(el, bloc) {
         rerender();
       });
 
-      if (q.type === 'qcm' || q.type === 'remise_en_ordre') {
+      if (q.type === 'qcm' || q.type === 'qcm_multiple' || q.type === 'remise_en_ordre') {
         qEl.querySelectorAll('[data-option-index]').forEach(inputOpt => {
           inputOpt.addEventListener('input', () => {
             const i = parseInt(inputOpt.dataset.optionIndex, 10);
@@ -725,6 +771,19 @@ function attacherEcouteursQuestions(el, bloc) {
           radio.addEventListener('change', () => {
             if (!c) return;
             c.bonneReponse = radio.dataset.questionBonneIndex;
+            sauvegarderCorrige();
+          });
+        });
+      }
+
+      if (q.type === 'qcm_multiple') {
+        qEl.querySelectorAll('[data-question-bonne-multi-index]').forEach(checkbox => {
+          checkbox.addEventListener('change', () => {
+            if (!c) return;
+            const i = parseInt(checkbox.dataset.questionBonneMultiIndex, 10);
+            const actuel = Array.isArray(c.bonneReponse) ? c.bonneReponse.filter(x => x !== i) : [];
+            if (checkbox.checked) actuel.push(i);
+            c.bonneReponse = actuel;
             sauvegarderCorrige();
           });
         });
@@ -782,6 +841,111 @@ function attacherEcouteursQuestions(el, bloc) {
           if (!c) return;
           c.bareme = texteBareme.value;
           sauvegarderCorrige();
+        });
+      }
+
+      if (q.type === 'association') {
+        const rafraichirAssociation = () => {
+          recalculerAssociation(q, c);
+          majQuestions(questions());
+          if (c) sauvegarderCorrige();
+        };
+        qEl.querySelectorAll('[data-association-gauche-index]').forEach(input => {
+          input.addEventListener('input', () => {
+            const i = parseInt(input.dataset.associationGaucheIndex, 10);
+            q.paires = Array.isArray(q.paires) ? [...q.paires] : [];
+            q.paires[i] = { ...(q.paires[i] || {}), gauche: input.value };
+            rafraichirAssociation();
+          });
+        });
+        qEl.querySelectorAll('[data-association-droite-index]').forEach(input => {
+          input.addEventListener('input', () => {
+            const i = parseInt(input.dataset.associationDroiteIndex, 10);
+            q.paires = Array.isArray(q.paires) ? [...q.paires] : [];
+            q.paires[i] = { ...(q.paires[i] || {}), droite: input.value };
+            rafraichirAssociation();
+          });
+        });
+        const btnAjouterPaire = qEl.querySelector('[data-ajouter-paire]');
+        if (btnAjouterPaire) btnAjouterPaire.addEventListener('click', () => {
+          q.paires = [...(q.paires || []), { gauche: '', droite: '' }];
+          rafraichirAssociation();
+          rerender();
+        });
+        qEl.querySelectorAll('[data-supprimer-paire]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const i = parseInt(btn.dataset.supprimerPaire, 10);
+            q.paires.splice(i, 1);
+            rafraichirAssociation();
+            rerender();
+          });
+        });
+      }
+
+      if (q.type === 'classement') {
+        const rafraichirClassement = () => {
+          recalculerClassement(q, c);
+          majQuestions(questions());
+          if (c) sauvegarderCorrige();
+        };
+        qEl.querySelectorAll('[data-categorie-index]').forEach(input => {
+          input.addEventListener('input', () => {
+            const i = parseInt(input.dataset.categorieIndex, 10);
+            q.categories = Array.isArray(q.categories) ? [...q.categories] : [];
+            q.categories[i] = input.value;
+            rafraichirClassement();
+          });
+        });
+        const btnAjouterCategorie = qEl.querySelector('[data-ajouter-categorie]');
+        if (btnAjouterCategorie) btnAjouterCategorie.addEventListener('click', () => {
+          q.categories = [...(q.categories || []), ''];
+          rafraichirClassement();
+          rerender();
+        });
+        qEl.querySelectorAll('[data-supprimer-categorie]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const i = parseInt(btn.dataset.supprimerCategorie, 10);
+            q.categories.splice(i, 1);
+            // Un mot affecté à la catégorie supprimée (ou à une catégorie
+            // suivante) doit voir son index recalculé, sinon il pointerait
+            // vers la mauvaise colonne ou une colonne disparue.
+            (q.items || []).forEach(it => {
+              if (it.categorieIndex === i) it.categorieIndex = null;
+              else if (typeof it.categorieIndex === 'number' && it.categorieIndex > i) it.categorieIndex -= 1;
+            });
+            rafraichirClassement();
+            rerender();
+          });
+        });
+        qEl.querySelectorAll('[data-item-classement-index]').forEach(input => {
+          input.addEventListener('input', () => {
+            const i = parseInt(input.dataset.itemClassementIndex, 10);
+            q.items = Array.isArray(q.items) ? [...q.items] : [];
+            q.items[i] = { ...(q.items[i] || {}), mot: input.value };
+            rafraichirClassement();
+          });
+        });
+        qEl.querySelectorAll('[data-item-categorie-index]').forEach(select => {
+          select.addEventListener('change', () => {
+            const i = parseInt(select.dataset.itemCategorieIndex, 10);
+            q.items = Array.isArray(q.items) ? [...q.items] : [];
+            q.items[i] = { ...(q.items[i] || {}), categorieIndex: select.value === '' ? null : parseInt(select.value, 10) };
+            rafraichirClassement();
+          });
+        });
+        const btnAjouterItem = qEl.querySelector('[data-ajouter-item-classement]');
+        if (btnAjouterItem) btnAjouterItem.addEventListener('click', () => {
+          q.items = [...(q.items || []), { mot: '', categorieIndex: null }];
+          rafraichirClassement();
+          rerender();
+        });
+        qEl.querySelectorAll('[data-supprimer-item-classement]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const i = parseInt(btn.dataset.supprimerItemClassement, 10);
+            q.items.splice(i, 1);
+            rafraichirClassement();
+            rerender();
+          });
         });
       }
     });
@@ -872,8 +1036,25 @@ function activerGlisserDeposer(conteneur, parentBlocId) {
 }
 
 async function finaliserDepot(conteneurDestination, parentBlocIdDestination) {
+  const elementDeplace = dragEtat.element;
   const conteneurOrigine = dragEtat.conteneurOrigine;
   const parentBlocIdOrigine = dragEtat.parentBlocIdOrigine;
+
+  // Le glisser-déposer contourne ajouterBloc() : on applique la même règle
+  // ici (une section "Contenu" n'accepte pas les blocs évalués/notés) avant
+  // d'enregistrer quoi que ce soit, sinon la restriction serait facile à
+  // contourner en déplaçant un bloc existant plutôt qu'en en créant un nouveau.
+  if (parentBlocIdDestination && elementDeplace) {
+    const blocDeplace = blocs.find(b => b.id === parseInt(elementDeplace.dataset.blocId, 10));
+    const parentDestination = blocs.find(b => b.id === parentBlocIdDestination);
+    if (blocDeplace && parentDestination && parentDestination.type_bloc === 'titre' &&
+        TYPES_INTERDITS_DANS_CONTENU.includes(blocDeplace.type_bloc)) {
+      alert("Ce type de bloc n'est pas autorisé à l'intérieur d'une section « Contenu » (réservée aux blocs de contenu pédagogique).");
+      if (conteneurOrigine) conteneurOrigine.appendChild(elementDeplace);
+      return;
+    }
+  }
+
   await enregistrerNouvelOrdre(conteneurDestination, parentBlocIdDestination);
   // Le bloc a changé de conteneur : celui de départ a une place vide à
   // recompacter (les blocs restants n'ont pas changé de parent, seule leur
@@ -1163,6 +1344,9 @@ async function lancerGenerationResume(idsAutresSeances, seancesDisponibles, inst
 
 async function ajouterBloc(type, parentBlocId) {
   document.getElementById('listeTypes').classList.remove('ouvert');
+  if (parentBlocId && !typesAutorisesPourParent(parentBlocId).some(t => t.valeur === type)) {
+    return alert("Ce type de bloc n'est pas autorisé à l'intérieur d'une section « Contenu » (réservée aux blocs de contenu pédagogique — pas d'exercice, quiz, évaluation, activité, consigne ou item).");
+  }
   const fratrie = blocs.filter(b => (b.parent_bloc_id || null) === (parentBlocId || null));
   const ordreMax = fratrie.length ? Math.max(...fratrie.map(b => b.ordre)) : -1;
   const { data, error } = await supabaseClient.from('blocs_seance').insert({
@@ -1282,7 +1466,7 @@ function ouvrirApercu() {
     const info = infoType(b.type_bloc);
     const c = b.contenu || {};
     const couleur = c.couleurBloc || info.couleur;
-    const afficherTitre = !(c.afficherTitre === false);
+    const afficherTitre = typeof c.afficherTitre === 'boolean' ? c.afficherTitre : b.type_bloc !== 'titre';
     const libelle = c.libelle || info.label;
     let corps = '';
     if (TYPES_TEXTE_LIBRE.includes(b.type_bloc)) corps = `<div>${contenuRicheInitial(c.texte)}</div>`;
@@ -1323,11 +1507,18 @@ function ouvrirApercu() {
             champ = `<p style="margin-top:6px;color:#94A3B8;font-style:italic">Les trous (___) deviendront des champs de saisie pour l'élève.</p>`;
           } else if (q.type === 'remise_en_ordre') {
             champ = `<ol style="margin-top:6px">${(q.options || []).map(opt => `<li>${echapper(opt)}</li>`).join('')}</ol>`;
+          } else if (q.type === 'association') {
+            champ = `<div style="margin-top:6px;font-size:13px;color:#64748B">${(q.gauche || []).map(g => `${echapper(g)} ↔ ?`).join(' · ')} <span style="font-style:italic">(l'élève verra la colonne de droite mélangée)</span></div>`;
+          } else if (q.type === 'qcm_multiple') {
+            champ = `<div style="margin-top:6px">${(q.options || []).map(opt => `<label style="display:block;margin-bottom:4px"><input type="checkbox" disabled> ${echapper(opt)}</label>`).join('')}</div>`;
+          } else if (q.type === 'classement') {
+            champ = `<div style="margin-top:6px;font-size:13px;color:#64748B">${(q.motsAClasser || []).map(m => echapper(m)).join(', ') || 'Aucun mot'} — à classer parmi : ${(q.categories || []).map(c2 => echapper(c2)).join(', ') || 'Aucune catégorie'}</div>`;
           } else {
             champ = `<textarea disabled placeholder="Réponse..." style="margin-top:6px;width:100%;min-height:70px;padding:6px;border:1px solid #E2E8F0;border-radius:6px"></textarea>`;
           }
           return `<div style="margin-top:12px;padding-top:10px;border-top:1px dashed #E2E8F0">
             <p style="font-weight:700;margin:0">${i + 1}. ${echapper(q.enonce)}</p>
+            ${q.consigne ? `<p style="margin:2px 0 0;font-size:12px;color:#64748B">${echapper(q.consigne)}</p>` : ''}
             ${champ}
           </div>`;
         }).join('') : `<p style="color:#94A3B8;font-style:italic">Aucune question pour l'instant.</p>`}

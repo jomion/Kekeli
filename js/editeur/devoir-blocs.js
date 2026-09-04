@@ -171,13 +171,28 @@ function attacherEcouteursQuestionsDevoir(devoirId, el, bloc) {
 
       qEl.querySelector('[data-question-champ="type"]').addEventListener('change', (e) => {
         q.type = e.target.value;
-        if (q.type === 'qcm' && !Array.isArray(q.options)) q.options = ['', ''];
+        if ((q.type === 'qcm' || q.type === 'qcm_multiple' || q.type === 'remise_en_ordre') && !Array.isArray(q.options)) q.options = ['', ''];
+        if (q.type === 'association' && !Array.isArray(q.paires)) {
+          q.paires = [{ gauche: '', droite: '' }, { gauche: '', droite: '' }];
+          recalculerAssociation(q, c);
+        }
+        if (q.type === 'classement' && !Array.isArray(q.categories)) {
+          q.categories = ['', ''];
+          q.items = [{ mot: '', categorieIndex: null }, { mot: '', categorieIndex: null }];
+          recalculerClassement(q, c);
+        }
         majQuestions(questions());
+        if (c) sauvegarderCorrige();
         rerender();
       });
 
       qEl.querySelector('[data-question-champ="enonce"]').addEventListener('input', (e) => {
         q.enonce = e.target.value;
+        majQuestions(questions());
+      });
+      const inputConsigne = qEl.querySelector('[data-question-champ="consigne"]');
+      if (inputConsigne) inputConsigne.addEventListener('input', (e) => {
+        q.consigne = e.target.value;
         majQuestions(questions());
       });
       if (q.type === 'texte_a_trous') {
@@ -200,7 +215,7 @@ function attacherEcouteursQuestionsDevoir(devoirId, el, bloc) {
         rerender();
       });
 
-      if (q.type === 'qcm' || q.type === 'remise_en_ordre') {
+      if (q.type === 'qcm' || q.type === 'qcm_multiple' || q.type === 'remise_en_ordre') {
         qEl.querySelectorAll('[data-option-index]').forEach(inputOpt => {
           inputOpt.addEventListener('input', () => {
             const i = parseInt(inputOpt.dataset.optionIndex, 10);
@@ -234,6 +249,19 @@ function attacherEcouteursQuestionsDevoir(devoirId, el, bloc) {
           radio.addEventListener('change', () => {
             if (!c) return;
             c.bonneReponse = radio.dataset.questionBonneIndex;
+            sauvegarderCorrige();
+          });
+        });
+      }
+
+      if (q.type === 'qcm_multiple') {
+        qEl.querySelectorAll('[data-question-bonne-multi-index]').forEach(checkbox => {
+          checkbox.addEventListener('change', () => {
+            if (!c) return;
+            const i = parseInt(checkbox.dataset.questionBonneMultiIndex, 10);
+            const actuel = Array.isArray(c.bonneReponse) ? c.bonneReponse.filter(x => x !== i) : [];
+            if (checkbox.checked) actuel.push(i);
+            c.bonneReponse = actuel;
             sauvegarderCorrige();
           });
         });
@@ -291,6 +319,108 @@ function attacherEcouteursQuestionsDevoir(devoirId, el, bloc) {
           if (!c) return;
           c.bareme = texteBareme.value;
           sauvegarderCorrige();
+        });
+      }
+
+      if (q.type === 'association') {
+        const rafraichirAssociation = () => {
+          recalculerAssociation(q, c);
+          majQuestions(questions());
+          if (c) sauvegarderCorrige();
+        };
+        qEl.querySelectorAll('[data-association-gauche-index]').forEach(input => {
+          input.addEventListener('input', () => {
+            const i = parseInt(input.dataset.associationGaucheIndex, 10);
+            q.paires = Array.isArray(q.paires) ? [...q.paires] : [];
+            q.paires[i] = { ...(q.paires[i] || {}), gauche: input.value };
+            rafraichirAssociation();
+          });
+        });
+        qEl.querySelectorAll('[data-association-droite-index]').forEach(input => {
+          input.addEventListener('input', () => {
+            const i = parseInt(input.dataset.associationDroiteIndex, 10);
+            q.paires = Array.isArray(q.paires) ? [...q.paires] : [];
+            q.paires[i] = { ...(q.paires[i] || {}), droite: input.value };
+            rafraichirAssociation();
+          });
+        });
+        const btnAjouterPaire = qEl.querySelector('[data-ajouter-paire]');
+        if (btnAjouterPaire) btnAjouterPaire.addEventListener('click', () => {
+          q.paires = [...(q.paires || []), { gauche: '', droite: '' }];
+          rafraichirAssociation();
+          rerender();
+        });
+        qEl.querySelectorAll('[data-supprimer-paire]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const i = parseInt(btn.dataset.supprimerPaire, 10);
+            q.paires.splice(i, 1);
+            rafraichirAssociation();
+            rerender();
+          });
+        });
+      }
+
+      if (q.type === 'classement') {
+        const rafraichirClassement = () => {
+          recalculerClassement(q, c);
+          majQuestions(questions());
+          if (c) sauvegarderCorrige();
+        };
+        qEl.querySelectorAll('[data-categorie-index]').forEach(input => {
+          input.addEventListener('input', () => {
+            const i = parseInt(input.dataset.categorieIndex, 10);
+            q.categories = Array.isArray(q.categories) ? [...q.categories] : [];
+            q.categories[i] = input.value;
+            rafraichirClassement();
+          });
+        });
+        const btnAjouterCategorie = qEl.querySelector('[data-ajouter-categorie]');
+        if (btnAjouterCategorie) btnAjouterCategorie.addEventListener('click', () => {
+          q.categories = [...(q.categories || []), ''];
+          rafraichirClassement();
+          rerender();
+        });
+        qEl.querySelectorAll('[data-supprimer-categorie]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const i = parseInt(btn.dataset.supprimerCategorie, 10);
+            q.categories.splice(i, 1);
+            (q.items || []).forEach(it => {
+              if (it.categorieIndex === i) it.categorieIndex = null;
+              else if (typeof it.categorieIndex === 'number' && it.categorieIndex > i) it.categorieIndex -= 1;
+            });
+            rafraichirClassement();
+            rerender();
+          });
+        });
+        qEl.querySelectorAll('[data-item-classement-index]').forEach(input => {
+          input.addEventListener('input', () => {
+            const i = parseInt(input.dataset.itemClassementIndex, 10);
+            q.items = Array.isArray(q.items) ? [...q.items] : [];
+            q.items[i] = { ...(q.items[i] || {}), mot: input.value };
+            rafraichirClassement();
+          });
+        });
+        qEl.querySelectorAll('[data-item-categorie-index]').forEach(select => {
+          select.addEventListener('change', () => {
+            const i = parseInt(select.dataset.itemCategorieIndex, 10);
+            q.items = Array.isArray(q.items) ? [...q.items] : [];
+            q.items[i] = { ...(q.items[i] || {}), categorieIndex: select.value === '' ? null : parseInt(select.value, 10) };
+            rafraichirClassement();
+          });
+        });
+        const btnAjouterItem = qEl.querySelector('[data-ajouter-item-classement]');
+        if (btnAjouterItem) btnAjouterItem.addEventListener('click', () => {
+          q.items = [...(q.items || []), { mot: '', categorieIndex: null }];
+          rafraichirClassement();
+          rerender();
+        });
+        qEl.querySelectorAll('[data-supprimer-item-classement]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const i = parseInt(btn.dataset.supprimerItemClassement, 10);
+            q.items.splice(i, 1);
+            rafraichirClassement();
+            rerender();
+          });
         });
       }
     });

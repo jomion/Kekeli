@@ -3,7 +3,13 @@
 
 const TYPES_BLOCS = [
   { valeur: 'texte',      label: 'Texte',       icone: '📝', usage: 'Explication',        couleur: '#003366' },
-  { valeur: 'titre',      label: 'Titre',       icone: '🔠', usage: 'Section (peut contenir d\'autres blocs)', couleur: '#1D4ED8' },
+  // Valeur interne 'titre' conservée (base de données, résumé IA...) même si
+  // le libellé affiché est désormais "Contenu" : son propre texte ne
+  // s'affiche plus nulle part côté élève (ni dans l'aperçu élève de
+  // l'éditeur) — seuls les blocs qu'elle contient sont visibles. Le champ
+  // texte reste éditable dans la liste de blocs de l'éditeur, pour que
+  // l'admin puisse s'y retrouver (repère interne uniquement).
+  { valeur: 'titre',      label: 'Contenu',     icone: '🔠', usage: 'Section (peut contenir d\'autres blocs, jamais de blocs d\'exercice/activité)', couleur: '#1D4ED8' },
   { valeur: 'a_retenir',  label: 'À retenir',   icone: '⭐', usage: 'Notion essentielle',  couleur: '#B8860B' },
   { valeur: 'definition', label: 'Définition',  icone: '📖', usage: 'Terme',               couleur: '#6D28D9' },
   { valeur: 'exemple',    label: 'Exemple',     icone: '💡', usage: 'Illustration',        couleur: '#15803D' },
@@ -96,8 +102,8 @@ function html_editeurBloc(bloc) {
   const c = bloc.contenu || {};
   switch (bloc.type_bloc) {
     case 'titre':
-      return `<input type="text" data-champ="texte" placeholder="Titre de la section" value="${echapper(c.texte)}">
-        <p class="note-future">Section : vous pouvez ajouter d'autres blocs à l'intérieur (voir "Contenu" ci-dessous).</p>`;
+      return `<input type="text" data-champ="texte" placeholder="Repère interne (non affiché à l'élève)" value="${echapper(c.texte)}">
+        <p class="note-future">Section "Contenu" : sert uniquement à regrouper d'autres blocs (texte, définition, exemple...). Ce champ n'est jamais affiché à l'élève — c'est juste un repère pour vous y retrouver dans l'éditeur. Ajoutez les blocs à l'intérieur avec "+ Ajouter un bloc ici" ci-dessous.</p>`;
 
     case 'consigne':
       return `<textarea data-champ="texte" placeholder="Consigne générale (ex: Lis le texte puis réponds aux items suivants)">${echapper(c.texte)}</textarea>
@@ -310,7 +316,10 @@ const LIBELLES_TYPE_QUESTION = {
   reponse_courte: 'Réponse courte',
   reponse_longue: 'Réponse longue (corrigée par IA)',
   texte_a_trous: 'Texte à trous',
-  remise_en_ordre: 'Remise en ordre'
+  remise_en_ordre: 'Remise en ordre',
+  association: 'Association (relier des paires)',
+  qcm_multiple: 'QCM à réponses multiples',
+  classement: 'Classement (trier en catégories)'
 };
 
 function html_editeurExercice(bloc, c) {
@@ -330,6 +339,38 @@ function html_editeurExercice(bloc, c) {
       <button type="button" class="btn btn-discret" data-ajouter-question>+ Ajouter une question</button>
       <p class="note-future" data-etat-corrige>Chargement du corrigé...</p>
     </div>`;
+}
+
+// Question "association" : l'admin saisit des paires {gauche, droite} bien
+// alignées (q.paires, jamais envoyé à l'élève). On en dérive ce qui EST
+// envoyé à l'élève (q.gauche, dans l'ordre de saisie, et q.droite, mélangé)
+// et, séparément, la correspondance correcte — stockée dans le corrigé
+// privé (jamais lisible par l'élève), pas dans les champs publics : sinon
+// l'ordre de q.droite révélerait directement la bonne réponse. Recalculé à
+// chaque modification d'une paire (ajout/suppression/texte).
+function recalculerAssociation(q, c) {
+  const paires = Array.isArray(q.paires) ? q.paires : [];
+  const n = paires.length;
+  const permutation = Array.from({ length: n }, (_, i) => i);
+  for (let i = n - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [permutation[i], permutation[j]] = [permutation[j], permutation[i]];
+  }
+  q.gauche = paires.map(p => (p && p.gauche) || '');
+  q.droite = permutation.map(idxOrigine => (paires[idxOrigine] && paires[idxOrigine].droite) || '');
+  if (c) c.bonneReponse = paires.map((_, i) => permutation.indexOf(i));
+}
+
+// Question "classement" : l'admin saisit des catégories (ex: Nom, Verbe,
+// Adjectif) et des mots, chacun affecté à une catégorie (q.items[i].categorie,
+// jamais envoyé à l'élève). L'élève reçoit la liste des mots (q.motsAClasser)
+// et la liste des catégories (q.categories) — l'ordre des mots ne révèle rien
+// puisque l'affectation correcte reste uniquement dans le corrigé privé.
+function recalculerClassement(q, c) {
+  const items = Array.isArray(q.items) ? q.items : [];
+  q.motsAClasser = items.map(it => (it && it.mot) || '');
+  q.categories = Array.isArray(q.categories) ? q.categories : [];
+  if (c) c.bonneReponse = items.map(it => (it && typeof it.categorieIndex === 'number') ? it.categorieIndex : null);
 }
 
 // corrige peut être `null` (corrigé pas encore chargé depuis la base — les
@@ -402,6 +443,69 @@ function html_questionEditeur(q, index, corrige) {
         }).join('')}
         <button type="button" class="btn btn-discret" data-ajouter-option style="align-self:flex-start;font-size:12px">+ Élément</button>
       </div>`;
+  } else if (q.type === 'association') {
+    // Paires {gauche, droite} : l'élève doit relier chaque élément de
+    // gauche à son élément de droite (proposés mélangés côté élève) —
+    // correction automatique paire par paire.
+    const paires = Array.isArray(q.paires) ? q.paires : [];
+    corpsCorrige = `
+      <div class="options-association">
+        <p class="note-future">Chaque ligne est une paire à relier (ex: un mot ↔ sa définition). L'élève verra la colonne de droite mélangée.</p>
+        ${paires.map((p, i) => `
+          <div class="option-qcm">
+            <input type="text" data-association-gauche-index="${i}" value="${echapper(p?.gauche)}" placeholder="Élément ${i + 1} (gauche)">
+            <input type="text" data-association-droite-index="${i}" value="${echapper(p?.droite)}" placeholder="Correspond à... (droite)">
+            <button type="button" data-supprimer-paire="${i}" title="Supprimer cette paire">✕</button>
+          </div>`).join('')}
+        <button type="button" class="btn btn-discret" data-ajouter-paire style="align-self:flex-start;font-size:12px">+ Paire</button>
+      </div>`;
+  } else if (q.type === 'qcm_multiple') {
+    // Comme le QCM classique, mais plusieurs bonnes réponses possibles (ex:
+    // "Activité 1 — Je reconnais les mots" : entourer plusieurs mots dans une
+    // liste). Toutes les cases cochées doivent correspondre exactement aux
+    // bonnes réponses pour que la question soit comptée correcte.
+    const options = Array.isArray(q.options) ? q.options : [];
+    const bonnes = !enAttente && Array.isArray(c.bonneReponse) ? c.bonneReponse.map(String) : [];
+    corpsCorrige = `
+      <p class="note-future">Coche toutes les bonnes réponses (au moins une). L'élève verra des cases à cocher.</p>
+      <div class="options-qcm">
+        ${options.map((opt, i) => `
+          <div class="option-qcm">
+            <input type="checkbox" data-question-bonne-multi-index="${i}" ${bonnes.includes(String(i)) ? 'checked' : ''} ${enAttente ? 'disabled' : ''}>
+            <input type="text" data-option-index="${i}" value="${echapper(opt)}" placeholder="Option ${i + 1}">
+            <button type="button" data-supprimer-option="${i}" title="Supprimer cette option">✕</button>
+          </div>`).join('')}
+        <button type="button" class="btn btn-discret" data-ajouter-option style="align-self:flex-start;font-size:12px">+ Option</button>
+      </div>`;
+  } else if (q.type === 'classement') {
+    // Catégories (colonnes du tableau, ex: Nom / Verbe / Adjectif) + mots à
+    // classer, chacun affecté à sa bonne catégorie (menu déroulant). L'élève
+    // recevra la liste des mots et des catégories, jamais l'affectation.
+    const categories = Array.isArray(q.categories) ? q.categories : [];
+    const items = Array.isArray(q.items) ? q.items : [];
+    corpsCorrige = `
+      <div class="categories-classement">
+        <p class="note-future">Catégories (colonnes proposées à l'élève) :</p>
+        ${categories.map((cat, i) => `
+          <div class="option-qcm">
+            <input type="text" data-categorie-index="${i}" value="${echapper(cat)}" placeholder="Catégorie ${i + 1} (ex: Nom)">
+            <button type="button" data-supprimer-categorie="${i}" title="Supprimer cette catégorie">✕</button>
+          </div>`).join('')}
+        <button type="button" class="btn btn-discret" data-ajouter-categorie style="align-self:flex-start;font-size:12px">+ Catégorie</button>
+      </div>
+      <div class="items-classement" style="margin-top:8px">
+        <p class="note-future">Mots à classer, avec leur bonne catégorie :</p>
+        ${items.map((it, i) => `
+          <div class="option-qcm">
+            <input type="text" data-item-classement-index="${i}" value="${echapper(it?.mot)}" placeholder="Mot ${i + 1}">
+            <select data-item-categorie-index="${i}" ${enAttente ? 'disabled' : ''}>
+              <option value="">— Catégorie —</option>
+              ${categories.map((cat, k) => `<option value="${k}" ${it && it.categorieIndex === k ? 'selected' : ''}>${echapper(cat)}</option>`).join('')}
+            </select>
+            <button type="button" data-supprimer-item-classement="${i}" title="Supprimer ce mot">✕</button>
+          </div>`).join('')}
+        <button type="button" class="btn btn-discret" data-ajouter-item-classement style="align-self:flex-start;font-size:12px">+ Mot</button>
+      </div>`;
   }
 
   return `
@@ -415,6 +519,7 @@ function html_questionEditeur(q, index, corrige) {
         <button type="button" class="bouton-supprimer-question" data-supprimer-question title="Supprimer cette question">🗑️</button>
       </div>
       <textarea data-question-champ="enonce" placeholder="Énoncé de la question...">${echapper(q.enonce)}</textarea>
+      <input type="text" data-question-champ="consigne" placeholder="Consigne pour l'élève (optionnel — ex : « Complète les mots manquants »)" value="${echapper(q.consigne)}">
       ${corpsCorrige}
     </div>`;
 }

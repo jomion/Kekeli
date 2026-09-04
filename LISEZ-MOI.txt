@@ -1,0 +1,92 @@
+KEKELI — Livraison : Titre du contenu, section "Contenu" masquée, consigne
+par question, et nouveaux types d'exercices (Association / QCM à réponses
+multiples / Classement)
+============================================================================
+
+Cette livraison contient UNIQUEMENT les fichiers modifiés ou ajoutés depuis
+la dernière livraison (« chemin complet dans le tableau de bord admin »).
+Pour installer : copiez chaque fichier de ce zip à l'emplacement identique
+dans votre projet (mêmes dossiers), en écrasant l'ancien fichier.
+
+Les changements de base de données (nouvelle colonne, fonction de
+correction) ont déjà été appliqués directement sur le serveur — rien à
+faire de votre côté pour cette partie, c'est déjà en ligne.
+
+
+1. NOUVEAU CHAMP « Titre du contenu »
+--------------------------------------
+Dans l'éditeur de séance, à côté du champ « Discipline », un nouveau champ
+texte libre « Titre du contenu (repère pour les listes et l'IA) » a été
+ajouté. Il sert de repère indépendant du titre de la séance et permet de
+retrouver facilement de quoi parle une séance dans les listes — il
+s'affiche désormais (précédé d'un 🔖) dans la liste des séances vue par
+les élèves/enseignants/parents ET dans le tableau de bord administrateur.
+Il pourra aussi servir de point d'ancrage pour un futur assistant IA.
+
+2. SECTION « Titre » RENOMMÉE EN « Contenu » ET MASQUÉE PAR DÉFAUT
+--------------------------------------------------------------------
+Le bloc auparavant appelé « Titre » s'appelle maintenant « Contenu » dans
+l'éditeur. Son propre texte (le repère interne) est désormais masqué par
+défaut à l'affichage — aussi bien dans l'aperçu élève de l'éditeur que
+dans la vraie page vue par l'élève. Seul le contenu placé À L'INTÉRIEUR de
+cette section (les autres blocs qu'elle contient) reste visible : c'est
+bien la section elle-même qui ne s'affiche plus, pas son contenu.
+
+Vous pouvez toujours rendre ce texte visible à nouveau pour un bloc
+donné via la case « Titre visible » si besoin.
+
+3. LA SECTION « Contenu » N'ACCEPTE PLUS LES BLOCS D'EXERCICE
+-----------------------------------------------------------------
+Il n'est désormais plus possible de glisser-déposer ou d'ajouter un bloc
+Exercice, Quiz, Évaluation, Activité, Consigne ou Item À L'INTÉRIEUR d'une
+section « Contenu » — ces blocs restent réservés au niveau supérieur de la
+séance (ou dans une section « Consigne », qui n'est pas concernée par
+cette restriction). Ce contrôle est fait à trois niveaux (liste de choix,
+ajout direct, glisser-déposer) pour éviter toute erreur de structure.
+Le contenu déjà existant n'est pas modifié par ce changement — seuls les
+nouveaux ajouts sont concernés.
+
+4. CONSIGNE POUR CHAQUE QUESTION
+-------------------------------------
+Chaque question, quel que soit son type (y compris « Texte à trous », qui
+en manquait), peut maintenant recevoir une consigne facultative affichée
+à l'élève (ex. : « Complète les mots manquants »). Ce champ est visible
+et modifiable directement sous l'énoncé de la question dans l'éditeur.
+
+5. NOUVEAUX TYPES D'EXERCICE (à la place d'Association/Devinette
+   initialement envisagés — Devinette a été annulée, remplacée par deux
+   types mieux adaptés à la correction automatique de vocabulaire)
+------------------------------------------------------------------------
+
+  • Association (relier des paires) : l'enseignant saisit des paires
+    (élément de gauche / élément de droite). L'élève voit la colonne de
+    gauche dans l'ordre, et doit choisir dans un menu déroulant l'élément
+    correspondant de droite (mélangé aléatoirement à chaque affichage du
+    corrigé). La bonne réponse n'est jamais visible dans les données
+    envoyées à l'élève.
+
+  • QCM à réponses multiples : comme un QCM classique, mais l'élève peut
+    cocher plusieurs bonnes réponses (cases à cocher au lieu de boutons
+    radio). Toutes les bonnes réponses doivent être cochées, et aucune
+    mauvaise, pour que la question soit comptée juste.
+
+  • Classement (trier en catégories) : l'enseignant définit des
+    catégories (ex. : Nom / Verbe / Adjectif) et une liste de mots ; pour
+    chaque mot, il indique sa bonne catégorie. L'élève voit la liste des
+    mots et choisit, pour chacun, sa catégorie via un menu déroulant.
+
+Ces trois types sont notés automatiquement (aucune intervention manuelle
+requise), comme les QCM ou les Vrai/Faux.
+
+Pour rappel : ces trois types, plus les corrections déjà en place pour
+QCM/Vrai-Faux/Réponse courte/Texte à trous/Remise en ordre, couvrent
+maintenant l'ensemble des formats de question notés automatiquement.
+
+
+NOTE TECHNIQUE (déjà en ligne, rien à installer)
+--------------------------------------------------
+Le service de correction automatique (executé sur le serveur) a été mis à
+jour pour savoir corriger les trois nouveaux types de question
+(Association, QCM à réponses multiples, Classement). Ce changement est
+déjà actif — vos élèves peuvent utiliser ces nouveaux types de question
+dès maintenant, dans n'importe quelle séance ou devoir.

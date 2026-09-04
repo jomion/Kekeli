@@ -36,6 +36,9 @@
 .trous-champ input[type=text] { width: 100%; border: 1px solid var(--bordure); border-radius: 6px; padding: 6px 8px; box-sizing: border-box; margin-top: 3px; }
 .options-ordre { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
 .options-ordre .option-qcm input[type=number] { flex: none; width: auto; }
+.options-association, .categories-classement, .items-classement { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+.items-classement .option-qcm select { border: 1px solid var(--bordure); border-radius: 6px; padding: 4px 6px; }
+.question-editeur input[data-question-champ="consigne"] { width: 100%; box-sizing: border-box; margin: 4px 0 0; font-size: 12px; border: 1px solid var(--bordure); border-radius: 6px; padding: 4px 8px; }
 .item-type-devoir:hover { background: var(--bleu-clair); }
 
 :root {
