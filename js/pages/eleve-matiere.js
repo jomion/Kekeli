@@ -260,15 +260,12 @@ async function afficherSeancesListe() {
     p_eleve_id: profilEleveMat.id, p_sa_id: etatMat.sa.id
   });
 
-  // Le look premium (voir css/theme-premium-eleve.css) remplace cette liste
-  // par la mise en page "hero + onglets + filtres + panneau latéral" du
-  // modèle fourni — voir afficherSeancesListePremium ci-dessous. Le
-  // formatage gratuit garde exactement sa liste actuelle, inchangée.
-  if (document.body.classList.contains('theme-premium-actif')) {
-    await afficherSeancesListePremium(seances || [], segments);
-    return;
-  }
-
+  // Le look premium (voir css/theme-premium-eleve.css) n'utilise jamais cette
+  // fonction : le point d'entrée premium passe directement par
+  // afficherMatierePremium (voir plus bas), qui prend en charge tous les
+  // cas (matière seule, ou lien profond noeudId/saId) — voir le bloc
+  // `if (premiumMat)` au tout début de ce fichier. Le formatage gratuit
+  // garde exactement sa liste actuelle, inchangée.
   conteneur.innerHTML = `
     ${filArianeMat(segments)}
     <div class="subject-header">
@@ -299,129 +296,7 @@ async function afficherSeancesListe() {
   attacherFilAriane();
 }
 
-// ===== Look premium (aperçu) — écran principal du modèle fourni =====
-// Reprend exactement les mêmes données que afficherSeancesListe (RPC
-// etat_seances_sa) plus deux petites requêtes propres à ce panneau (badges
-// récents, dates pour la série) — aucune donnée inventée, aucun filtre
-// factice : recherche et tri fonctionnent réellement (client-side, sur la
-// liste déjà chargée) ; les filtres "semaine"/"type" n'ont pas d'équivalent
-// dans le modèle de données actuel et ne sont donc pas affichés plutôt que
-// de proposer un contrôle qui ne ferait rien.
-async function afficherSeancesListePremium(seances, segments) {
-  const conteneur = document.getElementById('contenu');
-
-  // Onglets "Unité" : les SA soeurs sous le même niveau de l'arborescence.
-  const { data: soeurs } = await supabaseClient.from('sa').select('id, titre, ordre').eq('noeud_id', etatMat.sa.noeud_id).order('ordre');
-
-  const total = seances.length;
-  const termines = seances.filter(s => s.termine).length;
-  const pct = total ? Math.round((termines / total) * 100) : 0;
-
-  const [{ data: badgesRecents }, { data: datesTerminees }] = await Promise.all([
-    supabaseClient.from('badges_eleves').select('badges(nom, icone)').eq('eleve_id', profilEleveMat.id).order('attribue_le', { ascending: false }).limit(4),
-    supabaseClient.from('seances_terminees').select('termine_le').eq('eleve_id', profilEleveMat.id)
-  ]);
-  const serieMat = calculerSerieJoursMat((datesTerminees || []).map(d => d.termine_le));
-  const badgesRecentsMat = (badgesRecents || []).filter(b => b.badges);
-  const infoChamp = PRESENTATION_CHAMPS_ELEVE[etatMat.champ.code] || {};
-
-  conteneur.innerHTML = `
-    ${filArianeMat(segments)}
-    <div class="prem-hero-matiere">
-      <div class="prem-hero-matiere-texte">
-        <h1>${echapper(etatMat.champ.nom)} — Explore, apprends et progresse !</h1>
-        <p>${echapper(etatMat.sa.titre)}${etatMat.sa.description ? ` — ${echapper(etatMat.sa.description)}` : ''}</p>
-      </div>
-      <div class="prem-hero-matiere-illustration">${infoChamp.icone || '📘'}</div>
-    </div>
-
-    ${soeurs && soeurs.length > 1 ? `<div class="prem-onglets-unite" id="premOngletsUnite">
-      ${soeurs.map(s => `<button type="button" class="prem-onglet-unite${s.id === etatMat.sa.id ? ' actif' : ''}" data-onglet-sa="${s.id}">${echapper(s.titre)}</button>`).join('')}
-    </div>` : ''}
-
-    <div class="prem-barre-filtres">
-      <input type="search" id="premRechercheMat" placeholder="🔍 Rechercher une séance...">
-      <select id="premTriSeancesMat">
-        <option value="ordre">Tri : ordre du parcours</option>
-        <option value="alpha">Tri : alphabétique</option>
-      </select>
-    </div>
-
-    <div class="prem-mise-en-page-liste">
-      <div class="prem-liste-seances" id="premListeSeancesMat">${htmlListeSeancesPremium(seances)}</div>
-      <div class="prem-panneau-lateral">
-        <div class="prem-carte-panneau">
-          <h3>Mon progrès en ${echapper(etatMat.champ.nom)}</h3>
-          <div class="prem-donut" style="background:conic-gradient(var(--prem-primaire) ${pct * 3.6}deg, var(--prem-primaire-clair) 0deg)">
-            <div class="prem-donut-centre"><div class="prem-donut-pct">${pct}%</div><div class="prem-donut-label">complété</div></div>
-          </div>
-          <div class="prem-stat-mini"><span>Séances terminées</span><strong>${termines}/${total}</strong></div>
-        </div>
-        <div class="prem-carte-panneau">
-          <h3>🏅 Mes badges récents</h3>
-          <div class="prem-badges-mini">
-            ${badgesRecentsMat.length ? badgesRecentsMat.map(b => `<span class="prem-badge-mini" title="${echapper(b.badges.nom)}">${echapper(b.badges.icone) || '🏅'}</span>`).join('') : '<p style="font-size:12px;color:var(--text-gris);margin:0">Pas encore de badge.</p>'}
-          </div>
-        </div>
-        <div class="prem-carte-panneau prem-carte-serie">
-          <h3>🔥 Garde le rythme !</h3>
-          <p style="margin:0;font-size:13px">${serieMat > 0 ? `${serieMat} jour${serieMat > 1 ? 's' : ''} consécutif${serieMat > 1 ? 's' : ''} !` : "Termine une séance aujourd'hui pour démarrer ta série !"}</p>
-        </div>
-        <div class="prem-carte-panneau prem-carte-aide">
-          <h3>Besoin d'aide ?</h3>
-          <p style="font-size:12px;color:var(--text-gris);margin:0">Demande à ton enseignant ou à un adulte.</p>
-        </div>
-      </div>
-    </div>
-  `;
-
-  attacherFilAriane();
-
-  if (soeurs && soeurs.length > 1) {
-    document.querySelectorAll('[data-onglet-sa]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const { data: saComplete } = await supabaseClient.from('sa').select('*').eq('id', btn.dataset.ongletSa).single();
-        if (saComplete) { etatMat.sa = saComplete; afficherSeancesListe(); }
-      });
-    });
-  }
-
-  const champRecherche = document.getElementById('premRechercheMat');
-  const selectTri = document.getElementById('premTriSeancesMat');
-  function reappliquerFiltresMat() {
-    const texte = (champRecherche.value || '').toLowerCase();
-    let liste = seances.filter(s => (s.titre || '').toLowerCase().includes(texte));
-    if (selectTri.value === 'alpha') liste = [...liste].sort((a, b) => a.titre.localeCompare(b.titre, 'fr'));
-    document.getElementById('premListeSeancesMat').innerHTML = htmlListeSeancesPremium(liste);
-  }
-  if (champRecherche) champRecherche.addEventListener('input', reappliquerFiltresMat);
-  if (selectTri) selectTri.addEventListener('change', reappliquerFiltresMat);
-}
-
-function htmlListeSeancesPremium(seances) {
-  return (seances || []).map((s, i) => {
-    const classeCarte = s.verrouille ? 'verrouille' : s.termine ? 'termine' : '';
-    const icone = s.verrouille ? '🔒' : s.termine ? '✅' : '▶️';
-    const boutonTexte = s.verrouille ? 'Verrouillé' : s.termine ? 'Revoir' : 'Commencer';
-    const bouton = s.verrouille
-      ? `<span class="prem-btn-commencer verrouille">${boutonTexte}</span>`
-      : `<a class="prem-btn-commencer ${s.termine ? 'termine' : ''}" href="seance.html?id=${s.id}">${boutonTexte}</a>`;
-    return `<div class="prem-carte-seance ${classeCarte}">
-      <div class="prem-carte-seance-numero">${icone}</div>
-      <div class="prem-carte-seance-corps">
-        <div class="prem-carte-seance-titre">Séance ${i + 1} — ${echapper(s.titre)}</div>
-        <div class="prem-tags-seance">
-          ${s.discipline ? `<span class="prem-tag">${echapper(s.discipline)}</span>` : ''}
-          ${s.termine ? `<span class="prem-tag vert">Terminée</span>` : ''}
-          ${s.verrouille ? `<span class="prem-tag orange">Verrouillée</span>` : ''}
-        </div>
-      </div>
-      ${bouton}
-    </div>`;
-  }).join('') || '<p style="color:var(--text-gris)">Aucune séance pour l\'instant.</p>';
-}
-
-// ===== Look premium (définitif) — vue "hero + onglets Unité + chronologie
+// ===== Look premium — vue "hero + onglets Unité + chronologie
 // aplatie" du modèle fourni (kekeli_modele_dashboard.html), avec les
 // matières et l'arborescence RÉELLES de la classe. Remplace, pour l'espace
 // premium, tout le cheminement à niveaux (afficherNiveau/afficherSeancesListe
@@ -436,6 +311,12 @@ function htmlListeSeancesPremium(seances) {
 // fonction serveur.
 
 const STRUCTURES_IMPOSEES_ELEVE = { francais: ['theme', 'unite', 'semaine'] };
+
+// Petit jeu d'icônes (voir ICONES_PREM/iconePrem, js/theme-premium-eleve.js)
+// utilisé pour décorer chaque onglet Unité — purement décoratif (aucune
+// signification pédagogique), cycle par position pour varier visuellement
+// comme dans le modèle fourni (❤️/🛡️/👥/🎵 y jouent le même rôle).
+const ICONES_ONGLET_UNITE_MAT = ['coeur', 'boussole', 'utilisateur', 'livreOuvert'];
 
 // Depuis une chaîne d'ancêtres (remonterAncetresNoeudMat, du plus haut au
 // plus bas), retrouve le noeud "onglet Unité" correspondant : le 2e niveau
@@ -455,22 +336,33 @@ function ongletDepuisCheminMat(chemin) {
 //   maquette n'a qu'une seule rangée d'onglets, donc on aplatit directement.
 // - Sinon (Mathématiques, et toute matière future à un seul niveau) : les
 //   noeuds racine eux-mêmes (ex: les Dossiers).
+// `type_noeud` est conservé sur chaque onglet retourné : sert à composer le
+// petit libellé "Unité 1"/"Dossier 1" affiché en gras dans la pilule (voir
+// libellesOngletMat), la vraie SI (titre du noeud) restant affichée dessous.
 async function ongletsMatierePremium() {
   const structure = STRUCTURES_IMPOSEES_ELEVE[etatMat.champ.code];
   if (structure && structure.length > 1) {
     const [{ data: racines }, { data: onglets }] = await Promise.all([
       supabaseClient.from('noeuds_parcours').select('id, ordre')
         .eq('classe_id', classeIdEleve).eq('champ_formation_id', etatMat.champ.id).eq('type_noeud', structure[0]).order('ordre'),
-      supabaseClient.from('noeuds_parcours').select('id, titre, parent_id, ordre')
+      supabaseClient.from('noeuds_parcours').select('id, titre, parent_id, ordre, type_noeud')
         .eq('classe_id', classeIdEleve).eq('champ_formation_id', etatMat.champ.id).eq('type_noeud', structure[1]).order('ordre'),
     ]);
     const ordreRacine = new Map((racines || []).map(r => [r.id, r.ordre]));
     return (onglets || []).slice().sort((a, b) =>
       (ordreRacine.get(a.parent_id) ?? 0) - (ordreRacine.get(b.parent_id) ?? 0) || a.ordre - b.ordre);
   }
-  const { data: racines } = await supabaseClient.from('noeuds_parcours').select('id, titre, ordre')
+  const { data: racines } = await supabaseClient.from('noeuds_parcours').select('id, titre, ordre, type_noeud')
     .eq('classe_id', classeIdEleve).eq('champ_formation_id', etatMat.champ.id).is('parent_id', null).order('ordre');
   return racines || [];
+}
+
+// Libellé en gras affiché dans la pilule d'onglet ("Unité 1", "Dossier 1"...)
+// à partir du type_noeud réel du noeud et de sa position (1-based) dans la
+// liste déjà aplatie/triée des onglets — jamais codé en dur par matière.
+function libelleOrdinalOngletMat(typeNoeud, position) {
+  const mot = (typeNoeud || 'Unité');
+  return mot.charAt(0).toUpperCase() + mot.slice(1) + ' ' + position;
 }
 
 // Récupère, sous un noeud "onglet" donné, TOUTES les SA qui en dépendent —
@@ -490,6 +382,25 @@ async function collecterSaDescendantesMat(noeudId, chemin) {
   }
   return resultat;
 }
+
+// Icône + couleur de la vignette de chaque carte séance, devinées à partir
+// du texte de discipline (mots-clés, accents ignorés) — purement pour
+// varier visuellement comme dans le modèle fourni (livre rose/vocabulaire,
+// livre ouvert bleu/lecture, plume verte/conjugaison...). Repli générique
+// (planche orange) pour toute discipline qui ne correspond à aucun mot-clé.
+const PALETTE_ICONE_SEANCE_MAT = [
+  { motsCles: ['vocabulaire'], icone: 'livre', couleur: '#F43F5E' },
+  { motsCles: ['lecture'], icone: 'livreOuvert', couleur: '#3B5EFF' },
+  { motsCles: ['conjugaison', 'grammaire', 'orthographe'], icone: 'plume', couleur: '#22C55E' },
+];
+function normaliserTexteMat(texte) { return (texte || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+function iconeSeanceMat(discipline) {
+  const n = normaliserTexteMat(discipline);
+  const trouve = PALETTE_ICONE_SEANCE_MAT.find(p => p.motsCles.some(m => n.includes(m)));
+  return trouve || { icone: 'planche', couleur: '#F59E0B' };
+}
+
+const NB_SEANCES_INITIAL_MAT = 6;
 
 async function afficherMatierePremium() {
   const conteneur = document.getElementById('contenu');
@@ -515,6 +426,7 @@ async function afficherMatierePremium() {
 
   const ongletActifId = etatMat.cheminNoeuds.length ? etatMat.cheminNoeuds[0].id : onglets[0].id;
   const ongletActif = onglets.find(o => o.id === ongletActifId) || onglets[0];
+  const positionOngletActif = onglets.findIndex(o => o.id === ongletActif.id);
   etatMat.cheminNoeuds = [{ id: ongletActif.id, titre: ongletActif.titre }];
   synchroniserUrlMat();
 
@@ -522,25 +434,46 @@ async function afficherMatierePremium() {
   const listesParSa = await Promise.all(entreesSa.map(({ sa }) =>
     supabaseClient.rpc('etat_seances_sa', { p_eleve_id: profilEleveMat.id, p_sa_id: sa.id })
   ));
-  const { data: pins } = await supabaseClient.from('seances_epinglees').select('seance_id').eq('utilisateur_id', profilEleveMat.id);
+  const [{ data: pins }, { data: titresContenu }] = await Promise.all([
+    supabaseClient.from('seances_epinglees').select('seance_id').eq('utilisateur_id', profilEleveMat.id),
+    // 🔖 "Titre du contenu" (seances.titre_contenu) : pas renvoyé par
+    // etat_seances_sa (qui ne porte que id/titre/ordre/discipline/termine/
+    // verrouille) — récupéré séparément pour l'afficher en étiquette repère
+    // (comme sur pages/seances.html), une fois qu'on connaît les id de séance.
+    entreesSa.length
+      ? supabaseClient.from('seances').select('id, titre_contenu').eq('sa_id', ongletActif.id) // filtré plus bas par id réel
+      : Promise.resolve({ data: [] }),
+  ]);
   const idsEpingles = new Set((pins || []).map(p => p.seance_id));
 
   let seances = [];
   entreesSa.forEach(({ sa, chemin }, i) => {
-    const saLabel = sa.numero ? `SA${sa.numero}` : sa.titre;
+    const saLabel = sa.numero ? `SA ${sa.numero}` : sa.titre;
     (listesParSa[i].data || []).forEach(s => {
       seances.push({ ...s, chemin, saLabel, semaine: chemin[chemin.length - 1] || null, epinglee: idsEpingles.has(s.id) });
     });
   });
+  // Complète titre_contenu séance par séance (la requête groupée ci-dessus ne
+  // couvre qu'un sa_id à la fois par construction du schéma — on va donc
+  // chercher, pour l'ensemble des séances déjà collectées, leur éventuel
+  // repère en une seule requête .in(), plus fiable que le filtre approximatif
+  // du Promise.all ci-dessus).
+  if (seances.length) {
+    const { data: reperes } = await supabaseClient.from('seances').select('id, titre_contenu').in('id', seances.map(s => s.id));
+    const parId = new Map((reperes || []).map(r => [r.id, r.titre_contenu]));
+    seances.forEach(s => { s.titreContenu = parId.get(s.id) || null; });
+  }
 
   const total = seances.length;
   const termines = seances.filter(s => s.termine).length;
+  const enCours = seances.filter(s => !s.termine && !s.verrouille).length;
+  const aVenir = seances.filter(s => s.verrouille).length;
   const pct = total ? Math.round((termines / total) * 100) : 0;
   const semainesDispo = [...new Set(seances.map(s => s.semaine).filter(Boolean))];
   const typesDispo = [...new Set(seances.map(s => s.discipline).filter(Boolean))];
 
   const [{ data: badgesRecents }, { data: datesTerminees }] = await Promise.all([
-    supabaseClient.from('badges_eleves').select('badges(nom, icone)').eq('eleve_id', profilEleveMat.id).order('attribue_le', { ascending: false }).limit(4),
+    supabaseClient.from('badges_eleves').select('badges(nom, icone)').eq('eleve_id', profilEleveMat.id).order('attribue_le', { ascending: false }).limit(3),
     supabaseClient.from('seances_terminees').select('termine_le').eq('eleve_id', profilEleveMat.id)
   ]);
   const serieMat = calculerSerieJoursMat((datesTerminees || []).map(d => d.termine_le));
@@ -557,43 +490,69 @@ async function afficherMatierePremium() {
       <div class="prem-hero-matiere-illustration">${infoChamp.icone || '📘'}</div>
     </div>
 
-    ${onglets.length > 1 ? `<div class="prem-onglets-unite" id="premOngletsUnite">
-      ${onglets.map(o => `<button type="button" class="prem-onglet-unite${o.id === ongletActif.id ? ' actif' : ''}" data-onglet-noeud="${o.id}">${echapper(o.titre)}</button>`).join('')}
+    ${onglets.length > 1 ? `<div class="prem-onglets-rangee">
+      <button type="button" class="prem-onglets-fleche" id="premOngletsGauche" aria-label="Défiler vers la gauche">${iconePrem('chevronGauche', 16)}</button>
+      <div class="prem-onglets-unite" id="premOngletsUnite">
+        ${onglets.map((o, i) => `<button type="button" class="prem-onglet-unite${o.id === ongletActif.id ? ' actif' : ''}" data-onglet-noeud="${o.id}">
+          <span class="prem-onglet-unite-icone">${iconePrem(ICONES_ONGLET_UNITE_MAT[i % ICONES_ONGLET_UNITE_MAT.length], 15)}</span>
+          <span>
+            <div class="prem-onglet-unite-titre">${echapper(libelleOrdinalOngletMat(o.type_noeud, i + 1))}</div>
+            <div class="prem-onglet-unite-sous">${echapper(o.titre)}</div>
+          </span>
+        </button>`).join('')}
+      </div>
+      <button type="button" class="prem-onglets-fleche" id="premOngletsDroite" aria-label="Défiler vers la droite">${iconePrem('chevronDroite', 16)}</button>
     </div>` : ''}
 
     <div class="prem-barre-filtres">
       ${semainesDispo.length > 1 ? `<select id="premFiltreSemaineMat"><option value="">Toutes les semaines</option>${semainesDispo.map(s => `<option value="${echapper(s)}">${echapper(s)}</option>`).join('')}</select>` : ''}
       ${typesDispo.length > 1 ? `<select id="premFiltreTypeMat"><option value="">Tous les types</option>${typesDispo.map(t => `<option value="${echapper(t)}">${echapper(t)}</option>`).join('')}</select>` : ''}
-      <input type="search" id="premRechercheMat" placeholder="🔍 Rechercher une séance...">
+      <div class="prem-champ-recherche-mat">${iconePrem('recherche', 15)}<input type="search" id="premRechercheMat" placeholder="Rechercher une séance..."></div>
       <select id="premTriSeancesMat">
-        <option value="ordre">Tri : ordre du parcours</option>
-        <option value="alpha">Tri : alphabétique</option>
+        <option value="ordre">Ordre du parcours</option>
+        <option value="alpha">Alphabétique</option>
       </select>
+      <div class="prem-vue-toggle">
+        <button type="button" class="actif" id="premVueDetaillee" title="Vue détaillée">${iconePrem('grille', 15)}</button>
+        <button type="button" id="premVueCompacte" title="Vue compacte">${iconePrem('liste', 15)}</button>
+      </div>
     </div>
 
     <div class="prem-mise-en-page-liste">
-      <div class="prem-liste-seances" id="premListeSeancesMat">${htmlListeSeancesPremiumMat(seances)}</div>
+      <div>
+        <div class="prem-liste-seances" id="premListeSeancesMat"></div>
+        <button type="button" class="prem-lien-voir-plus" id="premVoirPlusMat" hidden>Voir plus de séances ${iconePrem('chevronBas', 13)}</button>
+      </div>
       <div class="prem-panneau-lateral">
         <div class="prem-carte-panneau">
           <h3>Mon progrès en ${echapper(etatMat.champ.nom)}</h3>
-          <div class="prem-donut" style="background:conic-gradient(var(--prem-primaire) ${pct * 3.6}deg, var(--prem-primaire-clair) 0deg)">
-            <div class="prem-donut-centre"><div class="prem-donut-pct">${pct}%</div><div class="prem-donut-label">complété</div></div>
+          <div class="prem-donut" style="background:conic-gradient(var(--prem-bleu) ${pct * 3.6}deg, var(--prem-bleu-clair) 0deg)">
+            <div class="prem-donut-centre"><div class="prem-donut-pct">${pct}%</div><div class="prem-donut-label">Progression</div></div>
           </div>
-          <div class="prem-stat-mini"><span>Séances terminées</span><strong>${termines}/${total}</strong></div>
+          <div class="prem-legende-progres">
+            <div class="prem-legende-ligne"><span class="prem-legende-puce" style="background:var(--prem-bleu)"></span><strong>${termines}</strong> Séances terminées</div>
+            <div class="prem-legende-ligne"><span class="prem-legende-puce" style="background:var(--prem-orange)"></span><strong>${enCours}</strong> En cours</div>
+            <div class="prem-legende-ligne"><span class="prem-legende-puce" style="background:#B7BECF"></span><strong>${aVenir}</strong> À venir</div>
+          </div>
+          <button type="button" class="prem-btn-plein bientot" title="Bientôt disponible" onclick="return false">${iconePrem('progres', 15)} Voir mes progrès</button>
         </div>
         <div class="prem-carte-panneau">
-          <h3>🏅 Mes badges récents</h3>
+          <h3>Mes badges récents</h3>
           <div class="prem-badges-mini">
-            ${badgesRecentsMat.length ? badgesRecentsMat.map(b => `<span class="prem-badge-mini" title="${echapper(b.badges.nom)}">${echapper(b.badges.icone) || '🏅'}</span>`).join('') : '<p style="font-size:12px;color:var(--text-gris);margin:0">Pas encore de badge.</p>'}
+            ${badgesRecentsMat.length ? badgesRecentsMat.map(b => `<span class="prem-badge-mini" title="${echapper(b.badges.nom)}">${echapper(b.badges.icone) || '🏅'}</span>`).join('') : '<p style="font-size:12px;color:var(--prem-texte-gris);margin:0">Pas encore de badge.</p>'}
           </div>
+          <a class="prem-btn-contour" href="badges.html">Voir tous mes badges</a>
         </div>
         <div class="prem-carte-panneau prem-carte-serie">
-          <h3>🔥 Garde le rythme !</h3>
-          <p style="margin:0;font-size:13px">${serieMat > 0 ? `${serieMat} jour${serieMat > 1 ? 's' : ''} consécutif${serieMat > 1 ? 's' : ''} !` : "Termine une séance aujourd'hui pour démarrer ta série !"}</p>
+          <div class="prem-carte-serie-emoji">🏆</div>
+          <div class="prem-carte-serie-titre">${serieMat > 0 ? 'Garde le rythme !' : 'À toi de jouer !'}</div>
+          <p class="prem-carte-serie-texte">${serieMat > 0 ? `Tu es sur la bonne voie. ${serieMat} jour${serieMat > 1 ? 's' : ''} consécutif${serieMat > 1 ? 's' : ''} !` : "Termine une séance aujourd'hui pour démarrer ta série !"}</p>
         </div>
         <div class="prem-carte-panneau prem-carte-aide">
+          <div class="prem-carte-aide-icone">${iconePrem('casque', 22)}</div>
           <h3>Besoin d'aide ?</h3>
-          <p style="font-size:12px;color:var(--text-gris);margin:0">Demande à ton enseignant ou à un adulte.</p>
+          <p>Consulte la fiche d'aide ou contacte ton enseignant.</p>
+          <button type="button" class="prem-btn-contour bientot" title="Bientôt disponible" onclick="return false">Obtenir de l'aide</button>
         </div>
       </div>
     </div>
@@ -608,6 +567,39 @@ async function afficherMatierePremium() {
     });
   });
 
+  const rangeeOnglets = document.getElementById('premOngletsUnite');
+  const btnOngletsGauche = document.getElementById('premOngletsGauche');
+  const btnOngletsDroite = document.getElementById('premOngletsDroite');
+  if (rangeeOnglets && btnOngletsGauche && btnOngletsDroite) {
+    btnOngletsGauche.addEventListener('click', () => rangeeOnglets.scrollBy({ left: -220, behavior: 'smooth' }));
+    btnOngletsDroite.addEventListener('click', () => rangeeOnglets.scrollBy({ left: 220, behavior: 'smooth' }));
+    // Centre l'onglet actif visible au chargement (utile quand il y a plus
+    // d'onglets que la largeur disponible).
+    const boutonActif = rangeeOnglets.querySelector('.prem-onglet-unite.actif');
+    if (boutonActif && positionOngletActif > 1) boutonActif.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }
+
+  const conteneurListe = document.getElementById('premListeSeancesMat');
+  const btnVoirPlus = document.getElementById('premVoirPlusMat');
+  let seancesAffichees = 0;
+
+  function rendreSectionListeMat(liste) {
+    seancesAffichees = Math.min(NB_SEANCES_INITIAL_MAT, liste.length);
+    conteneurListe.innerHTML = htmlListeSeancesPremiumMat(liste.slice(0, seancesAffichees), ongletActif.titre, positionOngletActif + 1);
+    attacherEpinglageMat(liste);
+    if (liste.length > seancesAffichees) {
+      btnVoirPlus.hidden = false;
+      btnVoirPlus.onclick = () => {
+        seancesAffichees = liste.length;
+        conteneurListe.innerHTML = htmlListeSeancesPremiumMat(liste, ongletActif.titre, positionOngletActif + 1);
+        attacherEpinglageMat(liste);
+        btnVoirPlus.hidden = true;
+      };
+    } else {
+      btnVoirPlus.hidden = true;
+    }
+  }
+
   const champRecherche = document.getElementById('premRechercheMat');
   const selectTri = document.getElementById('premTriSeancesMat');
   const selectSemaine = document.getElementById('premFiltreSemaineMat');
@@ -618,19 +610,31 @@ async function afficherMatierePremium() {
     if (selectSemaine && selectSemaine.value) liste = liste.filter(s => s.semaine === selectSemaine.value);
     if (selectType && selectType.value) liste = liste.filter(s => s.discipline === selectType.value);
     if (selectTri.value === 'alpha') liste = [...liste].sort((a, b) => a.titre.localeCompare(b.titre, 'fr'));
-    document.getElementById('premListeSeancesMat').innerHTML = htmlListeSeancesPremiumMat(liste);
-    attacherEpinglageMat();
+    rendreSectionListeMat(liste);
   }
   if (champRecherche) champRecherche.addEventListener('input', reappliquerFiltresMat);
   if (selectTri) selectTri.addEventListener('change', reappliquerFiltresMat);
   if (selectSemaine) selectSemaine.addEventListener('change', reappliquerFiltresMat);
   if (selectType) selectType.addEventListener('change', reappliquerFiltresMat);
 
-  function attacherEpinglageMat() {
+  const btnVueDetaillee = document.getElementById('premVueDetaillee');
+  const btnVueCompacte = document.getElementById('premVueCompacte');
+  if (btnVueDetaillee && btnVueCompacte) {
+    btnVueDetaillee.addEventListener('click', () => {
+      conteneurListe.classList.remove('compact');
+      btnVueDetaillee.classList.add('actif'); btnVueCompacte.classList.remove('actif');
+    });
+    btnVueCompacte.addEventListener('click', () => {
+      conteneurListe.classList.add('compact');
+      btnVueCompacte.classList.add('actif'); btnVueDetaillee.classList.remove('actif');
+    });
+  }
+
+  function attacherEpinglageMat(liste) {
     document.querySelectorAll('[data-epingler-mat]').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = parseInt(btn.dataset.epinglerMat, 10);
-        const s = seances.find(x => x.id === id);
+        const s = (liste || seances).find(x => x.id === id);
         if (!s) return;
         if (s.epinglee) {
           await supabaseClient.from('seances_epinglees').delete().eq('utilisateur_id', profilEleveMat.id).eq('seance_id', id);
@@ -638,39 +642,51 @@ async function afficherMatierePremium() {
           await supabaseClient.from('seances_epinglees').insert({ utilisateur_id: profilEleveMat.id, seance_id: id });
         }
         s.epinglee = !s.epinglee;
+        const jumelle = seances.find(x => x.id === id);
+        if (jumelle && jumelle !== s) jumelle.epinglee = s.epinglee;
         btn.classList.toggle('epinglee', s.epinglee);
         btn.title = s.epinglee ? 'Retirer des épinglées' : 'Épingler cette séance';
-        btn.innerHTML = s.epinglee ? '📌' : '📍';
+        btn.innerHTML = iconePrem(s.epinglee ? 'coeur' : 'coeur', 15);
       });
     });
   }
-  attacherEpinglageMat();
+  rendreSectionListeMat(seances);
 }
 
-function htmlListeSeancesPremiumMat(seances) {
+function htmlListeSeancesPremiumMat(seances, titreOnglet, positionOnglet) {
   return (seances || []).map((s, i) => {
-    const classeCarte = s.verrouille ? 'verrouille' : s.termine ? 'termine' : '';
-    const icone = s.verrouille ? '🔒' : s.termine ? '✅' : '▶️';
+    const classeItem = s.verrouille ? 'verrouille' : s.termine ? 'termine' : '';
+    const { icone, couleur } = iconeSeanceMat(s.discipline);
     const boutonTexte = s.verrouille ? 'Verrouillé' : s.termine ? 'Revoir' : 'Commencer';
     const bouton = s.verrouille
-      ? `<span class="prem-btn-commencer verrouille">${boutonTexte}</span>`
-      : `<a class="prem-btn-commencer ${s.termine ? 'termine' : ''}" href="seance.html?id=${s.id}">${boutonTexte}</a>`;
-    const meta = [...(s.chemin || []), s.saLabel].filter(Boolean).join(' ・ ');
-    return `<div class="prem-carte-seance ${classeCarte}">
-      <div class="prem-carte-seance-numero">${icone}</div>
-      <div class="prem-carte-seance-corps">
-        <div class="prem-carte-seance-titre">Séance ${i + 1} — ${echapper(s.titre)}</div>
-        ${meta ? `<div class="prem-carte-seance-repere">${echapper(meta)}</div>` : ''}
-        <div class="prem-tags-seance">
-          ${s.discipline ? `<span class="prem-tag">${echapper(s.discipline)}</span>` : ''}
-          ${s.termine ? `<span class="prem-tag vert">Terminée</span>` : ''}
-          ${s.verrouille ? `<span class="prem-tag orange">Verrouillée</span>` : ''}
+      ? `<span class="prem-btn-commencer verrouille">${iconePrem('fermer', 13)} ${boutonTexte}</span>`
+      : `<a class="prem-btn-commencer ${s.termine ? 'termine' : ''}" href="seance.html?id=${s.id}">${iconePrem('jouer', 12)} ${boutonTexte}</a>`;
+    // "Thème : {onglet réel} • Unité N • {chemin intermédiaire...} • SA N" —
+    // reproduit le repère à 4 segments du modèle fourni, en restant générique
+    // (chemin/positionOnglet viennent des vraies données, jamais figés).
+    const segmentsMeta = [
+      titreOnglet ? `Thème : ${titreOnglet}` : null,
+      positionOnglet ? `Unité ${positionOnglet}` : null,
+      ...(s.chemin || []),
+      s.saLabel,
+    ].filter(Boolean);
+    return `<div class="prem-timeline-item ${classeItem}">
+      <div class="prem-timeline-num">${s.verrouille ? iconePrem('fermer', 13) : i + 1}</div>
+      <div class="prem-carte-seance ${classeItem}">
+        <div class="prem-carte-seance-icone" style="background:${couleur}">${iconePrem(icone, 20)}</div>
+        <div class="prem-carte-seance-corps">
+          <div class="prem-carte-seance-titre">${echapper(s.titre)}</div>
+          <div class="prem-carte-seance-repere">${echapper(segmentsMeta.join(' • '))}</div>
+          <div class="prem-tags-seance">
+            ${s.discipline ? `<span class="prem-tag">${echapper(s.discipline)}</span>` : ''}
+            ${s.titreContenu ? `<span class="prem-tag flag">${iconePrem('drapeau', 12)} ${echapper(s.titreContenu)}</span>` : ''}
+          </div>
         </div>
+        <button type="button" class="prem-carte-seance-epingle${s.epinglee ? ' epinglee' : ''}" data-epingler-mat="${s.id}" title="${s.epinglee ? 'Retirer des épinglées' : 'Épingler cette séance'}">${iconePrem('coeur', 15)}</button>
+        ${bouton}
       </div>
-      <button type="button" class="prem-carte-seance-epingle${s.epinglee ? ' epinglee' : ''}" data-epingler-mat="${s.id}" title="${s.epinglee ? 'Retirer des épinglées' : 'Épingler cette séance'}">${s.epinglee ? '📌' : '📍'}</button>
-      ${bouton}
     </div>`;
-  }).join('') || '<p style="color:var(--text-gris)">Aucune séance pour l\'instant.</p>';
+  }).join('') || '<p style="color:var(--prem-texte-gris)">Aucune séance pour l\'instant.</p>';
 }
 
 function calculerSerieJoursMat(horodatages) {

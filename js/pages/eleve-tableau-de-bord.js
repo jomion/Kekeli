@@ -141,11 +141,13 @@ const LIBELLES_PALIER_TB = {
       <div class="prem-panneau-lateral">
         <div class="prem-carte-panneau">
           <h3>Mon avancement</h3>
-          <div class="prem-donut" style="background:conic-gradient(var(--prem-primaire) ${progressionPct * 3.6}deg, var(--prem-primaire-clair) 0deg)">
+          <div class="prem-donut" style="background:conic-gradient(var(--prem-bleu) ${progressionPct * 3.6}deg, var(--prem-bleu-clair) 0deg)">
             <div class="prem-donut-centre"><div class="prem-donut-pct">${progressionPct}%</div><div class="prem-donut-label">complété</div></div>
           </div>
-          <div class="prem-stat-mini"><span>Niveau d'agilité</span><strong>${niveauActuel ? LIBELLES_PALIER_TB[niveauActuel].nom : 'Azɔ̀ví'}</strong></div>
-          <div class="prem-stat-mini"><span>Badges obtenus</span><strong>${nbBadges || 0}</strong></div>
+          <div class="prem-legende-progres">
+            <div class="prem-legende-ligne"><span class="prem-legende-puce" style="background:var(--prem-bleu)"></span><strong>${niveauActuel ? LIBELLES_PALIER_TB[niveauActuel].nom : 'Azɔ̀ví'}</strong> Niveau d'agilité</div>
+            <div class="prem-legende-ligne"><span class="prem-legende-puce" style="background:var(--prem-orange)"></span><strong>${nbBadges || 0}</strong> Badges obtenus</div>
+          </div>
         </div>
         <div class="prem-carte-panneau">
           <h3>🏅 Mes badges récents</h3>
