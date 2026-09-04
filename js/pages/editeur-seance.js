@@ -1158,51 +1158,109 @@ function texteBrutDepuisHtml(html) {
   return (div.textContent || div.innerText || '').trim();
 }
 
-// L'IA reçoit la consigne de ne pas utiliser de Markdown, mais elle en glisse
-// parfois quand même (**gras**, listes à puces, titres #). Ces deux fonctions
-// nettoient ça : l'une produit du vrai HTML pour les champs "riches"
-// (contenteditable), l'autre du texte simple débarrassé des symboles pour les
-// champs classiques (input/textarea), où ces symboles s'afficheraient tels quels.
+// L'IA reçoit désormais la consigne d'utiliser directement un petit jeu de
+// balises HTML autorisées pour mettre le texte en valeur (gras, souligné,
+// couleur, listes — voir la fonction "contexte" de l'edge function
+// assistant-ia) plutôt que du Markdown, mais elle en glisse parfois quand
+// même (**gras**, puces avec des tirets, titres #), et peut aussi produire
+// une balise non prévue malgré la consigne. Ces fonctions nettoient tout ça,
+// pour TOUS les blocs (résumé, définition, exemple, consigne, exercice...) :
+// - markdownResiduelleVersHtml() convertit la Markdown résiduelle en HTML
+//   équivalent, sans toucher aux vraies balises HTML déjà présentes dans le
+//   texte (elles sont filtrées ensuite par assainirHtmlIA, pas ré-échappées ici).
+// - assainirHtmlIA() retire toute balise qui n'est pas dans la liste
+//   autorisée (le texte à l'intérieur est conservé) — filet de sécurité
+//   avant d'injecter ce texte via innerHTML dans une page vue par des élèves.
+// - markdownVersHtml() produit le HTML final pour les champs "riches"
+//   (contenteditable) : du vrai gras/souligné/couleur/listes, plus aucune
+//   balise affichée "en code".
+// - nettoyerMarkdown() produit du texte simple, débarrassé de toute
+//   syntaxe Markdown ET de toute balise HTML, pour les champs classiques
+//   (input/textarea, ex. Titre, Consigne, l'énoncé d'un exercice), qui ne
+//   savent pas interpréter ces balises et les afficheraient telles quelles.
+
+const BALISES_HTML_AUTORISEES_IA = new Set(['STRONG', 'B', 'EM', 'I', 'U', 'MARK', 'SPAN', 'UL', 'OL', 'LI', 'BR', 'P']);
+
+function markdownResiduelleVersHtml(texte) {
+  return (texte || '')
+    .replace(/```[a-z]*\n?([\s\S]*?)```/gi, '$1')
+    .replace(/\*\*([^\n]+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__([^\n]+?)__/g, '<strong>$1</strong>')
+    .replace(/(^|[^*\w])\*(?!\*)([^*\n]+?)\*(?!\*)/gm, '$1<em>$2</em>')
+    .replace(/`{1,3}([^`\n]+?)`{1,3}/g, '$1')
+    .replace(/^#{1,6}\s+(.*)$/gm, '<strong>$1</strong>');
+}
+
+function assainirHtmlIA(html) {
+  const conteneur = document.createElement('div');
+  conteneur.innerHTML = html || '';
+  const nettoyerNoeud = (noeud) => {
+    [...noeud.childNodes].forEach((enfant) => {
+      if (enfant.nodeType !== Node.ELEMENT_NODE) return;
+      nettoyerNoeud(enfant);
+      if (!BALISES_HTML_AUTORISEES_IA.has(enfant.tagName)) {
+        while (enfant.firstChild) enfant.parentNode.insertBefore(enfant.firstChild, enfant);
+        enfant.parentNode.removeChild(enfant);
+        return;
+      }
+      [...enfant.attributes].forEach((attr) => {
+        const styleCouleurValide = enfant.tagName === 'SPAN' && attr.name === 'style'
+          && /^\s*color\s*:\s*#?[0-9a-z]{3,8}\s*;?\s*$/i.test(attr.value);
+        if (!styleCouleurValide) enfant.removeAttribute(attr.name);
+      });
+    });
+  };
+  nettoyerNoeud(conteneur);
+  return conteneur.innerHTML;
+}
 
 function nettoyerMarkdown(texte) {
-  return (texte || '')
-    .replace(/\*\*(.+?)\*\*/g, '$1')
-    .replace(/__(.+?)__/g, '$1')
-    .replace(/(^|[^*])\*(?!\*)([^*]+?)\*(?!\*)/g, '$1$2')
-    .replace(/`{1,3}([^`]+?)`{1,3}/g, '$1')
-    .replace(/^#{1,6}\s+/gm, '')
-    .replace(/^\s*[-*+]\s+/gm, '- ')
-    .trim();
+  const conteneur = document.createElement('div');
+  conteneur.innerHTML = markdownResiduelleVersHtml(texte);
+  // Reconvertit d'éventuelles structures de bloc (puces, paragraphes) en
+  // texte simple mais toujours lisible (tirets + sauts de ligne) avant de
+  // retirer toute balise HTML restante — ces champs (input/textarea) ne
+  // savent afficher que du texte brut, mais une liste ne doit pas pour
+  // autant se retrouver collée en une seule phrase.
+  conteneur.querySelectorAll('li').forEach((li) => { li.textContent = `- ${li.textContent}`; });
+  conteneur.querySelectorAll('li, p, br').forEach((el) => { el.insertAdjacentText('afterend', '\n'); });
+  return (conteneur.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 function markdownVersHtml(texte) {
-  const lignes = (texte || '').split(/\n+/).map(l => l.trim()).filter(Boolean);
-  if (!lignes.length) return `<p>${echapper(texte)}</p>`;
-  const inline = (ligne) => echapper(ligne)
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/__(.+?)__/g, '<strong>$1</strong>')
-    .replace(/(^|[^*])\*(?!\*)([^*]+?)\*(?!\*)/g, '$1<em>$2</em>')
-    .replace(/`{1,3}([^`]+?)`{1,3}/g, '<code>$1</code>');
-  let html = '';
-  let listeOuverte = null; // 'ul' | 'ol' | null
-  const fermerListe = () => { if (listeOuverte) { html += `</${listeOuverte}>`; listeOuverte = null; } };
-  for (const ligne of lignes) {
-    const puce = ligne.match(/^[-*+]\s+(.*)$/);
-    const numero = ligne.match(/^\d+[.)]\s+(.*)$/);
-    const titre = ligne.match(/^#{1,6}\s+(.*)$/);
-    if (puce) {
-      if (listeOuverte !== 'ul') { fermerListe(); html += '<ul>'; listeOuverte = 'ul'; }
-      html += `<li>${inline(puce[1])}</li>`;
-    } else if (numero) {
-      if (listeOuverte !== 'ol') { fermerListe(); html += '<ol>'; listeOuverte = 'ol'; }
-      html += `<li>${inline(numero[1])}</li>`;
-    } else {
-      fermerListe();
-      html += titre ? `<p><strong>${inline(titre[1])}</strong></p>` : `<p>${inline(ligne)}</p>`;
+  const brut = (texte || '').trim();
+  if (!brut) return '<p></p>';
+  const converti = markdownResiduelleVersHtml(brut);
+  // Si le texte contient déjà une vraie structure de blocs HTML (produite par
+  // l'IA elle-même, ou par la conversion ci-dessus), on la confie telle
+  // quelle au parseur HTML plutôt que de la découper ligne par ligne, ce qui
+  // la fragmenterait à tort (ex. un <ul>...</ul> réparti sur plusieurs lignes).
+  let html;
+  if (/<\/?(ul|ol|li|p)\b/i.test(converti)) {
+    html = converti;
+  } else {
+    const lignes = converti.split(/\n+/).map(l => l.trim()).filter(Boolean);
+    let corps = '';
+    let listeOuverte = null; // 'ul' | 'ol' | null
+    const fermerListe = () => { if (listeOuverte) { corps += `</${listeOuverte}>`; listeOuverte = null; } };
+    for (const ligne of lignes) {
+      const puce = ligne.match(/^[-*+]\s+(.*)$/);
+      const numero = ligne.match(/^\d+[.)]\s+(.*)$/);
+      if (puce) {
+        if (listeOuverte !== 'ul') { fermerListe(); corps += '<ul>'; listeOuverte = 'ul'; }
+        corps += `<li>${puce[1]}</li>`;
+      } else if (numero) {
+        if (listeOuverte !== 'ol') { fermerListe(); corps += '<ol>'; listeOuverte = 'ol'; }
+        corps += `<li>${numero[1]}</li>`;
+      } else {
+        fermerListe();
+        corps += `<p>${ligne}</p>`;
+      }
     }
+    fermerListe();
+    html = corps;
   }
-  fermerListe();
-  return html;
+  return assainirHtmlIA(html) || `<p>${echapper(brut)}</p>`;
 }
 
 async function ameliorerBlocAvecIA(bloc, bouton) {
