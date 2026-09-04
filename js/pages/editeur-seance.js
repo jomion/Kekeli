@@ -133,6 +133,7 @@ function rendre() {
         ${(peutValider && seance.statut !== 'publie') ? `<button class="btn btn-primaire" id="btnValider">✅ Valider et publier</button>` : ''}
         <button class="btn btn-discret" onclick="dupliquerSeance()">📑 Dupliquer la séance</button>
         <button class="btn btn-discret" onclick="ouvrirGenerationResume()">🗒️ Résumé IA</button>
+        <button class="btn btn-discret" id="btnGenererSeanceIA" onclick="ouvrirGenerationSeanceIA()">🧠 Générer avec l'IA</button>
         <button class="btn btn-accent" onclick="ouvrirApercu()">👁️ Aperçu élève</button>
       </div>
     </div>
@@ -228,6 +229,12 @@ function htmlBloc(b) {
   const texteExistantIa = champIa && b.contenu && (b.contenu[champIa] || '').toString().replace(/<[^>]*>/g, '').trim();
   const estResume = b.type_bloc === 'resume';
   const resumeBrouillon = estResume && b.statut_bloc !== 'publie';
+  // Verrou IA : exclut ce bloc de la génération groupée "🧠 Générer avec
+  // l'IA" (voir ouvrirGenerationSeanceIA). N'a de sens que pour les blocs de
+  // contenu (pas les sections Contenu/Consigne, qui n'y sont de toute façon
+  // jamais proposées). Simple clé dans contenu JSON, comme couleurBloc/libelle.
+  const estSectionType = TYPES_SECTIONS.includes(b.type_bloc);
+  const verrouilleIA = !!(b.contenu && b.contenu.verrouilleIA);
 
   return `
     <div class="bloc" draggable="true" data-bloc-id="${b.id}" style="border-left-color:${couleur};background:${teinteClaire(couleur)}">
@@ -244,6 +251,7 @@ function htmlBloc(b) {
             <input type="checkbox" data-toggle-titre-bloc ${afficherTitre ? 'checked' : ''}> Titre visible
           </label>
           ${champIa ? `
+          ${!estSectionType ? `<button type="button" title="${verrouilleIA ? "Déverrouiller pour la génération IA groupée (🧠 Générer avec l'IA)" : 'Verrouiller pour la génération IA groupée (contenu protégé)'}" data-toggle-verrou-ia>${verrouilleIA ? '🔒' : '🔓'}</button>` : ''}
           <button type="button" title="Générer un brouillon avec l'IA" data-action-ia="generer">✨</button>
           ${texteExistantIa ? `<button type="button" title="Améliorer ce texte avec l'IA" data-action-ia="ameliorer">🪄</button>` : ''}` : ''}
           <div class="menu-couleur-bloc">
@@ -520,6 +528,15 @@ function attacherEcouteursBloc(bloc) {
   if (boutonGenererIA) boutonGenererIA.addEventListener('click', () => ouvrirGenerationIA(bloc));
   const boutonAmeliorerIA = el.querySelector(':scope > .bloc-entete [data-action-ia="ameliorer"]');
   if (boutonAmeliorerIA) boutonAmeliorerIA.addEventListener('click', () => ameliorerBlocAvecIA(bloc, boutonAmeliorerIA));
+
+  // Verrou IA (exclusion de la génération groupée "🧠 Générer avec l'IA")
+  const boutonVerrouIA = el.querySelector(':scope > .bloc-entete [data-toggle-verrou-ia]');
+  if (boutonVerrouIA) boutonVerrouIA.addEventListener('click', () => {
+    const verrouille = !!(bloc.contenu && bloc.contenu.verrouilleIA);
+    bloc.contenu = { ...bloc.contenu, verrouilleIA: !verrouille };
+    programmerSauvegardeBloc(bloc);
+    rendreListeBlocs();
+  });
 
   // Sections : déplier/replier + ajouter un bloc à l'intérieur
   const boutonToggleSection = el.querySelector(`:scope > .zone-section [data-toggle-section="${bloc.id}"]`);
@@ -1105,7 +1122,12 @@ function afficherSauvegarde() {
 // Appelle la fonction Supabase Edge "assistant-ia", qui contacte l'IA côté
 // serveur (la clé de service n'est jamais exposée dans le navigateur).
 
-async function appelerAssistantIA(payload) {
+// Fonction bas niveau, partagée par toutes les actions de l'assistant IA :
+// appelle l'edge function et renvoie la réponse brute (déjà validée / sans
+// erreur). `appelerAssistantIA` (texte) et `appelerAssistantIABlocs` (blocs
+// structurés, voir génération groupée plus bas) en sont de fins habillages,
+// selon la forme de réponse attendue par l'action appelée.
+async function invoquerAssistantIA(payload) {
   const { data, error } = await supabaseClient.functions.invoke('assistant-ia', { body: payload });
   if (error) {
     let message = error.message || "Le service IA n'a pas répondu.";
@@ -1116,7 +1138,18 @@ async function appelerAssistantIA(payload) {
     throw new Error(message);
   }
   if (data?.error) throw new Error(data.error);
-  return (data?.texte || '').trim();
+  return data || {};
+}
+
+async function appelerAssistantIA(payload) {
+  const data = await invoquerAssistantIA(payload);
+  return (data.texte || '').trim();
+}
+
+// Action "genererSeance" (génération groupée) : la réponse est { blocks, fournisseur }
+// et non { texte, fournisseur } — on renvoie l'objet tel quel, sans le réduire à une chaîne.
+async function appelerAssistantIABlocs(payload) {
+  return invoquerAssistantIA(payload);
 }
 
 function texteBrutDepuisHtml(html) {
@@ -1342,6 +1375,146 @@ async function lancerGenerationResume(idsAutresSeances, seancesDisponibles, inst
     await enregistrerTexteBloc(markdownVersHtml(resultat));
   } catch (e) {
     await enregistrerTexteBloc(`<p><em>⚠️ Échec de la génération IA : ${echapper(e.message)}. Vous pouvez réessayer (🪄) ou rédiger ce résumé vous-même.</em></p>`);
+  }
+}
+
+// --- GÉNÉRATION IA GROUPÉE (plusieurs blocs d'un coup) ----------------------
+// Bouton "🧠 Générer avec l'IA" de la barre d'outils. Contrairement au ✨
+// par bloc (sujet libre, un seul champ) ou au 🗒️ Résumé IA (dédié, inchangé),
+// cette fonctionnalité regarde toute la séance : elle envoie à l'IA le
+// contenu déjà présent dans les autres blocs (pour cohérence, jamais recopié)
+// et une liste FERMÉE de blocs à générer — c'est toujours l'admin qui choisit
+// cette liste (via la fenêtre ci-dessous), jamais l'IA. Couvre à elle seule
+// les 4 cas d'usage (rien coché = blocs vides seulement ; "Tout sélectionner"
+// = toute la séance ; un seul bloc coché = régénération ciblée ; plusieurs
+// = régénération groupée) : une seule fenêtre plutôt que 4 boutons séparés.
+
+// Ordre de lecture (racine puis enfants de chaque section, comme à l'écran) —
+// réutilisé pour la liste de la fenêtre ET pour construire le contexte envoyé à l'IA.
+function blocsEnOrdreLecture(listeBlocs) {
+  const parNiveau = listeBlocs.filter(b => !b.parent_bloc_id).sort((a, b) => a.ordre - b.ordre);
+  const resultat = [];
+  const empiler = (liste) => {
+    liste.forEach(b => {
+      resultat.push(b);
+      const enfants = listeBlocs.filter(x => x.parent_bloc_id === b.id).sort((a, b2) => a.ordre - b2.ordre);
+      if (enfants.length) empiler(enfants);
+    });
+  };
+  empiler(parNiveau);
+  return resultat;
+}
+
+// Le "rôle" d'un bloc pour l'IA : son libellé personnalisé (ex: "Objectif",
+// "Découverte"...) s'il en a un, sinon le nom du type de bloc.
+function libelleRoleBloc(bloc) {
+  return (bloc.contenu && bloc.contenu.libelle) || infoType(bloc.type_bloc).label;
+}
+
+function blocIAEstVide(bloc) {
+  const champ = champIA(bloc.type_bloc);
+  const valeur = (bloc.contenu && bloc.contenu[champ]) || '';
+  return !texteBrutDepuisHtml(valeur.toString()).trim();
+}
+
+// Extrait court (texte brut, ~300 caractères) du contenu d'un bloc, pour
+// donner à l'IA de quoi éviter les répétitions sans gonfler inutilement le
+// prompt (voir texteBlocPourResume, déjà utilisé par le Résumé IA).
+function extraitTexteBlocPourIA(bloc) {
+  const texte = texteBlocPourResume(bloc);
+  if (!texte) return '';
+  return texte.length > 300 ? texte.slice(0, 300) + '…' : texte;
+}
+
+// Blocs éligibles à la génération groupée : ont un champ IA (texte/consigne),
+// ne sont pas des sections (Contenu/Consigne — leur propre texte n'est qu'un
+// repère interne, jamais affiché à l'élève), et ne sont pas verrouillés.
+function blocsEligiblesGenerationIA() {
+  return blocsEnOrdreLecture(blocs).filter(b =>
+    champIA(b.type_bloc) && !TYPES_SECTIONS.includes(b.type_bloc) && !(b.contenu && b.contenu.verrouilleIA)
+  );
+}
+
+function ouvrirGenerationSeanceIA() {
+  const eligibles = blocsEligiblesGenerationIA();
+  if (!eligibles.length) {
+    return alert("Aucun bloc éligible à la génération IA groupée dans cette séance (tous les blocs compatibles sont verrouillés, ou la séance n'en contient aucun pour l'instant).");
+  }
+  const options = eligibles.map(b => ({
+    valeur: String(b.id),
+    label: `${infoType(b.type_bloc).icone} ${echapper(libelleRoleBloc(b))} — ${blocIAEstVide(b) ? 'vide' : 'déjà rempli'}`
+  }));
+  const valeurParDefaut = eligibles.filter(blocIAEstVide).map(b => String(b.id));
+  ouvrirModal({
+    titre: "🧠 Générer avec l'IA (plusieurs blocs)",
+    champs: [
+      {
+        nom: 'cibles',
+        label: 'Choisissez les blocs à générer ou régénérer (les blocs vides sont pré-cochés ; les blocs verrouillés 🔒 ne sont pas proposés) :',
+        type: 'checkboxes', requis: false, options, valeur: valeurParDefaut,
+        toutCocherLabel: 'Tout sélectionner (y compris les blocs déjà remplis)'
+      },
+      {
+        nom: 'instructions', requis: false, type: 'textarea',
+        label: "Consignes pour l'IA (facultatif) — ex : insiste sur le vocabulaire, reste très simple...",
+        placeholder: 'Laisser vide pour une génération standard'
+      }
+    ],
+    texteValider: 'Générer',
+    onValider: ({ cibles, instructions }) => {
+      const idsCibles = (cibles || []).map(v => parseInt(v, 10));
+      if (!idsCibles.length) return alert('Sélectionnez au moins un bloc à générer.');
+      lancerGenerationSeanceIA(idsCibles, (instructions || '').trim());
+    }
+  });
+}
+
+async function lancerGenerationSeanceIA(idsCibles, instructionsPersonnalisees) {
+  const bouton = document.getElementById('btnGenererSeanceIA');
+  const texteBoutonOriginal = bouton ? bouton.textContent : '';
+  if (bouton) { bouton.disabled = true; bouton.textContent = '⏳ Génération en cours...'; }
+  try {
+    const ordre = blocsEnOrdreLecture(blocs);
+    const idsCiblesSet = new Set(idsCibles);
+
+    const blocsCibles = ordre.filter(b => idsCiblesSet.has(b.id)).map(b => ({
+      block_id: String(b.id), type_bloc: b.type_bloc, role: libelleRoleBloc(b), vide: blocIAEstVide(b)
+    }));
+    // Contexte : les autres blocs déjà remplis (jamais les cibles elles-mêmes,
+    // jamais les sections, jamais un bloc vide qui n'apporterait rien) — pour
+    // que l'IA évite les répétitions sans qu'on lui envoie toute la séance.
+    const blocsContexte = ordre
+      .filter(b => !idsCiblesSet.has(b.id) && champIA(b.type_bloc) && !TYPES_SECTIONS.includes(b.type_bloc))
+      .map(b => ({ role: libelleRoleBloc(b), extrait: extraitTexteBlocPourIA(b) }))
+      .filter(x => x.extrait);
+
+    const resultat = await appelerAssistantIABlocs({
+      action: 'genererSeance',
+      classe: chaineNavigation?.classeNom, champ: chaineNavigation?.champNom, discipline: seance.discipline,
+      titreSeance: seance.titre, titreContenu: seance.titre_contenu,
+      blocsCibles, blocsContexte, instructions: instructionsPersonnalisees || ''
+    });
+
+    let nbAppliques = 0;
+    for (const item of (resultat.blocks || [])) {
+      const idBloc = parseInt(item.block_id, 10);
+      if (!idsCiblesSet.has(idBloc)) continue; // seconde vérification côté client, en plus du filtrage serveur
+      const bloc = blocs.find(b => b.id === idBloc);
+      if (!bloc) continue;
+      const champ = champIA(bloc.type_bloc);
+      if (!champ || typeof item.content !== 'string' || !item.content.trim()) continue;
+      const estRiche = TYPES_TEXTE_LIBRE.includes(bloc.type_bloc);
+      bloc.contenu = { ...bloc.contenu, [champ]: estRiche ? markdownVersHtml(item.content) : nettoyerMarkdown(item.content) };
+      programmerSauvegardeBloc(bloc);
+      nbAppliques++;
+    }
+    rendreListeBlocs();
+    afficherSauvegarde();
+    if (!nbAppliques) alert("L'IA n'a renvoyé aucun contenu exploitable pour les blocs sélectionnés — réessayez.");
+  } catch (e) {
+    alert('Erreur IA : ' + e.message);
+  } finally {
+    if (bouton) { bouton.disabled = false; bouton.textContent = texteBoutonOriginal; }
   }
 }
 
