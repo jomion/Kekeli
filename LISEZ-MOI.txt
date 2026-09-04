@@ -1,55 +1,58 @@
-KEKELI — Fond d'écran "ciel" appliqué au site (4 septembre 2026)
-==================================================================
+KEKELI — Nouveau fond ciel + pied de page complet (4 septembre 2026)
+========================================================================
 
-Comme demandé : l'image de ciel que tu as envoyée est maintenant le fond
-d'écran de tout le site, pour tous les utilisateurs (élève, parent,
-enseignant, admin, super admin), SAUF les pages de connexion et
-d'inscription qui gardent leur fond bleu nuit habituel.
+1. NOUVELLE IMAGE DE FOND
+---------------------------
+Le fond d'écran du site (posé le même jour un peu plus tôt) a été remplacé
+par la nouvelle image de ciel que tu as envoyée — même emplacement
+(assets/fond/fond-ciel.jpg), donc aucun autre fichier n'a eu besoin d'être
+modifié pour ce changement. Toujours absent sur les pages de connexion et
+d'inscription, comme convenu.
 
-OÙ ÇA S'APPLIQUE
------------------
-- La page d'accueil publique (index.html) et toutes les pages "après
-  connexion" de chaque rôle (tableaux de bord, séances, devoirs, badges,
-  messagerie, paramètres, toutes les pages d'administration, etc.).
-- Le thème premium élève (sidebar + carte) a aussi été mis à jour pour
-  rester cohérent avec le reste du site.
+2. PIED DE PAGE COMPLET SUR L'ACCUEIL
+-----------------------------------------
+Le pied de page de la page d'accueil publique (index.html), jusqu'ici une
+simple ligne de texte, est maintenant un vrai pied de page avec :
+- ton logo et le slogan que tu as donné : "L'éducation qui éclaire l'avenir" ;
+- une colonne "Navigation" (Accueil, Classes, Paliers) ;
+- une colonne "Mon compte" (Se connecter, Créer un compte) ;
+- une colonne "Informations légales" avec deux nouvelles pages : Politique
+  de confidentialité et Conditions d'utilisation, plus un lien "Nous
+  contacter" (adresse e-mail, voir point 4 ci-dessous) ;
+- une ligne de copyright en bas avec l'année mise à jour automatiquement.
 
-OÙ ÇA NE S'APPLIQUE PAS (volontairement)
-------------------------------------------
-- pages/login.html (connexion)
-- pages/inscription.html (créer un compte)
-- La page de connexion admin séparée (pages/admin/connexion.html) — elle a
-  toujours eu son propre fond distinct (dégradé bleu nuit) et n'a pas été
-  touchée.
+3. DEUX NOUVELLES PAGES : POLITIQUE DE CONFIDENTIALITÉ ET CONDITIONS D'UTILISATION
+--------------------------------------------------------------------------------------
+- pages/politique-confidentialite.html
+- pages/conditions-utilisation.html
+Ce sont des textes rédigés à partir de ce que fait réellement le site
+aujourd'hui (comptes créés par les parents pour les élèves, contrôle
+parental, hébergement des données en Europe, pas de paiement en ligne
+automatisé, etc.).
 
-COMMENT C'EST FAIT TECHNIQUEMENT
-------------------------------------
-- L'image a été compressée et enregistrée dans assets/fond/fond-ciel.jpg
-  (environ 150 Ko au lieu de 1,8 Mo à l'origine, pour que les pages restent
-  rapides à charger).
-- Elle est posée en fond de page (body), redimensionnée pour couvrir tout
-  l'écran et rester fixe pendant le défilement.
-- Comme login.html et inscription.html partagent la même feuille de style
-  que le reste du site public (css/style-public.css), une classe dédiée
-  ("page-sans-fond-ciel") a été ajoutée sur ces deux pages pour qu'elles
-  gardent leur ancien fond — sans dupliquer la feuille de style.
-
-UN POINT D'ATTENTION HONNÊTE
-------------------------------
-Le site utilise beaucoup de cartes blanches avec ombre portée, donc la
-lisibilité du contenu ne devrait pas être affectée. Mais certains titres et
-textes qui sont directement sur le fond (pas dans une carte blanche)
-pourraient, sur certains écrans très lumineux, être un peu moins contrastés
-qu'avant avec le fond bleu clair uni. Si tu remarques un endroit précis où
-c'est gênant, dis-le moi (avec une capture si possible) et j'ajusterai —
-par exemple avec un léger voile semi-transparent derrière le texte à cet
-endroit précis.
+IMPORTANT — À LIRE AVANT DE PUBLIER CES DEUX PAGES TELLES QUELLES
+--------------------------------------------------------------------
+Je ne suis pas juriste, et ces deux textes sont des modèles de base, pas
+des documents validés par un avocat. Avant de les considérer comme
+définitifs, il faudrait idéalement :
+- les faire relire par un professionnel du droit (au Bénin ou dans le pays
+  où KEKELI est officiellement établi) ;
+- compléter l'identité légale de l'éditeur du site si tu en as une
+  (nom de la structure, adresse) — je ne l'ai pas inventée, ces documents
+  restent volontairement génériques sur ce point ;
+- vérifier/remplacer l'adresse e-mail de contact utilisée dans les deux
+  pages et dans le pied de page : contact@kekeli.app — c'est une
+  proposition cohérente avec le domaine technique déjà utilisé par le site
+  (eleves.kekeli.app), mais je ne sais pas si cette adresse existe
+  réellement chez toi. Dis-moi la bonne adresse si elle est différente, je
+  la mettrai à jour partout en une fois.
+Un encadré en haut de chacune des deux pages rappelle déjà ce point aux
+lecteurs.
 
 FICHIERS INCLUS DANS CE ZIP
 -----------------------------
-- assets/fond/fond-ciel.jpg (nouveau — l'image de fond compressée)
-- css/style.css (fond ciel pour les pages "app" : admin, séances, etc.)
-- css/style-public.css (fond ciel pour les pages publiques/élève/parent/
-  enseignant, avec exclusion pour connexion/inscription)
-- css/theme-premium-eleve.css (fond ciel pour le thème premium élève)
-- pages/login.html, pages/inscription.html (classe d'exclusion ajoutée)
+- assets/fond/fond-ciel.jpg (remplacé — nouvelle image de fond)
+- index.html (nouveau pied de page complet)
+- css/style-public.css (styles du pied de page + des deux nouvelles pages)
+- pages/politique-confidentialite.html (nouveau)
+- pages/conditions-utilisation.html (nouveau)

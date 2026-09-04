@@ -131,7 +131,31 @@ nav.nav-publique a:hover { color: var(--accent-cyan); }
 .grille-paliers { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 10px; }
 .puce-palier { display: flex; align-items: center; gap: 8px; background: white; border-radius: 30px; padding: 10px 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); font-size: 13px; font-weight: 700; color: var(--bleu-kekeli); }
 
-.pied-de-page-public { background: var(--noir-kekeli); color: #CBD5E1; text-align: center; padding: 24px 20px; font-size: 13px; }
+/* Pied de page public complet (logo/slogan, navigation, informations
+   légales — voir pages/politique-confidentialite.html et
+   pages/conditions-utilisation.html) — session du 4 septembre 2026, en
+   réponse directe à une demande explicite. Remplace l'ancien pied de page
+   minimal (une seule ligne centrée). */
+.pied-de-page-public { background: var(--noir-kekeli); color: #CBD5E1; padding: 50px 50px 0; font-size: 13px; }
+.pied-page-contenu {
+  max-width: 1100px; margin: 0 auto; padding-bottom: 36px;
+  display: grid; grid-template-columns: 2fr 1fr 1fr 1.4fr; gap: 30px 24px;
+}
+.pied-page-colonne-marque .pied-page-logo {
+  display: flex; align-items: center; gap: 10px; font-size: 19px; font-weight: 800; color: white; margin-bottom: 10px;
+}
+.pied-page-colonne-marque .pied-page-logo img { height: 28px; width: auto; }
+.pied-page-slogan { color: var(--accent-cyan); font-weight: 700; font-size: 14px; margin: 0 0 10px; }
+.pied-page-desc { font-size: 13px; line-height: 1.6; color: #94A3B8; margin: 0; max-width: 320px; }
+.pied-page-colonne h3 { color: white; font-size: 12.5px; text-transform: uppercase; letter-spacing: .5px; margin: 0 0 14px; }
+.pied-page-colonne ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.pied-page-colonne a { color: #CBD5E1; font-size: 13.5px; transition: color .15s; }
+.pied-page-colonne a:hover { color: var(--accent-cyan); }
+.pied-page-bas { border-top: 1px solid rgba(255,255,255,0.12); padding: 18px 0; text-align: center; font-size: 12.5px; color: #94A3B8; }
+@media (max-width: 720px) {
+  .pied-page-contenu { grid-template-columns: 1fr 1fr; }
+  .pied-page-colonne-marque { grid-column: 1 / -1; }
+}
 
 /* ===== Cartes de connexion / inscription ===== */
 .page-auth { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; background: linear-gradient(135deg, var(--noir-kekeli) 0%, var(--bleu-kekeli) 100%); }
@@ -639,3 +663,17 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .bouton-epingler-sea { background: none; border: 1px solid var(--bordure); border-radius: 50%; width: 34px; height: 34px; font-size: 15px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: background .15s, border-color .15s; }
 .bouton-epingler-sea:hover { background: rgba(0,0,209,.08); border-color: var(--bleu-kekeli); }
 .bouton-epingler-sea.epinglee { border-color: var(--accent-cyan); background: rgba(0,209,255,.15); }
+
+/* ===== Pages légales (pages/politique-confidentialite.html,
+   pages/conditions-utilisation.html) — session du 4 septembre 2026,
+   liées depuis le nouveau pied de page public. ===== */
+.page-legale { max-width: 760px; margin: 50px auto 70px; padding: 0 20px; }
+.carte-legale { background: var(--blanc); border-radius: 16px; padding: 40px; box-shadow: 0 8px 30px rgba(0,0,0,0.08); }
+.carte-legale h1 { font-size: 26px; color: var(--noir-kekeli); margin: 0 0 6px; }
+.carte-legale .maj-legale { font-size: 13px; color: var(--text-gris); margin: 0 0 30px; }
+.carte-legale h2 { font-size: 17px; color: var(--bleu-kekeli); margin: 30px 0 10px; }
+.carte-legale h2:first-of-type { margin-top: 0; }
+.carte-legale p, .carte-legale li { font-size: 14.5px; line-height: 1.7; color: var(--text-dark); }
+.carte-legale ul { padding-left: 20px; margin: 8px 0; }
+.carte-legale a { color: var(--bleu-kekeli); }
+.carte-legale .encadre-legale { background: var(--bg-light); border-left: 4px solid var(--accent-cyan); border-radius: 8px; padding: 14px 18px; margin: 20px 0; font-size: 13.5px; color: var(--text-gris); }

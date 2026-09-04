@@ -75,8 +75,39 @@
   </section>
 
   <footer class="pied-de-page-public">
-    ☀️ KEKELI — La Lumière du Savoir
+    <div class="pied-page-contenu">
+      <div class="pied-page-colonne pied-page-colonne-marque">
+        <div class="pied-page-logo"><img src="assets/logo/logo.png" alt="Logo KEKELI"> KEKELI</div>
+        <p class="pied-page-slogan">L'éducation qui éclaire l'avenir</p>
+        <p class="pied-page-desc">La plateforme éducative interactive pour les élèves du primaire, du niveau Azɔ̀ví à Axɔ́sú.</p>
+      </div>
+      <div class="pied-page-colonne">
+        <h3>Navigation</h3>
+        <ul>
+          <li><a href="index.html">Accueil</a></li>
+          <li><a href="pages/navigation.html">Classes</a></li>
+          <li><a href="index.html#paliers">Paliers</a></li>
+        </ul>
+      </div>
+      <div class="pied-page-colonne">
+        <h3>Mon compte</h3>
+        <ul>
+          <li><a href="pages/login.html">Se connecter</a></li>
+          <li><a href="pages/inscription.html">Créer un compte</a></li>
+        </ul>
+      </div>
+      <div class="pied-page-colonne">
+        <h3>Informations légales</h3>
+        <ul>
+          <li><a href="pages/politique-confidentialite.html">Politique de confidentialité</a></li>
+          <li><a href="pages/conditions-utilisation.html">Conditions d'utilisation</a></li>
+          <li><a href="mailto:contact@kekeli.app">Nous contacter</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="pied-page-bas">© <span id="anneeCourante"></span> KEKELI — Tous droits réservés.</div>
   </footer>
+  <script>document.getElementById('anneeCourante').textContent = new Date().getFullYear();</script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
   <script src="js/config.js"></script>
