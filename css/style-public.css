@@ -95,8 +95,16 @@ nav.nav-publique a:hover { color: var(--accent-cyan); }
 .hero-image {
   background: rgba(255,255,255,0.08); border: 2px dashed rgba(255,255,255,0.3); border-radius: 16px;
   width: 100%; max-width: 420px; height: 260px; display: flex; justify-content: center; align-items: center;
-  font-size: 60px;
+  font-size: 60px; overflow: hidden;
 }
+/* Quand un bloc de la section d'accueil dynamique (js/accueil-hero.js) fournit
+   une vraie image plutôt qu'un emoji, le cadre pointillé "espace réservé"
+   laisse place à un cadre plein, plus adapté à une photo. */
+.hero-image.avec-photo { border-style: solid; border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.03); }
+.hero-points { display: flex; gap: 8px; margin-top: 22px; }
+.hero-point { width: 9px; height: 9px; border-radius: 50%; border: none; background: rgba(255,255,255,0.3); cursor: pointer; padding: 0; }
+.hero-point:hover { background: rgba(255,255,255,0.55); }
+.hero-point.actif { background: var(--accent-cyan); }
 
 .features { max-width: 1100px; margin: 55px auto; padding: 0 20px; text-align: center; }
 .features h2 { color: var(--noir-kekeli); font-size: 26px; margin-bottom: 8px; }

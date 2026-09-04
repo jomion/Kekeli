@@ -27,11 +27,18 @@
 
   <section class="hero">
     <div class="hero-text">
-      <h1>Apprendre, progresser et <span>réussir ensemble</span>.</h1>
-      <p>La plateforme éducative interactive adaptée aux élèves du primaire. Accédez à vos cours, relevez des défis par paliers et suivez vos progrès en temps réel.</p>
+      <!-- Contenu statique de secours : reste affiché tel quel si la section
+           dynamique (js/accueil-hero.js, blocs gérés par le super admin depuis
+           pages/admin/section-accueil.html) échoue à charger ou si aucun bloc
+           n'est configuré. -->
+      <div id="heroTexteDynamique">
+        <h1>Apprendre, progresser et <span>réussir ensemble</span>.</h1>
+        <p>La plateforme éducative interactive adaptée aux élèves du primaire. Accédez à vos cours, relevez des défis par paliers et suivez vos progrès en temps réel.</p>
+      </div>
       <a href="pages/login.html" class="btn btn-filled" id="lienAccederEspace" style="padding:15px 30px;font-size:16px">Accéder à mon espace 🚀</a>
+      <div class="hero-points" id="heroPoints"></div>
     </div>
-    <div class="hero-image">☀️</div>
+    <div class="hero-image" id="heroImageDynamique">☀️</div>
   </section>
 
   <section class="features">
@@ -77,6 +84,8 @@
   <script>const RACINE_SITE = "";</script>
   <script src="js/auth-utilisateur.js"></script>
   <script src="js/banniere-site.js"></script>
+  <script src="js/accueil-hero.js"></script>
+  <script>initAccueilHero();</script>
   <script>
     // Bannière dynamique du super admin (voir js/banniere-site.js) : sur
     // l'accueil publique, un visiteur non connecté est ciblé comme

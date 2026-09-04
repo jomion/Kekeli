@@ -73,7 +73,8 @@ const LIENS_PAR_ROLE = {
     { id: 'abonnements', href: 'abonnements.html', icone: '💳', label: 'Abonnements', categorie: 'finances' },
     { id: 'paiements', href: 'paiements.html', icone: '💰', label: 'Paiements', categorie: 'finances' },
     { id: 'messagerie', href: 'messagerie.html', icone: '💬', label: 'Messagerie' },
-    { id: 'bannieres', href: 'bannieres.html', icone: '📣', label: 'Bannière', superAdminSeulement: true }
+    { id: 'bannieres', href: 'bannieres.html', icone: '📣', label: 'Bannière', superAdminSeulement: true },
+    { id: 'section-accueil', href: 'section-accueil.html', icone: '🖼️', label: "Accueil (bandeau)", superAdminSeulement: true }
   ]
 };
 

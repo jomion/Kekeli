@@ -1,66 +1,51 @@
-KEKELI — Livraison du 4 septembre 2026 (session suivante)
-==========================================================
+KEKELI — Nouvelle fonctionnalité du 4 septembre 2026 : bandeau d'accueil dynamique
+====================================================================================
 
-Ce zip contient uniquement les fichiers créés ou modifiés depuis la
-dernière livraison. À copier par-dessus tes fichiers existants (mêmes
-chemins).
+Comme demandé : le grand bandeau tout en haut de la page d'accueil publique
+(index.html) — celui avec "Apprendre, progresser et réussir ensemble" — est
+maintenant une section dynamique. Tu peux créer, modifier, supprimer et
+réordonner librement des blocs (image ou emoji + titre + texte), sans toucher
+au code, depuis un nouvel écran d'administration.
 
-RÉSUMÉ DES CHANGEMENTS
------------------------
+OÙ TROUVER ÇA
+-------------
+Connecte-toi en super admin, puis dans le menu, clique sur
+"🖼️ Accueil (bandeau)" (nouveau lien, tout en bas de la barre admin,
+juste après "Bannière" — réservé au super admin comme la bannière).
 
-1. Barre latérale premium enfin scrollable
-   Fichier : css/theme-premium-eleve.css
-   La sidebar du thème premium élève ne défilait pas quand son contenu
-   dépassait la hauteur de l'écran (position fixe sans overflow) : le
-   bas de la liste des matières devenait inaccessible. Corrigé en une
-   ligne (overflow-y: auto).
+COMMENT ÇA MARCHE
+------------------
+- "➕ Ajouter un bloc" : titre (obligatoire), texte (optionnel), une image
+  (optionnelle, à envoyer depuis ton ordinateur) et un emoji de secours
+  (utilisé seulement si tu ne mets pas d'image).
+- Les flèches ↑ ↓ réordonnent les blocs.
+- La case "Actif" permet de masquer un bloc sans le supprimer.
+- S'il y a plusieurs blocs actifs, ils s'affichent en carrousel sur
+  l'accueil (rotation automatique toutes les 6 secondes + petits points
+  cliquables en dessous du bouton "Accéder à mon espace").
+- Si tu ne crées aucun bloc, l'accueil garde exactement son texte actuel
+  (aucune régression) — la section ne s'active que si au moins un bloc
+  existe.
+- Le bouton "Accéder à mon espace" reste toujours à sa place, avec son
+  comportement habituel (devient "Continuer mon espace →" pour quelqu'un
+  déjà connecté) — il ne fait pas partie des blocs, donc pas besoin de le
+  recréer dans chaque bloc.
 
-2. Discipline seule à l'affichage, séquence retirée partout (y compris
-   du chemin/fil d'ariane)
-   Fichiers : js/pages/eleve-seance.js, js/pages/editeur-seance.js,
-   js/pages/navigation.js, js/pages/admin-gestion-seances.js,
-   js/pages/seances.js, js/pages/eleve-matiere.js,
-   js/pages/eleve-jeux-educatifs.js
+CE QUI A ÉTÉ FAIT CÔTÉ BASE DE DONNÉES (déjà en ligne)
+--------------------------------------------------------
+- Nouvelle table `blocs_accueil_hero` (titre, texte, image_url, emoji,
+  ordre, actif) avec les mêmes règles de sécurité que la bannière : lecture
+  publique des blocs actifs, écriture réservée au super admin.
+- Les images sont stockées dans un dossier dédié (accueil-hero/) d'un espace
+  de stockage déjà existant sur le projet mais jamais utilisé jusqu'ici ;
+  ce dossier est désormais réservé au super admin (les autres comptes ne
+  peuvent ni y déposer ni en supprimer de fichiers).
 
-   Comme demandé, le titre technique de la séance (souvent générique :
-   "Séquence 1", "Séance 3"...) n'est plus affiché nulle part sur le
-   site — seule la discipline (ex. "Vocabulaire Thématique",
-   "Arithmétique") est montrée, sur TOUTES les pages où une séance
-   apparaît (lecture élève, éditeur/aperçu admin, arborescence,
-   gestion des séances, page Séances, cartes matière, jeux éducatifs).
-   Le nom de la séquence (SA) a aussi été retiré des lignes de chemin
-   où il apparaissait encore.
-
-   IMPORTANT : le champ "titre" en base de données n'a PAS été touché.
-   Il reste modifiable dans l'éditeur de séance et continue d'être
-   utilisé tel quel par l'IA pour générer le contenu — seul l'AFFICHAGE
-   a changé, jamais la donnée.
-
-3. Indicateurs "à compléter" étendus à pages/navigation.html
-   Fichier : js/pages/navigation.js
-   Les deux vues détaillées de navigation.html (liste des séances d'une
-   SA, et arborescence complète) affichent désormais, comme sur la page
-   de gestion des séances, un badge de remplissage (○ Vide / ● N blocs)
-   et les icônes des paliers déjà présents dans chaque séance. Utile
-   aussi bien pour voir ce qui reste à compléter que pour distinguer
-   des séances qui partagent la même discipline (une même SA peut avoir
-   plusieurs séances "Arithmétique", par exemple).
-
-4. Sexe obligatoire pour les comptes déjà créés
-   Fichiers : js/auth-utilisateur.js, pages/completer-profil.html,
-   js/pages/completer-profil.js, js/pages/parent-tableau-de-bord.js
-   + migrations Supabase (déjà en ligne)
-
-   Les comptes parent/enseignant/Autorité Pédagogique créés avant
-   l'ajout du champ sexe sont désormais automatiquement renvoyés vers
-   "Compléter mon profil" pour le renseigner (comme pour la
-   localisation). Pour un enfant (élève), c'est le parent qui est
-   sollicité depuis son tableau de bord, avec un nouveau champ dans la
-   fenêtre "Compléter les informations".
-
-   Les comptes administrateur/super_admin ne sont PAS concernés : ils
-   n'ont jamais eu de champ sexe dans leurs écrans — à signaler si ça
-   doit changer.
-
-Aucune action de ta part n'est nécessaire côté base de données : tout
-est déjà en ligne. Il suffit de déployer ces fichiers.
+FICHIERS INCLUS DANS CE ZIP
+-----------------------------
+- index.html (bandeau devenu dynamique, avec repli statique)
+- js/accueil-hero.js (nouveau — affichage du carrousel côté visiteur)
+- js/pages/admin-section-accueil.js (nouveau — écran de gestion)
+- pages/admin/section-accueil.html (nouveau — la page elle-même)
+- js/navigation-config.js (ajout du lien "Accueil (bandeau)")
+- css/style-public.css, css/style.css (styles du carrousel et du formulaire)
