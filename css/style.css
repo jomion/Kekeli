@@ -6,7 +6,12 @@
    ============================================================ */
 .bloc { background: white; border-radius: 10px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border-left: 5px solid var(--bleu-principal); }
 .bloc-entete { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.bloc-type { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--bleu-principal); }
+.bloc-type { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; color: var(--bleu-principal); flex: 1; min-width: 0; }
+/* Badge fixe (icône + nom du type) : toujours visible même si le champ à
+   côté (repère personnalisé) est renommé par l'admin — c'est ce qui rend
+   chaque bloc immédiatement reconnaissable dans la liste d'édition. */
+.badge-type-bloc { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .3px; white-space: nowrap; flex-shrink: 0; }
+.bloc-type input.libelle-bloc-editable { text-transform: none; font-weight: 700; }
 .bloc-actions { display: flex; gap: 6px; align-items: center; }
 .bloc-actions button { background: none; border: none; cursor: pointer; font-size: 15px; padding: 3px 6px; border-radius: 6px; }
 .bloc-actions button:hover { background: var(--bordure); }
@@ -310,7 +315,12 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
   background: var(--blanc); border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 .details-ligne-seance-partagee { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.titre-ligne-seance-partagee { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.titre-ligne-seance-partagee { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* Le titre de la séance doit ressortir nettement plus que les badges
+   (discipline, repère, statut) à côté de lui sur la même ligne — demande
+   explicite : mettre le titre "plus en avant", sans regrouper les lignes
+   par SA (juste ce texte-là, sur sa propre ligne). */
+.texte-titre-seance-partagee { font-weight: 800; font-size: 17px; color: var(--bleu-principal); }
 .chemin-ligne-seance-partagee { font-size: 12px; color: var(--texte-gris); }
 .actions-ligne-seance-partagee { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .bouton-epingler-sea { background: none; border: 1px solid var(--bordure); border-radius: 50%; width: 34px; height: 34px; font-size: 15px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: background .15s, border-color .15s; }
@@ -497,6 +507,14 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
   background: var(--bleu-principal); color: white; font-size: 12px; font-weight: 700;
   padding: 6px 12px; border-radius: 6px; border: none; display: inline-flex; align-items: center; gap: 4px;
 }
+
+/* Panneau "Structure" déplié sous une carte champ (pages/navigation.html) :
+   liste indentée Thème/Unité/.../SA, chargée à la demande — voir
+   basculerPanneauStructureChamp() dans js/pages/navigation.js. */
+.panneau-structure-champ { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--bordure); max-height: 260px; overflow-y: auto; cursor: default; }
+.structure-champ-liste { font-size: 13px; }
+.ligne-structure-champ { padding: 3px 0; color: var(--texte-fonce); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ligne-structure-champ .type-arbo { font-size: 10px; color: var(--texte-gris); background: var(--bordure); padding: 1px 7px; border-radius: 8px; margin-left: 6px; }
 
 /* ===== Page "Choisissez votre Classe" (groupée par cycle) ===== */
 .titre-page.centre, .sous-titre-page.centre { text-align: center; }

@@ -327,11 +327,16 @@ function html_editeurExercice(bloc, c) {
   return `
     <textarea data-champ="consigne" placeholder="Consigne générale (ex: Réponds aux questions suivantes)">${echapper(c.consigne)}</textarea>
     <div class="champ-ligne"><label>Palier</label>${html_selectPalier(bloc)}</div>
-    <div class="champ-ligne">
-      <label>Seuil de réussite (%)</label>
-      <input type="number" min="0" max="100" step="0.1" data-champ-seuil-reussite value="${bloc.seuil_reussite ?? 66.7}" style="width:80px">
+    <div data-bloc-seuil style="display:${bloc.palier ? 'block' : 'none'}">
+      <div class="champ-ligne">
+        <label>Seuil de réussite (%)</label>
+        <input type="number" min="0" max="100" step="0.1" data-champ-seuil-reussite value="${bloc.seuil_reussite ?? 66.7}" style="width:80px">
+      </div>
+      <p class="note-future">Le seuil de réussite sert à valider ce bloc pour la progression par palier et l'attribution des badges (66,7% par défaut).</p>
     </div>
-    <p class="note-future">Le seuil de réussite sert à valider ce bloc pour la progression par palier et l'attribution des badges (66,7% par défaut).</p>
+    <!-- Sans palier, cet exercice est un bloc de contenu ordinaire : ni seuil
+         ni progression à configurer, uniquement visible/masqué via data-bloc-seuil
+         ci-dessus (le champ garde sa valeur en base, juste masqué à l'écran). -->
     <div class="editeur-questions" data-questions-bloc="${bloc.id}">
       <div class="liste-questions" data-liste-questions>
         ${questions.length ? questions.map((q, i) => html_questionEditeur(q, i, null)).join('') : '<p class="note-future">Aucune question pour l\'instant.</p>'}

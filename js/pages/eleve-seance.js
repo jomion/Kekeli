@@ -160,12 +160,11 @@ function rendre() {
   tousBlocsTop.filter(b => b.palier).forEach(b => { (blocsParPalier[b.palier] ??= []).push(b); });
   const aDesPaliers = etatPaliersSeance.some(p => p.nb_total > 0);
 
-  // Arborescence complète dans la miniature (fil d'ariane) — le titre de la
-  // séance n'apparaît plus qu'ici, plus dans un grand titre dupliqué juste
-  // en dessous (voir entete-seance-eleve : c'est maintenant la discipline
-  // qui tient ce rôle, mise en avant). Chaque niveau (sauf le dernier, la
-  // séance actuelle) est cliquable et ramène directement à ce niveau sur
-  // pages/eleve/matiere.html — voir js/pages/eleve-matiere.js.
+  // Arborescence complète dans la miniature (fil d'ariane), suivie du titre
+  // de la séance en grand (devant la discipline — demande explicite : le
+  // titre doit primer sur la discipline dans l'en-tête). Chaque niveau (sauf
+  // le dernier, la séance actuelle) est cliquable et ramène directement à ce
+  // niveau sur pages/eleve/matiere.html — voir js/pages/eleve-matiere.js.
   const dernierNoeud = (cheminSeance.cheminNoeuds || [])[(cheminSeance.cheminNoeuds || []).length - 1];
   const segmentsArbo = [];
   if (cheminSeance.classeNom) segmentsArbo.push({ label: cheminSeance.classeNom });
@@ -203,6 +202,7 @@ function rendre() {
     <div class="fil-ariane-eleve"><a href="matiere.html">← Retour à mes matières</a></div>
     <div class="entete-seance-eleve">
       <p style="margin:0" class="miniature-arborescence-eleve">${filAriane}</p>
+      <h1 class="titre-seance-eleve">${echapper(seanceCourante.titre)}</h1>
       ${seanceCourante.discipline ? `<span class="badge-discipline-seance">${echapper(seanceCourante.discipline)}</span>` : ''}
     </div>
 

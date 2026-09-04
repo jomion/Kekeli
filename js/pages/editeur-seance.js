@@ -233,8 +233,8 @@ function htmlBloc(b) {
     <div class="bloc" draggable="true" data-bloc-id="${b.id}" style="border-left-color:${couleur};background:${teinteClaire(couleur)}">
       <div class="bloc-entete">
         <span class="bloc-type" style="color:${couleur}">
-          ${info.icone}
-          <input type="text" class="libelle-bloc-editable" data-libelle-bloc value="${echapper(libelle)}" style="color:${couleur}">
+          <span class="badge-type-bloc" style="background:${couleur};color:${texteContrastant(couleur)}" title="Type de bloc : ${echapper(info.label)}">${info.icone} ${echapper(info.label)}</span>
+          <input type="text" class="libelle-bloc-editable" data-libelle-bloc value="${echapper(libelle)}" style="color:${couleur}" title="Nom personnalisé affiché (repère interne : ${echapper(info.label)})">
         </span>
         <div class="bloc-actions">
           ${estResume ? `
@@ -461,6 +461,11 @@ function attacherEcouteursBloc(bloc) {
   if (selectPalier) {
     selectPalier.addEventListener('change', () => {
       bloc.palier = selectPalier.value || null;
+      // Sans palier, un exercice redevient un simple bloc de contenu : le
+      // seuil de réussite (qui ne sert qu'à la progression par palier / aux
+      // badges) n'a plus de sens à configurer, donc on le masque aussitôt.
+      const blocSeuil = el.querySelector(':scope > .bloc-corps [data-bloc-seuil]');
+      if (blocSeuil) blocSeuil.style.display = bloc.palier ? 'block' : 'none';
       programmerSauvegardeBloc(bloc);
     });
   }
@@ -1458,104 +1463,210 @@ function dupliquerSeance() {
 }
 
 // --- APERÇU ÉLÈVE (lecture seule, dans un nouvel onglet) ---------------------
+//
+// Cet aperçu doit être VISUELLEMENT IDENTIQUE à la vraie page publique
+// (pages/eleve/seance.html, js/pages/eleve-seance.js) : même feuille de
+// style (css/style-public.css, chargée via <base> + lien relatif plutôt que
+// dupliquée), mêmes classes CSS pour l'en-tête et les blocs, même ordre
+// titre → discipline, mêmes types de bloc reconnaissables (icône + couleur
+// via infoType). Seules différences volontaires : les questions d'exercice
+// sont affichées en lecture seule (champs désactivés, pas de vraie
+// soumission), les paliers sont tous montrés déverrouillés (il n'y a pas
+// d'élève réel pour calculer une progression), et un bloc brouillon (ex.
+// résumé IA pas encore publié) reste visible ici avec une mention explicite,
+// pour que l'administrateur puisse le relire avant publication — alors que
+// la vraie page élève le masque entièrement. Ces fonctions dupliquent celles
+// de js/pages/eleve-seance.js (aucun module partagé entre les deux pages,
+// même convention que le reste du code) : toute évolution du rendu public
+// doit être reportée ici pour que l'aperçu ne redevienne pas obsolète.
+const TYPES_TRAVAIL_APERCU = ['exercice', 'quiz', 'evaluation', 'activite'];
+const LIBELLES_PALIER_APERCU = { azovi: '🌱 Azɔ̀ví', devi: '🪘 Dèví', ogan: '🦁 Ògán', axosu: '👑 Axɔ́sú' };
 
-function ouvrirApercu() {
+async function ouvrirApercu() {
   const fenetre = window.open('', '_blank');
+
+  // Fil d'ariane complet (mêmes niveaux que la vraie page élève) — remonte
+  // la chaîne de noeuds jusqu'à la racine, comme remonterCheminNoeudsEleve()
+  // dans js/pages/eleve-seance.js. Pas de liens cliquables ici : c'est un
+  // aperçu statique dans un nouvel onglet, pas la navigation réelle.
+  const segmentsChemin = [];
+  {
+    let n = chaineNavigation.noeud;
+    let garde = 0;
+    const titresNoeuds = [];
+    while (n && garde++ < 20) {
+      titresNoeuds.unshift(n.titre);
+      if (!n.parent_id) break;
+      const { data: parent } = await supabaseClient.from('noeuds_parcours').select('id, parent_id, titre').eq('id', n.parent_id).single();
+      n = parent;
+    }
+    segmentsChemin.push(chaineNavigation.classeNom, chaineNavigation.champNom, ...titresNoeuds, chaineNavigation.sa.titre, seance.titre);
+  }
+  const filArianeHtml = segmentsChemin.filter(Boolean).map(s => `<span>${echapper(s)}</span>`).join(' <span class="sep-arbo-eleve">›</span> ');
+
+  function rendreApercuChampQuestion(q, i) {
+    if (q.type === 'texte_a_trous') {
+      let idxTrou = -1;
+      const morceaux = echapper(q.enonce).split('___');
+      const enonceAvecTrous = morceaux.map((morceau, k) => {
+        if (k === morceaux.length - 1) return morceau;
+        idxTrou++;
+        return `${morceau}<input type="text" class="champ-trou" disabled style="width:110px;display:inline-block;margin:0 4px">`;
+      }).join('');
+      return `<div class="question-lecture"><p class="question-enonce">${i + 1}. ${enonceAvecTrous}</p></div>`;
+    }
+    let champ = '';
+    if (q.type === 'qcm') {
+      champ = (q.options || []).map(opt => `<label><input type="radio" disabled> ${echapper(opt)}</label>`).join('');
+    } else if (q.type === 'vrai_faux') {
+      champ = `<div class="vf-choix"><label><input type="radio" disabled> Vrai</label><label><input type="radio" disabled> Faux</label></div>`;
+    } else if (q.type === 'reponse_courte') {
+      champ = `<input type="text" disabled placeholder="Réponse...">`;
+    } else if (q.type === 'remise_en_ordre') {
+      champ = `<ol>${(q.options || []).map(opt => `<li>${echapper(opt)}</li>`).join('')}</ol>`;
+    } else if (q.type === 'association') {
+      const gauche = Array.isArray(q.gauche) ? q.gauche : [];
+      const droite = Array.isArray(q.droite) ? q.droite : [];
+      champ = gauche.map(g => `
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <span style="flex:1">${echapper(g)}</span>
+          <select disabled><option>— Choisis —</option>${droite.map(d => `<option>${echapper(d)}</option>`).join('')}</select>
+        </div>`).join('');
+    } else if (q.type === 'qcm_multiple') {
+      champ = (q.options || []).map(opt => `<label><input type="checkbox" disabled> ${echapper(opt)}</label>`).join('');
+    } else if (q.type === 'classement') {
+      const mots = Array.isArray(q.motsAClasser) ? q.motsAClasser : [];
+      const categories = Array.isArray(q.categories) ? q.categories : [];
+      champ = mots.map(mot => `
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <span style="flex:1">${echapper(mot)}</span>
+          <select disabled><option>— Choisis —</option>${categories.map(c2 => `<option>${echapper(c2)}</option>`).join('')}</select>
+        </div>`).join('');
+    } else {
+      champ = `<textarea disabled placeholder="Réponse..."></textarea>`;
+    }
+    return `<div class="question-lecture"><p class="question-enonce">${i + 1}. ${echapper(q.enonce)}</p>${q.consigne ? `<p class="consigne-question" style="font-size:13px;color:var(--text-gris)">${echapper(q.consigne)}</p>` : ''}${champ}</div>`;
+  }
+
+  function rendreApercuExercice(c) {
+    const questions = Array.isArray(c.questions) ? c.questions : [];
+    if (!questions.length) return `${c.consigne ? `<p>${echapper(c.consigne)}</p>` : ''}<p style="color:var(--text-gris);font-style:italic">Aucune question pour l'instant.</p>`;
+    return `${c.consigne ? `<p>${echapper(c.consigne)}</p>` : ''}${questions.map((q, i) => rendreApercuChampQuestion(q, i)).join('')}`;
+  }
+
+  function rendreBlocApercuTravail(b) {
+    const info = infoType(b.type_bloc);
+    const c = b.contenu || {};
+    const couleur = c.couleurBloc || info.couleur || '#0000D1';
+    const libelle = c.libelle || info.label;
+    return `<div class="bloc-lecture" style="border-left-color:${couleur};background:${teinteClaire(couleur, 0.04)}">
+      <div class="bloc-lecture-titre" style="color:${couleur}">${info.icone} ${echapper(libelle)}</div>
+      ${rendreApercuExercice(c)}
+    </div>`;
+  }
 
   function rendreBlocApercu(b, estEnfant = false) {
     const info = infoType(b.type_bloc);
     const c = b.contenu || {};
-    const couleur = c.couleurBloc || info.couleur;
+    const couleur = c.couleurBloc || info.couleur || '#0000D1';
     const afficherTitre = typeof c.afficherTitre === 'boolean' ? c.afficherTitre : b.type_bloc !== 'titre';
     const libelle = c.libelle || info.label;
     let corps = '';
-    if (TYPES_TEXTE_LIBRE.includes(b.type_bloc)) corps = `<div>${contenuRicheInitial(c.texte)}</div>`;
+    if (TYPES_TEXTE_LIBRE.includes(b.type_bloc)) corps = `<div class="contenu-riche-lecture">${contenuRicheInitial(c.texte)}</div>`;
     else if (b.type_bloc === 'titre') corps = `<h3 style="margin:0">${echapper(c.texte)}</h3>`;
     else if (b.type_bloc === 'consigne') corps = `<p>${echapper(c.texte)}</p>`;
     else if (b.type_bloc === 'autre') corps = `${c.nom ? `<p style="font-weight:700">${echapper(c.nom)}</p>` : ''}<p>${echapper(c.texte)}</p>`;
-    else if (b.type_bloc === 'image') corps = `<img src="${echapper(c.url)}" style="max-width:100%;border-radius:8px"><p><em>${echapper(c.legende)}</em></p>`;
-    else if (b.type_bloc === 'video') corps = `<p>🎬 <a href="${echapper(c.url)}" target="_blank">${echapper(c.legende) || c.url}</a></p>`;
-    else if (b.type_bloc === 'ressource') corps = `<p>📎 <a href="${echapper(c.url)}" target="_blank">${echapper(c.nom)}</a></p>`;
+    else if (b.type_bloc === 'image') corps = `<img src="${echapper(c.url)}" alt=""><p><em>${echapper(c.legende)}</em></p>`;
+    else if (b.type_bloc === 'video') corps = `<p>🎬 <a href="${echapper(c.url)}" target="_blank" rel="noopener">${echapper(c.legende) || c.url}</a></p>`;
+    else if (b.type_bloc === 'ressource') corps = `<p>📎 <a href="${echapper(c.url)}" target="_blank" rel="noopener">${echapper(c.nom)}</a></p>`;
     else if (b.type_bloc === 'formule') corps = `<p style="font-family:serif;font-size:18px">${echapper(c.formule)}</p>`;
     else if (b.type_bloc === 'tableau') {
       const fusions = c.fusions || [];
       const masquee = (i, j) => fusions.some(f => f.ligne === i && j > f.colonneDebut && j <= f.colonneFin);
       const colspan = (i, j) => { const f = fusions.find(f => f.ligne === i && f.colonneDebut === j); return f ? (f.colonneFin - f.colonneDebut + 1) : 1; };
-      const bordure = c.bordures === false ? 'none' : '1px solid #E2E8F0';
       const couleurEntete = c.couleurEntete || '#F4F7F9';
       const texteEntete = c.couleurEntete ? texteContrastant(c.couleurEntete) : '#003366';
       const lignesHtml = (c.lignes || []).map((l, i) => {
         const style = c.entete && i === 0 ? ` style="background:${couleurEntete};font-weight:800;color:${texteEntete}"` : '';
-        return `<tr${style}>${l.map((cel, j) => masquee(i, j) ? '' : `<td ${colspan(i, j) > 1 ? `colspan="${colspan(i, j)}"` : ''} style="border:${bordure};padding:6px">${echapper(cel)}</td>`).join('')}</tr>`;
+        return `<tr${style}>${l.map((cel, j) => masquee(i, j) ? '' : `<td ${colspan(i, j) > 1 ? `colspan="${colspan(i, j)}"` : ''}>${echapper(cel)}</td>`).join('')}</tr>`;
       }).join('');
-      corps = `${c.titre ? `<p style="font-weight:700;margin-bottom:6px">${echapper(c.titre)}</p>` : ''}<table style="border-collapse:collapse;width:100%">${lignesHtml}</table>`;
+      corps = `${c.titre ? `<p style="font-weight:700;margin-bottom:6px">${echapper(c.titre)}</p>` : ''}<table>${lignesHtml}</table>`;
     }
-    else if (['exercice', 'quiz', 'evaluation', 'activite'].includes(b.type_bloc)) {
-      const questions = Array.isArray(c.questions) ? c.questions : [];
-      corps = `
-        ${c.consigne ? `<p>${echapper(c.consigne)}</p>` : ''}
-        ${b.palier ? `<p><em>Palier : ${b.palier}</em></p>` : ''}
-        ${questions.length ? questions.map((q, i) => {
-          let champ = '';
-          if (q.type === 'qcm') {
-            champ = `<div style="margin-top:6px">${(q.options || []).map(opt => `<label style="display:block;margin-bottom:4px"><input type="radio" disabled> ${echapper(opt)}</label>`).join('')}</div>`;
-          } else if (q.type === 'vrai_faux') {
-            champ = `<div style="margin-top:6px;display:flex;gap:16px"><label><input type="radio" disabled> Vrai</label><label><input type="radio" disabled> Faux</label></div>`;
-          } else if (q.type === 'reponse_courte') {
-            champ = `<input type="text" disabled placeholder="Réponse..." style="margin-top:6px;width:100%;max-width:300px;padding:6px;border:1px solid #E2E8F0;border-radius:6px">`;
-          } else if (q.type === 'texte_a_trous') {
-            champ = `<p style="margin-top:6px;color:#94A3B8;font-style:italic">Les trous (___) deviendront des champs de saisie pour l'élève.</p>`;
-          } else if (q.type === 'remise_en_ordre') {
-            champ = `<ol style="margin-top:6px">${(q.options || []).map(opt => `<li>${echapper(opt)}</li>`).join('')}</ol>`;
-          } else if (q.type === 'association') {
-            champ = `<div style="margin-top:6px;font-size:13px;color:#64748B">${(q.gauche || []).map(g => `${echapper(g)} ↔ ?`).join(' · ')} <span style="font-style:italic">(l'élève verra la colonne de droite mélangée)</span></div>`;
-          } else if (q.type === 'qcm_multiple') {
-            champ = `<div style="margin-top:6px">${(q.options || []).map(opt => `<label style="display:block;margin-bottom:4px"><input type="checkbox" disabled> ${echapper(opt)}</label>`).join('')}</div>`;
-          } else if (q.type === 'classement') {
-            champ = `<div style="margin-top:6px;font-size:13px;color:#64748B">${(q.motsAClasser || []).map(m => echapper(m)).join(', ') || 'Aucun mot'} — à classer parmi : ${(q.categories || []).map(c2 => echapper(c2)).join(', ') || 'Aucune catégorie'}</div>`;
-          } else {
-            champ = `<textarea disabled placeholder="Réponse..." style="margin-top:6px;width:100%;min-height:70px;padding:6px;border:1px solid #E2E8F0;border-radius:6px"></textarea>`;
-          }
-          return `<div style="margin-top:12px;padding-top:10px;border-top:1px dashed #E2E8F0">
-            <p style="font-weight:700;margin:0">${i + 1}. ${echapper(q.enonce)}</p>
-            ${q.consigne ? `<p style="margin:2px 0 0;font-size:12px;color:#64748B">${echapper(q.consigne)}</p>` : ''}
-            ${champ}
-          </div>`;
-        }).join('') : `<p style="color:#94A3B8;font-style:italic">Aucune question pour l'instant.</p>`}
-      `;
-    }
-    else corps = `<p>${echapper(c.consigne)}</p>${b.palier ? `<p><em>Palier : ${b.palier}</em></p>` : ''}`;
+    else corps = `<p>${echapper(c.consigne || c.texte || '')}</p>`;
 
     const enfants = blocs.filter(x => x.parent_bloc_id === b.id).sort((a, b2) => a.ordre - b2.ordre);
-    const noteBrouillonResume = b.type_bloc === 'resume' && b.statut_bloc !== 'publie'
+    const noteBrouillonResume = b.statut_bloc && b.statut_bloc !== 'publie'
       ? ' <span style="font-weight:400;text-transform:none;color:#B45309">(brouillon — pas encore visible des élèves)</span>' : '';
     const contenuInterieur = `
-      ${afficherTitre ? `<div style="font-size:12px;font-weight:bold;color:${couleur};text-transform:uppercase;margin-bottom:6px">${info.icone} ${echapper(libelle)}${noteBrouillonResume}</div>` : ''}
+      ${afficherTitre ? `<div class="bloc-lecture-titre" style="color:${couleur}">${info.icone} ${echapper(libelle)}${noteBrouillonResume}</div>` : ''}
       ${corps}
-      ${enfants.length ? `<div style="margin-top:10px">${enfants.map(x => rendreBlocApercu(x, true)).join('')}</div>` : ''}
+      ${enfants.length ? `<div style="margin-top:10px">${enfants.filter(x => !TYPES_TRAVAIL_APERCU.includes(x.type_bloc)).map(x => rendreBlocApercu(x, true)).join('')}</div>` : ''}
     `;
-    // Un bloc rattaché à une section (Titre/Consigne) n'a pas sa propre carte :
-    // il s'affiche dans le prolongement direct du contenu parent, aligné avec lui.
+    // Un bloc rattaché à une section (Contenu/Consigne) n'a pas sa propre
+    // carte : il s'affiche dans le prolongement direct du parent, aligné
+    // avec lui — exactement comme sur la vraie page élève.
     if (estEnfant) return contenuInterieur;
-    return `<div style="margin-bottom:18px;padding:14px;border-left:4px solid ${couleur};background:${teinteClaire(couleur, 0.06)};border-radius:8px">${contenuInterieur}</div>`;
+    return `<div class="bloc-lecture" style="border-left-color:${couleur};background:${teinteClaire(couleur, 0.04)}">${contenuInterieur}</div>`;
   }
 
-  const topNiveau = blocs.filter(b => !b.parent_bloc_id).sort((a, b) => a.ordre - b.ordre);
-  const html = topNiveau.map(b => rendreBlocApercu(b)).join('');
+  function html_sectionPaliersApercu(blocsParPalier) {
+    const paliersPresents = ['azovi', 'devi', 'ogan', 'axosu'].filter(p => (blocsParPalier[p] || []).length);
+    if (!paliersPresents.length) return '';
+    return `
+      <div class="section-title-eleve" style="margin-top:24px">🎯 Paliers de cette séance</div>
+      <p style="font-size:12px;color:var(--text-gris);margin-top:-10px">Aperçu : les paliers sont montrés ici tous déverrouillés — l'élève les débloque progressivement, palier après palier.</p>
+      ${paliersPresents.map(p => {
+        const blocsPalier = (blocsParPalier[p] || []).sort((a, b) => a.ordre - b.ordre);
+        return `<div class="bloc-lecture" style="border-left-color:var(--bleu-kekeli);margin-top:14px">
+          <div class="bloc-lecture-titre">${LIBELLES_PALIER_APERCU[p] || p}</div>
+          ${blocsPalier.map(b => TYPES_TRAVAIL_APERCU.includes(b.type_bloc) ? rendreBlocApercuTravail(b) : rendreBlocApercu(b)).join('')}
+        </div>`;
+      }).join('')}
+    `;
+  }
 
-  // La discipline est mise en avant (au-dessus du titre), comme dans l'arborescence.
-  const enTeteTitre = seance.discipline
-    ? `<div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#FFCC00;background:#003366;display:inline-block;padding:4px 12px;border-radius:6px;margin-bottom:8px">${echapper(seance.discipline)}</div>
-       <h1 style="color:#003366;margin:0 0 20px">${echapper(seance.titre)}</h1>`
-    : `<h1 style="color:#003366;margin:0 0 20px">${echapper(seance.titre)}</h1>`;
+  const tousBlocsTop = blocs.filter(b => !b.parent_bloc_id).sort((a, b) => a.ordre - b.ordre);
+  const blocsGeneraux = tousBlocsTop.filter(b => !b.palier);
+  const blocsLecture = blocsGeneraux.filter(b => !TYPES_TRAVAIL_APERCU.includes(b.type_bloc));
+  const blocsTravail = blocsGeneraux.filter(b => TYPES_TRAVAIL_APERCU.includes(b.type_bloc));
+  const blocsParPalier = {};
+  tousBlocsTop.filter(b => b.palier).forEach(b => { (blocsParPalier[b.palier] ??= []).push(b); });
+  const aDesPaliers = Object.keys(blocsParPalier).length > 0;
+  const colonneExerciceVide = blocsTravail.length === 0 && aDesPaliers;
+
+  // Titre devant la discipline (comme sur la vraie page élève) : le titre de
+  // la séance est l'élément principal de l'en-tête, la discipline vient
+  // ensuite en second plan.
+  const enTete = `
+    <div style="background:#FFF7DA;border:1px solid #F5D77A;border-radius:8px;padding:6px 12px;font-size:12px;color:#7A5A00;margin-bottom:14px;text-align:center">
+      🔍 Aperçu élève — lecture seule, tel qu'affiché à un élève sur la vraie page
+    </div>
+    <div class="entete-seance-eleve">
+      <p style="margin:0" class="miniature-arborescence-eleve">${filArianeHtml}</p>
+      <h1 class="titre-seance-eleve">${echapper(seance.titre)}</h1>
+      ${seance.discipline ? `<span class="badge-discipline-seance">${echapper(seance.discipline)}</span>` : ''}
+    </div>`;
+
+  const corpsHtml = `
+    <div class="zone-travail-seance"${colonneExerciceVide ? ' style="grid-template-columns:1fr"' : ''}>
+      <div class="colonne-lecture-seance">
+        ${blocsLecture.length ? blocsLecture.map(b => rendreBlocApercu(b)).join('') : '<p style="color:var(--text-gris)">Aucun support de cours pour cette séance.</p>'}
+      </div>
+      ${colonneExerciceVide ? '' : `<div class="colonne-exercice-seance">
+        ${blocsTravail.length ? blocsTravail.map(rendreBlocApercuTravail).join('') : '<div class="bloc-lecture" style="border-left-color:#94A3B8"><p style="color:var(--text-gris);margin:0">Aucun exercice ni activité pour cette séance.</p></div>'}
+      </div>`}
+    </div>
+    ${html_sectionPaliersApercu(blocsParPalier)}
+  `;
 
   fenetre.document.write(`
     <html><head><meta charset="UTF-8"><title>Aperçu — ${echapper(seance.titre)}</title>
+    <base href="${window.location.href}">
+    <link rel="stylesheet" href="../css/style-public.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap" rel="stylesheet">
-    <style>body{font-family:'Segoe UI',sans-serif;max-width:700px;margin:30px auto;padding:0 20px;color:#1E293B}</style>
-    </head><body>${enTeteTitre}${html}</body></html>`);
+    </head><body><div class="conteneur-tableau-bord">${enTete}${corpsHtml}</div></body></html>`);
   fenetre.document.close();
 }
 

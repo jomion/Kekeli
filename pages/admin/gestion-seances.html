@@ -3,19 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KEKELI Admin - Tableau de bord</title>
+<title>KEKELI Admin - Gestion des séances</title>
 <link rel="stylesheet" href="../../css/style.css">
 </head>
 <body>
   <header></header>
 
   <div class="conteneur">
-    <div class="titre-page">Tableau de bord</div>
-    <div class="sous-titre-page">Vue d'ensemble des tâches à gérer, et accès direct à l'édition des séquences et séances.</div>
+    <div class="titre-page">🌳 Gestion des séances</div>
+    <div class="sous-titre-page">Recherchez et filtrez pour retrouver une séance de n'importe quelle matière en un clic, puis éditez-la directement.</div>
 
-    <div id="zoneTaches" class="grille-taches-admin" style="margin-bottom:24px"></div>
-
-    <div id="zoneActions" class="grille-actions-tb"></div>
+    <div id="zoneFiltres" class="barre-filtres-admin"></div>
+    <div id="zoneSeances" class="chargement">Chargement...</div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -28,7 +27,6 @@
   <script src="../../js/navigation-config.js"></script>
   <script src="../../js/banniere-site.js"></script>
   <script src="../../js/entete-navigation.js"></script>
-  <script src="../../js/apercu-survol.js"></script>
-  <script src="../../js/pages/admin-tableau-de-bord.js"></script>
+  <script src="../../js/pages/admin-gestion-seances.js"></script>
 </body>
 </html>

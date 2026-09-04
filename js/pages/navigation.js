@@ -106,6 +106,7 @@ function construireFilAriane() {
 
 async function afficher() {
   construireFilAriane();
+  synchroniserUrlNav();
   contenu.innerHTML = '<div class="chargement">Chargement...</div>';
 
   if (!etat.classe) return afficherClasses();
@@ -113,6 +114,32 @@ async function afficher() {
   if (etat.vueArborescence) return afficherArborescence();
   if (!etat.sa) return afficherNoeudsEtSA();
   return afficherSeances();
+}
+
+// Reflète l'état de navigation courant (classe/champ/niveau/SA/vue) dans
+// l'URL, sans recharger la page — cette page pilote toute sa navigation en
+// mémoire (etat), sans jamais toucher à l'URL une fois chargée. Résultat :
+// "📌 Épingler cette page" (js/entete-navigation.js), qui capture
+// window.location.pathname+search au moment du clic, capturait toujours la
+// même adresse nue (sans le contexte réel affiché) — le raccourci "épinglé"
+// ne ramenait donc jamais à l'endroit précis où on l'avait posé. Appelée à
+// chaque rendu (afficher() ci-dessus est le point de passage unique de tous
+// les changements d'état de cette page) ; lue par initDepuisURL() au
+// chargement pour reprendre exactement là où on était.
+function synchroniserUrlNav() {
+  const params = new URLSearchParams();
+  if (etat.classe) params.set('classeId', etat.classe.id);
+  if (etat.champ) params.set('champId', etat.champ.id);
+  if (etat.champ) {
+    if (etat.vueArborescence) {
+      params.set('vue', 'arbo');
+    } else {
+      if (etat.cheminNoeuds.length) params.set('noeudId', etat.cheminNoeuds[etat.cheminNoeuds.length - 1].id);
+      if (etat.sa) params.set('saId', etat.sa.id);
+    }
+  }
+  const nouvelle = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+  history.replaceState(null, '', nouvelle);
 }
 
 function rendreCartes(items, rendreCarte, gestionClic) {
@@ -293,16 +320,24 @@ async function afficherChamps() {
           </div>` : ''}
           <div class="pied-carte-champ">
             <span class="nb-unites-champ">${comptes[i]} Unité${comptes[i] > 1 ? 's' : ''}</span>
-            <div style="display:flex;gap:6px">
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
               ${droitsEdition[i] ? `<button class="btn btn-discret" data-editer-champ="${c.id}" type="button" title="Gérer toute la hiérarchie">✏️ Éditer</button>` : ''}
+              <button class="btn btn-discret" data-structure-champ="${c.id}" type="button" title="Voir la structure complète de cette matière">🗂️ Structure</button>
+              <a class="btn btn-discret" href="seances.html?classeId=${etat.classe.id}&champId=${c.id}" title="Aller directement aux séances de cette matière, sans passer par l'arborescence">📌 Voir les séances</a>
               <button class="bouton-acceder-champ" data-acceder-champ="${c.id}" type="button">Accéder ➔</button>
             </div>
           </div>
+          <div class="panneau-structure-champ" data-panneau-structure="${c.id}" style="display:none"></div>
         </div>`;
       }).join('')}
     </div>`;
 
   document.getElementById('grilleCartes').addEventListener('click', async (e) => {
+    const btnStructure = e.target.closest('[data-structure-champ]');
+    if (btnStructure) {
+      e.stopPropagation();
+      return basculerPanneauStructureChamp(btnStructure.dataset.structureChamp, champs);
+    }
     const btnEditer = e.target.closest('[data-editer-champ]');
     const btnAcceder = e.target.closest('[data-acceder-champ]');
     if (!btnEditer && !btnAcceder) return;
@@ -315,6 +350,59 @@ async function afficherChamps() {
     await verifierPermissions();
     afficher();
   });
+}
+
+// --- STRUCTURE D'UNE MATIÈRE (liste déroulante depuis la carte champ) ------
+// Affiche, pour une matière donnée, sa hiérarchie complète (Thème/Unité/
+// Semaine/Dossier/... puis SA) sous forme de liste indentée, directement
+// depuis la carte de la page "Champs de Formation" — sans avoir à cliquer
+// sur "Accéder" puis descendre niveau par niveau. Chargée à la demande (au
+// premier clic) et mise en cache dans le panneau lui-même (data-charge="1")
+// pour ne pas refaire les requêtes à chaque ouverture/fermeture.
+async function basculerPanneauStructureChamp(champId, champs) {
+  const panneau = document.querySelector(`[data-panneau-structure="${champId}"]`);
+  if (!panneau) return;
+
+  const ouvert = panneau.style.display !== 'none';
+  if (ouvert) { panneau.style.display = 'none'; return; }
+
+  panneau.style.display = 'block';
+  if (panneau.dataset.charge === '1') return;
+
+  panneau.innerHTML = '<p class="chargement" style="margin:8px 0 0">Chargement de la structure...</p>';
+  const champ = champs.find(c => String(c.id) === champId);
+  const html = await construireHtmlStructureChamp(champ);
+  panneau.innerHTML = html;
+  panneau.dataset.charge = '1';
+}
+
+async function construireHtmlStructureChamp(champ) {
+  const { data: noeuds } = await supabaseClient.from('noeuds_parcours').select('id, parent_id, ordre, titre, type_noeud')
+    .eq('classe_id', etat.classe.id).eq('champ_formation_id', champ.id).order('ordre');
+  const idsNoeuds = (noeuds || []).map(n => n.id);
+  const { data: sasBrut } = idsNoeuds.length
+    ? await supabaseClient.from('sa').select('id, noeud_id, ordre, titre, numero').in('noeud_id', idsNoeuds).order('ordre')
+    : { data: [] };
+
+  if (!noeuds || !noeuds.length) {
+    return '<p class="chargement" style="margin:8px 0 0">Rien à afficher pour l\'instant — cette matière est vide.</p>';
+  }
+
+  const enfantsParParent = {};
+  noeuds.forEach(n => { const cle = n.parent_id ?? 'racine'; (enfantsParParent[cle] ??= []).push(n); });
+  const saParNoeud = {};
+  (sasBrut || []).forEach(s => { (saParNoeud[s.noeud_id] ??= []).push(s); });
+
+  function rendreNiveau(n, profondeur) {
+    const enfants = enfantsParParent[n.id] || [];
+    const sas = saParNoeud[n.id] || [];
+    return `<div class="ligne-structure-champ" style="padding-left:${profondeur * 16}px">📁 ${echapper(n.titre)} <span class="type-arbo">${etiquetteType(n.type_noeud)}</span></div>` +
+      sas.map(s => `<div class="ligne-structure-champ" style="padding-left:${(profondeur + 1) * 16}px">📄 ${s.numero ? 'SA' + s.numero + ' — ' : ''}${echapper(s.titre)}</div>`).join('') +
+      enfants.map(e => rendreNiveau(e, profondeur + 1)).join('');
+  }
+
+  const racines = enfantsParParent['racine'] || [];
+  return `<div class="structure-champ-liste">${racines.map(r => rendreNiveau(r, 0)).join('')}</div>`;
 }
 
 // Aperçu au survol : les tout premiers niveaux (racines) de ce champ, pour
@@ -1070,7 +1158,9 @@ async function initDepuisURL() {
   const p = new URLSearchParams(window.location.search);
   const classeId = p.get('classeId');
   const champId = p.get('champId');
+  const noeudId = p.get('noeudId');
   const saId = p.get('saId');
+  const vue = p.get('vue');
 
   if (classeId) {
     const { data: classe } = await supabaseClient.from('classes').select('*').eq('id', classeId).single();
@@ -1081,13 +1171,39 @@ async function initDepuisURL() {
   }
   if (etat.classe && champId) {
     const { data: champ } = await supabaseClient.from('champs_formation').select('*').eq('id', champId).single();
-    if (champ) { etat.champ = champ; etat.vueArborescence = false; await verifierPermissions(); }
-  }
-  if (etat.champ && saId) {
-    const { data: sa } = await supabaseClient.from('sa').select('*').eq('id', saId).single();
-    if (sa) etat.sa = sa;
+    if (champ) {
+      etat.champ = champ;
+      etat.vueArborescence = vue === 'arbo';
+      await verifierPermissions();
+      // noeudId : plus profond niveau atteint (Thème/Unité/Semaine/Dossier...)
+      // — on remonte toute la chaîne parent_id pour reconstituer le fil
+      // d'ariane, comme remonterAncetresNoeudMat() dans eleve-matiere.js.
+      if (!etat.vueArborescence && noeudId) etat.cheminNoeuds = await remonterAncetresNoeudNav(parseInt(noeudId, 10));
+      if (!etat.vueArborescence && saId) {
+        const { data: sa } = await supabaseClient.from('sa').select('*').eq('id', saId).single();
+        if (sa) etat.sa = sa;
+      }
+    }
   }
   afficher();
+}
+
+// Remonte la chaîne parent_id d'un noeud jusqu'à la racine (même principe
+// que remonterAncetresNoeudMat() dans js/pages/eleve-matiere.js, dupliqué
+// ici car les deux pages ne partagent pas de module commun) — reconstitue
+// etat.cheminNoeuds (du plus haut au plus bas) à partir du seul id du niveau
+// le plus profond, stocké dans l'URL par synchroniserUrlNav().
+async function remonterAncetresNoeudNav(id) {
+  const chemin = [];
+  let n = id;
+  let garde = 0;
+  while (n && garde++ < 20) {
+    const { data: noeud } = await supabaseClient.from('noeuds_parcours').select('*').eq('id', n).single();
+    if (!noeud) break;
+    chemin.unshift(noeud);
+    n = noeud.parent_id;
+  }
+  return chemin;
 }
 
 (async function demarrer() {

@@ -56,8 +56,37 @@ const LIBELLES_STATUT_SEANCES = { brouillon: 'Brouillon', publie: 'Publié', arc
   seancesEpingleesIds = new Set((pins || []).map(p => p.seance_id));
 
   await chargerClassesAutorisees();
+
+  // Accès direct depuis une carte matière de pages/navigation.html
+  // (?classeId=X&champId=Y) : permet de sauter droit aux séances d'une
+  // matière sans repasser par Classes → Matière → Arborescence → SA. On ne
+  // retient classeId que s'il fait partie des classes autorisées pour ce
+  // rôle (sécurité + évite un sélecteur incohérent) ; champId est validé
+  // séparément une fois les matières de cette classe chargées (voir
+  // chargerChampsPourClasse), car il dépend de la classe.
+  const paramsUrlSea = new URLSearchParams(window.location.search);
+  const classeIdUrlSea = paramsUrlSea.get('classeId');
+  const champIdUrlSea = paramsUrlSea.get('champId');
+  if (classeIdUrlSea && classesAutoriseesSeances.some(c => String(c.id) === classeIdUrlSea)) {
+    filtresSeances.classeId = classeIdUrlSea;
+    if (champIdUrlSea) filtresSeances.champId = champIdUrlSea;
+  }
+
   afficherPageSeances();
 })();
+
+// Reflète classe/matière choisies dans l'URL (remplace l'entrée d'historique
+// courante, sans recharger la page) — pour que l'épinglage d'en-tête
+// (js/entete-navigation.js, qui capture window.location.pathname+search au
+// moment du clic) retienne bien la bonne matière, et pour que le lien de
+// cette page reste partageable/rechargeable tel quel.
+function synchroniserUrlSeances() {
+  const params = new URLSearchParams();
+  if (filtresSeances.classeId) params.set('classeId', filtresSeances.classeId);
+  if (filtresSeances.champId) params.set('champId', filtresSeances.champId);
+  const nouvelle = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+  history.replaceState(null, '', nouvelle);
+}
 
 // --- Classes accessibles selon le rôle -------------------------------
 
@@ -123,6 +152,7 @@ function afficherPageSeances() {
           ${classesAutoriseesSeances.map(c => `<option value="${c.id}" ${String(c.id) === filtresSeances.classeId ? 'selected' : ''}>${echapperSea(c.nom)}</option>`).join('')}
         </select>` : ''}
       <select id="selectChampSea"><option value="">Choisir une matière…</option></select>
+      <button type="button" class="btn btn-discret" id="btnStructureSea" style="display:none">🗂️ Structure</button>
       <input type="search" id="rechercheSea" placeholder="Rechercher un titre…" value="${echapperSea(filtresSeances.recherche)}">
       ${roleSeances === 'admin' ? `
         <select id="selectStatutSea">
@@ -142,6 +172,8 @@ function afficherPageSeances() {
       </label>
     </div>
 
+    <div id="panneauStructureSea" class="panneau-structure-champ" style="display:none;margin-bottom:14px"></div>
+
     <div id="zoneListeSea" class="chargement">Choisissez une matière pour voir ses séances.</div>
   `;
 
@@ -150,6 +182,7 @@ function afficherPageSeances() {
       filtresSeances.classeId = e.target.value;
       filtresSeances.champId = '';
       await chargerChampsPourClasse();
+      synchroniserUrlSeances();
       rafraichirListeSea();
     });
   }
@@ -159,7 +192,75 @@ function afficherPageSeances() {
   const selectStatut = document.getElementById('selectStatutSea');
   if (selectStatut) selectStatut.addEventListener('change', (e) => { filtresSeances.statut = e.target.value; rafraichirListeSea(); });
 
-  chargerChampsPourClasse().then(() => rafraichirListeSea());
+  // Structure de la matière choisie : chargée à la demande (voir
+  // construireHtmlStructureSea), mise en cache dans le panneau tant que la
+  // matière ne change pas (mettreAJourBoutonStructureSea invalide le cache).
+  document.getElementById('btnStructureSea').addEventListener('click', async () => {
+    const panneau = document.getElementById('panneauStructureSea');
+    if (!panneau) return;
+    const ouvert = panneau.style.display !== 'none';
+    if (ouvert) { panneau.style.display = 'none'; return; }
+    panneau.style.display = 'block';
+    if (panneau.dataset.charge === '1') return;
+    panneau.innerHTML = '<p class="chargement" style="margin:8px 0 0">Chargement de la structure...</p>';
+    panneau.innerHTML = await construireHtmlStructureSea(filtresSeances.classeId, filtresSeances.champId);
+    panneau.dataset.charge = '1';
+  });
+
+  chargerChampsPourClasse().then(() => { synchroniserUrlSeances(); rafraichirListeSea(); });
+}
+
+// Affiche/masque le bouton "Structure" selon qu'une matière est sélectionnée,
+// et invalide le panneau (et son cache) dès que la matière change — sinon on
+// risquerait d'afficher la structure de l'ancienne matière après un
+// changement de sélection.
+function mettreAJourBoutonStructureSea() {
+  const bouton = document.getElementById('btnStructureSea');
+  const panneau = document.getElementById('panneauStructureSea');
+  if (!bouton || !panneau) return;
+  bouton.style.display = filtresSeances.champId ? 'inline-flex' : 'none';
+  if (panneau.dataset.champId !== filtresSeances.champId) {
+    panneau.style.display = 'none';
+    panneau.innerHTML = '';
+    delete panneau.dataset.charge;
+    panneau.dataset.champId = filtresSeances.champId || '';
+  }
+}
+
+// Structure complète d'une matière (Thème/Unité/Semaine/Dossier/... puis SA)
+// sous forme de liste indentée — même principe que
+// construireHtmlStructureChamp() dans js/pages/navigation.js, dupliqué ici
+// (pas de module partagé entre les deux pages) car les deux vivent dans des
+// contextes différents (etat.classe.id côté navigation, filtresSeances côté
+// ici).
+async function construireHtmlStructureSea(classeId, champId) {
+  const { data: noeuds } = await supabaseClient.from('noeuds_parcours').select('id, parent_id, ordre, titre, type_noeud')
+    .eq('classe_id', classeId).eq('champ_formation_id', champId).order('ordre');
+  const idsNoeuds = (noeuds || []).map(n => n.id);
+  const { data: sasBrut } = idsNoeuds.length
+    ? await supabaseClient.from('sa').select('id, noeud_id, ordre, titre, numero').in('noeud_id', idsNoeuds).order('ordre')
+    : { data: [] };
+
+  if (!noeuds || !noeuds.length) {
+    return '<p class="chargement" style="margin:8px 0 0">Rien à afficher pour l\'instant — cette matière est vide.</p>';
+  }
+
+  const enfantsParParent = {};
+  noeuds.forEach(n => { const cle = n.parent_id ?? 'racine'; (enfantsParParent[cle] ??= []).push(n); });
+  const saParNoeud = {};
+  (sasBrut || []).forEach(s => { (saParNoeud[s.noeud_id] ??= []).push(s); });
+  const ETIQUETTES_TYPE_SEA = { theme: 'Thème', unite: 'Unité', semaine: 'Semaine', dossier: 'Dossier', discipline: 'Discipline' };
+
+  function rendreNiveau(n, profondeur) {
+    const enfants = enfantsParParent[n.id] || [];
+    const sas = saParNoeud[n.id] || [];
+    return `<div class="ligne-structure-champ" style="padding-left:${profondeur * 16}px">📁 ${echapperSea(n.titre)} <span class="type-arbo">${ETIQUETTES_TYPE_SEA[n.type_noeud] || n.type_noeud}</span></div>` +
+      sas.map(s => `<div class="ligne-structure-champ" style="padding-left:${(profondeur + 1) * 16}px">📄 ${s.numero ? 'SA' + s.numero + ' — ' : ''}${echapperSea(s.titre)}</div>`).join('') +
+      enfants.map(e => rendreNiveau(e, profondeur + 1)).join('');
+  }
+
+  const racines = enfantsParParent['racine'] || [];
+  return `<div class="structure-champ-liste">${racines.map(r => rendreNiveau(r, 0)).join('')}</div>`;
 }
 
 async function chargerChampsPourClasse() {
@@ -169,10 +270,22 @@ async function chargerChampsPourClasse() {
 
   const select = document.getElementById('selectChampSea');
   if (!select) return;
+  // Un champId venu de l'URL (ou laissé d'une classe précédente) qui
+  // n'appartient pas à cette classe est ignoré plutôt que de laisser le
+  // sélecteur dans un état incohérent.
+  if (filtresSeances.champId && !champsAutorisesSeances.some(c => String(c.id) === filtresSeances.champId)) {
+    filtresSeances.champId = '';
+  }
   if (!filtresSeances.champId && champsAutorisesSeances.length === 1) filtresSeances.champId = String(champsAutorisesSeances[0].id);
   select.innerHTML = '<option value="">Choisir une matière…</option>' +
     champsAutorisesSeances.map(c => `<option value="${c.id}" ${String(c.id) === filtresSeances.champId ? 'selected' : ''}>${echapperSea(c.nom)}</option>`).join('');
-  select.addEventListener('change', (e) => { filtresSeances.champId = e.target.value; rafraichirListeSea(); });
+  select.addEventListener('change', (e) => {
+    filtresSeances.champId = e.target.value;
+    mettreAJourBoutonStructureSea();
+    synchroniserUrlSeances();
+    rafraichirListeSea();
+  });
+  mettreAJourBoutonStructureSea();
 }
 
 // --- Chargement + tri hiérarchique de la liste de séances ---------------
@@ -262,7 +375,7 @@ function rendreListeSea(liste) {
     <div class="ligne-seance-partagee">
       <div class="details-ligne-seance-partagee">
         <div class="titre-ligne-seance-partagee">
-          ${echapperSea(s.titre)}
+          <span class="texte-titre-seance-partagee">${echapperSea(s.titre)}</span>
           ${s.discipline ? `<span class="statut-pill" style="background:rgba(0,0,0,0.06)">${echapperSea(s.discipline)}</span>` : ''}
           ${s.titre_contenu ? `<span class="statut-pill" style="background:rgba(0,0,0,0.06)">🔖 ${echapperSea(s.titre_contenu)}</span>` : ''}
           ${roleSeances === 'admin' || roleSeances === 'autorite' ? `<span class="statut-pill statut-${s.statut}">${LIBELLES_STATUT_SEANCES[s.statut] || s.statut}</span>` : ''}

@@ -61,6 +61,26 @@ const PRESENTATION_CHAMPS_ELEVE = {
   afficherChamps();
 })();
 
+// Reflète l'état de navigation courant (champ/niveau/SA) dans l'URL, sans
+// recharger la page — cette page pilote toute sa navigation en mémoire
+// (etatMat), sans jamais toucher à l'URL une fois passée l'arrivée initiale
+// (voir le bloc ?champId=&noeudId=&saId= en haut de ce fichier). Résultat :
+// "📌 Épingler cette page" (js/entete-navigation.js), qui capture
+// window.location.pathname+search au moment du clic, capturait toujours
+// l'adresse d'arrivée (ou une adresse nue) — jamais l'endroit réellement
+// affiché après avoir cliqué plus loin dans l'arborescence. Appelée au
+// début de chacun des trois rendus d'écran (afficherChamps/afficherNiveau/
+// afficherSeancesListe), qui sont le point de passage unique de tout
+// changement de etatMat.
+function synchroniserUrlMat() {
+  const params = new URLSearchParams();
+  if (etatMat.champ) params.set('champId', etatMat.champ.id);
+  if (etatMat.cheminNoeuds.length) params.set('noeudId', etatMat.cheminNoeuds[etatMat.cheminNoeuds.length - 1].id);
+  if (etatMat.sa) params.set('saId', etatMat.sa.id);
+  const nouvelle = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+  history.replaceState(null, '', nouvelle);
+}
+
 // Remonte la chaîne parent_id d'un noeud jusqu'à la racine (voir la fonction
 // jumelle côté séance : eleve-seance.js#remonterCheminNoeudsEleve).
 async function remonterAncetresNoeudMat(id) {
@@ -107,6 +127,7 @@ function attacherFilAriane() {
 }
 
 async function afficherChamps() {
+  synchroniserUrlMat();
   const conteneur = document.getElementById('contenu');
   conteneur.innerHTML = filArianeMat([{ label: '🏠 Mes matières' }]) + '<div class="chargement">Chargement...</div>';
 
@@ -151,6 +172,7 @@ async function afficherChamps() {
 // les SA rattachées directement à ce niveau) — ou, quand cheminNoeuds est
 // vide, les niveaux racine de la matière choisie.
 async function afficherNiveau() {
+  synchroniserUrlMat();
   const conteneur = document.getElementById('contenu');
   const segments = segmentsArianeMat();
   conteneur.innerHTML = filArianeMat(segments) + '<div class="chargement">Chargement...</div>';
@@ -206,6 +228,7 @@ async function afficherNiveau() {
 }
 
 async function afficherSeancesListe() {
+  synchroniserUrlMat();
   const conteneur = document.getElementById('contenu');
   const segments = segmentsArianeMat();
   conteneur.innerHTML = filArianeMat(segments) + '<div class="chargement">Chargement...</div>';

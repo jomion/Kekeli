@@ -435,14 +435,15 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .note-essai-gratuit { font-size: 12px; color: #B8860B; background: #FFF8E1; border-radius: 6px; padding: 6px 10px; display: inline-block; margin-bottom: 8px; }
 .entete-seance-eleve { background: white; border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border-left: 5px solid var(--bleu-kekeli); }
 /* Fil d'ariane miniature (arborescence complète : classe > matière >
-   thème/unité/semaine/dossier... > SA > séance) — seul endroit où le titre
-   de la séance apparaît désormais ; le grand titre en double a été retiré,
-   remplacé par la discipline mise en avant ci-dessous. */
+   thème/unité/semaine/dossier... > SA > séance), suivi du titre de la séance
+   en grand puis de la discipline (le titre prime sur la discipline dans
+   l'en-tête — voir js/pages/eleve-seance.js). */
 .miniature-arborescence-eleve { font-size: 12px; color: var(--text-gris); line-height: 1.5; }
 .miniature-arborescence-eleve a { color: var(--bleu-kekeli); text-decoration: none; font-weight: 700; }
 .miniature-arborescence-eleve a:hover { text-decoration: underline; }
 .miniature-arborescence-eleve .sep-arbo-eleve { color: var(--text-gris); }
-.badge-discipline-seance { display: inline-block; font-size: 17px; font-weight: 800; padding: 5px 14px; border-radius: 20px; margin-top: 8px; background: #F1F5F9; color: var(--bleu-kekeli); }
+.titre-seance-eleve { font-size: 24px; font-weight: 800; color: var(--bleu-kekeli); margin: 6px 0 4px; line-height: 1.25; }
+.badge-discipline-seance { display: inline-block; font-size: 15px; font-weight: 800; padding: 4px 12px; border-radius: 20px; margin-top: 2px; background: #F1F5F9; color: var(--bleu-kekeli); }
 .badge-palier-seance { display: inline-block; font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 20px; margin-top: 6px; }
 .badge-palier-azovi { background: #E8F8EF; color: #22A559; }
 .badge-palier-devi { background: #EBF5FB; color: #3498DB; }
@@ -513,6 +514,14 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .bouton-acceder-champ { background: var(--bleu-kekeli); color: white; font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 6px; border: none; display: inline-flex; align-items: center; gap: 4px; }
 .grille-champs { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; align-items: stretch; }
 
+/* Panneau "Structure" déplié sous une carte champ (pages/navigation.html) :
+   liste indentée Thème/Unité/.../SA, chargée à la demande — voir
+   basculerPanneauStructureChamp() dans js/pages/navigation.js. */
+.panneau-structure-champ { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--bordure); max-height: 260px; overflow-y: auto; cursor: default; }
+.structure-champ-liste { font-size: 13px; }
+.ligne-structure-champ { padding: 3px 0; color: var(--text-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ligne-structure-champ .type-arbo { font-size: 10px; color: var(--text-gris); background: var(--bg-light); padding: 1px 7px; border-radius: 8px; margin-left: 6px; }
+
 .titre-cycle { font-size: 18px; font-weight: 800; color: var(--bleu-kekeli); border-bottom: 2px solid var(--bordure); padding-bottom: 8px; margin: 34px 0 20px; }
 .titre-cycle:first-of-type { margin-top: 10px; }
 .grille-classes { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 22px; }
@@ -561,7 +570,12 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
   background: var(--blanc); border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 .details-ligne-seance-partagee { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.titre-ligne-seance-partagee { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.titre-ligne-seance-partagee { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* Le titre de la séance doit ressortir nettement plus que les badges
+   (discipline, repère, statut) à côté de lui sur la même ligne — demande
+   explicite : mettre le titre "plus en avant", sans regrouper les lignes
+   par SA (juste ce texte-là, sur sa propre ligne). */
+.texte-titre-seance-partagee { font-weight: 800; font-size: 17px; color: var(--bleu-kekeli); }
 .chemin-ligne-seance-partagee { font-size: 12px; color: var(--text-gris); }
 .actions-ligne-seance-partagee { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .bouton-epingler-sea { background: none; border: 1px solid var(--bordure); border-radius: 50%; width: 34px; height: 34px; font-size: 15px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: background .15s, border-color .15s; }

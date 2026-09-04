@@ -1,92 +1,98 @@
-KEKELI — Livraison : Titre du contenu, section "Contenu" masquée, consigne
-par question, et nouveaux types d'exercices (Association / QCM à réponses
-multiples / Classement)
-============================================================================
+KEKELI — Livraison du 4 septembre 2026
+========================================
 
-Cette livraison contient UNIQUEMENT les fichiers modifiés ou ajoutés depuis
-la dernière livraison (« chemin complet dans le tableau de bord admin »).
-Pour installer : copiez chaque fichier de ce zip à l'emplacement identique
-dans votre projet (mêmes dossiers), en écrasant l'ancien fichier.
+Ce zip contient uniquement les fichiers créés ou modifiés dans ce lot de
+correctifs/améliorations. Tout le reste de ton site n'a pas bougé.
 
-Les changements de base de données (nouvelle colonne, fonction de
-correction) ont déjà été appliqués directement sur le serveur — rien à
-faire de votre côté pour cette partie, c'est déjà en ligne.
+Pour l'installer : copie chaque fichier à l'endroit exact indiqué par son
+chemin dans le zip (il remplace le fichier existant du même nom, sauf les
+deux fichiers neufs qui s'ajoutent).
 
+Fichiers NOUVEAUX :
+- pages/admin/gestion-seances.html
+- js/pages/admin-gestion-seances.js
 
-1. NOUVEAU CHAMP « Titre du contenu »
---------------------------------------
-Dans l'éditeur de séance, à côté du champ « Discipline », un nouveau champ
-texte libre « Titre du contenu (repère pour les listes et l'IA) » a été
-ajouté. Il sert de repère indépendant du titre de la séance et permet de
-retrouver facilement de quoi parle une séance dans les listes — il
-s'affiche désormais (précédé d'un 🔖) dans la liste des séances vue par
-les élèves/enseignants/parents ET dans le tableau de bord administrateur.
-Il pourra aussi servir de point d'ancrage pour un futur assistant IA.
+Fichiers MODIFIÉS :
+- pages/admin/tableau-de-bord.html
+- js/pages/admin-tableau-de-bord.js
+- js/navigation-config.js
+- js/pages/navigation.js
+- js/pages/seances.js
+- js/pages/eleve-matiere.js
+- js/pages/eleve-seance.js
+- js/pages/editeur-seance.js
+- js/editeur/blocs.js
+- css/style.css
+- css/style-public.css
 
-2. SECTION « Titre » RENOMMÉE EN « Contenu » ET MASQUÉE PAR DÉFAUT
---------------------------------------------------------------------
-Le bloc auparavant appelé « Titre » s'appelle maintenant « Contenu » dans
-l'éditeur. Son propre texte (le repère interne) est désormais masqué par
-défaut à l'affichage — aussi bien dans l'aperçu élève de l'éditeur que
-dans la vraie page vue par l'élève. Seul le contenu placé À L'INTÉRIEUR de
-cette section (les autres blocs qu'elle contient) reste visible : c'est
-bien la section elle-même qui ne s'affiche plus, pas son contenu.
+----------------------------------------
+CE QUI A CHANGÉ, EN CLAIR
+----------------------------------------
 
-Vous pouvez toujours rendre ce texte visible à nouveau pour un bloc
-donné via la case « Titre visible » si besoin.
+1) L'aperçu de l'éditeur ressemble maintenant exactement à la vraie page
+   élève
+   Quand tu cliques sur "Aperçu" dans l'éditeur de séance, ce que tu vois
+   est désormais rigoureusement identique à ce que voit l'élève sur la
+   vraie page (mêmes blocs, même mise en page, même style). Avant, il y
+   avait des petites différences.
 
-3. LA SECTION « Contenu » N'ACCEPTE PLUS LES BLOCS D'EXERCICE
------------------------------------------------------------------
-Il n'est désormais plus possible de glisser-déposer ou d'ajouter un bloc
-Exercice, Quiz, Évaluation, Activité, Consigne ou Item À L'INTÉRIEUR d'une
-section « Contenu » — ces blocs restent réservés au niveau supérieur de la
-séance (ou dans une section « Consigne », qui n'est pas concernée par
-cette restriction). Ce contrôle est fait à trois niveaux (liste de choix,
-ajout direct, glisser-déposer) pour éviter toute erreur de structure.
-Le contenu déjà existant n'est pas modifié par ce changement — seuls les
-nouveaux ajouts sont concernés.
+2) Les blocs sont plus faciles à reconnaître dans l'éditeur
+   Dans la liste des blocs d'une séance (dans l'éditeur), chaque bloc
+   affiche maintenant une étiquette fixe qui indique clairement son type
+   (Exercice, Quiz, Contenu, etc.), même si tu as renommé le bloc. Avant,
+   renommer un bloc faisait disparaître l'indication de son type.
 
-4. CONSIGNE POUR CHAQUE QUESTION
--------------------------------------
-Chaque question, quel que soit son type (y compris « Texte à trous », qui
-en manquait), peut maintenant recevoir une consigne facultative affichée
-à l'élève (ex. : « Complète les mots manquants »). Ce champ est visible
-et modifiable directement sous l'énoncé de la question dans l'éditeur.
+3) Le titre de la séance apparaît avant la matière
+   Sur la page de la séance vue par l'élève, le titre de la séance
+   s'affiche maintenant avant le badge de la matière (discipline),
+   comme demandé.
 
-5. NOUVEAUX TYPES D'EXERCICE (à la place d'Association/Devinette
-   initialement envisagés — Devinette a été annulée, remplacée par deux
-   types mieux adaptés à la correction automatique de vocabulaire)
-------------------------------------------------------------------------
+4) Le réglage "seuil de réussite" est masqué pour les exercices sans
+   palier
+   Dans l'éditeur, quand un exercice n'a pas de palier associé, le champ
+   "seuil de réussite (%)" est maintenant caché — il redevient un simple
+   bloc de contenu, sans réglage superflu à remplir. Rien ne change pour
+   les exercices qui ont un palier : ils gardent leur configuration
+   complète. (C'est un changement d'affichage uniquement : aucune donnée
+   n'a été supprimée en base.)
 
-  • Association (relier des paires) : l'enseignant saisit des paires
-    (élément de gauche / élément de droite). L'élève voit la colonne de
-    gauche dans l'ordre, et doit choisir dans un menu déroulant l'élément
-    correspondant de droite (mélangé aléatoirement à chaque affichage du
-    corrigé). La bonne réponse n'est jamais visible dans les données
-    envoyées à l'élève.
+5) Nouvelle page "Gestion des séances", séparée du tableau de bord
+   La recherche, les filtres et la liste des séances à éditer ont été
+   retirés du tableau de bord admin et déplacés dans une page dédiée,
+   accessible via le menu ("Gestion des séances") ou depuis la nouvelle
+   carte sur le tableau de bord. Le tableau de bord lui-même est
+   maintenant plus léger : il garde seulement les tâches à surveiller et
+   les raccourcis vers les autres pages.
 
-  • QCM à réponses multiples : comme un QCM classique, mais l'élève peut
-    cocher plusieurs bonnes réponses (cases à cocher au lieu de boutons
-    radio). Toutes les bonnes réponses doivent être cochées, et aucune
-    mauvaise, pour que la question soit comptée juste.
+6) Accès direct à une matière + aperçu de sa structure
+   Sur la page "Mes matières"/navigation ET en haut de la page "Séances",
+   chaque matière propose maintenant :
+   - un bouton "📌 Voir les séances" qui amène directement à la liste
+     des séances de cette matière, sans passer par tous les niveaux
+     intermédiaires ;
+   - un bouton "🗂️ Structure" qui déroule un aperçu de l'organisation
+     complète de la matière (unités, semaines, séances...) sans avoir à
+     y naviguer étape par étape.
 
-  • Classement (trier en catégories) : l'enseignant définit des
-    catégories (ex. : Nom / Verbe / Adjectif) et une liste de mots ; pour
-    chaque mot, il indique sa bonne catégorie. L'élève voit la liste des
-    mots et choisit, pour chacun, sa catégorie via un menu déroulant.
+7) Titre de chaque séance mis en avant sur la page "Séances"
+   Dans la liste des séances (page partagée "Séances"), le titre de
+   chaque séance est maintenant affiché en plus grand et en couleur, pour
+   être repéré d'un coup d'œil dans la liste.
 
-Ces trois types sont notés automatiquement (aucune intervention manuelle
-requise), comme les QCM ou les Vrai/Faux.
+8) Correction du bug d'épinglage (📌)
+   Le problème où épingler une page ajoutait des éléments à l'adresse
+   (URL) et rendait ensuite la page "introuvable" est corrigé. La cause :
+   certaines pages ne gardaient pas leur état (classe/matière/séance
+   affichée) synchronisé avec l'adresse du navigateur, donc l'adresse
+   copiée par l'épinglage était incomplète ou décalée. Toutes les pages
+   concernées (navigation, matière, séances) gardent maintenant leur
+   adresse à jour en permanence, donc une page épinglée continue de
+   fonctionner correctement même après un rechargement.
 
-Pour rappel : ces trois types, plus les corrections déjà en place pour
-QCM/Vrai-Faux/Réponse courte/Texte à trous/Remise en ordre, couvrent
-maintenant l'ensemble des formats de question notés automatiquement.
-
-
-NOTE TECHNIQUE (déjà en ligne, rien à installer)
---------------------------------------------------
-Le service de correction automatique (executé sur le serveur) a été mis à
-jour pour savoir corriger les trois nouveaux types de question
-(Association, QCM à réponses multiples, Classement). Ce changement est
-déjà actif — vos élèves peuvent utiliser ces nouveaux types de question
-dès maintenant, dans n'importe quelle séance ou devoir.
+----------------------------------------
+NOTES TECHNIQUES
+----------------------------------------
+- Aucun changement de base de données (schéma ou droits d'accès) n'a été
+  nécessaire pour ce lot : tout se joue côté site (HTML/CSS/JavaScript).
+- Le document de suivi du projet ("état des lieux") a été mis à jour en
+  conséquence.

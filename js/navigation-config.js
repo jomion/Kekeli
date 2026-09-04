@@ -58,7 +58,7 @@ const LIENS_PAR_ROLE = {
   admin: [
     { id: 'tableau-de-bord', href: 'tableau-de-bord.html', icone: '🏠', label: 'Tableau de bord', essentiel: true },
     { id: 'navigation-arbo', href: 'pages/navigation.html', racine: true, icone: '🌳', label: 'Arborescence', categorie: 'pedagogie' },
-    { id: 'editer-seance', href: 'tableau-de-bord.html#ancre-liste-seances', icone: '✏️', label: 'Éditer une séance', categorie: 'pedagogie' },
+    { id: 'editer-seance', href: 'gestion-seances.html', icone: '✏️', label: 'Gestion des séances', categorie: 'pedagogie' },
     { id: 'seances', href: 'pages/seances.html', racine: true, icone: '📌', label: 'Séances', categorie: 'pedagogie' },
     { id: 'activites', href: 'activites.html', icone: '✅', label: 'Corriger activités', categorie: 'pedagogie' },
     { id: 'devoirs-notes', href: 'devoirs-notes.html', icone: '📊', label: 'Devoirs & notes', categorie: 'pedagogie' },
