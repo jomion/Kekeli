@@ -400,6 +400,7 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .bloc-lecture img { max-width: 100%; border-radius: 8px; display: block; margin: 0 0 8px; }
 .bloc-lecture table { border-collapse: collapse; width: 100%; }
 .bloc-lecture table td { border: 1px solid var(--bordure); padding: 6px; }
+.bloc-lecture table th { border: 1px solid var(--bordure); padding: 6px; background: #F1F5F9; font-weight: 700; text-align: left; }
 /* Le contenu riche (texte/définition/exemple...) vient de l'éditeur admin :
    selon comment il a été saisi ou collé, il peut porter ses propres marges
    ou indentations. On les neutralise pour qu'il reste toujours aligné avec

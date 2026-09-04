@@ -1168,19 +1168,26 @@ async function lancerGenerationActiviteIA(bloc, nombre, instructions) {
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Génération en cours...'; }
   try {
     const contexteSeance = texteContextePourActiviteIA(bloc);
+    // Questions déjà présentes dans CE bloc (générées avant, à un palier
+    // éventuellement différent, ou saisies à la main) : transmises comme
+    // liste à ne pas reproduire, pour que régénérer (y compris à un autre
+    // palier) ne redonne pas des questions déjà posées — voir le prompt
+    // côté serveur (edge function assistant-ia, action genererActivite).
+    const questionsExistantes = Array.isArray(bloc.contenu && bloc.contenu.questions) ? bloc.contenu.questions : [];
+    const enoncesExistants = questionsExistantes.map(q => (q && q.enonce) || '').filter(Boolean);
     // Réponse en forme { questions, fournisseur } (pas { texte }) : on passe
     // par appelerAssistantIABlocs, comme la génération groupée "genererSeance"
     // (voir invoquerAssistantIA plus bas dans ce fichier).
     const resultat = await appelerAssistantIABlocs({
       action: 'genererActivite', typeBloc: bloc.type_bloc, palier: bloc.palier,
       consigne: (bloc.contenu && bloc.contenu.consigne) || '', contexteSeance, nombre, instructions,
+      questionsExistantes: enoncesExistants,
       classe: chaineNavigation?.classeNom, champ: chaineNavigation?.champNom
     });
     const questionsRecues = Array.isArray(resultat.questions) ? resultat.questions : [];
 
     const { data: corrigeRow } = await supabaseClient.from('corriges_exercices').select('corrige').eq('bloc_id', bloc.id).maybeSingle();
     const corrige = (corrigeRow && corrigeRow.corrige) || {};
-    const questionsExistantes = Array.isArray(bloc.contenu && bloc.contenu.questions) ? bloc.contenu.questions : [];
     const nouvellesQuestions = [];
 
     questionsRecues.forEach((qBrute, i) => {
@@ -1385,7 +1392,13 @@ function texteBrutDepuisHtml(html) {
 //   (input/textarea, ex. Titre, Consigne, l'énoncé d'un exercice), qui ne
 //   savent pas interpréter ces balises et les afficheraient telles quelles.
 
-const BALISES_HTML_AUTORISEES_IA = new Set(['STRONG', 'B', 'EM', 'I', 'U', 'MARK', 'SPAN', 'UL', 'OL', 'LI', 'BR', 'P']);
+// TABLE/THEAD/TBODY/TR/TH/TD : ajoutés pour permettre à l'IA de produire de
+// vrais tableaux (ex. conjugaison, comparaison) — voir la fonction "contexte"
+// de l'edge function assistant-ia, qui autorise maintenant explicitement ces
+// balises. Le rendu élève sait déjà les styler (voir .bloc-lecture table
+// dans css/style-public.css, utilisé aussi par les blocs "tableau" saisis à
+// la main par l'admin).
+const BALISES_HTML_AUTORISEES_IA = new Set(['STRONG', 'B', 'EM', 'I', 'U', 'MARK', 'SPAN', 'UL', 'OL', 'LI', 'BR', 'P', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD']);
 
 function markdownResiduelleVersHtml(texte) {
   return (texte || '')
@@ -1442,7 +1455,7 @@ function markdownVersHtml(texte) {
   // quelle au parseur HTML plutôt que de la découper ligne par ligne, ce qui
   // la fragmenterait à tort (ex. un <ul>...</ul> réparti sur plusieurs lignes).
   let html;
-  if (/<\/?(ul|ol|li|p)\b/i.test(converti)) {
+  if (/<\/?(ul|ol|li|p|table|thead|tbody|tr|th|td)\b/i.test(converti)) {
     html = converti;
   } else {
     const lignes = converti.split(/\n+/).map(l => l.trim()).filter(Boolean);
