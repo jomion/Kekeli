@@ -237,6 +237,15 @@ async function afficherSeancesListe() {
     p_eleve_id: profilEleveMat.id, p_sa_id: etatMat.sa.id
   });
 
+  // Le look premium (voir css/theme-premium-eleve.css) remplace cette liste
+  // par la mise en page "hero + onglets + filtres + panneau latéral" du
+  // modèle fourni — voir afficherSeancesListePremium ci-dessous. Le
+  // formatage gratuit garde exactement sa liste actuelle, inchangée.
+  if (document.body.classList.contains('theme-premium-actif')) {
+    await afficherSeancesListePremium(seances || [], segments);
+    return;
+  }
+
   conteneur.innerHTML = `
     ${filArianeMat(segments)}
     <div class="subject-header">
@@ -265,6 +274,142 @@ async function afficherSeancesListe() {
     </div>
   `;
   attacherFilAriane();
+}
+
+// ===== Look premium (aperçu) — écran principal du modèle fourni =====
+// Reprend exactement les mêmes données que afficherSeancesListe (RPC
+// etat_seances_sa) plus deux petites requêtes propres à ce panneau (badges
+// récents, dates pour la série) — aucune donnée inventée, aucun filtre
+// factice : recherche et tri fonctionnent réellement (client-side, sur la
+// liste déjà chargée) ; les filtres "semaine"/"type" n'ont pas d'équivalent
+// dans le modèle de données actuel et ne sont donc pas affichés plutôt que
+// de proposer un contrôle qui ne ferait rien.
+async function afficherSeancesListePremium(seances, segments) {
+  const conteneur = document.getElementById('contenu');
+
+  // Onglets "Unité" : les SA soeurs sous le même niveau de l'arborescence.
+  const { data: soeurs } = await supabaseClient.from('sa').select('id, titre, ordre').eq('noeud_id', etatMat.sa.noeud_id).order('ordre');
+
+  const total = seances.length;
+  const termines = seances.filter(s => s.termine).length;
+  const pct = total ? Math.round((termines / total) * 100) : 0;
+
+  const [{ data: badgesRecents }, { data: datesTerminees }] = await Promise.all([
+    supabaseClient.from('badges_eleves').select('badges(nom, icone)').eq('eleve_id', profilEleveMat.id).order('attribue_le', { ascending: false }).limit(4),
+    supabaseClient.from('seances_terminees').select('termine_le').eq('eleve_id', profilEleveMat.id)
+  ]);
+  const serieMat = calculerSerieJoursMat((datesTerminees || []).map(d => d.termine_le));
+  const badgesRecentsMat = (badgesRecents || []).filter(b => b.badges);
+  const infoChamp = PRESENTATION_CHAMPS_ELEVE[etatMat.champ.code] || {};
+
+  conteneur.innerHTML = `
+    ${filArianeMat(segments)}
+    <div class="prem-hero-matiere">
+      <div class="prem-hero-matiere-texte">
+        <h1>${echapper(etatMat.champ.nom)} — Explore, apprends et progresse !</h1>
+        <p>${echapper(etatMat.sa.titre)}${etatMat.sa.description ? ` — ${echapper(etatMat.sa.description)}` : ''}</p>
+      </div>
+      <div class="prem-hero-matiere-illustration">${infoChamp.icone || '📘'}</div>
+    </div>
+
+    ${soeurs && soeurs.length > 1 ? `<div class="prem-onglets-unite" id="premOngletsUnite">
+      ${soeurs.map(s => `<button type="button" class="prem-onglet-unite${s.id === etatMat.sa.id ? ' actif' : ''}" data-onglet-sa="${s.id}">${echapper(s.titre)}</button>`).join('')}
+    </div>` : ''}
+
+    <div class="prem-barre-filtres">
+      <input type="search" id="premRechercheMat" placeholder="🔍 Rechercher une séance...">
+      <select id="premTriSeancesMat">
+        <option value="ordre">Tri : ordre du parcours</option>
+        <option value="alpha">Tri : alphabétique</option>
+      </select>
+    </div>
+
+    <div class="prem-mise-en-page-liste">
+      <div class="prem-liste-seances" id="premListeSeancesMat">${htmlListeSeancesPremium(seances)}</div>
+      <div class="prem-panneau-lateral">
+        <div class="prem-carte-panneau">
+          <h3>Mon progrès en ${echapper(etatMat.champ.nom)}</h3>
+          <div class="prem-donut" style="background:conic-gradient(var(--prem-primaire) ${pct * 3.6}deg, var(--prem-primaire-clair) 0deg)">
+            <div class="prem-donut-centre"><div class="prem-donut-pct">${pct}%</div><div class="prem-donut-label">complété</div></div>
+          </div>
+          <div class="prem-stat-mini"><span>Séances terminées</span><strong>${termines}/${total}</strong></div>
+        </div>
+        <div class="prem-carte-panneau">
+          <h3>🏅 Mes badges récents</h3>
+          <div class="prem-badges-mini">
+            ${badgesRecentsMat.length ? badgesRecentsMat.map(b => `<span class="prem-badge-mini" title="${echapper(b.badges.nom)}">${echapper(b.badges.icone) || '🏅'}</span>`).join('') : '<p style="font-size:12px;color:var(--text-gris);margin:0">Pas encore de badge.</p>'}
+          </div>
+        </div>
+        <div class="prem-carte-panneau prem-carte-serie">
+          <h3>🔥 Garde le rythme !</h3>
+          <p style="margin:0;font-size:13px">${serieMat > 0 ? `${serieMat} jour${serieMat > 1 ? 's' : ''} consécutif${serieMat > 1 ? 's' : ''} !` : "Termine une séance aujourd'hui pour démarrer ta série !"}</p>
+        </div>
+        <div class="prem-carte-panneau prem-carte-aide">
+          <h3>Besoin d'aide ?</h3>
+          <p style="font-size:12px;color:var(--text-gris);margin:0">Demande à ton enseignant ou à un adulte.</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  attacherFilAriane();
+
+  if (soeurs && soeurs.length > 1) {
+    document.querySelectorAll('[data-onglet-sa]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const { data: saComplete } = await supabaseClient.from('sa').select('*').eq('id', btn.dataset.ongletSa).single();
+        if (saComplete) { etatMat.sa = saComplete; afficherSeancesListe(); }
+      });
+    });
+  }
+
+  const champRecherche = document.getElementById('premRechercheMat');
+  const selectTri = document.getElementById('premTriSeancesMat');
+  function reappliquerFiltresMat() {
+    const texte = (champRecherche.value || '').toLowerCase();
+    let liste = seances.filter(s => (s.titre || '').toLowerCase().includes(texte));
+    if (selectTri.value === 'alpha') liste = [...liste].sort((a, b) => a.titre.localeCompare(b.titre, 'fr'));
+    document.getElementById('premListeSeancesMat').innerHTML = htmlListeSeancesPremium(liste);
+  }
+  if (champRecherche) champRecherche.addEventListener('input', reappliquerFiltresMat);
+  if (selectTri) selectTri.addEventListener('change', reappliquerFiltresMat);
+}
+
+function htmlListeSeancesPremium(seances) {
+  return (seances || []).map((s, i) => {
+    const classeCarte = s.verrouille ? 'verrouille' : s.termine ? 'termine' : '';
+    const icone = s.verrouille ? '🔒' : s.termine ? '✅' : '▶️';
+    const boutonTexte = s.verrouille ? 'Verrouillé' : s.termine ? 'Revoir' : 'Commencer';
+    const bouton = s.verrouille
+      ? `<span class="prem-btn-commencer verrouille">${boutonTexte}</span>`
+      : `<a class="prem-btn-commencer ${s.termine ? 'termine' : ''}" href="seance.html?id=${s.id}">${boutonTexte}</a>`;
+    return `<div class="prem-carte-seance ${classeCarte}">
+      <div class="prem-carte-seance-numero">${icone}</div>
+      <div class="prem-carte-seance-corps">
+        <div class="prem-carte-seance-titre">Séance ${i + 1} — ${echapper(s.titre)}</div>
+        <div class="prem-tags-seance">
+          ${s.discipline ? `<span class="prem-tag">${echapper(s.discipline)}</span>` : ''}
+          ${s.termine ? `<span class="prem-tag vert">Terminée</span>` : ''}
+          ${s.verrouille ? `<span class="prem-tag orange">Verrouillée</span>` : ''}
+        </div>
+      </div>
+      ${bouton}
+    </div>`;
+  }).join('') || '<p style="color:var(--text-gris)">Aucune séance pour l\'instant.</p>';
+}
+
+function calculerSerieJoursMat(horodatages) {
+  if (!horodatages.length) return 0;
+  const jours = [...new Set(horodatages.map(h => new Date(h).toISOString().slice(0, 10)))].sort().reverse();
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+  const hier = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  if (jours[0] !== aujourdhui && jours[0] !== hier) return 0;
+  let serie = 1;
+  for (let i = 0; i < jours.length - 1; i++) {
+    const diff = (new Date(jours[i]) - new Date(jours[i + 1])) / 86400000;
+    if (diff === 1) serie++; else break;
+  }
+  return serie;
 }
 
 function echapper(v) {

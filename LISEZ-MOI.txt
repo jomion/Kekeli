@@ -1,98 +1,109 @@
-KEKELI — Livraison du 4 septembre 2026
-========================================
+KEKELI — Nouveau formatage PREMIUM de l'espace élève (aperçu)
+================================================================
 
-Ce zip contient uniquement les fichiers créés ou modifiés dans ce lot de
-correctifs/améliorations. Tout le reste de ton site n'a pas bougé.
+CE QUE ÇA FAIT
+---------------
+Un nouveau formatage visuel, calqué sur le modèle que tu as fourni (barre
+latérale, barre du haut avec recherche/étoiles/notifications/profil, cartes
+colorées, barre de navigation mobile en bas), s'ajoute à TOUT l'espace
+élève (accueil, tableau de bord, mes matières/séances, devoirs & notes,
+mes badges).
 
-Pour l'installer : copie chaque fichier à l'endroit exact indiqué par son
-chemin dans le zip (il remplace le fichier existant du même nom, sauf les
-deux fichiers neufs qui s'ajoutent).
+Le formatage ACTUEL (gratuit) n'a pas bougé d'un pixel : par défaut, tous
+les élèves continuent de voir exactement ce qu'ils voyaient avant. Le
+nouveau look premium ne s'affiche QUE pour un élève qui l'a activé lui-même
+dans Paramètres (⚙️ dans l'en-tête → nouvelle case "🎨 Essayer le nouveau
+look premium"). C'est un interrupteur temporaire, en attendant que le vrai
+système d'abonnement payant soit branché plus tard — pour l'instant,
+n'importe quel élève peut cocher la case pour voir l'aperçu, et la décocher
+pour revenir au look actuel à tout moment.
 
-Fichiers NOUVEAUX :
-- pages/admin/gestion-seances.html
-- js/pages/admin-gestion-seances.js
+CE QUI CHANGE VISUELLEMENT QUAND LE LOOK PREMIUM EST ACTIVÉ
+--------------------------------------------------------------
+- Une barre latérale colorée remplace le menu du haut (Tableau de bord,
+  Mes matières, Séances, Devoirs & notes, Mes badges, + "🎮 Jeux éducatifs",
+  "📈 Mes progrès", "❤️ Favoris").
+- Une barre du haut avec une recherche, un compteur "⭐", la cloche de
+  notifications (la vraie, inchangée), et le profil de l'élève (avatar,
+  prénom, classe).
+- Une barre de navigation en bas de l'écran sur mobile (Accueil / Parcours /
+  Jeux / Favoris / Profil).
+- Le tableau de bord et la liste des séances d'une matière ont une nouvelle
+  mise en page avec un panneau à droite (progression en donut, badges
+  récents, série de jours, aide) — sur le modèle exact de l'image fournie.
+- Toutes les autres pages (accueil, mes matières, mes badges, devoirs &
+  notes, et l'intérieur d'une séance/d'un devoir) gardent leur agencement
+  actuel mais avec des couleurs, arrondis et une police plus modernes et
+  ludiques.
 
-Fichiers MODIFIÉS :
-- pages/admin/tableau-de-bord.html
-- js/pages/admin-tableau-de-bord.js
-- js/navigation-config.js
-- js/pages/navigation.js
-- js/pages/seances.js
-- js/pages/eleve-matiere.js
-- js/pages/eleve-seance.js
-- js/pages/editeur-seance.js
-- js/editeur/blocs.js
-- css/style.css
-- css/style-public.css
+IMPORTANT — "Jeux éducatifs" est une vraie nouvelle page, pas juste un
+visuel : suite à ta précision en cours de travail ("jeux éducatif va
+représenter les différentes activités avec paliers"), ce lien ouvre une
+page qui liste, pour chaque palier (Azɔ̀ví/Dèví/Ògán/Axɔ́sú), les séances
+de la classe de l'élève qui contiennent une activité de ce palier, avec un
+bouton "🎮 Jouer" qui l'amène directement à la séance. Elle réutilise le
+moteur d'activités déjà en place — rien de nouveau à corriger ou gérer,
+c'est juste une nouvelle façon d'y accéder.
 
-----------------------------------------
-CE QUI A CHANGÉ, EN CLAIR
-----------------------------------------
+"📈 Mes progrès" et "❤️ Favoris", en revanche, restent pour l'instant de
+simples visuels (comme convenu) : ils portent une pastille "Bientôt" et ne
+font rien au clic, en attendant que ces fonctionnalités existent vraiment.
+Même chose pour le compteur "⭐" (aucun système de points/monnaie n'existe
+dans l'application) et la barre de recherche de la barre du haut.
 
-1) L'aperçu de l'éditeur ressemble maintenant exactement à la vraie page
-   élève
-   Quand tu cliques sur "Aperçu" dans l'éditeur de séance, ce que tu vois
-   est désormais rigoureusement identique à ce que voit l'élève sur la
-   vraie page (mêmes blocs, même mise en page, même style). Avant, il y
-   avait des petites différences.
+FICHIERS DE CETTE LIVRAISON
+----------------------------
+NOUVEAUX :
+- css/theme-premium-eleve.css → tout le style du nouveau look, chargé sur
+  chaque page élève mais SANS AUCUN EFFET tant que l'élève n'a pas activé
+  la case dans Paramètres.
+- js/theme-premium-eleve.js → construit la barre latérale/barre du haut/nav
+  mobile quand le look premium est actif.
+- pages/eleve/jeux-educatifs.html + js/pages/eleve-jeux-educatifs.js →
+  la nouvelle page "Jeux éducatifs" décrite ci-dessus.
 
-2) Les blocs sont plus faciles à reconnaître dans l'éditeur
-   Dans la liste des blocs d'une séance (dans l'éditeur), chaque bloc
-   affiche maintenant une étiquette fixe qui indique clairement son type
-   (Exercice, Quiz, Contenu, etc.), même si tu as renommé le bloc. Avant,
-   renommer un bloc faisait disparaître l'indication de son type.
+MODIFIÉS :
+- js/entete-navigation.js → détecte si le look premium est activé
+  (préférence stockée par élève) et construit soit l'en-tête classique
+  (comme avant, pour tout le monde par défaut et pour tous les autres
+  rôles), soit la nouvelle coquille premium.
+- js/pages/parametres.js + son affichage → ajoute la case à cocher
+  "🎨 Essayer le nouveau look premium", visible uniquement pour un élève.
+- js/pages/eleve-tableau-de-bord.js et js/pages/eleve-matiere.js → ajoutent
+  la nouvelle mise en page premium pour ces deux écrans (donut, panneau
+  latéral, onglets, recherche/tri) ; le rendu gratuit existant est
+  entièrement conservé tel quel, en parallèle.
+- pages/eleve/*.html (accueil, tableau de bord, mes matières, devoirs &
+  notes, mes badges, séance, devoir) → ajoutent simplement les deux
+  nouvelles balises (style + script) nécessaires au look premium.
 
-3) Le titre de la séance apparaît avant la matière
-   Sur la page de la séance vue par l'élève, le titre de la séance
-   s'affiche maintenant avant le badge de la matière (discipline),
-   comme demandé.
+CE QUI N'A PAS ÉTÉ TOUCHÉ (zéro risque)
+------------------------------------------
+Le contenu détaillé d'une séance ou d'un devoir (les exercices, quiz,
+corrections automatiques...) n'a reçu AUCUNE modification de code : seul le
+style visuel change (via le CSS), la logique de correction reste identique
+à 100 %. Le formatage gratuit — pages, styles, scripts existants — n'a
+strictement pas changé pour un élève qui n'active pas le nouveau look.
 
-4) Le réglage "seuil de réussite" est masqué pour les exercices sans
-   palier
-   Dans l'éditeur, quand un exercice n'a pas de palier associé, le champ
-   "seuil de réussite (%)" est maintenant caché — il redevient un simple
-   bloc de contenu, sans réglage superflu à remplir. Rien ne change pour
-   les exercices qui ont un palier : ils gardent leur configuration
-   complète. (C'est un changement d'affichage uniquement : aucune donnée
-   n'a été supprimée en base.)
+BASE DE DONNÉES (déjà en ligne, rien à faire de ton côté)
+-------------------------------------------------------------
+Une seule colonne a été ajoutée (immédiatement, via Supabase) :
+preferences_navigation.theme_premium (vrai/faux, par défaut faux). Elle
+stocke le choix de chaque élève entre le look gratuit et le look premium.
 
-5) Nouvelle page "Gestion des séances", séparée du tableau de bord
-   La recherche, les filtres et la liste des séances à éditer ont été
-   retirés du tableau de bord admin et déplacés dans une page dédiée,
-   accessible via le menu ("Gestion des séances") ou depuis la nouvelle
-   carte sur le tableau de bord. Le tableau de bord lui-même est
-   maintenant plus léger : il garde seulement les tâches à surveiller et
-   les raccourcis vers les autres pages.
+CE QUI RESTE À FAIRE PLUS TARD (hors de cette demande)
+------------------------------------------------------------
+- Le vrai système d'abonnement payant, qui décidera qui a le droit
+  d'activer le look premium (pour l'instant, n'importe quel élève peut le
+  faire lui-même dans Paramètres, volontairement, pour que tu puisses tout
+  visualiser dès maintenant).
+- Rendre "📈 Mes progrès" et "❤️ Favoris" réellement fonctionnels, et un
+  éventuel vrai système de points pour le "⭐", le jour où tu le souhaites.
 
-6) Accès direct à une matière + aperçu de sa structure
-   Sur la page "Mes matières"/navigation ET en haut de la page "Séances",
-   chaque matière propose maintenant :
-   - un bouton "📌 Voir les séances" qui amène directement à la liste
-     des séances de cette matière, sans passer par tous les niveaux
-     intermédiaires ;
-   - un bouton "🗂️ Structure" qui déroule un aperçu de l'organisation
-     complète de la matière (unités, semaines, séances...) sans avoir à
-     y naviguer étape par étape.
-
-7) Titre de chaque séance mis en avant sur la page "Séances"
-   Dans la liste des séances (page partagée "Séances"), le titre de
-   chaque séance est maintenant affiché en plus grand et en couleur, pour
-   être repéré d'un coup d'œil dans la liste.
-
-8) Correction du bug d'épinglage (📌)
-   Le problème où épingler une page ajoutait des éléments à l'adresse
-   (URL) et rendait ensuite la page "introuvable" est corrigé. La cause :
-   certaines pages ne gardaient pas leur état (classe/matière/séance
-   affichée) synchronisé avec l'adresse du navigateur, donc l'adresse
-   copiée par l'épinglage était incomplète ou décalée. Toutes les pages
-   concernées (navigation, matière, séances) gardent maintenant leur
-   adresse à jour en permanence, donc une page épinglée continue de
-   fonctionner correctement même après un rechargement.
-
-----------------------------------------
-NOTES TECHNIQUES
-----------------------------------------
-- Aucun changement de base de données (schéma ou droits d'accès) n'a été
-  nécessaire pour ce lot : tout se joue côté site (HTML/CSS/JavaScript).
-- Le document de suivi du projet ("état des lieux") a été mis à jour en
-  conséquence.
+COMMENT TESTER
+----------------
+1. Connecte-toi avec un compte élève.
+2. Va dans ⚙️ Paramètres (en haut de n'importe quelle page).
+3. Coche "🎨 Essayer le nouveau look premium (aperçu)".
+4. La page se recharge automatiquement avec le nouveau look. Décoche la
+   case à tout moment pour revenir au look actuel.

@@ -156,10 +156,15 @@ async function initEnteteNavigation(config) {
 
   let liensMasques = [];
   let raccourcisPerso = [];
+  let themePremiumActif = false;
   if (config.utilisateurId) {
     try {
-      const { data } = await supabaseClient.from('preferences_navigation').select('liens_masques, raccourcis').eq('utilisateur_id', config.utilisateurId).maybeSingle();
+      const { data } = await supabaseClient.from('preferences_navigation').select('liens_masques, raccourcis, theme_premium').eq('utilisateur_id', config.utilisateurId).maybeSingle();
       liensMasques = data?.liens_masques || [];
+      // Formatage premium (aperçu) — voir js/theme-premium-eleve.js. Ne
+      // s'applique qu'à l'espace élève ; les autres rôles gardent toujours
+      // l'en-tête classique, quoi qu'il arrive.
+      themePremiumActif = config.role === 'eleve' && !!data?.theme_premium;
       // Les raccourcis personnels (voir pages/parametres.html) sont stockés
       // avec un chemin relatif à la RACINE DU SITE (comme les liens
       // `racine: true` de js/navigation-config.js) : on les préfixe ici avec
@@ -195,6 +200,20 @@ async function initEnteteNavigation(config) {
   // et sans faire échouer quoi que ce soit si ça ne passe pas.
   if (config.role === 'eleve' && config.utilisateurId) {
     supabaseClient.from('eleves').update({ derniere_activite: new Date().toISOString() }).eq('id', config.utilisateurId).then(() => {}, () => {});
+  }
+
+  // Formatage premium (aperçu, réservé à l'espace élève) : délègue toute la
+  // construction du cadre (sidebar + barre du haut + nav mobile basse) à
+  // js/theme-premium-eleve.js, chargé uniquement sur les pages élève. Le
+  // <header> classique ci-dessous n'est alors jamais construit. Si le
+  // fichier n'est pas chargé (page non élève, ou script manquant), on
+  // retombe silencieusement sur l'en-tête classique — aucun risque de page
+  // cassée.
+  if (themePremiumActif && typeof construireShellPremiumEleve === 'function') {
+    document.body.classList.add('theme-premium-actif');
+    await construireShellPremiumEleve(config, liensVisibles);
+    if (typeof initBanniereSite === 'function') initBanniereSite(config.role);
+    return { premium: true };
   }
 
   header.classList.add('entete-kekeli');
@@ -262,4 +281,6 @@ async function initEnteteNavigation(config) {
   zone.querySelectorAll('a').forEach(a => a.addEventListener('click', fermerMenuMobile));
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermerMenuMobile(); });
   window.addEventListener('resize', () => { if (window.innerWidth > RUPTURE_MENU_MOBILE) fermerMenuMobile(); });
+
+  return { premium: false };
 }

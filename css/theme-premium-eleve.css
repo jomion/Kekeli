@@ -1,0 +1,352 @@
+/* ============================================================
+   KEKELI — Formatage PREMIUM de l'espace élève.
+   ============================================================
+   Chargé sur TOUTES les pages élève, mais entièrement scopé sous
+   `body.theme-premium-actif` (posée par js/entete-navigation.js quand
+   l'élève a activé "🎨 Essayer le nouveau look premium" dans Paramètres —
+   voir preferences_navigation.theme_premium). Sans cette classe, ce fichier
+   n'a AUCUN effet : le formatage gratuit (css/style-public.css) reste
+   inchangé pour tout le monde par défaut.
+
+   Structure ajoutée par js/theme-premium-eleve.js quand le thème est actif :
+     <aside class="prem-sidebar">...</aside>   (remplace la place de <header>)
+     <header class="prem-topbar">...</header>  (le même <header> du DOM, réécrit)
+     <div id="contenu">...</div>               (INCHANGÉ : chaque page continue
+                                                  à écrire son propre HTML ici —
+                                                  seules les classes existantes
+                                                  sont redessinées ci-dessous)
+     <nav class="prem-bottom-nav">...</nav>    (mobile uniquement)
+
+   Ce fichier NE TOUCHE JAMAIS aux classes hors de body.theme-premium-actif :
+   le thème gratuit garde exactement son apparence actuelle.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Quicksand:wght@500;600;700&display=swap');
+
+body.theme-premium-actif {
+  --prem-primaire: #6C5CE7;
+  --prem-primaire-fonce: #4B3AC7;
+  --prem-primaire-clair: #EFEBFF;
+  --prem-accent: #FF9F43;
+  --prem-rose: #FF6B9D;
+  --prem-vert: #22C55E;
+  --prem-jaune: #FFC93C;
+  --prem-bleu: #3498DB;
+  --prem-bg: #F6F4FF;
+  --prem-carte: #FFFFFF;
+  --prem-texte: #2D2A4A;
+  --prem-texte-gris: #8B87A8;
+  --prem-bordure: #EAE6FB;
+  --prem-ombre: 0 8px 24px rgba(108,92,231,0.12);
+  --prem-sidebar-largeur: 244px;
+  --prem-topbar-hauteur: 70px;
+
+  background: var(--prem-bg);
+  color: var(--prem-texte);
+  font-family: 'Quicksand', 'Segoe UI', sans-serif;
+  padding-top: var(--prem-topbar-hauteur);
+  padding-left: var(--prem-sidebar-largeur);
+}
+body.theme-premium-actif h1, body.theme-premium-actif h2, body.theme-premium-actif h3,
+body.theme-premium-actif .titre-seance-eleve, body.theme-premium-actif .titre-page-param {
+  font-family: 'Baloo 2', 'Segoe UI', sans-serif;
+}
+@media (max-width: 900px) {
+  body.theme-premium-actif { padding-left: 0; padding-bottom: 78px; }
+}
+
+/* ===== Barre latérale (sidebar) ===== */
+.prem-sidebar {
+  position: fixed; top: 0; left: 0; bottom: 0; width: var(--prem-sidebar-largeur); z-index: 520;
+  background: linear-gradient(180deg, #2A2154 0%, #1C1640 100%);
+  color: white; display: flex; flex-direction: column; padding: 22px 16px;
+  transition: transform .25s ease;
+}
+@media (max-width: 900px) {
+  .prem-sidebar { transform: translateX(-100%); width: min(80vw, 280px); }
+  .prem-sidebar.ouvert { transform: translateX(0); box-shadow: 12px 0 30px rgba(0,0,0,.35); }
+}
+.prem-sidebar-logo { display: flex; align-items: center; gap: 10px; font-family: 'Baloo 2', sans-serif; font-size: 19px; font-weight: 800; color: white; padding: 4px 8px 22px; }
+.prem-sidebar-logo img { height: 30px; width: auto; border-radius: 6px; }
+.prem-sidebar-nav { display: flex; flex-direction: column; gap: 4px; flex: 1; overflow-y: auto; }
+.prem-sidebar-lien {
+  display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 12px;
+  color: #C9C4EE; font-weight: 700; font-size: 14px; text-decoration: none; transition: background .15s, color .15s;
+}
+.prem-sidebar-lien .prem-sidebar-icone { font-size: 18px; width: 22px; text-align: center; flex-shrink: 0; }
+.prem-sidebar-lien:hover { background: rgba(255,255,255,0.08); color: white; }
+.prem-sidebar-lien.actif { background: var(--prem-primaire); color: white; box-shadow: 0 4px 14px rgba(108,92,231,0.45); }
+.prem-sidebar-lien.bientot { opacity: .55; cursor: default; }
+.prem-sidebar-lien.bientot:hover { background: none; color: #C9C4EE; }
+.prem-sidebar-pastille-bientot { margin-left: auto; font-size: 9px; font-weight: 800; background: rgba(255,255,255,0.14); color: #E4E1FF; padding: 2px 7px; border-radius: 10px; text-transform: uppercase; letter-spacing: .3px; }
+.prem-sidebar-pied { border-top: 1px solid rgba(255,255,255,0.12); padding-top: 14px; margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
+
+/* ===== Barre du haut (topbar) ===== */
+.prem-topbar {
+  position: fixed; top: 0; right: 0; left: var(--prem-sidebar-largeur); height: var(--prem-topbar-hauteur); z-index: 510;
+  background: var(--prem-carte); border-bottom: 1px solid var(--prem-bordure);
+  display: flex; align-items: center; gap: 16px; padding: 0 26px; box-shadow: 0 2px 12px rgba(108,92,231,0.05);
+}
+@media (max-width: 900px) { .prem-topbar { left: 0; padding: 0 14px; } }
+.prem-topbar-hamburger { display: none; background: none; border: none; font-size: 22px; cursor: pointer; color: var(--prem-primaire); flex-shrink: 0; }
+@media (max-width: 900px) { .prem-topbar-hamburger { display: block; } }
+.prem-topbar-recherche {
+  flex: 1; max-width: 360px; display: flex; align-items: center; gap: 8px; background: var(--prem-bg);
+  border: 1px solid var(--prem-bordure); border-radius: 30px; padding: 9px 16px; color: var(--prem-texte-gris); font-size: 13.5px;
+}
+.prem-topbar-recherche input { border: none; background: none; outline: none; font: inherit; color: var(--prem-texte); flex: 1; width: 0; }
+.prem-topbar-recherche input::placeholder { color: var(--prem-texte-gris); }
+.prem-topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+.prem-topbar-etoiles {
+  display: flex; align-items: center; gap: 6px; background: #FFF6E5; color: #B8720A; font-weight: 800; font-size: 13.5px;
+  padding: 7px 14px; border-radius: 20px; border: 1px solid #FCE3B0; cursor: default;
+}
+.prem-topbar-icone-btn {
+  background: var(--prem-bg); border: 1px solid var(--prem-bordure); color: var(--prem-primaire);
+  width: 38px; height: 38px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 16px; cursor: pointer; text-decoration: none; position: relative; transition: background .15s;
+}
+.prem-topbar-icone-btn:hover { background: var(--prem-primaire-clair); }
+.prem-topbar-profil { display: flex; align-items: center; gap: 10px; padding-left: 10px; border-left: 1px solid var(--prem-bordure); }
+.prem-topbar-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--prem-primaire-clair); display: flex; align-items: center; justify-content: center; font-size: 19px; flex-shrink: 0; }
+.prem-topbar-profil-texte { line-height: 1.25; }
+.prem-topbar-profil-nom { font-weight: 800; font-size: 13.5px; color: var(--prem-texte); }
+.prem-topbar-profil-classe { font-size: 11.5px; color: var(--prem-texte-gris); }
+@media (max-width: 640px) { .prem-topbar-recherche, .prem-topbar-profil-texte { display: none; } }
+
+/* Cloche de notifications réutilisée telle quelle (js/notifications.js) —
+   juste redessinée pour s'intégrer à la topbar claire au lieu du bandeau
+   sombre d'origine. */
+body.theme-premium-actif .cloche-notif { color: var(--prem-primaire); font-size: 17px; }
+body.theme-premium-actif .liste-notif { top: 130%; }
+
+/* ===== Nav mobile basse ===== */
+.prem-bottom-nav { display: none; }
+@media (max-width: 900px) {
+  .prem-bottom-nav {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 520; height: 68px;
+    background: var(--prem-carte); border-top: 1px solid var(--prem-bordure); box-shadow: 0 -4px 16px rgba(108,92,231,0.08);
+  }
+  .prem-bottom-nav a, .prem-bottom-nav span.prem-bottom-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    color: var(--prem-texte-gris); font-size: 10.5px; font-weight: 700; text-decoration: none;
+  }
+  .prem-bottom-nav .prem-bottom-icone { font-size: 19px; }
+  .prem-bottom-nav a.actif { color: var(--prem-primaire); }
+  .prem-bottom-nav .bientot { opacity: .5; }
+}
+.prem-sidebar-overlay { display: none; }
+@media (max-width: 900px) {
+  .prem-sidebar-overlay.visible { display: block; position: fixed; inset: 0; background: rgba(20,15,50,0.45); z-index: 515; }
+}
+
+/* ============================================================
+   Contenu (#contenu) — restylage des composants existants,
+   commun à toutes les pages élève.
+   ============================================================ */
+body.theme-premium-actif #contenu,
+body.theme-premium-actif .conteneur-tableau-bord,
+body.theme-premium-actif .welcome-container-eleve {
+  max-width: 1180px; margin: 26px auto; padding: 0 28px 40px;
+}
+
+/* --- Cartes génériques : bienvenue, actions, widgets --- */
+body.theme-premium-actif .carte-bienvenue,
+body.theme-premium-actif .welcome-card-eleve,
+body.theme-premium-actif .profile-card-eleve,
+body.theme-premium-actif .widget-eleve,
+body.theme-premium-actif .carte-action-tb,
+body.theme-premium-actif .action-card-eleve,
+body.theme-premium-actif .carte-champ-eleve,
+body.theme-premium-actif .carte-sa-eleve,
+body.theme-premium-actif .subject-header,
+body.theme-premium-actif .carte-mon-badge,
+body.theme-premium-actif .ligne-pub,
+body.theme-premium-actif .session-card-eleve {
+  background: var(--prem-carte); border-radius: 20px; box-shadow: var(--prem-ombre);
+  border: 1px solid var(--prem-bordure); border-top: none; border-left: none;
+}
+body.theme-premium-actif .carte-bienvenue { padding: 30px 34px; background: linear-gradient(120deg, var(--prem-primaire) 0%, #8B7BF0 100%); color: white; box-shadow: 0 14px 30px rgba(108,92,231,0.28); }
+body.theme-premium-actif .carte-bienvenue h1 { color: white; }
+body.theme-premium-actif .carte-bienvenue p { color: #EAE6FF; }
+body.theme-premium-actif .section-title-eleve { font-family: 'Baloo 2', sans-serif; color: var(--prem-texte); font-size: 20px; }
+
+body.theme-premium-actif .welcome-card-eleve { text-align: center; padding: 38px; border: none; background: linear-gradient(120deg, #FFDCA8 0%, #FFB199 100%); }
+body.theme-premium-actif .mascot-avatar-eleve { background: white; border: none; box-shadow: 0 10px 24px rgba(0,0,0,.12); }
+body.theme-premium-actif .streak-info-eleve { background: rgba(255,255,255,0.55); color: #B8460A; }
+body.theme-premium-actif .action-card-eleve { padding: 26px; }
+body.theme-premium-actif .action-card-eleve:hover { transform: translateY(-4px); border-color: var(--prem-primaire); box-shadow: 0 16px 30px rgba(108,92,231,0.2); }
+body.theme-premium-actif .action-title-eleve { color: var(--prem-primaire); font-family: 'Baloo 2', sans-serif; }
+body.theme-premium-actif .btn-start-eleve { border-radius: 30px; font-family: 'Baloo 2', sans-serif; }
+
+body.theme-premium-actif .profile-card-eleve { padding: 26px 30px; }
+body.theme-premium-actif .progress-bar-bg-eleve { background: var(--prem-primaire-clair); }
+body.theme-premium-actif .progress-bar-fill-eleve { background: linear-gradient(90deg, var(--prem-primaire), var(--prem-rose)); }
+
+body.theme-premium-actif .grille-actions-tb, body.theme-premium-actif .actions-grid-eleve { gap: 22px; }
+body.theme-premium-actif .carte-action-tb { padding: 26px; }
+body.theme-premium-actif .carte-action-tb h3 { font-family: 'Baloo 2', sans-serif; color: var(--prem-primaire); }
+body.theme-premium-actif .carte-action-tb:hover { transform: translateY(-4px); box-shadow: 0 16px 30px rgba(108,92,231,0.18); }
+body.theme-premium-actif .icone-action-tb { background: var(--prem-primaire-clair); width: 52px; height: 52px; border-radius: 16px; display: flex; align-items: center; justify-content: center; }
+
+body.theme-premium-actif .widget-eleve { padding: 20px 24px; }
+body.theme-premium-actif .stat-item-eleve { border-bottom-color: var(--prem-bordure); }
+body.theme-premium-actif .stat-item-eleve strong { color: var(--prem-primaire); }
+
+body.theme-premium-actif .grille-paliers-tb, body.theme-premium-actif .grille-paliers-eleve { gap: 18px; }
+body.theme-premium-actif .palier-card-tb, body.theme-premium-actif .palier-card-eleve {
+  border-radius: 18px; box-shadow: var(--prem-ombre); border-top-width: 6px; border-image: none;
+}
+body.theme-premium-actif .palier-card-tb.courant { box-shadow: 0 0 0 3px var(--prem-primaire), var(--prem-ombre); }
+
+/* --- Mes matières (grille champs / SA) --- */
+body.theme-premium-actif .grille-champs-eleve { gap: 20px; }
+body.theme-premium-actif .carte-champ-eleve { padding: 24px; }
+body.theme-premium-actif .carte-champ-eleve:hover { transform: translateY(-4px); border-color: var(--prem-primaire); box-shadow: 0 16px 30px rgba(108,92,231,0.18); }
+body.theme-premium-actif .icone-champ-eleve { background: var(--prem-primaire-clair); width: 54px; height: 54px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 26px; }
+body.theme-premium-actif .carte-sa-eleve:hover { border-left: none; box-shadow: 0 14px 26px rgba(108,92,231,0.18); }
+body.theme-premium-actif .fil-ariane-eleve a { color: var(--prem-primaire); }
+
+/* --- Hero de matière + onglets Unité (générés par le rendu premium JS) --- */
+.prem-hero-matiere {
+  border-radius: 22px; padding: 34px 38px; color: white; margin-bottom: 22px; position: relative; overflow: hidden;
+  background: linear-gradient(120deg, var(--prem-primaire) 0%, #8B7BF0 60%, var(--prem-rose) 130%);
+  display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+}
+.prem-hero-matiere-texte h1 { margin: 0 0 8px; font-size: 26px; }
+.prem-hero-matiere-texte p { margin: 0; color: #F0EDFF; font-size: 14px; max-width: 480px; }
+.prem-hero-matiere-illustration { font-size: 56px; opacity: .9; }
+.prem-onglets-unite { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+.prem-onglet-unite {
+  padding: 9px 18px; border-radius: 20px; background: var(--prem-carte); border: 1px solid var(--prem-bordure);
+  font-weight: 700; font-size: 13px; color: var(--prem-texte-gris); cursor: pointer;
+}
+.prem-onglet-unite.actif { background: var(--prem-primaire); color: white; border-color: var(--prem-primaire); }
+.prem-barre-filtres {
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; background: var(--prem-carte);
+  border: 1px solid var(--prem-bordure); border-radius: 16px; padding: 10px 14px;
+}
+.prem-barre-filtres select, .prem-barre-filtres input[type="search"] {
+  border: 1px solid var(--prem-bordure); border-radius: 10px; padding: 8px 12px; font-size: 13px; font-family: inherit;
+  background: var(--prem-bg); color: var(--prem-texte);
+}
+.prem-barre-filtres input[type="search"] { flex: 1; min-width: 160px; }
+.prem-barre-filtres select[disabled], .prem-barre-filtres input[readonly] { color: var(--prem-texte-gris); cursor: not-allowed; }
+
+/* --- Grille "liste de séances + panneau latéral" (mockup principal) --- */
+.prem-mise-en-page-liste { display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start; }
+@media (max-width: 1000px) { .prem-mise-en-page-liste { grid-template-columns: 1fr; } }
+
+.prem-liste-seances { display: flex; flex-direction: column; gap: 14px; }
+.prem-carte-seance {
+  display: flex; align-items: center; gap: 16px; background: var(--prem-carte); border-radius: 18px; padding: 16px 20px;
+  box-shadow: var(--prem-ombre); border: 1px solid var(--prem-bordure);
+}
+.prem-carte-seance.termine { opacity: .85; }
+.prem-carte-seance.verrouille { opacity: .6; background: #F4F2FC; }
+.prem-carte-seance-numero {
+  width: 46px; height: 46px; border-radius: 14px; background: var(--prem-primaire-clair); color: var(--prem-primaire);
+  display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; flex-shrink: 0;
+}
+.prem-carte-seance.termine .prem-carte-seance-numero { background: #E1FBEA; color: var(--prem-vert); }
+.prem-carte-seance-corps { flex: 1; min-width: 0; }
+.prem-carte-seance-titre { font-weight: 800; font-size: 15px; color: var(--prem-texte); font-family: 'Baloo 2', sans-serif; }
+.prem-carte-seance-repere { font-size: 12px; color: var(--prem-texte-gris); margin-top: 3px; }
+.prem-tags-seance { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.prem-tag {
+  font-size: 10.5px; font-weight: 800; padding: 3px 10px; border-radius: 20px; background: var(--prem-primaire-clair); color: var(--prem-primaire);
+  text-transform: uppercase; letter-spacing: .3px;
+}
+.prem-tag.vert { background: #E1FBEA; color: #0F9D48; }
+.prem-tag.orange { background: #FFF1DD; color: #B8720A; }
+.prem-carte-seance-epingle { background: none; border: none; font-size: 15px; cursor: pointer; color: var(--prem-texte-gris); flex-shrink: 0; }
+.prem-carte-seance-epingle.epinglee { color: var(--prem-accent); }
+.prem-btn-commencer {
+  flex-shrink: 0; border: none; border-radius: 24px; padding: 10px 20px; font-weight: 800; font-size: 13px; color: white;
+  background: var(--prem-primaire); text-decoration: none; display: inline-block; font-family: 'Baloo 2', sans-serif;
+}
+.prem-btn-commencer.termine { background: var(--prem-vert); }
+.prem-btn-commencer.verrouille { background: var(--prem-texte-gris); pointer-events: none; }
+
+/* --- Panneau latéral droit (progrès / badges / série / aide) --- */
+.prem-panneau-lateral { display: flex; flex-direction: column; gap: 16px; }
+.prem-carte-panneau { background: var(--prem-carte); border-radius: 18px; padding: 20px; box-shadow: var(--prem-ombre); border: 1px solid var(--prem-bordure); }
+.prem-carte-panneau h3 { margin: 0 0 14px; font-size: 15px; font-family: 'Baloo 2', sans-serif; color: var(--prem-texte); }
+.prem-donut {
+  width: 118px; height: 118px; border-radius: 50%; margin: 0 auto 14px; display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+.prem-donut-centre { width: 84px; height: 84px; border-radius: 50%; background: var(--prem-carte); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.prem-donut-pct { font-size: 20px; font-weight: 800; color: var(--prem-primaire); font-family: 'Baloo 2', sans-serif; }
+.prem-donut-label { font-size: 10px; color: var(--prem-texte-gris); }
+.prem-stat-mini { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--prem-texte-gris); padding: 5px 0; }
+.prem-stat-mini strong { color: var(--prem-texte); }
+.prem-badges-mini { display: flex; gap: 8px; flex-wrap: wrap; }
+.prem-badge-mini { width: 44px; height: 44px; border-radius: 12px; background: var(--prem-primaire-clair); display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.prem-carte-serie { background: linear-gradient(120deg, #FFB199 0%, var(--prem-accent) 100%); color: white; }
+.prem-carte-serie h3 { color: white; }
+.prem-carte-aide { text-align: center; }
+.prem-carte-aide a.prem-btn-commencer { width: 100%; box-sizing: border-box; margin-top: 10px; }
+
+/* --- Grille de badges --- */
+body.theme-premium-actif .grille-mes-badges { gap: 18px; }
+body.theme-premium-actif .carte-mon-badge { padding: 22px 16px; }
+body.theme-premium-actif .carte-mon-badge .icone-mon-badge { font-size: 44px; }
+
+/* --- Devoirs / notes --- */
+body.theme-premium-actif .ligne-pub { padding: 16px 20px; }
+body.theme-premium-actif .titre-section-pub { font-family: 'Baloo 2', sans-serif; color: var(--prem-texte); }
+body.theme-premium-actif .pastille-statut, body.theme-premium-actif .pastille-note { border-radius: 20px; }
+
+/* ============================================================
+   Page séance / devoir en détail — reskin des classes existantes,
+   AUCUN changement de logique JS (voir js/pages/eleve-seance.js et
+   js/pages/eleve-devoir-rendu.js, non modifiés).
+   ============================================================ */
+body.theme-premium-actif .entete-seance-eleve {
+  background: linear-gradient(120deg, var(--prem-primaire) 0%, #8B7BF0 100%); color: white; border: none; border-radius: 20px; padding: 22px 26px;
+}
+body.theme-premium-actif .titre-seance-eleve { color: white; }
+body.theme-premium-actif .miniature-arborescence-eleve, body.theme-premium-actif .miniature-arborescence-eleve .sep-arbo-eleve { color: #E4E1FF; }
+body.theme-premium-actif .miniature-arborescence-eleve a { color: white; text-decoration: underline; }
+body.theme-premium-actif .badge-discipline-seance { background: rgba(255,255,255,0.2); color: white; }
+body.theme-premium-actif .fil-ariane-eleve a { color: var(--prem-primaire); }
+
+body.theme-premium-actif .bloc-lecture {
+  background: var(--prem-carte); border-radius: 18px; box-shadow: var(--prem-ombre);
+  border-left: none !important; border: 1px solid var(--prem-bordure); padding: 20px 22px;
+}
+body.theme-premium-actif .bloc-lecture-titre { color: var(--prem-primaire) !important; font-family: 'Baloo 2', sans-serif; letter-spacing: 0; }
+body.theme-premium-actif .question-lecture { border-top-color: var(--prem-bordure); }
+body.theme-premium-actif .question-lecture input[type=text], body.theme-premium-actif .question-lecture textarea,
+body.theme-premium-actif .champ-trou, body.theme-premium-actif .activite-lecture textarea, body.theme-premium-actif .activite-lecture input {
+  border-radius: 12px; border-color: var(--prem-bordure);
+}
+body.theme-premium-actif .question-lecture input[type=text]:focus, body.theme-premium-actif .question-lecture textarea:focus {
+  outline: none; border-color: var(--prem-primaire); box-shadow: 0 0 0 3px var(--prem-primaire-clair);
+}
+body.theme-premium-actif .btn.btn-filled, body.theme-premium-actif .bouton-valider-exercice {
+  background: var(--prem-primaire); border-radius: 24px; font-family: 'Baloo 2', sans-serif;
+}
+body.theme-premium-actif .btn.btn-filled:hover { background: var(--prem-primaire-fonce); }
+body.theme-premium-actif .btn.btn-discret { background: var(--prem-primaire-clair); color: var(--prem-primaire); border-radius: 24px; }
+body.theme-premium-actif .recap-score { color: var(--prem-primaire); }
+body.theme-premium-actif .resultat-question.correct { background: #E1FBEA; border-left-color: var(--prem-vert); }
+body.theme-premium-actif .resultat-question.incorrect { background: #FFE9EE; border-left-color: var(--prem-rose); }
+body.theme-premium-actif .resultat-question.attente { background: #FFF6E0; border-left-color: var(--prem-jaune); }
+body.theme-premium-actif .acces-suspendu-exercice { background: #FFF1DD; border-left-color: var(--prem-accent); border-radius: 12px; }
+body.theme-premium-actif .note-essai-gratuit, body.theme-premium-actif .carte-note-activite { border-radius: 10px; }
+body.theme-premium-actif .badge-palier-seance { border-radius: 20px; }
+body.theme-premium-actif .liste-remise-en-ordre li { border-radius: 12px; border-color: var(--prem-bordure); }
+body.theme-premium-actif .fleches-ordre button { border-radius: 8px; }
+
+/* ============================================================
+   Devoir : même carte que bloc-lecture (rendreBlocTravailDevoir réutilise
+   déjà les classes ci-dessus) — rien à ajouter de spécifique.
+   ============================================================ */
+
+/* ============================================================
+   Interrupteur "look premium" — pages/parametres.html (thème neutre,
+   ne charge PAS ce fichier ; classes ci-dessous conservées pour mémoire
+   si un jour la page adopte elle aussi ce thème — actuellement inutilisées).
+   ============================================================ */

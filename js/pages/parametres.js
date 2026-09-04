@@ -14,6 +14,7 @@ let roleParametres = null; // clé dans LIENS_PAR_ROLE ('admin', 'eleve', 'paren
 let estSuperAdminParam = false;
 let liensMasquesActuels = [];
 let raccourcisActuelsParam = [];
+let themePremiumActuel = false; // aperçu du formatage premium (élève uniquement) — preferences_navigation.theme_premium
 
 (async function () {
   const { data: { session } } = await supabaseClient.auth.getSession();
@@ -51,9 +52,10 @@ let raccourcisActuelsParam = [];
     liens: liensAvecPrefixe(roleParametres, roleParametres + '/', { superAdmin: estSuperAdminParam })
   });
 
-  const { data: prefs } = await supabaseClient.from('preferences_navigation').select('liens_masques, raccourcis').eq('utilisateur_id', profilParametres.id).maybeSingle();
+  const { data: prefs } = await supabaseClient.from('preferences_navigation').select('liens_masques, raccourcis, theme_premium').eq('utilisateur_id', profilParametres.id).maybeSingle();
   liensMasquesActuels = prefs?.liens_masques || [];
   raccourcisActuelsParam = prefs?.raccourcis || [];
+  themePremiumActuel = !!prefs?.theme_premium;
 
   afficherPageParametres();
 })();
@@ -69,6 +71,19 @@ function afficherPageParametres() {
   document.getElementById('contenu').innerHTML = `
     <div class="titre-page-param">⚙️ Paramètres — Navigation</div>
     <div class="sous-titre-page-param">Choisissez les liens à masquer de votre en-tête pour le dégager et faciliter votre navigation. Le tableau de bord et les actions essentielles restent toujours accessibles.</div>
+
+    ${roleParametres === 'eleve' ? `
+    <div class="carte-param">
+      <h2>🎨 Nouveau look premium</h2>
+      <p class="desc-param">Essaie le nouveau formatage premium de ton espace (aperçu) — c'est temporaire, tu peux revenir au look actuel à tout moment en décochant la case ci-dessous.</p>
+      <div class="ligne-lien-param">
+        <label>
+          <input type="checkbox" id="caseThemePremium" ${themePremiumActuel ? 'checked' : ''}>
+          🎨 Essayer le nouveau look premium (aperçu)
+        </label>
+      </div>
+      <p class="message-param-succes" id="messageSuccesThemePremium" style="display:none">✅ Préférence enregistrée — recharge la page pour voir le changement.</p>
+    </div>` : ''}
 
     <div class="carte-param">
       <h2>Liens de mon en-tête (${LIBELLES_ROLE[roleParametres] || roleParametres})</h2>
@@ -109,6 +124,9 @@ function afficherPageParametres() {
     </div>
   `;
 
+  const caseThemePremium = document.getElementById('caseThemePremium');
+  if (caseThemePremium) caseThemePremium.addEventListener('change', enregistrerThemePremium);
+
   const form = document.getElementById('formParametresNav');
   if (form) form.addEventListener('submit', enregistrerParametresNav);
 
@@ -117,6 +135,23 @@ function afficherPageParametres() {
   });
   const formRaccourci = document.getElementById('formAjouterRaccourciParam');
   if (formRaccourci) formRaccourci.addEventListener('submit', ajouterRaccourciDepuisListeParam);
+}
+
+// Interrupteur "look premium" (aperçu) — voir js/theme-premium-eleve.js et
+// js/entete-navigation.js (le champ theme_premium détermine, à chaque
+// chargement de page, si l'élève voit l'en-tête classique ou la nouvelle
+// coquille premium). On recharge la page après l'enregistrement pour que le
+// changement soit visible immédiatement, plutôt que de reconstruire tout
+// l'en-tête en JavaScript à la volée.
+async function enregistrerThemePremium(e) {
+  const actif = e.target.checked;
+  const messageSucces = document.getElementById('messageSuccesThemePremium');
+  const { error } = await supabaseClient.from('preferences_navigation')
+    .upsert({ utilisateur_id: profilParametres.id, theme_premium: actif, maj_le: new Date().toISOString() });
+  if (error) { alert(error.message); e.target.checked = !actif; return; }
+  themePremiumActuel = actif;
+  if (messageSucces) messageSucces.style.display = 'block';
+  window.location.reload();
 }
 
 async function enregistrerRaccourcisParam(raccourcis) {

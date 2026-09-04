@@ -25,12 +25,16 @@ const LIBELLES_PALIER_TB = {
     nomClasse = classe?.nom || '';
   }
 
-  const [{ data: abonnements }, { data: niveauActuel }, { count: nbBadges }, { data: derniere }, { data: toutesDates }] = await Promise.all([
+  const [{ data: abonnements }, { data: niveauActuel }, { count: nbBadges }, { data: derniere }, { data: toutesDates }, { data: badgesRecentsIconesTb }] = await Promise.all([
     supabaseClient.from('abonnements_enseignant_eleve').select('*, enseignants(profils(prenom, nom))').eq('eleve_id', profil.id).eq('statut', 'accepte'),
     supabaseClient.rpc('niveau_agilite_actuel', { p_eleve_id: profil.id }),
     supabaseClient.from('badges_eleves').select('id', { count: 'exact', head: true }).eq('eleve_id', profil.id),
     supabaseClient.from('seances_terminees').select('seance_id, seances(titre)').eq('eleve_id', profil.id).order('termine_le', { ascending: false }).limit(1).maybeSingle(),
-    supabaseClient.from('seances_terminees').select('termine_le').eq('eleve_id', profil.id)
+    supabaseClient.from('seances_terminees').select('termine_le').eq('eleve_id', profil.id),
+    // Uniquement pour le panneau "Mes badges récents" du look premium (voir
+    // rendreContenuPremiumTB) — évite d'alourdir apercuBadgesTb (bulle au
+    // survol) qui n'a besoin que du nom.
+    supabaseClient.from('badges_eleves').select('badges(nom, icone)').eq('eleve_id', profil.id).order('attribue_le', { ascending: false }).limit(4)
   ]);
   const enseignantsSuivis = abonnements || [];
   const serie = calculerSerieJoursTB((toutesDates || []).map(d => d.termine_le));
@@ -70,7 +74,7 @@ const LIBELLES_PALIER_TB = {
     apercuDevoirsTb = (devoirsAVenirTb || []).map(d => `${d.titre} — ${new Date(d.date_limite).toLocaleDateString('fr-FR')}`);
   }
 
-  document.getElementById('contenu').innerHTML = `
+  const contenuCommunHaut = `
     <div class="profile-card-eleve">
       <h2 style="margin:0">👋 Content de te revoir, ${echapperTb(profil.prenom)} !</h2>
       <p style="color:var(--text-gris);margin:6px 0 0">${nomClasse ? `Classe : ${echapperTb(nomClasse)}` : ''}</p>
@@ -91,7 +95,77 @@ const LIBELLES_PALIER_TB = {
           <div style="font-size:12px;color:var(--text-gris)">${info.desc}${niveauActuel === code ? ' · Ton niveau actuel' : ''}</div>
         </a>`).join('')}
     </div>
+  `;
 
+  const carteMesCours = `
+    <a href="matiere.html" class="carte-action-tb disponible carte-apercu-hover" style="text-decoration:none;color:inherit">
+      <div class="icone-action-tb">📖</div>
+      <h3>Mes cours</h3>
+      <p>Découvrir les leçons de ta classe.</p>
+      ${bulleApercuHtml('Tes matières', apercuMatieresTb)}
+    </a>
+    <a href="badges.html" class="carte-action-tb disponible carte-apercu-hover" style="text-decoration:none;color:inherit;display:block">
+      <div class="icone-action-tb">🎯</div>
+      <h3>Mes badges</h3>
+      <p>Voir les badges que tu as obtenus.</p>
+      ${bulleApercuHtml('Tes derniers badges', apercuBadgesTb)}
+    </a>
+    <a href="devoirs-notes.html" class="carte-action-tb disponible carte-apercu-hover" style="text-decoration:none;color:inherit;display:block">
+      <div class="icone-action-tb">📊</div>
+      <h3>Mes notes et devoirs</h3>
+      <p>Voir mes devoirs à rendre et mes notes.</p>
+      ${bulleApercuHtml('Devoirs à venir', apercuDevoirsTb)}
+    </a>
+  `;
+
+  // Le look premium (voir css/theme-premium-eleve.css) remplace la colonne
+  // de droite "stat-item" par un panneau plus visuel (donut de progression,
+  // badges récents, série, aide) — même donnée déjà chargée ci-dessus,
+  // aucune requête supplémentaire. Le formatage gratuit garde exactement
+  // sa mise en page d'origine (dashboard-grid-eleve + widget-eleve).
+  const estPremiumTb = document.body.classList.contains('theme-premium-actif');
+  const badgesRecentsTb = (badgesRecentsIconesTb || []).filter(b => b.badges);
+
+  document.getElementById('contenu').innerHTML = estPremiumTb ? `
+    ${contenuCommunHaut}
+    <div class="prem-mise-en-page-liste">
+      <div>
+        <div class="widget-eleve">
+          <div class="section-title-eleve">👩‍🏫 Mes enseignants</div>
+          ${enseignantsSuivis.length ? `<ul style="color:var(--text-gris);padding-left:20px;margin:0">
+            ${enseignantsSuivis.map(a => `<li>${echapperTb(a.enseignants?.profils?.prenom || '')} ${echapperTb(a.enseignants?.profils?.nom || '')}</li>`).join('')}
+          </ul>` : `<p style="color:var(--text-gris);margin:0">Aucun enseignant ne te suit pour l'instant.</p>`}
+        </div>
+        <div class="grille-actions-tb">${carteMesCours}</div>
+      </div>
+      <div class="prem-panneau-lateral">
+        <div class="prem-carte-panneau">
+          <h3>Mon avancement</h3>
+          <div class="prem-donut" style="background:conic-gradient(var(--prem-primaire) ${progressionPct * 3.6}deg, var(--prem-primaire-clair) 0deg)">
+            <div class="prem-donut-centre"><div class="prem-donut-pct">${progressionPct}%</div><div class="prem-donut-label">complété</div></div>
+          </div>
+          <div class="prem-stat-mini"><span>Niveau d'agilité</span><strong>${niveauActuel ? LIBELLES_PALIER_TB[niveauActuel].nom : 'Azɔ̀ví'}</strong></div>
+          <div class="prem-stat-mini"><span>Badges obtenus</span><strong>${nbBadges || 0}</strong></div>
+        </div>
+        <div class="prem-carte-panneau">
+          <h3>🏅 Mes badges récents</h3>
+          <div class="prem-badges-mini">
+            ${badgesRecentsTb.length ? badgesRecentsTb.map(b => `<span class="prem-badge-mini" title="${echapperTb(b.badges.nom)}">${echapperTb(b.badges.icone) || '🏅'}</span>`).join('') : '<p style="font-size:12px;color:var(--text-gris);margin:0">Pas encore de badge — continue tes efforts !</p>'}
+          </div>
+        </div>
+        <div class="prem-carte-panneau prem-carte-serie">
+          <h3>🔥 Garde le rythme !</h3>
+          <p style="margin:0;font-size:13px">${serie > 0 ? `${serie} jour${serie > 1 ? 's' : ''} consécutif${serie > 1 ? 's' : ''} — continue comme ça !` : "Commence une séance aujourd'hui pour démarrer ta série !"}</p>
+        </div>
+        <div class="prem-carte-panneau prem-carte-aide">
+          <h3>Besoin d'aide ?</h3>
+          <p style="font-size:12px;color:var(--text-gris);margin:0 0 4px">Demande à ton enseignant ou à un adulte de la maison.</p>
+          ${derniere ? `<a href="seance.html?id=${derniere.seance_id}" class="prem-btn-commencer">▶️ Reprendre ma leçon</a>` : ''}
+        </div>
+      </div>
+    </div>
+  ` : `
+    ${contenuCommunHaut}
     <div class="dashboard-grid-eleve">
       <main>
         <div class="widget-eleve">
@@ -101,26 +175,7 @@ const LIBELLES_PALIER_TB = {
           </ul>` : `<p style="color:var(--text-gris);margin:0">Aucun enseignant ne te suit pour l'instant.</p>`}
         </div>
 
-        <div class="grille-actions-tb">
-          <a href="matiere.html" class="carte-action-tb disponible carte-apercu-hover" style="text-decoration:none;color:inherit">
-            <div class="icone-action-tb">📖</div>
-            <h3>Mes cours</h3>
-            <p>Découvrir les leçons de ta classe.</p>
-            ${bulleApercuHtml('Tes matières', apercuMatieresTb)}
-          </a>
-          <a href="badges.html" class="carte-action-tb disponible carte-apercu-hover" style="text-decoration:none;color:inherit;display:block">
-            <div class="icone-action-tb">🎯</div>
-            <h3>Mes badges</h3>
-            <p>Voir les badges que tu as obtenus.</p>
-            ${bulleApercuHtml('Tes derniers badges', apercuBadgesTb)}
-          </a>
-          <a href="devoirs-notes.html" class="carte-action-tb disponible carte-apercu-hover" style="text-decoration:none;color:inherit;display:block">
-            <div class="icone-action-tb">📊</div>
-            <h3>Mes notes et devoirs</h3>
-            <p>Voir mes devoirs à rendre et mes notes.</p>
-            ${bulleApercuHtml('Devoirs à venir', apercuDevoirsTb)}
-          </a>
-        </div>
+        <div class="grille-actions-tb">${carteMesCours}</div>
       </main>
 
       <aside>
