@@ -1053,14 +1053,31 @@ function texteContextePourActiviteIA(blocCible) {
   return texteListe(parNiveau);
 }
 
+// Le palier n'est plus vérifié EN AMONT (bouton désactivé tant qu'aucun
+// palier n'était choisi sur le bloc) : il est désormais demandé À CHAQUE
+// génération, dans la fenêtre elle-même — l'admin doit explicitement
+// confirmer (ou changer) le palier juste avant de lancer l'IA, ce qui force
+// l'IA à toujours recevoir un palier à jour, y compris pour une toute
+// première génération sur un bloc qui n'en avait pas encore. Le palier
+// choisi ici est aussi répercuté sur le bloc (même effet que le sélecteur
+// de palier de l'éditeur), pour rester cohérent avec le seuil de réussite,
+// la progression et les badges.
+const PALIERS_MODAL_IA = [
+  { valeur: 'azovi', label: '🌱 Azɔ̀ví (très facile)' },
+  { valeur: 'devi', label: '🪘 Dèví (moyen)' },
+  { valeur: 'ogan', label: '🦁 Ògán (difficile)' },
+  { valeur: 'axosu', label: '👑 Axɔ́sú (très difficile)' }
+];
+
 function ouvrirGenerationActiviteIA(bloc) {
-  if (!bloc.palier) {
-    alert("Choisis d'abord un palier pour ce bloc (Azɔ̀ví/Dèví/Ògán/Axɔ́sú) : l'IA adapte la difficulté des questions à ce palier.");
-    return;
-  }
   ouvrirModal({
     titre: "🧠 Générer des questions avec l'IA",
     champs: [
+      {
+        nom: 'palier', label: 'Palier de difficulté (obligatoire — l\'IA doit savoir pour quel niveau proposer les activités)',
+        type: 'select', valeur: bloc.palier || '',
+        options: [{ valeur: '', label: '— Choisis un palier —' }, ...PALIERS_MODAL_IA]
+      },
       { nom: 'nombre', label: 'Nombre de questions à générer', type: 'number', valeur: 5, placeholder: '5' },
       {
         nom: 'instructions', requis: false, type: 'textarea',
@@ -1069,8 +1086,14 @@ function ouvrirGenerationActiviteIA(bloc) {
       }
     ],
     texteValider: 'Générer',
-    onValider: ({ nombre, instructions }) => {
+    onValider: async ({ palier, nombre, instructions }) => {
+      if (!palier) { alert("Choisis un palier avant de générer."); return; }
       const n = Math.max(1, Math.min(12, parseInt(nombre, 10) || 5));
+      if (palier !== bloc.palier) {
+        bloc.palier = palier;
+        await supabaseClient.from('blocs_seance').update({ palier }).eq('id', bloc.id);
+        rendreListeBlocs();
+      }
       lancerGenerationActiviteIA(bloc, n, (instructions || '').trim());
     }
   });
@@ -1086,7 +1109,12 @@ function construireQuestionDepuisIA(qBrute, id) {
   const type = qBrute && typeof qBrute.type === 'string' ? qBrute.type : '';
   const enonce = (qBrute && typeof qBrute.enonce === 'string' ? qBrute.enonce : '').trim();
   if (!enonce) return { question: null };
-  const base = { id, type, enonce, consigne: '' };
+  // La consigne par question, optionnelle, est désormais générée par l'IA
+  // (surtout aux paliers 1-2, voir edge function assistant-ia) — avant, ce
+  // champ était toujours écrasé par '' ici, donc jamais transmis à l'élève
+  // même quand l'IA en proposait une. On la garde si l'IA en a fourni une.
+  const consigneIA = (qBrute && typeof qBrute.consigne === 'string' ? qBrute.consigne : '').trim().slice(0, 300);
+  const base = { id, type, enonce, consigne: consigneIA };
   const corrigeEntree = { points: 1 };
 
   if (type === 'qcm') {

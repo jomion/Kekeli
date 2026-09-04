@@ -406,7 +406,7 @@ function rendreChampQuestion(q, i) {
       idxTrou++;
       return `${morceau}<input type="text" class="champ-trou" data-trou-index="${idxTrou}" required style="width:110px;display:inline-block;margin:0 4px">`;
     }).join('');
-    return `<div class="question-lecture" data-question-trous="${echapper(q.id)}"><p class="question-enonce">${i + 1}. ${enonceAvecTrous}</p></div>`;
+    return `<div class="question-lecture" data-question-trous="${echapper(q.id)}"><p class="question-enonce">${i + 1}. ${enonceAvecTrous}</p>${q.consigne ? `<p class="consigne-question" style="font-size:13px;color:var(--text-gris)">${echapper(q.consigne)}</p>` : ''}</div>`;
   }
   if (q.type === 'remise_en_ordre') {
     const options = Array.isArray(q.options) ? q.options : [];
@@ -503,14 +503,27 @@ function attacherEcouteursListesOrdre(racine = document) {
   });
 }
 
+// Note/20 d'UNE activité, calculée à partir du pourcentage obtenu (score /
+// score_max) — demandé le 04/09/2026 : jusque-là, seul le pourcentage
+// (score/score_max) était affiché ; le devoir dans son ensemble avait bien
+// une note/20 (moyenne des pourcentages de tous ses blocs, voir
+// js/devoirs-notes-rendu.js), mais pas chaque activité individuellement.
+// Même formule que l'agrégat devoir, appliquée à un seul résultat : pas de
+// moyenne ici, juste ce pourcentage-là ramené sur 20.
+function noteSur20DepuisScore(score, scoreMax) {
+  if (!scoreMax || !Number.isFinite(score) || !Number.isFinite(scoreMax)) return null;
+  return Math.round((score / scoreMax) * 20 * 10) / 10;
+}
+
 function rendreResultatExercice(b, c, questions, reponse) {
   const details = reponse.details || {};
   const reponsesDonnees = reponse.reponses || {};
   const enAttente = reponse.statut === 'en_attente_ia';
+  const note20 = enAttente ? null : noteSur20DepuisScore(reponse.score, reponse.score_max);
 
   return `
     ${c.consigne ? `<p>${echapper(c.consigne)}</p>` : ''}
-    <div class="recap-score">${enAttente ? '⏳ En cours de correction par un enseignant' : `📊 Score : ${reponse.score} / ${reponse.score_max}`}${libelleMedaille(reponse.medaille, reponse.numero_essai)}</div>
+    <div class="recap-score">${enAttente ? '⏳ En cours de correction par un enseignant' : `📊 Score : ${reponse.score} / ${reponse.score_max}${note20 !== null ? ` (${note20}/20)` : ''}`}${libelleMedaille(reponse.medaille, reponse.numero_essai)}</div>
     ${questions.map((q, i) => {
       const d = details[q.id] || {};
       const classeResultat = d.correct === true ? 'correct' : d.correct === false ? 'incorrect' : 'attente';

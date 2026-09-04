@@ -16,7 +16,12 @@ const LIBELLES_REGLE_AUTO = {
   devoirs_rendus_a_temps: 'Nombre de devoirs rendus à temps ≥ seuil',
   devoirs_rendus_total: 'Nombre total de devoirs rendus ≥ seuil',
   moyenne_min: 'Moyenne générale (/20) ≥ seuil',
-  quiz_reussis: 'Nombre de quiz/exercices réussis (≥50%) ≥ seuil'
+  quiz_reussis: 'Nombre de quiz/exercices réussis (≥50%) ≥ seuil',
+  // Ces deux règles existaient déjà côté base (fonction evaluer_badges_auto)
+  // mais n'étaient pas proposées ici — corrigé le 04/09/2026, en même temps
+  // que la mise en place du catalogue de badges de départ (voir LISEZ-MOI).
+  paliers_franchis: 'Nombre de paliers franchis (bloc réussi dans une séance) ≥ seuil',
+  medailles_or_diamant: 'Nombre de médailles or/diamant (1er ou 2e essai) ≥ seuil'
 };
 
 async function init() {

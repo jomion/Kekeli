@@ -343,8 +343,8 @@ function html_editeurExercice(bloc, c) {
       </div>
       <div class="champ-ligne" style="gap:8px;flex-wrap:wrap">
         <button type="button" class="btn btn-discret" data-ajouter-question>+ Ajouter une question</button>
-        <button type="button" class="btn btn-discret" data-generer-activite-ia ${bloc.palier ? '' : 'disabled'}
-          title="${bloc.palier ? 'Générer des questions (avec leur corrigé) adaptées au palier choisi, à partir du contenu de la séance — le bloc reste en brouillon jusqu\'à relecture' : 'Choisis d\'abord un palier ci-dessus : l\'IA adapte la difficulté des questions à ce palier'}">
+        <button type="button" class="btn btn-discret" data-generer-activite-ia
+          title="Générer des questions (avec leur corrigé) — le palier est demandé/confirmé dans la fenêtre de génération ; le bloc reste en brouillon jusqu'à relecture">
           🧠 Générer des questions (IA)
         </button>
       </div>
