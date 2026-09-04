@@ -1,109 +1,147 @@
-KEKELI — Nouveau formatage PREMIUM de l'espace élève (aperçu)
-================================================================
+KEKELI — Livraison : paramétrage riche des paliers, palier obligatoire à la génération,
+consignes IA par question, note/20 par activité, badges, et lecture guidée par l'IA
+================================================================================================================
 
-CE QUE ÇA FAIT
----------------
-Un nouveau formatage visuel, calqué sur le modèle que tu as fourni (barre
-latérale, barre du haut avec recherche/étoiles/notifications/profil, cartes
-colorées, barre de navigation mobile en bas), s'ajoute à TOUT l'espace
-élève (accueil, tableau de bord, mes matières/séances, devoirs & notes,
-mes badges).
+Cette livraison répond à ton message avec les deux JSON de paramétrage et les 6 demandes qui
+l'accompagnaient. Je les reprends une par une.
 
-Le formatage ACTUEL (gratuit) n'a pas bougé d'un pixel : par défaut, tous
-les élèves continuent de voir exactement ce qu'ils voyaient avant. Le
-nouveau look premium ne s'affiche QUE pour un élève qui l'a activé lui-même
-dans Paramètres (⚙️ dans l'en-tête → nouvelle case "🎨 Essayer le nouveau
-look premium"). C'est un interrupteur temporaire, en attendant que le vrai
-système d'abonnement payant soit branché plus tard — pour l'instant,
-n'importe quel élève peut cocher la case pour voir l'aperçu, et la décocher
-pour revenir au look actuel à tout moment.
 
-CE QUI CHANGE VISUELLEMENT QUAND LE LOOK PREMIUM EST ACTIVÉ
---------------------------------------------------------------
-- Une barre latérale colorée remplace le menu du haut (Tableau de bord,
-  Mes matières, Séances, Devoirs & notes, Mes badges, + "🎮 Jeux éducatifs",
-  "📈 Mes progrès", "❤️ Favoris").
-- Une barre du haut avec une recherche, un compteur "⭐", la cloche de
-  notifications (la vraie, inchangée), et le profil de l'élève (avatar,
-  prénom, classe).
-- Une barre de navigation en bas de l'écran sur mobile (Accueil / Parcours /
-  Jeux / Favoris / Profil).
-- Le tableau de bord et la liste des séances d'une matière ont une nouvelle
-  mise en page avec un panneau à droite (progression en donut, badges
-  récents, série de jours, aide) — sur le modèle exact de l'image fournie.
-- Toutes les autres pages (accueil, mes matières, mes badges, devoirs &
-  notes, et l'intérieur d'une séance/d'un devoir) gardent leur agencement
-  actuel mais avec des couleurs, arrondis et une police plus modernes et
-  ludiques.
+1) PARAMÉTRAGE RICHE DES PALIERS POUR LA GÉNÉRATION D'ACTIVITÉS (ton premier JSON)
+-----------------------------------------------------------------------------------
+Important à savoir avant tout : suite à un changement technique de contexte (deux résumés de
+conversation successifs), le détail chiffré exact de ton premier JSON (les niveaux 1 à 5 par
+palier) ne m'est pas parvenu intact — seuls les noms des 4 paliers, les noms des champs
+(autonomie, guidage, complexité, transfert, raisonnement, procédure donnée/non donnée,
+justification demandée, situation nouvelle, types d'activités préférés, règle) et un exemple
+partiel m'ont été transmis.
 
-IMPORTANT — "Jeux éducatifs" est une vraie nouvelle page, pas juste un
-visuel : suite à ta précision en cours de travail ("jeux éducatif va
-représenter les différentes activités avec paliers"), ce lien ouvre une
-page qui liste, pour chaque palier (Azɔ̀ví/Dèví/Ògán/Axɔ́sú), les séances
-de la classe de l'élève qui contiennent une activité de ce palier, avec un
-bouton "🎮 Jouer" qui l'amène directement à la séance. Elle réutilise le
-moteur d'activités déjà en place — rien de nouveau à corriger ou gérer,
-c'est juste une nouvelle façon d'y accéder.
+Plutôt que d'inventer des chiffres au hasard en prétendant que ce sont les tiens, j'ai reconstruit,
+pour chacun des 4 paliers, un paramétrage complet et cohérent avec CES MÊMES dimensions et les
+noms de paliers que tu avais donnés (Découverte guidée / Manipulation guidée / Application
+autonome / Transfert et réinvestissement) : autonomie, guidage, complexité, transfert,
+raisonnement, familiarité du contexte, quantité d'information, nombre d'étapes max, notions
+nouvelles autorisées, procédure, justification, situation nouvelle, types d'activités préférés et
+règle de fond — tout est maintenant explicitement transmis à l'IA (avant, seul un paragraphe par
+palier existait). C'est déjà en ligne (assistant-ia, version 14) et bien plus précis qu'avant.
 
-"📈 Mes progrès" et "❤️ Favoris", en revanche, restent pour l'instant de
-simples visuels (comme convenu) : ils portent une pastille "Bientôt" et ne
-font rien au clic, en attendant que ces fonctionnalités existent vraiment.
-Même chose pour le compteur "⭐" (aucun système de points/monnaie n'existe
-dans l'application) et la barre de recherche de la barre du haut.
+Si tu avais des valeurs précises en tête pour un ou plusieurs de ces réglages, renvoie-moi
+simplement le JSON complet (ou juste les valeurs qui doivent changer) et je les applique
+immédiatement à la place de ma reconstruction — l'architecture est prête, il suffit de remplacer
+les valeurs dans PARAMETRES_PALIER (edge function).
 
-FICHIERS DE CETTE LIVRAISON
-----------------------------
-NOUVEAUX :
-- css/theme-premium-eleve.css → tout le style du nouveau look, chargé sur
-  chaque page élève mais SANS AUCUN EFFET tant que l'élève n'a pas activé
-  la case dans Paramètres.
-- js/theme-premium-eleve.js → construit la barre latérale/barre du haut/nav
-  mobile quand le look premium est actif.
-- pages/eleve/jeux-educatifs.html + js/pages/eleve-jeux-educatifs.js →
-  la nouvelle page "Jeux éducatifs" décrite ci-dessus.
 
-MODIFIÉS :
-- js/entete-navigation.js → détecte si le look premium est activé
-  (préférence stockée par élève) et construit soit l'en-tête classique
-  (comme avant, pour tout le monde par défaut et pour tous les autres
-  rôles), soit la nouvelle coquille premium.
-- js/pages/parametres.js + son affichage → ajoute la case à cocher
-  "🎨 Essayer le nouveau look premium", visible uniquement pour un élève.
-- js/pages/eleve-tableau-de-bord.js et js/pages/eleve-matiere.js → ajoutent
-  la nouvelle mise en page premium pour ces deux écrans (donut, panneau
-  latéral, onglets, recherche/tri) ; le rendu gratuit existant est
-  entièrement conservé tel quel, en parallèle.
-- pages/eleve/*.html (accueil, tableau de bord, mes matières, devoirs &
-  notes, mes badges, séance, devoir) → ajoutent simplement les deux
-  nouvelles balises (style + script) nécessaires au look premium.
+2) PALIER OBLIGATOIRE AU CLIC SUR "GÉNÉRER PAR IA"
+-----------------------------------------------------
+- Avant : le bouton "Générer des questions (IA)" restait grisé tant qu'aucun palier n'était
+  choisi sur le bloc, avec un simple message d'alerte.
+- Maintenant : le bouton est toujours cliquable, et la fenêtre de génération commence par un
+  sélecteur de palier obligatoire (pré-rempli avec le palier déjà choisi sur le bloc, si il y en
+  avait un). Impossible de lancer une génération sans confirmer explicitement le palier — l'IA
+  reçoit donc toujours le bon niveau, y compris pour une toute première génération sur un bloc qui
+  n'avait pas encore de palier. Le palier choisi dans la fenêtre est aussi appliqué au bloc
+  lui-même (comme si tu l'avais choisi dans le sélecteur habituel de l'éditeur).
 
-CE QUI N'A PAS ÉTÉ TOUCHÉ (zéro risque)
-------------------------------------------
-Le contenu détaillé d'une séance ou d'un devoir (les exercices, quiz,
-corrections automatiques...) n'a reçu AUCUNE modification de code : seul le
-style visuel change (via le CSS), la logique de correction reste identique
-à 100 %. Le formatage gratuit — pages, styles, scripts existants — n'a
-strictement pas changé pour un élève qui n'active pas le nouveau look.
 
-BASE DE DONNÉES (déjà en ligne, rien à faire de ton côté)
--------------------------------------------------------------
-Une seule colonne a été ajoutée (immédiatement, via Supabase) :
-preferences_navigation.theme_premium (vrai/faux, par défaut faux). Elle
-stocke le choix de chaque élève entre le look gratuit et le look premium.
+3) CONSIGNES OPTIONNELLES PAR QUESTION, GÉNÉRÉES PAR L'IA (surtout paliers 1 et 2)
+-------------------------------------------------------------------------------------
+- L'IA peut désormais ajouter, pour chaque question qu'elle génère, une petite consigne
+  complémentaire (1-2 phrases) affichée au-dessus de la question — une précision sur la démarche,
+  pas une reformulation de l'énoncé.
+- Pour les paliers 1 (Azɔ̀ví) et 2 (Dèví), l'IA est explicitement poussée à utiliser cette consigne
+  sur la plupart des questions, cohérent avec le niveau de guidage attendu à ces paliers. Pour les
+  paliers 3 et 4, elle reste possible mais rare, pour ne pas réduire l'autonomie attendue.
 
-CE QUI RESTE À FAIRE PLUS TARD (hors de cette demande)
-------------------------------------------------------------
-- Le vrai système d'abonnement payant, qui décidera qui a le droit
-  d'activer le look premium (pour l'instant, n'importe quel élève peut le
-  faire lui-même dans Paramètres, volontairement, pour que tu puisses tout
-  visualiser dès maintenant).
-- Rendre "📈 Mes progrès" et "❤️ Favoris" réellement fonctionnels, et un
-  éventuel vrai système de points pour le "⭐", le jour où tu le souhaites.
 
-COMMENT TESTER
-----------------
-1. Connecte-toi avec un compte élève.
-2. Va dans ⚙️ Paramètres (en haut de n'importe quelle page).
-3. Coche "🎨 Essayer le nouveau look premium (aperçu)".
-4. La page se recharge automatiquement avec le nouveau look. Décoche la
-   case à tout moment pour revenir au look actuel.
+4) AFFICHAGE DES CONSIGNES CHEZ LES ÉLÈVES — bug trouvé et corrigé
+-----------------------------------------------------------------------
+En creusant ton retour "ça ne s'affiche pas chez eux", j'ai trouvé la vraie cause : ce n'était pas
+un problème d'affichage (le code qui affiche la consigne aux élèves fonctionnait déjà bien pour
+la plupart des types de question), mais deux vrais bugs en amont :
+- Quand l'IA générait une question, l'éditeur écrasait systématiquement sa consigne par un champ
+  vide avant de l'enregistrer — donc même si l'IA en proposait une, elle ne partait jamais vers
+  l'élève. Corrigé : la consigne fournie par l'IA est maintenant conservée (c'est directement lié
+  au point 3 ci-dessus : sans ce correctif, la nouvelle consigne IA n'aurait servi à rien).
+- Pour les questions de type "texte à trous" uniquement, la consigne n'était jamais affichée à
+  l'élève, même quand elle était saisie à la main par un enseignant — un oubli dans le code
+  d'affichage. Corrigé, dans la séance et dans le devoir.
+
+
+5) NOTE/20 CALCULÉE À LA VALIDATION D'UNE ACTIVITÉ
+-------------------------------------------------------
+- Avant : à la validation d'une activité individuelle, seul le score en pourcentage était affiché
+  ("Score : 8 / 10"). La note/20 n'existait qu'au niveau de l'ensemble d'un devoir (moyenne de
+  tous les blocs).
+- Maintenant : chaque activité affiche aussi sa propre note/20, calculée directement à partir du
+  pourcentage obtenu sur CETTE activité (score/score_max × 20, arrondi au dixième) — ex :
+  "Score : 8 / 10 (16/20)". Visible dans la séance et dans le devoir. La note/20 globale du devoir
+  (moyenne sur tous les blocs) reste inchangée et continue d'exister en plus.
+
+
+6) BADGES — diagnostic et catalogue de départ
+--------------------------------------------------
+Diagnostic : "le badge ne fonctionne pas encore" n'était PAS un bug de code — j'ai vérifié en
+détail les 6 déclencheurs (triggers) et les fonctions qui attribuent les badges automatiquement :
+tout fonctionnait déjà correctement. Le vrai problème est plus simple : la table des badges était
+totalement vide. Aucun badge n'avait jamais été créé, donc il n'y avait tout simplement rien à
+attribuer, quel que soit le mérite des élèves.
+
+Ce que j'ai fait :
+- J'ai créé et activé, directement dans ta base (rien à faire de ton côté), un catalogue de départ
+  de 12 badges, deux niveaux (facile/ambitieux) pour chacune des 6 règles automatiques déjà
+  supportées par le système :
+    🕐 Ponctuel (5 devoirs à temps) / ⏰ Super ponctuel (15)
+    📚 Assidu (10 devoirs rendus au total) / 💪 Travailleur infatigable (30)
+    ⭐ Bonne moyenne (≥14/20) / 🌟 Excellence (≥16/20)
+    🧩 Quiz malin (10 quiz réussis ≥50%) / 🏆 Champion des quiz (30)
+    🪜 Grimpeur de paliers (5 paliers franchis) / 🗻 Maître des paliers (15)
+    🥇 Collectionneur de médailles (5 médailles or/diamant) / 💎 Légende de Kekeli (20)
+  Tu peux les modifier, les désactiver ou en créer d'autres à tout moment depuis la page Badges
+  de l'admin — rien n'est figé, c'est une proposition de départ pour que le système ne soit pas
+  vide.
+- J'ai aussi remarqué que la page d'administration des badges ne proposait que 4 des 6 règles
+  automatiques disponibles en base (il manquait "paliers franchis" et "médailles or/diamant" dans
+  le menu déroulant, alors qu'elles fonctionnaient déjà) — corrigé, tu peux maintenant créer tes
+  propres badges avec ces 2 règles en plus si tu le souhaites.
+- J'ai relancé l'évaluation automatique pour les élèves déjà inscrits, au cas où certains
+  auraient déjà mérité un badge avec ce nouveau catalogue : pour l'instant aucun n'atteint encore
+  un des seuils choisis (le premier seuil, 5 devoirs rendus à temps, est déjà notable) — c'est
+  normal avec peu d'historique, les badges s'attribueront automatiquement dès que les seuils
+  seront atteints, sans rien à faire de plus.
+
+
+7) GÉNÉRATION IA POUR LA "LECTURE" (ton second JSON, 4 items)
+-------------------------------------------------------------------
+J'ai ajouté 4 nouvelles "consignes" reconnues par l'IA lors d'une génération groupée (le bouton
+"🧠 Générer avec l'IA" existant, qui remplit plusieurs blocs à la fois) — pas de nouveau bouton ni
+de nouvelle fenêtre, la fonctionnalité existante devient capable de reconnaître ces 4 catégories.
+
+Comment structurer une séance de lecture pour en profiter :
+- Crée 4 sections "Consigne" (le type de bloc qui existe déjà) et renomme-les EXACTEMENT :
+  "Compréhension du texte", "Outils linguistiques", "Raisonnement et appréciation",
+  "Dépassement du texte" (le nom se modifie dans l'en-tête de chaque bloc, comme d'habitude).
+- Dans les 3 premières, ajoute 3 à 4 blocs "Item" (un item = une consigne) ; dans la dernière,
+  un seul bloc "Item".
+- Sélectionne tous ces blocs "Item" et lance "🧠 Générer avec l'IA" comme pour n'importe quelle
+  génération groupée : l'IA reconnaît automatiquement, à travers le nom de la section parente
+  (ou du bloc s'il a été renommé pareil), quelle catégorie générer, avec le bon niveau de
+  difficulté (1 à 4), les types de questions autorisés/interdits, la présence ou non d'une
+  justification demandée, et pour le dernier item une réponse développée de 3 à 4 phrases.
+
+Limite honnête à connaître : contrairement à la génération de QCM/vrai-faux/etc. (qui est
+strictement validée côté serveur), cette génération de lecture reste du texte libre par bloc,
+comme le reste de "Générer avec l'IA" — les contraintes du JSON (nombre de consignes, types
+autorisés, interdits...) sont fortement suggérées à l'IA dans le prompt, mais pas mécaniquement
+vérifiées avant enregistrement. Le résultat reste toujours en brouillon, à relire avant
+publication, comme d'habitude.
+
+
+CE QUI N'A PAS CHANGÉ
+----------------------
+- `git push` échoue toujours avec une erreur 403 — c'est normal et attendu dans cet environnement,
+  ce n'est pas un bug à corriger.
+- Cette archive ne contient QUE les fichiers modifiés depuis la dernière livraison
+  (kekeli-livraison-tableaux-paliers-ia.zip) : à décompresser par-dessus ton dossier de travail
+  existant.
+- Les changements de prompt IA sont déjà en ligne sur ton projet Supabase (fonction assistant-ia,
+  version 14) et les 12 badges de départ sont déjà créés en base — rien à déployer de ton côté
+  pour ces deux parties.
