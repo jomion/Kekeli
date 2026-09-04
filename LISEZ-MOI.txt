@@ -1,147 +1,160 @@
-KEKELI — Livraison : paramétrage riche des paliers, palier obligatoire à la génération,
-consignes IA par question, note/20 par activité, badges, et lecture guidée par l'IA
+KEKELI — Livraison : navigation admin, messagerie instantanée Premium, mises en avant
+d'affichage, masquage de classes, et champ sexe à l'inscription
 ================================================================================================================
 
-Cette livraison répond à ton message avec les deux JSON de paramétrage et les 6 demandes qui
-l'accompagnaient. Je les reprends une par une.
+Cette livraison répond à ton message listant 9 demandes. Je les reprends une par une,
+dans l'ordre où tu les as données.
 
 
-1) PARAMÉTRAGE RICHE DES PALIERS POUR LA GÉNÉRATION D'ACTIVITÉS (ton premier JSON)
------------------------------------------------------------------------------------
-Important à savoir avant tout : suite à un changement technique de contexte (deux résumés de
-conversation successifs), le détail chiffré exact de ton premier JSON (les niveaux 1 à 5 par
-palier) ne m'est pas parvenu intact — seuls les noms des 4 paliers, les noms des champs
-(autonomie, guidage, complexité, transfert, raisonnement, procédure donnée/non donnée,
-justification demandée, situation nouvelle, types d'activités préférés, règle) et un exemple
-partiel m'ont été transmis.
-
-Plutôt que d'inventer des chiffres au hasard en prétendant que ce sont les tiens, j'ai reconstruit,
-pour chacun des 4 paliers, un paramétrage complet et cohérent avec CES MÊMES dimensions et les
-noms de paliers que tu avais donnés (Découverte guidée / Manipulation guidée / Application
-autonome / Transfert et réinvestissement) : autonomie, guidage, complexité, transfert,
-raisonnement, familiarité du contexte, quantité d'information, nombre d'étapes max, notions
-nouvelles autorisées, procédure, justification, situation nouvelle, types d'activités préférés et
-règle de fond — tout est maintenant explicitement transmis à l'IA (avant, seul un paragraphe par
-palier existait). C'est déjà en ligne (assistant-ia, version 14) et bien plus précis qu'avant.
-
-Si tu avais des valeurs précises en tête pour un ou plusieurs de ces réglages, renvoie-moi
-simplement le JSON complet (ou juste les valeurs qui doivent changer) et je les applique
-immédiatement à la place de ma reconstruction — l'architecture est prête, il suffit de remplacer
-les valeurs dans PARAMETRES_PALIER (edge function).
+1) CHEMIN COMPLET CLIQUABLE DANS L'ÉDITEUR DE SÉANCE (ADMIN)
+------------------------------------------------------------------
+Avant : le fil d'ariane en haut de l'éditeur de séance sautait directement de la matière à
+la Situation d'Apprentissage (SA), sans les niveaux intermédiaires (Thème, Unité, Semaine,
+Dossier...) quand il y en avait.
+Maintenant : le chemin complet s'affiche, du niveau le plus haut (classe) jusqu'à la séance
+elle-même, EN PASSANT PAR chaque niveau intermédiaire réel — et chaque segment est cliquable,
+il te ramène directement à cet endroit précis de l'arborescence.
 
 
-2) PALIER OBLIGATOIRE AU CLIC SUR "GÉNÉRER PAR IA"
------------------------------------------------------
-- Avant : le bouton "Générer des questions (IA)" restait grisé tant qu'aucun palier n'était
-  choisi sur le bloc, avec un simple message d'alerte.
-- Maintenant : le bouton est toujours cliquable, et la fenêtre de génération commence par un
-  sélecteur de palier obligatoire (pré-rempli avec le palier déjà choisi sur le bloc, si il y en
-  avait un). Impossible de lancer une génération sans confirmer explicitement le palier — l'IA
-  reçoit donc toujours le bon niveau, y compris pour une toute première génération sur un bloc qui
-  n'avait pas encore de palier. Le palier choisi dans la fenêtre est aussi appliqué au bloc
-  lui-même (comme si tu l'avais choisi dans le sélecteur habituel de l'éditeur).
+2) DÉPLACER FACILEMENT UN BLOC D'UNE SECTION À UNE AUTRE
+---------------------------------------------------------------
+Le glisser-déposer existant est conservé (pratique pour réordonner des blocs proches), mais
+j'ai ajouté un nouveau bouton 📦 sur chaque bloc : « Déplacer vers... ». Il ouvre une petite
+fenêtre avec la liste de toutes les sections valides de la séance (+ « Racine, hors section »)
+— un clic suffit pour y déplacer le bloc, même s'il est loin dans une longue séance ou que tu
+es sur mobile. Les mêmes règles qu'avant s'appliquent (une section "Contenu" n'accepte toujours
+pas les exercices/quiz/évaluations/activités/consignes/items).
 
 
-3) CONSIGNES OPTIONNELLES PAR QUESTION, GÉNÉRÉES PAR L'IA (surtout paliers 1 et 2)
--------------------------------------------------------------------------------------
-- L'IA peut désormais ajouter, pour chaque question qu'elle génère, une petite consigne
-  complémentaire (1-2 phrases) affichée au-dessus de la question — une précision sur la démarche,
-  pas une reformulation de l'énoncé.
-- Pour les paliers 1 (Azɔ̀ví) et 2 (Dèví), l'IA est explicitement poussée à utiliser cette consigne
-  sur la plupart des questions, cohérent avec le niveau de guidage attendu à ces paliers. Pour les
-  paliers 3 et 4, elle reste possible mais rare, pour ne pas réduire l'autonomie attendue.
+3) LE TITRE DEVANT LES DISCIPLINES, DISCIPLINES MISES EN AVANT, SÉQUENCE DANS LE CHEMIN
+------------------------------------------------------------------------------------------------
+Suite à ta précision (« pas de miniature pour les séquences, plutôt mettre en avant les
+disciplines, la séquence passe dans le chemin ») :
+- Partout où une séance apparaît en liste (gestion des séances admin, page Séances partagée,
+  Mes matières côté élève), le TITRE de la séance s'affiche maintenant en premier, suivi d'une
+  pastille de discipline COLORÉE (une couleur stable par discipline, ex. toujours la même
+  teinte pour "Lecture") — nettement plus visible qu'avant (texte gris uni).
+- Le nom de la séquence (SA) n'apparaît plus comme un badge à côté du titre : il reste
+  seulement dans la ligne de chemin (ex. « CP › Français › Unité 2 › SA3 — Les fractions »),
+  cohérent avec ta demande de ne pas le mettre en avant.
+- Le thème "look premium" (côté élève) faisait déjà ça très bien (icône + couleur par
+  discipline) — je l'ai laissé tel quel, seul le formatage "classique" avait besoin du
+  rattrapage.
 
 
-4) AFFICHAGE DES CONSIGNES CHEZ LES ÉLÈVES — bug trouvé et corrigé
------------------------------------------------------------------------
-En creusant ton retour "ça ne s'affiche pas chez eux", j'ai trouvé la vraie cause : ce n'était pas
-un problème d'affichage (le code qui affiche la consigne aux élèves fonctionnait déjà bien pour
-la plupart des types de question), mais deux vrais bugs en amont :
-- Quand l'IA générait une question, l'éditeur écrasait systématiquement sa consigne par un champ
-  vide avant de l'enregistrer — donc même si l'IA en proposait une, elle ne partait jamais vers
-  l'élève. Corrigé : la consigne fournie par l'IA est maintenant conservée (c'est directement lié
-  au point 3 ci-dessus : sans ce correctif, la nouvelle consigne IA n'aurait servi à rien).
-- Pour les questions de type "texte à trous" uniquement, la consigne n'était jamais affichée à
-  l'élève, même quand elle était saisie à la main par un enseignant — un oubli dans le code
-  d'affichage. Corrigé, dans la séance et dans le devoir.
+4) UN SEUL CHAMP TITRE POUR LES SÉANCES
+--------------------------------------------
+Tu m'as laissé choisir lequel garder entre les deux titres possibles d'une séance — j'ai gardé
+`titre` (utilisé partout dans le site : listes, fil d'ariane, IA, aperçu élève...) et retiré
+`titre_contenu` (un champ optionnel ajouté plus tard, seulement éditable depuis l'éditeur de
+séance). Concrètement :
+- Le titre de la séance devient directement modifiable en haut de l'éditeur de séance (avant,
+  il fallait passer par le champ "Titre du contenu" séparé pour ajouter un repère — maintenant
+  c'est le titre principal qui joue ce rôle).
+- Le champ "Titre du contenu" et son badge 🔖 dans les listes ont disparu.
+- Rien n'est perdu en base (la colonne existe toujours, juste plus utilisée) — je n'ai pas fait
+  de suppression destructrice, au cas où tu voudrais revenir dessus.
 
 
-5) NOTE/20 CALCULÉE À LA VALIDATION D'UNE ACTIVITÉ
--------------------------------------------------------
-- Avant : à la validation d'une activité individuelle, seul le score en pourcentage était affiché
-  ("Score : 8 / 10"). La note/20 n'existait qu'au niveau de l'ensemble d'un devoir (moyenne de
-  tous les blocs).
-- Maintenant : chaque activité affiche aussi sa propre note/20, calculée directement à partir du
-  pourcentage obtenu sur CETTE activité (score/score_max × 20, arrondi au dixième) — ex :
-  "Score : 8 / 10 (16/20)". Visible dans la séance et dans le devoir. La note/20 globale du devoir
-  (moyenne sur tous les blocs) reste inchangée et continue d'exister en plus.
+5) INFOS SUPPLÉMENTAIRES SUR LES SÉANCES CÔTÉ ADMIN
+---------------------------------------------------------
+Dans la liste "Gestion des séances", chaque séance affiche maintenant :
+- ○ Vide (gris) si aucun bloc de contenu n'y a encore été ajouté, ou ● X blocs (vert) sinon —
+  pour repérer en un coup d'œil les séances encore à démarrer.
+- Les icônes des paliers déjà présents parmi ses blocs (🌱 Azɔ̀ví, 🪘 Dèví, 🦁 Ògán, 👑 Axɔ́sú),
+  dans l'ordre — pour voir immédiatement quels paliers restent à couvrir sans ouvrir la séance.
 
 
-6) BADGES — diagnostic et catalogue de départ
---------------------------------------------------
-Diagnostic : "le badge ne fonctionne pas encore" n'était PAS un bug de code — j'ai vérifié en
-détail les 6 déclencheurs (triggers) et les fonctions qui attribuent les badges automatiquement :
-tout fonctionnait déjà correctement. Le vrai problème est plus simple : la table des badges était
-totalement vide. Aucun badge n'avait jamais été créé, donc il n'y avait tout simplement rien à
-attribuer, quel que soit le mérite des élèves.
-
-Ce que j'ai fait :
-- J'ai créé et activé, directement dans ta base (rien à faire de ton côté), un catalogue de départ
-  de 12 badges, deux niveaux (facile/ambitieux) pour chacune des 6 règles automatiques déjà
-  supportées par le système :
-    🕐 Ponctuel (5 devoirs à temps) / ⏰ Super ponctuel (15)
-    📚 Assidu (10 devoirs rendus au total) / 💪 Travailleur infatigable (30)
-    ⭐ Bonne moyenne (≥14/20) / 🌟 Excellence (≥16/20)
-    🧩 Quiz malin (10 quiz réussis ≥50%) / 🏆 Champion des quiz (30)
-    🪜 Grimpeur de paliers (5 paliers franchis) / 🗻 Maître des paliers (15)
-    🥇 Collectionneur de médailles (5 médailles or/diamant) / 💎 Légende de Kekeli (20)
-  Tu peux les modifier, les désactiver ou en créer d'autres à tout moment depuis la page Badges
-  de l'admin — rien n'est figé, c'est une proposition de départ pour que le système ne soit pas
-  vide.
-- J'ai aussi remarqué que la page d'administration des badges ne proposait que 4 des 6 règles
-  automatiques disponibles en base (il manquait "paliers franchis" et "médailles or/diamant" dans
-  le menu déroulant, alors qu'elles fonctionnaient déjà) — corrigé, tu peux maintenant créer tes
-  propres badges avec ces 2 règles en plus si tu le souhaites.
-- J'ai relancé l'évaluation automatique pour les élèves déjà inscrits, au cas où certains
-  auraient déjà mérité un badge avec ce nouveau catalogue : pour l'instant aucun n'atteint encore
-  un des seuils choisis (le premier seuil, 5 devoirs rendus à temps, est déjà notable) — c'est
-  normal avec peu d'historique, les badges s'attribueront automatiquement dès que les seuils
-  seront atteints, sans rien à faire de plus.
+6) ICÔNES DE PALIERS POUR LES BADGES
+-------------------------------------------
+Suivant ta proposition, les deux badges liés à la progression par palier utilisent maintenant
+les vraies icônes de paliers plutôt que des icônes génériques :
+  🪘 Grimpeur de paliers (5 paliers franchis) — au lieu de 🪜
+  👑 Maître des paliers (15 paliers franchis) — au lieu de 🗻
+Déjà en ligne, rien à faire de ton côté.
 
 
-7) GÉNÉRATION IA POUR LA "LECTURE" (ton second JSON, 4 items)
--------------------------------------------------------------------
-J'ai ajouté 4 nouvelles "consignes" reconnues par l'IA lors d'une génération groupée (le bouton
-"🧠 Générer avec l'IA" existant, qui remplit plusieurs blocs à la fois) — pas de nouveau bouton ni
-de nouvelle fenêtre, la fonctionnalité existante devient capable de reconnaître ces 4 catégories.
+7) MESSAGERIE INSTANTANÉE — NOUVELLE FONCTIONNALITÉ PREMIUM
+--------------------------------------------------------------------
+C'est le plus gros morceau de cette livraison. Comme tu l'as validé, "Premium" combine les deux
+mécanismes qui existaient déjà séparément dans le code : le vrai système d'abonnement payant
+(jusqu'ici prêt mais inutilisé) ET le thème visuel "look premium" côté élève (jusqu'ici gratuit
+et sans lien avec un paiement) — les deux sont maintenant réunis sous UNE seule offre Premium.
 
-Comment structurer une séance de lecture pour en profiter :
-- Crée 4 sections "Consigne" (le type de bloc qui existe déjà) et renomme-les EXACTEMENT :
-  "Compréhension du texte", "Outils linguistiques", "Raisonnement et appréciation",
-  "Dépassement du texte" (le nom se modifie dans l'en-tête de chaque bloc, comme d'habitude).
-- Dans les 3 premières, ajoute 3 à 4 blocs "Item" (un item = une consigne) ; dans la dernière,
-  un seul bloc "Item".
-- Sélectionne tous ces blocs "Item" et lance "🧠 Générer avec l'IA" comme pour n'importe quelle
-  génération groupée : l'IA reconnaît automatiquement, à travers le nom de la section parente
-  (ou du bloc s'il a été renommé pareil), quelle catégorie générer, avec le bon niveau de
-  difficulté (1 à 4), les types de questions autorisés/interdits, la présence ou non d'une
-  justification demandée, et pour le dernier item une réponse développée de 3 à 4 phrases.
+Ce qui change :
+- TEMPS RÉEL partout : les messageries qui existaient déjà (parent ↔ enseignant, admin ↔
+  enseignant, admin ↔ administrateurs) sont passées en instantané — un message apparaît chez le
+  destinataire sans qu'il ait besoin de recharger la page. C'est une simple amélioration
+  technique, gratuite, disponible pour tout le monde comme avant.
+- DEUX NOUVELLES MESSAGERIES, réservées à l'offre Premium :
+    · Élève ↔ enseignant (l'élève peut maintenant écrire lui-même à l'enseignant qui le suit,
+      en plus de son parent — les trois participants partagent le même fil).
+    · Élève ↔ élève, entre camarades de la MÊME classe uniquement.
+- Pour un élève, écrire nécessite les DEUX conditions à la fois :
+    1. Un abonnement Premium actif pour lui ou sa famille (payant — voir ci-dessous).
+    2. L'autorisation explicite d'un parent, activable depuis son tableau de bord (nouveau
+       bouton "✨ Messagerie Premium" à côté de chaque enfant) — les deux réglages sont
+       indépendants et affichés séparément, pour que tu voies immédiatement lequel manque.
+  Si l'une des deux conditions manque, la page de messagerie de l'élève explique clairement
+  laquelle, plutôt que de simplement disparaître.
+- Par transparence, chaque message échangé ENTRE ÉLÈVES notifie aussi les parents des deux
+  côtés (en plus des deux élèves) — canal plus sensible qu'un échange avec un enseignant.
+- Le nouveau thème visuel premium (Paramètres, côté élève) est désormais réservé aux élèves
+  ayant un abonnement Premium actif — la case à cocher reste visible mais grisée/expliquée sinon
+  (elle ne se réactive pas automatiquement si l'abonnement expire pendant que l'élève est
+  ailleurs sur le site : la vérification se fait quand il revient sur la page Paramètres, pas en
+  continu sur chaque page — un compromis pour ne pas ralentir chaque chargement de page).
+- Tarification : j'ai créé UNE formule de départ, modifiable/supprimable depuis Abonnements
+  (admin) comme n'importe quelle autre formule : « Premium — Messagerie instantanée », 1000 XOF
+  / mois, par famille (couvre tous les enfants du foyer). C'est une proposition de départ, pas
+  un prix imposé — change-la à volonté depuis la page Abonnements, comme pour les autres
+  services.
+- Pas d'essai gratuit proposé pour ce service (contrairement à la correction IA, etc.) : ce
+  n'est pas un service "à l'usage", donc moins adapté au système d'essais existant. Dis-moi si
+  tu en veux un quand même, c'est un réglage rapide à ajouter.
 
-Limite honnête à connaître : contrairement à la génération de QCM/vrai-faux/etc. (qui est
-strictement validée côté serveur), cette génération de lecture reste du texte libre par bloc,
-comme le reste de "Générer avec l'IA" — les contraintes du JSON (nombre de consignes, types
-autorisés, interdits...) sont fortement suggérées à l'IA dans le prompt, mais pas mécaniquement
-vérifiées avant enregistrement. Le résultat reste toujours en brouillon, à relire avant
-publication, comme d'habitude.
+Limite honnête à connaître : la messagerie élève-élève est restreinte aux camarades de la MÊME
+classe (pas de messagerie inter-classes pour l'instant) — plus simple et plus sûr comme premier
+jet ; à élargir facilement si besoin.
+
+
+8) MASQUER UNE CLASSE POUR FACILITER UNE MISE À JOUR
+------------------------------------------------------------
+Chaque classe peut maintenant être masquée/affichée d'un clic (bouton 🙈/👁️ sur la page
+Arborescence — visible seulement pour l'admin, qui continue à voir aussi les classes masquées,
+signalées par un badge "🙈 Masquée"). Une classe masquée :
+- N'apparaît plus dans le catalogue public de classes (visiteurs, nouveaux élèves).
+- N'est plus proposée pour inscrire un nouvel enseignant ou un nouvel enfant.
+- MAIS reste pleinement accessible à qui y est déjà — un enseignant déjà accordé sur cette
+  classe, ou un élève déjà inscrit, continue à y accéder normalement : masquer sert à éviter que
+  de nouvelles personnes arrivent pendant une mise à jour, pas à couper l'accès à ceux qui
+  travaillent déjà dedans.
+
+Limite honnête à connaître : pour l'instant, seule une CLASSE ENTIÈRE peut être masquée — pas un
+contenu précis à l'intérieur (une unité ou une semaine en particulier). J'ai ajouté la même
+colonne technique sur les niveaux de l'arborescence pour préparer ça, mais je n'ai pas fini de la
+brancher partout où il faudrait (le risque de casser l'affichage de contenu déjà publié sans plus
+de temps de vérification était trop élevé pour cette livraison) — dis-moi si tu veux ce niveau de
+détail, je le termine dans un prochain lot.
+
+
+9) CHAMP SEXE MANQUANT À L'INSCRIPTION
+---------------------------------------------
+Ajouté (Masculin/Féminin) :
+- Sur la page d'inscription générale (parent, enseignant, autorité pédagogique).
+- Sur le formulaire "Inscrire un enfant" du tableau de bord parent.
+Une nouvelle colonne `sexe` a été ajoutée à la table des profils (nullable, donc les comptes
+déjà créés ne sont pas affectés).
 
 
 CE QUI N'A PAS CHANGÉ
 ----------------------
 - `git push` échoue toujours avec une erreur 403 — c'est normal et attendu dans cet environnement,
   ce n'est pas un bug à corriger.
-- Cette archive ne contient QUE les fichiers modifiés depuis la dernière livraison
-  (kekeli-livraison-tableaux-paliers-ia.zip) : à décompresser par-dessus ton dossier de travail
-  existant.
-- Les changements de prompt IA sont déjà en ligne sur ton projet Supabase (fonction assistant-ia,
-  version 14) et les 12 badges de départ sont déjà créés en base — rien à déployer de ton côté
-  pour ces deux parties.
+- Cette archive ne contient QUE les fichiers créés/modifiés depuis la dernière livraison
+  (kekeli-livraison-paliers-badges-lecture.zip) : à décompresser par-dessus ton dossier de
+  travail existant.
+- Tous les changements de base de données (nouvelle colonne `sexe`, `messagerie_autorisee`,
+  `visible`, nouvelles tables de messagerie entre élèves, fonctions et policies de sécurité,
+  formule tarifaire de départ, activation du temps réel) sont déjà en ligne sur ton projet
+  Supabase — rien à déployer de ton côté pour ces parties.

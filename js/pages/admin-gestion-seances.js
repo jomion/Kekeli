@@ -26,14 +26,28 @@ async function init() {
   });
 
   const [
-    { data: classes }, { data: champs }, { data: noeuds }, { data: sa }, { data: seances }
+    { data: classes }, { data: champs }, { data: noeuds }, { data: sa }, { data: seances }, { data: blocsTousGS }
   ] = await Promise.all([
     supabaseClient.from('classes').select('id, nom, ordre').order('ordre'),
     supabaseClient.from('champs_formation').select('id, nom, code, actif').eq('actif', true).order('nom'),
     supabaseClient.from('noeuds_parcours').select('id, classe_id, champ_formation_id, parent_id, type_noeud, titre'),
     supabaseClient.from('sa').select('id, noeud_id, titre, numero'),
-    supabaseClient.from('seances').select('id, sa_id, titre, statut, discipline, titre_contenu, ordre, modifie_le').order('modifie_le', { ascending: false })
+    supabaseClient.from('seances').select('id, sa_id, titre, statut, discipline, titre_contenu, ordre, modifie_le').order('modifie_le', { ascending: false }),
+    // Sert à repérer, dans la liste, les séances déjà remplies et les
+    // paliers qu'elles couvrent déjà — sans ouvrir chaque séance une à une.
+    supabaseClient.from('blocs_seance').select('id, seance_id, type_bloc, palier')
   ]);
+
+  // Regroupement par séance : nombre de blocs de contenu réel (les sections
+  // "Contenu"/"Consigne" ne comptent pas, seul ce qu'elles contiennent
+  // compte comme "contenu") et paliers déjà présents parmi ses blocs.
+  const infosBlocsParSeanceGS = new Map();
+  (blocsTousGS || []).forEach(b => {
+    const infos = infosBlocsParSeanceGS.get(b.seance_id) || { nbBlocs: 0, paliers: new Set() };
+    if (!['titre', 'consigne'].includes(b.type_bloc)) infos.nbBlocs++;
+    if (b.palier) infos.paliers.add(b.palier);
+    infosBlocsParSeanceGS.set(b.seance_id, infos);
+  });
 
   classesGS = classes || [];
   champsGS = champs || [];
@@ -58,13 +72,15 @@ async function init() {
     const cheminTitres = saInfo
       ? [...cheminTitresNoeudGS(saInfo.noeud_id, noeudParId), `${saInfo.numero ? 'SA' + saInfo.numero + ' — ' : ''}${saInfo.titre}`]
       : [];
+    const infosBlocs = infosBlocsParSeanceGS.get(s.id) || { nbBlocs: 0, paliers: new Set() };
     return {
       ...s,
       saInfo,
       classe: noeud ? classeParId.get(noeud.classe_id) || null : null,
       champ: noeud ? champParId.get(noeud.champ_formation_id) || null : null,
       unite: chemin.unite, semaine: chemin.semaine, dossier: chemin.dossier,
-      cheminTitres
+      cheminTitres,
+      nbBlocs: infosBlocs.nbBlocs, paliersPresents: [...infosBlocs.paliers]
     };
   });
 
@@ -274,18 +290,45 @@ function rendreSeances() {
   });
 }
 
+// Couleur stable par discipline (simple hachage du nom) — sert à la mettre
+// en avant visuellement dans les listes, la même discipline gardant toujours
+// la même couleur. La séquence (SA), elle, n'apparaît plus qu'à travers le
+// chemin ci-dessous (elle n'est plus un badge à part, pour ne pas faire
+// concurrence au titre et à la discipline).
+const PALETTE_DISCIPLINE_GS = ['#3B5EFF', '#22C55E', '#F43F5E', '#F59E0B', '#8B5CF6', '#06B6D4', '#EC4899', '#84CC16'];
+function couleurDisciplineGS(nom) {
+  let h = 0;
+  for (let i = 0; i < nom.length; i++) h = (h * 31 + nom.charCodeAt(i)) >>> 0;
+  return PALETTE_DISCIPLINE_GS[h % PALETTE_DISCIPLINE_GS.length];
+}
+function pastilleDisciplineGS(discipline) {
+  if (!discipline) return '';
+  const c = couleurDisciplineGS(discipline);
+  return `<span style="background:${c}22;color:${c};border:1px solid ${c}55;font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;margin-left:6px">${echapperGS(discipline)}</span>`;
+}
+
+// Icônes de palier (mêmes repères que partout ailleurs dans l'admin/l'IA :
+// LIBELLES_PALIER_APERCU dans editeur-seance.js, dupliqué ici car cette page
+// ne partage pas de module avec elle).
+const ICONES_PALIER_GS = { azovi: '🌱', devi: '🪘', ogan: '🦁', axosu: '👑' };
+const ORDRE_PALIER_GS = ['azovi', 'devi', 'ogan', 'axosu'];
+
+function pastilleContenuGS(s) {
+  if (!s.nbBlocs) return `<span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;background:#F1F5F9;color:#64748B">○ Vide</span>`;
+  const paliersOrdonnes = ORDRE_PALIER_GS.filter(p => s.paliersPresents.includes(p));
+  const iconesPaliers = paliersOrdonnes.map(p => ICONES_PALIER_GS[p]).join(' ');
+  return `<span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;background:#DCFCE7;color:#15803D" title="${s.nbBlocs} bloc(s) de contenu">● ${s.nbBlocs} bloc${s.nbBlocs > 1 ? 's' : ''}</span>` +
+    (iconesPaliers ? ` <span style="font-size:12px" title="Paliers déjà présents : ${paliersOrdonnes.join(', ')}">${iconesPaliers}</span>` : '');
+}
+
 function ligneSeanceHtmlGS(s) {
-  const meta = [
-    s.discipline || null,
-    s.titre_contenu ? `🔖 ${echapperGS(s.titre_contenu)}` : null,
-    `Modifiée le ${formaterDateGS(s.modifie_le)}`
-  ].filter(Boolean).join(' · ');
+  const meta = `Modifiée le ${formaterDateGS(s.modifie_le)}`;
   const chemin = (s.cheminTitres || []).map(t => echapperGS(t)).join(' › ');
 
   return `
     <div class="ligne ligne-seance-admin">
       <div class="details-seance-admin">
-        <span class="titre-ligne">${echapperGS(s.titre)}${s.classe ? ` <span class="badge-classe-admin">${echapperGS(s.classe.nom)}</span>` : ''}</span>
+        <span class="titre-ligne">${echapperGS(s.titre)}${s.classe ? ` <span class="badge-classe-admin">${echapperGS(s.classe.nom)}</span>` : ''}${pastilleDisciplineGS(s.discipline)} ${pastilleContenuGS(s)}</span>
         ${chemin ? `<span class="chemin-ligne-seance-partagee">${chemin}</span>` : ''}
         <span class="meta-seance-admin">${meta}</span>
       </div>

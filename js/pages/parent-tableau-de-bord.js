@@ -36,7 +36,7 @@ async function afficherTableauDeBord() {
     // horaires_autorises et derniere_activite vivent sur `eleves`, pas `profils`.
     // classe_id sert aussi à l'aperçu au survol ci-dessous (Task #34).
     const { data: statutsConnectivite } = await supabaseClient.from('eleves')
-      .select('id, classe_id, compte_actif, horaires_autorises, derniere_activite').in('id', idsEnfants);
+      .select('id, classe_id, compte_actif, horaires_autorises, derniere_activite, messagerie_autorisee').in('id', idsEnfants);
     (statutsConnectivite || []).forEach(s => { connectiviteParEnfant[s.id] = s; });
   }
 
@@ -69,11 +69,13 @@ async function afficherTableauDeBord() {
           ${localisationIncomplete ? `<button class="btn btn-deconnexion-public" data-completer-localisation="${e.id}" style="padding:6px 14px;font-size:12px;color:#B45309;border-color:#B45309">⚠️ Compléter les informations</button>` : ''}
           <button class="btn btn-filled" data-suivre-enfant="${e.id}" style="padding:6px 14px;font-size:12px">🔗 Suivre un enseignant</button>
           <button class="btn btn-deconnexion-public" data-controle-connectivite="${e.id}" style="padding:6px 14px;font-size:12px">🔒 Contrôle d'accès</button>
+          <button class="btn btn-deconnexion-public" data-controle-messagerie="${e.id}" style="padding:6px 14px;font-size:12px">✨ Messagerie Premium</button>
         </div>
       </div>
       <div style="margin-top:6px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
         ${acces}
         <span style="font-size:12px;color:var(--text-gris)">Dernière activité : ${formaterDerniereActivite(statutConn.derniere_activite)}</span>
+        ${statutConn.messagerie_autorisee ? '<span style="font-size:12px;color:#15803D">💬 Messagerie autorisée</span>' : '<span style="font-size:12px;color:var(--text-gris)">💬 Messagerie non autorisée</span>'}
       </div>
       <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
         ${(abonnementsParEnfant[e.id] || []).map(a => rendreLignePastilleAB(a)).join('') || '<span style="font-size:12px;color:var(--text-gris)">Aucun enseignant suivi pour l\'instant.</span>'}
@@ -163,6 +165,13 @@ async function afficherTableauDeBord() {
       if (enfant) ouvrirControleConnectiviteEnfant(enfant, statutConn);
     });
   });
+  document.querySelectorAll('[data-controle-messagerie]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const enfant = enfants.find(e => e.id === btn.dataset.controleMessagerie);
+      const statutConn = connectiviteParEnfant[btn.dataset.controleMessagerie] || { messagerie_autorisee: false };
+      if (enfant) ouvrirControleMessagerieEnfant(enfant, statutConn);
+    });
+  });
   document.querySelectorAll('[data-annuler-abonnement]').forEach(btn => {
     btn.addEventListener('click', () => annulerAbonnement(parseInt(btn.dataset.annulerAbonnement, 10), btn.dataset.statutAb));
   });
@@ -214,7 +223,9 @@ function ouvrirDemandeSuivi(eleveId) {
 }
 
 async function ouvrirInscriptionEnfant() {
-  const { data: classes } = await supabaseClient.from('classes').select('*').order('ordre');
+  // Une classe masquée par l'admin (mise à jour de contenu en cours) n'est
+  // pas proposée pour un nouvel enfant, sans être supprimée pour autant.
+  const { data: classes } = await supabaseClient.from('classes').select('*').eq('visible', true).order('ordre');
 
   // Département/Commune/Arrondissement sont désormais demandés pour l'élève
   // aussi (comme pour parent/enseignant) — préremplis avec ceux du parent
@@ -239,6 +250,7 @@ async function ouvrirInscriptionEnfant() {
     champs: [
       { nom: 'prenom', label: 'Prénom de l\'enfant' },
       { nom: 'nom', label: 'Nom de l\'enfant' },
+      { nom: 'sexe', label: 'Sexe', type: 'select', options: [{ valeur: 'M', label: 'Masculin' }, { valeur: 'F', label: 'Féminin' }] },
       { nom: 'classe', label: 'Classe', type: 'select', options: (classes || []).map(c => ({ valeur: c.id, label: c.nom })) },
       { nom: 'identifiant', label: 'Identifiant de connexion', placeholder: 'Ex: prenom.classe (ex: biodun.cm2)' },
       { nom: 'motDePasse', label: 'Mot de passe', type: 'password', placeholder: '6 caractères min.' },
@@ -251,7 +263,7 @@ async function ouvrirInscriptionEnfant() {
   });
 }
 
-async function confirmerInscriptionEnfant({ prenom, nom, classe, identifiant, motDePasse, departement, commune, arrondissement }) {
+async function confirmerInscriptionEnfant({ prenom, nom, sexe, classe, identifiant, motDePasse, departement, commune, arrondissement }) {
   if (!motDePasse || motDePasse.length < 6) return alert('Le mot de passe doit contenir au moins 6 caractères.');
 
   const parentId = profilParent.id; // capturé AVANT le changement de session
@@ -265,7 +277,7 @@ async function confirmerInscriptionEnfant({ prenom, nom, classe, identifiant, mo
   // À partir d'ici, le client est authentifié comme l'ENFANT (pas le parent) —
   // c'est une limitation du SDK client sans fonction serveur dédiée.
   const { error: erreurProfil } = await supabaseClient.from('profils').insert({
-    id: enfantId, role: 'eleve', nom, prenom, identifiant: identifiant.trim().toLowerCase(), email,
+    id: enfantId, role: 'eleve', nom, prenom, sexe: sexe || null, identifiant: identifiant.trim().toLowerCase(), email,
     departement: departement || null, commune: commune || null, arrondissement: (arrondissement || '').trim() || null
   });
   if (erreurProfil) return alert(erreurProfil.message);
@@ -416,6 +428,53 @@ function ouvrirControleConnectiviteEnfant(enfant, statut) {
     }
     fermer();
     const { error } = await supabaseClient.from('eleves').update({ compte_actif: compteActif, horaires_autorises: horairesAutorises }).eq('id', enfant.id);
+    if (error) return alert(error.message);
+    afficherTableauDeBord();
+  });
+}
+
+// Messagerie instantanée (Premium) : nécessite les DEUX conditions —
+// l'abonnement Premium famille/élève actif (côté paiement, voir la page
+// Abonnements admin) ET cette autorisation parentale explicite, propre à
+// chaque enfant. On affiche l'état de l'abonnement pour éviter qu'un parent
+// pense avoir "activé" la messagerie alors qu'il ne manque que le paiement,
+// ou l'inverse.
+async function ouvrirControleMessagerieEnfant(enfant, statut) {
+  const accesPremium = await supabaseClient.rpc('a_acces_premium_eleve', { p_eleve_id: enfant.id });
+  const aPremium = !!accesPremium.data;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-boite">
+      <h3>✨ Messagerie Premium — ${echapperParentTB(enfant.prenom)}</h3>
+      <p style="font-size:13px;color:var(--text-gris);margin-top:-8px">
+        ${aPremium
+          ? '✅ Abonnement Premium actif pour ce foyer/enfant.'
+          : '⚠️ Aucun abonnement Premium actif pour l\'instant — la messagerie restera bloquée pour votre enfant tant que ce n\'est pas le cas, même si vous cochez la case ci-dessous (voir la page Paiements/Abonnements).'}
+      </p>
+      <form id="formControleMessagerie">
+        <label class="champ-modal" style="flex-direction:row;align-items:center;gap:8px">
+          <input type="checkbox" name="messagerieAutorisee" ${statut.messagerie_autorisee ? 'checked' : ''}> Autoriser ${echapperParentTB(enfant.prenom)} à utiliser la messagerie instantanée (avec ses enseignants et ses camarades de classe)
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-discret" data-fermer-modal>Annuler</button>
+          <button type="submit" class="btn btn-primaire">Enregistrer</button>
+        </div>
+      </form>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const fermer = () => overlay.remove();
+  overlay.querySelector('[data-fermer-modal]').addEventListener('click', fermer);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) fermer(); });
+  document.addEventListener('keydown', function echap(e) { if (e.key === 'Escape') { fermer(); document.removeEventListener('keydown', echap); } });
+
+  overlay.querySelector('#formControleMessagerie').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const messagerieAutorisee = overlay.querySelector('[name="messagerieAutorisee"]').checked;
+    fermer();
+    const { error } = await supabaseClient.from('eleves').update({ messagerie_autorisee: messagerieAutorisee }).eq('id', enfant.id);
     if (error) return alert(error.message);
     afficherTableauDeBord();
   });

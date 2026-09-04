@@ -384,6 +384,17 @@ async function rafraichirListeSea() {
   rendreListeSea(liste);
 }
 
+// Couleur stable par discipline (hachage du nom), pour la mettre en avant —
+// la séquence (SA), elle, n'apparaît que dans le chemin ci-dessous, plus
+// jamais comme badge séparé (voir aussi js/pages/admin-gestion-seances.js,
+// même logique dupliquée car ces pages ne partagent pas de module).
+const PALETTE_DISCIPLINE_SEA = ['#3B5EFF', '#22C55E', '#F43F5E', '#F59E0B', '#8B5CF6', '#06B6D4', '#EC4899', '#84CC16'];
+function couleurDisciplineSea(nom) {
+  let h = 0;
+  for (let i = 0; i < nom.length; i++) h = (h * 31 + nom.charCodeAt(i)) >>> 0;
+  return PALETTE_DISCIPLINE_SEA[h % PALETTE_DISCIPLINE_SEA.length];
+}
+
 function rendreListeSea(liste) {
   const zone = document.getElementById('zoneListeSea');
   if (!liste.length) { zone.innerHTML = '<p class="chargement">Aucune séance ne correspond à ces critères.</p>'; return; }
@@ -393,8 +404,7 @@ function rendreListeSea(liste) {
       <div class="details-ligne-seance-partagee">
         <div class="titre-ligne-seance-partagee">
           <span class="texte-titre-seance-partagee">${echapperSea(s.titre)}</span>
-          ${s.discipline ? `<span class="statut-pill" style="background:rgba(0,0,0,0.06)">${echapperSea(s.discipline)}</span>` : ''}
-          ${s.titre_contenu ? `<span class="statut-pill" style="background:rgba(0,0,0,0.06)">🔖 ${echapperSea(s.titre_contenu)}</span>` : ''}
+          ${s.discipline ? `<span class="statut-pill" style="background:${couleurDisciplineSea(s.discipline)}22;color:${couleurDisciplineSea(s.discipline)};border:1px solid ${couleurDisciplineSea(s.discipline)}55">${echapperSea(s.discipline)}</span>` : ''}
           ${roleSeances === 'admin' || roleSeances === 'autorite' ? `<span class="statut-pill statut-${s.statut}">${LIBELLES_STATUT_SEANCES[s.statut] || s.statut}</span>` : ''}
         </div>
         <div class="chemin-ligne-seance-partagee">${s.cheminTitres.map(t => echapperSea(t)).join(' › ')}</div>

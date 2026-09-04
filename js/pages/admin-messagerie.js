@@ -8,6 +8,8 @@
 
 let profilMsgAdmin = null;
 let contactsMsgAdmin = [];
+let contactOuvertMsgAdmin = null;
+let canalMsgAdmin = null; // canal Realtime : pas de filtre "OR" possible côté Postgres pour une conversation à deux, donc on écoute tout messages_admin et on filtre côté client.
 
 async function init() {
   profilMsgAdmin = await requireAdmin();
@@ -68,6 +70,7 @@ function groupeContactsHtmlMsgAdmin(titre, liste) {
 }
 
 async function ouvrirConversationMsgAdmin(contactId) {
+  contactOuvertMsgAdmin = contactId;
   const contact = contactsMsgAdmin.find(c => c.id === contactId);
   const zone = document.getElementById('zoneConversationMsgAdmin');
   zone.innerHTML = `<p style="color:var(--texte-gris)">Chargement des messages...</p>`;
@@ -91,11 +94,7 @@ async function ouvrirConversationMsgAdmin(contactId) {
     <div class="ligne" style="display:block;margin-top:16px">
       <div style="font-weight:700;color:var(--bleu-principal);margin-bottom:10px">💬 ${echapperMsgAdmin(contact?.prenom)} ${echapperMsgAdmin(contact?.nom)}</div>
       <div id="filMsgAdmin" style="max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;margin-bottom:14px;padding:4px">
-        ${(messages && messages.length) ? messages.map(m => `
-          <div style="align-self:${m.expediteur_id === profilMsgAdmin.id ? 'flex-end' : 'flex-start'};background:${m.expediteur_id === profilMsgAdmin.id ? 'var(--bleu-principal)' : 'var(--bleu-clair)'};color:${m.expediteur_id === profilMsgAdmin.id ? 'white' : 'var(--texte-fonce)'};padding:10px 14px;border-radius:12px;max-width:75%">
-            <div style="font-size:14px;white-space:pre-wrap">${echapperMsgAdmin(m.contenu)}</div>
-            <div style="font-size:10px;opacity:.7;margin-top:4px">${new Date(m.cree_le).toLocaleString('fr-FR')}</div>
-          </div>`).join('') : `<p style="color:var(--texte-gris);font-size:13px">Aucun message pour l'instant. Écrivez le premier !</p>`}
+        ${(messages && messages.length) ? messages.map(m => htmlMessageMsgAdmin(m)).join('') : `<p style="color:var(--texte-gris);font-size:13px">Aucun message pour l'instant. Écrivez le premier !</p>`}
       </div>
       <form id="formEnvoiMsgAdmin" style="display:flex;gap:8px">
         <input type="text" id="champMsgAdmin" placeholder="Écrire un message..." style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--bordure)" required>
@@ -109,16 +108,52 @@ async function ouvrirConversationMsgAdmin(contactId) {
     const champ = document.getElementById('champMsgAdmin');
     const contenu = champ.value.trim();
     if (!contenu) return;
+    champ.disabled = true;
     const { error: erreurEnvoi } = await supabaseClient.from('messages_admin').insert({
       expediteur_id: profilMsgAdmin.id, destinataire_id: contactId, contenu
     });
+    champ.disabled = false;
     if (erreurEnvoi) return alert(erreurEnvoi.message);
     champ.value = '';
-    await ouvrirConversationMsgAdmin(contactId);
   });
+
+  activerTempsReelMsgAdmin();
 
   const fil = document.getElementById('filMsgAdmin');
   fil.scrollTop = fil.scrollHeight;
+}
+
+function htmlMessageMsgAdmin(m) {
+  const estMoi = m.expediteur_id === profilMsgAdmin.id;
+  return `
+    <div style="align-self:${estMoi ? 'flex-end' : 'flex-start'};background:${estMoi ? 'var(--bleu-principal)' : 'var(--bleu-clair)'};color:${estMoi ? 'white' : 'var(--texte-fonce)'};padding:10px 14px;border-radius:12px;max-width:75%">
+      <div style="font-size:14px;white-space:pre-wrap">${echapperMsgAdmin(m.contenu)}</div>
+      <div style="font-size:10px;opacity:.7;margin-top:4px">${new Date(m.cree_le).toLocaleString('fr-FR')}</div>
+    </div>`;
+}
+
+// Table à deux participants génériques (expediteur/destinataire), pas de
+// filtre Postgres "OR" possible sur un abonnement Realtime : on écoute tout
+// messages_admin et on ne garde, côté client, que ce qui concerne la
+// conversation actuellement ouverte.
+function activerTempsReelMsgAdmin() {
+  if (canalMsgAdmin) supabaseClient.removeChannel(canalMsgAdmin);
+  canalMsgAdmin = supabaseClient
+    .channel('messages_admin_realtime')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages_admin' }, (payload) => {
+      const m = payload.new;
+      const concerneConversationOuverte =
+        (m.expediteur_id === profilMsgAdmin.id && m.destinataire_id === contactOuvertMsgAdmin) ||
+        (m.expediteur_id === contactOuvertMsgAdmin && m.destinataire_id === profilMsgAdmin.id);
+      if (!concerneConversationOuverte) return;
+      const fil = document.getElementById('filMsgAdmin');
+      if (!fil) return;
+      const vide = fil.querySelector('p');
+      if (vide) fil.innerHTML = '';
+      fil.insertAdjacentHTML('beforeend', htmlMessageMsgAdmin(m));
+      fil.scrollTop = fil.scrollHeight;
+    })
+    .subscribe();
 }
 
 function echapperMsgAdmin(v) {

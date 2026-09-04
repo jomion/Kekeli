@@ -66,7 +66,7 @@ const FONCTIONS_AUTORITE_PEDAGOGIQUE = {
   directeur_departemental: { commune: false, arrondissement: false, circonscriptionScolaire: false, zonePedagogique: false, ecole: false }
 };
 
-async function inscrire({ role, prenom, nom, email, motDePasse, fonction, departement, commune, arrondissement, circonscriptionScolaire, zonePedagogique, ecole, classeId }) {
+async function inscrire({ role, prenom, nom, email, motDePasse, sexe, fonction, departement, commune, arrondissement, circonscriptionScolaire, zonePedagogique, ecole, classeId }) {
   if (!ROLES_INSCRIPTIBLES.includes(role)) {
     return { error: { message: "Ce type de compte ne peut pas s'inscrire directement." } };
   }
@@ -83,7 +83,7 @@ async function inscrire({ role, prenom, nom, email, motDePasse, fonction, depart
   const champsFonction = role === 'autorite_pedagogique' ? FONCTIONS_AUTORITE_PEDAGOGIQUE[fonction] : null;
 
   const { error: erreurProfil } = await supabaseClient.from('profils').insert({
-    id: userId, role, nom, prenom, email,
+    id: userId, role, nom, prenom, email, sexe: sexe || null,
     departement: departement || null,
     commune: role === 'autorite_pedagogique' ? (champsFonction.commune ? (commune || null) : null) : (commune || null),
     arrondissement: role === 'autorite_pedagogique' ? (champsFonction.arrondissement ? (arrondissement || null) : null) : (arrondissement || null)

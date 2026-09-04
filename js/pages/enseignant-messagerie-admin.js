@@ -4,6 +4,8 @@
 
 let profilEnsMsgAdmin = null;
 let contactsEnsMsgAdmin = [];
+let contactOuvertEnsMsgAdmin = null;
+let canalEnsMsgAdmin = null;
 
 (async function () {
   profilEnsMsgAdmin = await requireRole('enseignant');
@@ -58,6 +60,7 @@ async function afficherMessagerieEnsAdmin() {
 }
 
 async function ouvrirConversationEnsMsgAdmin(contactId) {
+  contactOuvertEnsMsgAdmin = contactId;
   const contact = contactsEnsMsgAdmin.find(c => c.id === contactId);
   const zone = document.getElementById('zoneConversationEnsMsgAdmin');
   zone.innerHTML = '<div class="carte-bienvenue"><p style="color:var(--text-gris)">Chargement des messages...</p></div>';
@@ -79,11 +82,7 @@ async function ouvrirConversationEnsMsgAdmin(contactId) {
   zone.innerHTML = `
     <div class="carte-bienvenue" style="border-top-color:var(--bleu-kekeli)">
       <div id="filEnsMsgAdmin" style="max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;margin-bottom:16px;padding:4px">
-        ${(messages && messages.length) ? messages.map(m => `
-          <div style="align-self:${m.expediteur_id === profilEnsMsgAdmin.id ? 'flex-end' : 'flex-start'};background:${m.expediteur_id === profilEnsMsgAdmin.id ? 'var(--bleu-kekeli)' : '#F0F2F8'};color:${m.expediteur_id === profilEnsMsgAdmin.id ? 'white' : 'var(--text-dark)'};padding:10px 14px;border-radius:12px;max-width:75%">
-            <div style="font-size:14px;white-space:pre-wrap">${echapperEnsMsgAdmin(m.contenu)}</div>
-            <div style="font-size:10px;opacity:.7;margin-top:4px">${new Date(m.cree_le).toLocaleString('fr-FR')}</div>
-          </div>`).join('') : '<p style="color:var(--text-gris);font-size:13px">Aucun message pour l\'instant. Écrivez le premier !</p>'}
+        ${(messages && messages.length) ? messages.map(m => htmlMessageEnsMsgAdmin(m)).join('') : '<p style="color:var(--text-gris);font-size:13px">Aucun message pour l\'instant. Écrivez le premier !</p>'}
       </div>
       <form id="formEnvoiEnsMsgAdmin" style="display:flex;gap:8px">
         <input type="text" id="champEnsMsgAdmin" placeholder="Écrire un message..." style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--bordure)" required>
@@ -97,16 +96,48 @@ async function ouvrirConversationEnsMsgAdmin(contactId) {
     const champ = document.getElementById('champEnsMsgAdmin');
     const contenu = champ.value.trim();
     if (!contenu) return;
+    champ.disabled = true;
     const { error: erreurEnvoi } = await supabaseClient.from('messages_admin').insert({
       expediteur_id: profilEnsMsgAdmin.id, destinataire_id: contactId, contenu
     });
+    champ.disabled = false;
     if (erreurEnvoi) return alert(erreurEnvoi.message);
     champ.value = '';
-    await ouvrirConversationEnsMsgAdmin(contactId);
   });
+
+  activerTempsReelEnsMsgAdmin();
 
   const fil = document.getElementById('filEnsMsgAdmin');
   fil.scrollTop = fil.scrollHeight;
+}
+
+function htmlMessageEnsMsgAdmin(m) {
+  const estMoi = m.expediteur_id === profilEnsMsgAdmin.id;
+  return `
+    <div style="align-self:${estMoi ? 'flex-end' : 'flex-start'};background:${estMoi ? 'var(--bleu-kekeli)' : '#F0F2F8'};color:${estMoi ? 'white' : 'var(--text-dark)'};padding:10px 14px;border-radius:12px;max-width:75%">
+      <div style="font-size:14px;white-space:pre-wrap">${echapperEnsMsgAdmin(m.contenu)}</div>
+      <div style="font-size:10px;opacity:.7;margin-top:4px">${new Date(m.cree_le).toLocaleString('fr-FR')}</div>
+    </div>`;
+}
+
+function activerTempsReelEnsMsgAdmin() {
+  if (canalEnsMsgAdmin) supabaseClient.removeChannel(canalEnsMsgAdmin);
+  canalEnsMsgAdmin = supabaseClient
+    .channel('messages_admin_realtime_ens')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages_admin' }, (payload) => {
+      const m = payload.new;
+      const concerne =
+        (m.expediteur_id === profilEnsMsgAdmin.id && m.destinataire_id === contactOuvertEnsMsgAdmin) ||
+        (m.expediteur_id === contactOuvertEnsMsgAdmin && m.destinataire_id === profilEnsMsgAdmin.id);
+      if (!concerne) return;
+      const fil = document.getElementById('filEnsMsgAdmin');
+      if (!fil) return;
+      const vide = fil.querySelector('p');
+      if (vide) fil.innerHTML = '';
+      fil.insertAdjacentHTML('beforeend', htmlMessageEnsMsgAdmin(m));
+      fil.scrollTop = fil.scrollHeight;
+    })
+    .subscribe();
 }
 
 function echapperEnsMsgAdmin(v) {

@@ -218,9 +218,19 @@ async function afficherClasses() {
   // l'inscription, ou classe supplémentaire validée par un admin) — pas le
   // catalogue complet de toutes les classes de l'école, qui reste un outil
   // de consultation publique pour les autres rôles (visiteur, élève...).
-  const classesDisponibles = etat.profilEnseignant
+  let classesDisponibles = etat.profilEnseignant
     ? (data || []).filter(c => (etat.profilEnseignant.classes_assignees || []).includes(c.id))
     : (data || []);
+
+  // Une classe "masquée" (classes.visible = false) reste entièrement
+  // visible pour l'admin (pour pouvoir la démasquer / continuer à la
+  // préparer) et pour un enseignant déjà accordé sur cette classe (on ne
+  // coupe pas l'accès à quelqu'un qui y enseigne déjà) — elle disparaît en
+  // revanche de la vitrine publique (visiteur/élève), le temps d'une mise à
+  // jour de contenu.
+  if (!etat.profilAdmin && !etat.profilEnseignant) {
+    classesDisponibles = classesDisponibles.filter(c => c.visible !== false);
+  }
 
   if (etat.profilEnseignant) {
     if (classesDisponibles.length === 0) {
@@ -244,12 +254,16 @@ async function afficherClasses() {
     ${cyclesAffiches.map(cycle => `
       <div class="titre-cycle">${cycle.titre}</div>
       <div class="grille-classes">
-        ${cycle.classes.map(c => `
-          <div class="carte-classe-detail" data-nom="${echapper(c.nom)}">
+        ${cycle.classes.map(c => {
+          const classeDb = classesDisponibles.find(x => x.nom === c.nom);
+          const masquee = classeDb && classeDb.visible === false;
+          return `
+          <div class="carte-classe-detail" data-nom="${echapper(c.nom)}" style="${masquee ? 'opacity:.6' : ''}">
             <div>
               <div class="entete-carte-classe">
                 <span class="badge-classe">${echapper(c.nom)}</span>
                 <span class="age-classe">🎂 ${echapper(c.age)}</span>
+                ${etat.profilAdmin && masquee ? `<span class="age-classe" style="background:#FEE2E2;color:#B91C1C">🙈 Masquée</span>` : ''}
               </div>
               <h2 class="titre-classe-detail">${echapper(c.titre)}</h2>
               <p class="description-classe-detail">${echapper(c.description)}</p>
@@ -258,16 +272,34 @@ async function afficherClasses() {
                 <li>🎯 <strong>Objectif :</strong> ${echapper(c.objectif)}</li>
               </ul>
             </div>
-            <button class="bouton-explorer-classe" type="button">Explorer le ${echapper(c.nom)} 🚀</button>
-          </div>`).join('')}
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="bouton-explorer-classe" type="button" data-explorer="${echapper(c.nom)}">Explorer le ${echapper(c.nom)} 🚀</button>
+              ${etat.profilAdmin && classeDb ? `<button class="bouton-explorer-classe" type="button" style="background:var(--gris-clair,#E5E7EB);color:var(--texte-fonce,#1E293B)" data-basculer-visibilite-classe="${classeDb.id}">${masquee ? '👁️ Afficher' : '🙈 Masquer'}</button>` : ''}
+            </div>
+          </div>`;
+        }).join('')}
       </div>`).join('')}
   `;
 
-  contenu.querySelectorAll('[data-nom]').forEach(carte => {
-    carte.addEventListener('click', () => {
-      etat.classe = classesDisponibles.find(x => x.nom === carte.dataset.nom);
+  contenu.querySelectorAll('[data-explorer]').forEach(bouton => {
+    bouton.addEventListener('click', () => {
+      etat.classe = classesDisponibles.find(x => x.nom === bouton.dataset.explorer);
       if (!etat.classe) return alert("Cette classe n'existe pas encore en base — ajoutez-la dans la table 'classes'.");
       afficher();
+    });
+  });
+
+  contenu.querySelectorAll('[data-basculer-visibilite-classe]').forEach(bouton => {
+    bouton.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const id = parseInt(bouton.dataset.basculerVisibiliteClasse, 10);
+      const classeDb = classesDisponibles.find(x => x.id === id);
+      if (!classeDb) return;
+      const nouvelleValeur = !(classeDb.visible !== false);
+      const { error: erreurVisibilite } = await supabaseClient.from('classes').update({ visible: nouvelleValeur }).eq('id', id);
+      if (erreurVisibilite) return alert(erreurVisibilite.message);
+      classeDb.visible = nouvelleValeur;
+      afficherClasses();
     });
   });
 }

@@ -286,7 +286,7 @@ async function afficherSeancesListe() {
           <div class="session-content-eleve">
             <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-gris)">Séance ${i + 1}</div>
             <div class="session-title-eleve">${echapper(s.titre)}</div>
-            ${s.discipline ? `<div style="font-size:12px;color:var(--text-gris)">${echapper(s.discipline)}</div>` : ''}
+            ${s.discipline ? `<span style="display:inline-block;margin-top:2px;font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;background:${iconeSeanceMat(s.discipline).couleur}22;color:${iconeSeanceMat(s.discipline).couleur}">${echapper(s.discipline)}</span>` : ''}
           </div>
           <div>${bouton}</div>
         </div>`;

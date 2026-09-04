@@ -44,9 +44,18 @@
           </div>
         </div>
 
-        <div class="champ-auth">
-          <label>E-mail</label>
-          <input type="email" id="email" placeholder="nom@exemple.com" required>
+        <div class="rangee-champs-auth">
+          <div class="champ-auth">
+            <label>E-mail</label>
+            <input type="email" id="email" placeholder="nom@exemple.com" required>
+          </div>
+          <div class="champ-auth">
+            <label>Sexe</label>
+            <select id="sexe" required>
+              <option value="M">Masculin</option>
+              <option value="F">Féminin</option>
+            </select>
+          </div>
         </div>
 
         <div class="rangee-champs-auth">
@@ -140,7 +149,10 @@
     // Liste des classes, pour que l'enseignant en choisisse une à l'inscription
     // (elle lui est attribuée directement — voir majChampsLocalisation ci-dessous).
     (async function chargerClasses() {
-      const { data: classes } = await supabaseClient.from('classes').select('*').order('ordre');
+      // Une classe masquée par l'admin (mise à jour en cours) n'est pas
+      // proposée pour une nouvelle inscription — sans être supprimée pour
+      // autant, elle réapparaîtra dès qu'elle sera démasquée.
+      const { data: classes } = await supabaseClient.from('classes').select('*').eq('visible', true).order('ordre');
       document.getElementById('classe').innerHTML = (classes || []).map(c => `<option value="${c.id}">${c.nom}</option>`).join('');
     })();
 
@@ -227,6 +239,7 @@
         prenom: document.getElementById('prenom').value.trim(),
         nom: document.getElementById('nom').value.trim(),
         email: document.getElementById('email').value.trim(),
+        sexe: document.getElementById('sexe').value,
         motDePasse,
         departement: document.getElementById('departement').value,
         commune: document.getElementById('commune').value,

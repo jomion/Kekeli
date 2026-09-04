@@ -15,6 +15,7 @@ let estSuperAdminParam = false;
 let liensMasquesActuels = [];
 let raccourcisActuelsParam = [];
 let themePremiumActuel = false; // aperçu du formatage premium (élève uniquement) — preferences_navigation.theme_premium
+let accesPremiumEleveParam = false; // a_acces_premium_eleve(id) — un abonnement Premium actif débloque ce thème (et la messagerie instantanée, voir pages/eleve/messagerie.html)
 
 (async function () {
   const { data: { session } } = await supabaseClient.auth.getSession();
@@ -57,6 +58,11 @@ let themePremiumActuel = false; // aperçu du formatage premium (élève uniquem
   raccourcisActuelsParam = prefs?.raccourcis || [];
   themePremiumActuel = !!prefs?.theme_premium;
 
+  if (roleParametres === 'eleve') {
+    const { data: acces } = await supabaseClient.rpc('a_acces_premium_eleve', { p_eleve_id: profilParametres.id });
+    accesPremiumEleveParam = !!acces;
+  }
+
   afficherPageParametres();
 })();
 
@@ -75,11 +81,13 @@ function afficherPageParametres() {
     ${roleParametres === 'eleve' ? `
     <div class="carte-param">
       <h2>🎨 Nouveau look premium</h2>
-      <p class="desc-param">Essaie le nouveau formatage premium de ton espace (aperçu) — c'est temporaire, tu peux revenir au look actuel à tout moment en décochant la case ci-dessous.</p>
+      <p class="desc-param">${accesPremiumEleveParam
+        ? "Essaie le nouveau formatage premium de ton espace — c'est réversible, tu peux revenir au look actuel à tout moment en décochant la case ci-dessous."
+        : "Ce nouveau look fait partie de l'offre <strong>✨ Premium</strong> (comme la messagerie instantanée) — demande à tes parents de souscrire depuis leur tableau de bord pour en profiter."}</p>
       <div class="ligne-lien-param">
-        <label>
-          <input type="checkbox" id="caseThemePremium" ${themePremiumActuel ? 'checked' : ''}>
-          🎨 Essayer le nouveau look premium (aperçu)
+        <label style="${accesPremiumEleveParam ? '' : 'opacity:.5'}">
+          <input type="checkbox" id="caseThemePremium" ${themePremiumActuel ? 'checked' : ''} ${accesPremiumEleveParam ? '' : 'disabled'}>
+          🎨 Essayer le nouveau look premium
         </label>
       </div>
       <p class="message-param-succes" id="messageSuccesThemePremium" style="display:none">✅ Préférence enregistrée — recharge la page pour voir le changement.</p>

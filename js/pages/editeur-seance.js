@@ -56,7 +56,7 @@ async function init() {
   }
 
   await chargerBlocs();
-  rendreFilAriane();
+  await rendreFilAriane();
   rendre();
 }
 
@@ -86,18 +86,42 @@ function urlNavigationVersClasse() {
 function urlNavigationVersChamp() {
   return `${urlNavigationVersClasse()}&champId=${chaineNavigation.champ_id}`;
 }
+function urlNavigationVersNoeud(noeudId) {
+  return `${urlNavigationVersChamp()}&noeudId=${noeudId}`;
+}
 function urlNavigationVersSA() {
   return `${urlNavigationVersChamp()}&saId=${chaineNavigation.sa.id}`;
 }
 
-function rendreFilAriane() {
-  // Chaque niveau (immédiat ou éloigné) est cliquable et ramène exactement
-  // à cet endroit dans la navigation (pas à la racine).
-  filAriane.innerHTML = `
-    <span class="segment" data-retour="${urlNavigationVersClasse()}" title="Retour à ce champ de formation">${echapper(chaineNavigation.classeNom)}</span><span class="sep">›</span>
-    <span class="segment" data-retour="${urlNavigationVersChamp()}" title="Retour à ce champ de formation">${echapper(chaineNavigation.champNom)}</span><span class="sep">›</span>
-    <span class="segment" data-retour="${urlNavigationVersSA()}" title="Retour à cette Situation d'Apprentissage">${echapper(chaineNavigation.sa.titre)}</span><span class="sep">›</span>
-    <span class="segment actif">${echapper(seance.titre)}</span>`;
+// Chemin COMPLET et cliquable : Classe › Champ de formation › chaque noeud
+// intermédiaire (Thème/Unité/Semaine/Dossier...) › SA › Séance. Avant, le fil
+// d'ariane sautait directement du champ à la SA sans les noeuds intermédiaires
+// (contrairement à ouvrirApercu(), qui remonte déjà toute la chaîne — même
+// logique reprise ici, mais avec des liens cliquables réels).
+async function rendreFilAriane() {
+  const segments = [
+    { label: chaineNavigation.classeNom, url: urlNavigationVersClasse(), titre: 'Retour à cette classe' },
+    { label: chaineNavigation.champNom, url: urlNavigationVersChamp(), titre: 'Retour à ce champ de formation' }
+  ];
+
+  let n = chaineNavigation.noeud;
+  let garde = 0;
+  const noeudsAncetres = [];
+  while (n && garde++ < 20) {
+    noeudsAncetres.unshift(n);
+    if (!n.parent_id) break;
+    const { data: parent } = await supabaseClient.from('noeuds_parcours').select('id, parent_id, titre').eq('id', n.parent_id).single();
+    n = parent;
+  }
+  noeudsAncetres.forEach(noeud => {
+    segments.push({ label: noeud.titre, url: urlNavigationVersNoeud(noeud.id), titre: 'Retour à ce niveau' });
+  });
+
+  segments.push({ label: chaineNavigation.sa.titre, url: urlNavigationVersSA(), titre: "Retour à cette Situation d'Apprentissage" });
+
+  filAriane.innerHTML = segments.map(s =>
+    `<span class="segment" data-retour="${s.url}" title="${echapper(s.titre)}">${echapper(s.label)}</span><span class="sep">›</span>`
+  ).join('') + `<span class="segment actif">${echapper(seance.titre)}</span>`;
 
   filAriane.querySelectorAll('[data-retour]').forEach(el => {
     el.addEventListener('click', () => { window.location.href = el.dataset.retour; });
@@ -118,12 +142,13 @@ function rendre() {
   contenu.innerHTML = `
     <div class="barre-editeur">
       <div>
-        <h2 style="margin:0 0 4px;color:var(--bleu-principal)">${echapper(seance.titre)}</h2>
+        <input type="text" id="inputTitreSeance" value="${echapper(seance.titre)}" placeholder="Titre de la séance"
+          title="Titre de la séance — sert de repère unique dans toutes les listes et pour l'IA (ex: « Séance 1 — Les fractions »)."
+          style="border:none;border-bottom:1px solid transparent;background:transparent;font-size:20px;font-weight:700;color:var(--bleu-principal);padding:2px 0;margin:0 0 4px;width:100%;max-width:520px"
+          onfocus="this.style.borderBottomColor='var(--bordure)'" onblur="this.style.borderBottomColor='transparent'">
+        <br>
         <input type="text" id="inputDiscipline" placeholder="Discipline (ex: Lecture, Grammaire, Conjugaison...)" value="${echapper(seance.discipline)}"
           style="border:1px solid var(--bordure);border-radius:6px;padding:4px 8px;font-size:12px;margin:4px 0;width:260px">
-        <input type="text" id="inputTitreContenu" placeholder="Titre du contenu (repère pour les listes et l'IA)" value="${echapper(seance.titre_contenu)}"
-          title="Texte libre décrivant le sujet exact de cette séance (ex: « Les fractions »). S'affiche dans les listes de séances — utile notamment depuis que le titre du bloc « Contenu » n'est plus affiché."
-          style="border:1px solid var(--bordure);border-radius:6px;padding:4px 8px;font-size:12px;margin:4px 0 4px 6px;width:260px">
         <br><span class="infos-sauvegarde" id="infoSauvegarde">Dernier enregistrement : ${seance.modifie_le ? new Date(seance.modifie_le).toLocaleString('fr-FR') : '—'}</span>
       </div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -161,9 +186,12 @@ function rendre() {
     await supabaseClient.from('seances').update({ discipline: seance.discipline }).eq('id', seance.id);
     afficherSauvegarde();
   });
-  document.getElementById('inputTitreContenu').addEventListener('change', async (e) => {
-    seance.titre_contenu = e.target.value || null;
-    await supabaseClient.from('seances').update({ titre_contenu: seance.titre_contenu }).eq('id', seance.id);
+  document.getElementById('inputTitreSeance').addEventListener('change', async (e) => {
+    const nouveauTitre = e.target.value.trim();
+    if (!nouveauTitre) { e.target.value = seance.titre; return; } // titre obligatoire, on annule un vidage accidentel
+    seance.titre = nouveauTitre;
+    await supabaseClient.from('seances').update({ titre: seance.titre }).eq('id', seance.id);
+    await rendreFilAriane(); // le dernier segment (nom de la séance) doit refléter le nouveau titre
     afficherSauvegarde();
   });
   document.getElementById('listeTypes').addEventListener('click', (e) => {
@@ -265,6 +293,7 @@ function htmlBloc(b) {
             <button type="button" title="Couleur du bloc" data-ouvrir-couleur-bloc>🎨</button>
             <div class="palette-bloc" data-palette-bloc>${swatchesBloc}</div>
           </div>
+          <button title="Déplacer vers une autre section" data-action-bloc="deplacer">📦</button>
           <button title="Dupliquer" data-action-bloc="dupliquer">📑</button>
           <button title="Supprimer" data-action-bloc="supprimer">🗑️</button>
         </div>
@@ -564,6 +593,7 @@ function attacherEcouteursBloc(bloc) {
     btn.addEventListener('click', () => {
       if (btn.dataset.actionBloc === 'dupliquer') dupliquerBloc(bloc);
       if (btn.dataset.actionBloc === 'supprimer') supprimerBloc(bloc);
+      if (btn.dataset.actionBloc === 'deplacer') ouvrirDeplacerBloc(bloc);
     });
   });
 }
@@ -1866,6 +1896,62 @@ async function dupliquerBloc(bloc) {
   rendreListeBlocs();
   // Note : les sous-blocs d'une section dupliquée ne sont pas encore
   // copiés automatiquement — à affiner avec les règles de profondeur.
+}
+
+// Complément au glisser-déposer existant (pas pratique sur mobile, ni pour
+// atteindre une section éloignée dans une longue séance) : un menu direct
+// « Déplacer vers... » listant toutes les sections valides + la racine.
+function sectionsDisponiblesPour(bloc) {
+  // Une section ne peut pas se retrouver dans elle-même ni dans l'un de ses
+  // propres descendants (boucle de parenté) ; on respecte aussi la même
+  // restriction que pour l'ajout normal : une section "Contenu" n'accepte
+  // pas les blocs évalués/notés ni consigne/item (TYPES_INTERDITS_DANS_CONTENU).
+  const estUneSection = TYPES_SECTIONS.includes(bloc.type_bloc);
+  const descendants = new Set();
+  if (estUneSection) {
+    const pile = [bloc.id];
+    while (pile.length) {
+      const id = pile.pop();
+      blocs.filter(b => b.parent_bloc_id === id).forEach(enfant => { descendants.add(enfant.id); pile.push(enfant.id); });
+    }
+  }
+  return blocs
+    .filter(b => TYPES_SECTIONS.includes(b.type_bloc) && b.id !== bloc.id && !descendants.has(b.id))
+    .filter(b => !(b.type_bloc === 'titre' && TYPES_INTERDITS_DANS_CONTENU.includes(bloc.type_bloc)))
+    .sort((a, b) => a.ordre - b.ordre);
+}
+
+function ouvrirDeplacerBloc(bloc) {
+  const sectionsCibles = sectionsDisponiblesPour(bloc);
+  const options = [
+    { valeur: '', label: '— Racine (hors section) —' },
+    ...sectionsCibles.map(s => ({ valeur: String(s.id), label: (s.contenu && s.contenu.libelle) || infoType(s.type_bloc).label }))
+  ];
+
+  ouvrirModal({
+    titre: 'Déplacer ce bloc',
+    champs: [
+      { nom: 'cible', label: 'Déplacer vers', type: 'select', valeur: bloc.parent_bloc_id ? String(bloc.parent_bloc_id) : '', options }
+    ],
+    texteValider: 'Déplacer',
+    onValider: async ({ cible }) => {
+      const nouveauParentId = cible ? parseInt(cible, 10) : null;
+      const ancienParentId = bloc.parent_bloc_id || null;
+      if (nouveauParentId === ancienParentId) return; // déjà là, rien à faire
+
+      const fratrie = blocs.filter(b => (b.parent_bloc_id || null) === (nouveauParentId || null) && b.id !== bloc.id);
+      const ordreMax = fratrie.length ? Math.max(...fratrie.map(b => b.ordre)) : -1;
+
+      bloc.parent_bloc_id = nouveauParentId;
+      bloc.ordre = ordreMax + 1;
+      const { error } = await supabaseClient.from('blocs_seance').update({ parent_bloc_id: nouveauParentId, ordre: bloc.ordre }).eq('id', bloc.id);
+      if (error) return alert(error.message);
+
+      if (nouveauParentId) sectionsOuvertes.add(nouveauParentId);
+      rendreListeBlocs();
+      afficherSauvegarde();
+    }
+  });
 }
 
 function supprimerBloc(bloc) {

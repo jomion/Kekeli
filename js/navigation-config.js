@@ -35,7 +35,11 @@ const LIENS_PAR_ROLE = {
     { id: 'matieres', href: 'matiere.html', icone: '📘', label: 'Mes matières' },
     { id: 'seances', href: 'pages/seances.html', racine: true, icone: '📌', label: 'Séances' },
     { id: 'devoirs-notes', href: 'devoirs-notes.html', icone: '📊', label: 'Devoirs & notes' },
-    { id: 'badges', href: 'badges.html', icone: '🏅', label: 'Mes badges' }
+    { id: 'badges', href: 'badges.html', icone: '🏅', label: 'Mes badges' },
+    // Fonctionnalité Premium (voir messagerie.html) : le lien reste visible
+    // pour tous — la page explique elle-même comment l'activer (abonnement
+    // + autorisation d'un parent) plutôt que de disparaître silencieusement.
+    { id: 'messagerie', href: 'messagerie.html', icone: '💬', label: 'Messagerie ✨' }
   ],
   parent: [
     { id: 'tableau-de-bord', href: 'tableau-de-bord.html', icone: '🏠', label: 'Tableau de bord', essentiel: true },
