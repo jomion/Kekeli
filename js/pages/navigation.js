@@ -671,6 +671,19 @@ function pastilleDisciplineNav(discipline) {
   return `<span style="background:${c}22;color:${c};border:1px solid ${c}55;font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px">${echapper(discipline)}</span>`;
 }
 
+// Libellé principal d'une séance : le titre_contenu s'il a été saisi par
+// l'admin dans l'éditeur, sinon le titre brut affiché en italique/grisé avec
+// une pastille "à titrer" (5 septembre 2026, 2e passe) — pour ne plus
+// confondre une vraie séance titrée avec une séance brouillon jamais encore
+// nommée (dont le titre brut est un simple "Séance N"/"Séquence N"
+// générique). Avant ce changement, le titre brut s'affichait tel quel et
+// ressemblait à un vrai titre, ce qui rendait le problème "pas de titre"
+// invisible et donc perçu comme persistant.
+function libelleTitreSeanceNav(se) {
+  if (se.titre_contenu) return echapper(se.titre_contenu);
+  return `<span style="font-style:italic;color:#94A3B8">${echapper(se.titre)}</span> <span style="font-style:normal;font-weight:700;font-size:10px;background:#FEF3C7;color:#92400E;padding:1px 7px;border-radius:8px">à titrer</span>`;
+}
+
 function etiquetteType(t) {
   return { theme: 'Thème', unite: 'Unité', semaine: 'Semaine', dossier: 'Dossier', discipline: 'Discipline' }[t] || t;
 }
@@ -702,7 +715,7 @@ async function afficherSeances() {
 
   contenu.innerHTML = `${boutonAjout}<div class="liste-lignes">${data.map(s => `
     <div class="ligne">
-      <div><div class="titre-ligne" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${echapper(s.titre_contenu || s.titre)} ${pastilleDisciplineNav(s.discipline)} ${pastilleContenuNav(infoContenuParSeance[s.id])}</div><span class="statut-pill statut-${s.statut}">${pillsStatut[s.statut]}</span></div>
+      <div><div class="titre-ligne" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${libelleTitreSeanceNav(s)} ${pastilleDisciplineNav(s.discipline)} ${pastilleContenuNav(infoContenuParSeance[s.id])}</div><span class="statut-pill statut-${s.statut}">${pillsStatut[s.statut]}</span></div>
       <div style="display:flex;gap:8px">
         ${etat.peutEditer ? `<a class="btn btn-primaire" href="editeur-seance.html?id=${s.id}">Modifier la séance</a>` : ''}
         ${etat.estEleve && !etat.peutEditer ? `<a class="btn btn-primaire" href="eleve/seance.html?id=${s.id}">📖 Lire la séance</a>` : ''}
@@ -1091,7 +1104,7 @@ async function afficherArborescence() {
     // même SA partageant la même discipline) ; la discipline reste visible en
     // pastille à côté, et la pastille de remplissage + paliers continue
     // d'aider à repérer ce qu'il reste à compléter.
-    const labelPrincipal = echapper(se.titre_contenu || se.titre);
+    const labelPrincipal = libelleTitreSeanceNav(se);
     return `<div class="ligne-arbo type-seance">
       <span class="bascule">·</span>
       <a class="libelle-arbo" href="editeur-seance.html?id=${se.id}" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${labelPrincipal} ${pastilleDisciplineNav(se.discipline)}</a>

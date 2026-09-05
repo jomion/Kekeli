@@ -399,6 +399,25 @@ function couleurDisciplineSea(nom) {
   return PALETTE_DISCIPLINE_SEA[h % PALETTE_DISCIPLINE_SEA.length];
 }
 
+// Le chemin affiché sous chaque séance reprend le titre brut des noeuds
+// parents (ex: "Thème 1 : L'homme et sa santé"), saisi librement par l'admin
+// dans la structure Classes/matières. Demande du 5 septembre 2026 : retirer
+// le préfixe numéroté "Thème X :" (redondant, le nom du thème suffit) pour
+// raccourcir le chemin, sans toucher au titre réellement stocké.
+function simplifierSegmentCheminSea(t) {
+  return (t || '').replace(/^Th[eè]me\s*\d*\s*:\s*/i, '');
+}
+
+// Libellé principal : titre_contenu si saisi, sinon le titre brut affiché en
+// italique/grisé + pastille "à titrer" (5 septembre 2026, 2e passe) — pour
+// distinguer une vraie séance titrée d'un brouillon jamais encore nommé
+// (titre brut générique "Séance N"/"Séquence N"), qui ressemblait sinon à un
+// vrai titre et rendait le manque de titre invisible à l'écran.
+function libelleTitreSeanceSea(s) {
+  if (s.titre_contenu) return echapperSea(s.titre_contenu);
+  return `<span style="font-style:italic;color:#94A3B8">${echapperSea(s.titre)}</span> <span style="font-style:normal;font-weight:700;font-size:10px;background:#FEF3C7;color:#92400E;padding:1px 7px;border-radius:8px">à titrer</span>`;
+}
+
 function rendreListeSea(liste) {
   const zone = document.getElementById('zoneListeSea');
   if (!liste.length) { zone.innerHTML = '<p class="chargement">Aucune séance ne correspond à ces critères.</p>'; return; }
@@ -407,11 +426,11 @@ function rendreListeSea(liste) {
     <div class="ligne-seance-partagee">
       <div class="details-ligne-seance-partagee">
         <div class="titre-ligne-seance-partagee" style="flex-wrap:wrap">
-          <span class="texte-titre-seance-partagee">${echapperSea(s.titre_contenu || s.titre)}</span>
+          <span class="texte-titre-seance-partagee">${libelleTitreSeanceSea(s)}</span>
           ${s.discipline ? `<span style="background:${couleurDisciplineSea(s.discipline)}22;color:${couleurDisciplineSea(s.discipline)};border:1px solid ${couleurDisciplineSea(s.discipline)}55;font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px">${echapperSea(s.discipline)}</span>` : ''}
           ${roleSeances === 'admin' || roleSeances === 'autorite' ? `<span class="statut-pill statut-${s.statut}">${LIBELLES_STATUT_SEANCES[s.statut] || s.statut}</span>` : ''}
         </div>
-        <div class="chemin-ligne-seance-partagee">${s.cheminTitres.map(t => echapperSea(t)).join(' › ')}</div>
+        <div class="chemin-ligne-seance-partagee">${s.cheminTitres.map(t => echapperSea(simplifierSegmentCheminSea(t))).join(' › ')}</div>
       </div>
       <div class="actions-ligne-seance-partagee">
         <button type="button" class="bouton-epingler-sea ${s.epinglee ? 'epinglee' : ''}" data-epingler="${s.id}" title="${s.epinglee ? 'Retirer des épinglées' : 'Épingler cette séance'}">${s.epinglee ? '📌' : '📍'}</button>

@@ -1,90 +1,53 @@
-KEKELI — Livraison du 5 septembre 2026 (6)
+KEKELI — Livraison du 5 septembre 2026 (7)
 ============================================
 
-Lot de correctifs et d'améliorations demandés sur l'existant (accueil,
-listings de séances, référentiel de compétences) — ne fait pas partie des
-13 phases du système Premium « Accompagnement pédagogique personnalisé »,
-qui reprendra à la Phase 3 dès que vous le souhaitez.
+Petit lot de correctifs, en réponse directe à vos dernières remarques sur
+l'affichage des listings de séances.
 
-1. Icône KEKELI dans les onglets du navigateur
-------------------------------------------------
-Le logo KEKELI s'affiche maintenant dans l'onglet du navigateur (et dans les
-favoris) sur les 44 pages du site — auparavant aucune icône n'était définie,
-le navigateur affichait une icône générique.
+1. Onglet du navigateur (page d'accueil)
+------------------------------------------
+Le texte "La Lumière du Savoir" a été retiré du titre de l'onglet sur la
+page d'accueil : il affiche maintenant simplement "KEKELI".
 
-2. Titre des séances de nouveau visible dans les listings
------------------------------------------------------------
-Depuis le 4 septembre, seule la discipline s'affichait dans les listes de
-séances (page Classes, espace élève, jeux éducatifs, gestion des séances en
-admin, page de lecture d'une séance...), ce qui rendait indiscernables deux
-séances d'une même discipline. Le titre de la séance (le repère que vous
-saisissez dans l'éditeur — "titre du contenu" — ou à défaut son titre brut)
-redevient le libellé principal partout ; la discipline reste affichée à côté,
-en petite pastille de couleur, sans avoir disparu.
+2. Pourquoi certaines séances n'affichent qu'un nom générique
+------------------------------------------------------------------
+En vérifiant directement dans la base de données, ce n'est pas un bug
+d'affichage : les séances qui montrent seulement "Séance 4", "Séance 7",
+etc. n'ont tout simplement pas encore reçu de titre de contenu de la part
+d'un rédacteur (le champ est resté vide depuis leur création, elles sont
+encore en brouillon). Le nom "Séance 4" n'est qu'un identifiant technique
+automatique, pas un vrai titre — mais comme il s'affichait normalement,
+rien ne permettait de distinguer un brouillon jamais titré d'une séance
+réellement nommée. C'est réglé : partout où ce cas se présente (page
+Séances, gestion des séances en admin, arborescence Classes/matières), le
+nom générique s'affiche maintenant en gris/italique avec une pastille
+"à titrer", pour repérer d'un coup d'œil les séances qu'il reste à nommer
+dans l'éditeur.
 
-3. Bandeau d'accueil : taille/position de l'image, et 3 dispositions
-------------------------------------------------------------------------
-Trois demandes traitées ensemble, dans Admin ▸ Section d'accueil :
-
-- Taille de l'image : chaque bloc du bandeau a maintenant un réglage
-  Petite / Moyenne / Grande (Grande = 50% de la largeur disponible sur PC,
-  comme demandé — occupation automatiquement adaptée en pleine largeur sur
-  mobile, quel que soit le réglage choisi).
-- Position de l'image : Gauche / Droite / Centre (Centre empile l'image
-  au-dessus du texte, tout centré — utile pour un bloc "affiche").
-- Disposition d'ensemble (nouveau réglage global, en haut de la page
-  Admin ▸ Section d'accueil) : en plus du Carrousel actuel (un bloc affiché
-  à la fois, en rotation), deux nouvelles options affichent TOUS les blocs
-  actifs en même temps, sans défilement pour un nombre raisonnable de blocs
-  (jusqu'à 4-5 environ) — Grille (côte à côte) ou Sections compactes
-  (empilées, en lignes serrées). Au-delà de ce nombre, désactiver les blocs
-  les moins prioritaires reste le seul moyen de garantir l'absence de
-  défilement, quelle que soit la disposition choisie.
-
-4. Associer une compétence à une séance dès sa création
------------------------------------------------------------
-Dans Admin ▸ Compétences, après avoir créé une nouvelle compétence, vous
-pouvez maintenant l'associer immédiatement à une séance déjà publiée : tous
-ses blocs Exercice/Quiz/Évaluation/Activité sont alors rattachés d'un coup à
-la compétence, sans avoir besoin de rouvrir l'éditeur de séance et de cocher
-bloc par bloc (cette dernière méthode reste bien sûr disponible, pour un
-rattachement plus précis bloc par bloc).
-
-Sécurité
---------
-Le nouveau réglage global du bandeau (table dédiée) a la même protection que
-le reste de la section d'accueil : lecture publique, écriture réservée au
-super administrateur. Vérification de sécurité de la base de données
-relancée après ces changements : aucune nouvelle alerte (mêmes avertissements
-génériques déjà présents avant cette livraison, sur des fonctions existantes
-sans lien avec ces changements).
+3. Chemin sous chaque séance raccourci
+------------------------------------------
+Le préfixe numéroté "Thème X :" est retiré du chemin affiché sous chaque
+séance (page Séances et gestion des séances en admin). Exemple :
+  Avant : Thème 1 : L'homme et sa santé › Unité 1 › Semaine 1
+  Après : L'homme et sa santé › Unité 1 › Semaine 1
+Seul l'affichage change ; le titre complet reste tel quel dans la structure
+Classes/matières.
 
 Fichiers modifiés (frontend, dans ce zip)
 -------------------------------------------
-- 44 pages HTML : ajout de l'icône du site dans l'onglet (point 1).
-- `index.html` : structure du bandeau d'accueil adaptée pour les nouvelles
-  dispositions (point 3).
-- `css/style-public.css` : tailles/positions de l'image du héro, grille et
-  sections compactes.
-- `js/accueil-hero.js` : logique d'affichage des 3 dispositions et des
-  réglages taille/position par bloc.
-- `js/pages/admin-section-accueil.js` : réglage global de disposition +
-  champs taille/position dans le formulaire de bloc.
-- `js/pages/seances.js`, `js/pages/navigation.js`, `js/pages/eleve-matiere.js`,
-  `js/pages/admin-gestion-seances.js`, `js/pages/eleve-jeux-educatifs.js`,
-  `js/pages/eleve-seance.js`, `js/pages/editeur-seance.js` : affichage
-  titre + discipline dans les listings et pages de lecture (point 2).
-- `js/pages/admin-competences.js` : association compétence → séance à la
-  création (point 4).
+- `index.html` : titre de l'onglet.
+- `js/pages/seances.js`, `js/pages/admin-gestion-seances.js`,
+  `js/pages/navigation.js` : pastille "à titrer" sur les séances sans titre
+  de contenu ; chemin raccourci (seances.js et admin-gestion-seances.js).
 
-Côté base de données (déjà en ligne, hors de ce zip)
-------------------------------------------------------
-- La fonction serveur `etat_seances_sa` (utilisée par l'espace élève) renvoie
-  maintenant aussi le titre de séance saisi dans l'éditeur.
-- 2 nouvelles colonnes sur les blocs du bandeau d'accueil (taille et position
-  de l'image) + une nouvelle table pour le réglage global de disposition
-  (RLS activée, lecture publique, écriture super admin).
+Aucun changement de base de données dans ce lot.
 
-Comme d'habitude, aucun fichier SQL n'est conservé dans ce dépôt Git — les
-changements de base de données sont appliqués directement et documentés
-dans le document de suivi du projet.
+En cours de discussion (pas encore livré)
+---------------------------------------------
+Vous avez demandé que la vue détaillée bloc par bloc (paliers, type
+Activité/Exercice/Quiz, contenu) — actuellement visible seulement par
+l'élève sur sa page de séance, et par vous en aperçu depuis l'éditeur —
+soit accessible à tous les utilisateurs (enseignant, parent, admin depuis
+la liste). Cette page élève est au cœur du site (c'est elle qui fait
+passer les exercices), donc avant d'y toucher je vous propose une piste
+précise dans mon message de suite, pour validation avant de coder.

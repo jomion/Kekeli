@@ -300,10 +300,28 @@ function couleurDisciplineGS(nom) {
   for (let i = 0; i < nom.length; i++) h = (h * 31 + nom.charCodeAt(i)) >>> 0;
   return PALETTE_DISCIPLINE_GS[h % PALETTE_DISCIPLINE_GS.length];
 }
+
+// Voir js/pages/seances.js (simplifierSegmentCheminSea, même logique
+// dupliquée car ces pages ne partagent pas de module) : retire le préfixe
+// "Thème X :" du chemin affiché (demande du 5 septembre 2026), sans toucher
+// au titre réellement stocké dans la structure Classes/matières.
+function simplifierSegmentCheminGS(t) {
+  return (t || '').replace(/^Th[eè]me\s*\d*\s*:\s*/i, '');
+}
 function pastilleDisciplineGS(discipline) {
   if (!discipline) return '';
   const c = couleurDisciplineGS(discipline);
   return `<span style="background:${c}22;color:${c};border:1px solid ${c}55;font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;margin-left:6px">${echapperGS(discipline)}</span>`;
+}
+
+// Libellé principal : titre_contenu si saisi, sinon le titre brut affiché en
+// italique/grisé + pastille "à titrer" (5 septembre 2026, 2e passe) — pour
+// distinguer une vraie séance titrée d'un brouillon jamais encore nommé
+// (titre brut générique "Séance N"/"Séquence N"), qui ressemblait sinon à un
+// vrai titre et rendait le manque de titre invisible à l'écran.
+function libelleTitreSeanceGS(s) {
+  if (s.titre_contenu) return echapperGS(s.titre_contenu);
+  return `<span style="font-style:italic;color:#94A3B8">${echapperGS(s.titre)}</span> <span style="font-style:normal;font-weight:700;font-size:10px;background:#FEF3C7;color:#92400E;padding:1px 7px;border-radius:8px">à titrer</span>`;
 }
 
 // Icônes de palier (mêmes repères que partout ailleurs dans l'admin/l'IA :
@@ -322,13 +340,13 @@ function pastilleContenuGS(s) {
 
 function ligneSeanceHtmlGS(s) {
   const meta = `Modifiée le ${formaterDateGS(s.modifie_le)}`;
-  const chemin = (s.cheminTitres || []).map(t => echapperGS(t)).join(' › ');
+  const chemin = (s.cheminTitres || []).map(t => echapperGS(simplifierSegmentCheminGS(t))).join(' › ');
   // Le titre (titre_contenu si renseigné par l'admin dans l'éditeur, sinon le
   // titre brut) est le libellé principal ; la discipline reste affichée en
   // pastille à côté (5 septembre 2026 : la discipline seule, utilisée depuis
   // le 4 septembre 2026, rendait indiscernables deux séances d'une même
   // discipline dans cette liste).
-  const libelle = `<span>${echapperGS(s.titre_contenu || s.titre)}</span> ${pastilleDisciplineGS(s.discipline)}`;
+  const libelle = `<span>${libelleTitreSeanceGS(s)}</span> ${pastilleDisciplineGS(s.discipline)}`;
 
   return `
     <div class="ligne ligne-seance-admin">
