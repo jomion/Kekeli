@@ -1,32 +1,32 @@
-KEKELI — Livraison du 5 septembre 2026 (2)
+KEKELI — Livraison du 5 septembre 2026 (3)
 ============================================
 
-En réponse à votre demande : « Ajoute à l'inscription l'aperçu du mot de
-passe, la validation des conditions d'utilisation et des politiques avant
-de valider l'inscription ».
+En réponse à votre demande : « Redimensionne le bloc d'image du héro pour
+qu'elle occupe proportionnellement et convenablement l'espace disponible
+dans le héro ».
 
-1. Aperçu du mot de passe
------------------------------
-Sur la page d'inscription, chacun des deux champs "Mot de passe" et
-"Confirmer le mot de passe" a maintenant son propre bouton œil (👁️) juste
-à l'intérieur du champ. Un clic affiche le mot de passe en clair (l'icône
-devient 🙈), un second clic le remasque. Les deux champs sont indépendants
-l'un de l'autre.
+Le problème
+---------------
+Le cadre de l'image du grand bandeau d'accueil (le "héro") avait une
+taille fixe (420 × 260 pixels), quelle que soit la taille de l'écran. Sur
+un écran large, cela laissait beaucoup de vide autour du cadre ; sur un
+écran plus étroit (une fois le bloc image passé sous le texte), le cadre
+restait petit au lieu de profiter de la largeur disponible.
 
-2. Acceptation obligatoire des conditions et de la politique
-------------------------------------------------------------------
-Juste au-dessus du bouton "Créer mon compte", une case à cocher a été
-ajoutée : « J'ai lu et j'accepte les conditions d'utilisation et la
-politique de confidentialité de KEKELI. » Les deux mentions sont des liens
-cliquables qui ouvrent les pages correspondantes dans un nouvel onglet.
+Le correctif
+----------------
+Le cadre s'agrandit et se rétrécit désormais avec l'espace réellement
+disponible dans le héro, tout en gardant des proportions harmonieuses
+(grâce à un ratio largeur/hauteur fixe plutôt qu'une hauteur figée en
+pixels) :
+- Sur un grand écran, il occupe une part nettement plus généreuse et
+  équilibrée de l'espace à côté du texte.
+- Une fois qu'il passe sous le texte (tablette, mobile), il profite de
+  toute la largeur disponible au lieu de rester petit.
 
-Tant que cette case n'est pas cochée, l'inscription ne peut pas être
-validée : le navigateur bloque directement l'envoi du formulaire (message
-natif), et si jamais ce blocage était contourné, le site affiche son
-propre message d'erreur ("Vous devez accepter les conditions d'utilisation
-et la politique de confidentialité pour créer un compte.") avant même de
-contacter le serveur.
+Ce changement s'applique aussi bien à l'emoji de secours (☀️, affiché tant
+qu'aucune image n'est configurée) qu'à une vraie photo envoyée depuis
+`pages/admin/section-accueil.html` — la photo se recadre toujours
+proprement pour remplir le cadre, désormais plus grand.
 
-Ces deux ajouts ne concernent que la page d'inscription (`pages/inscription.html`)
-— dites-moi si vous voulez la même chose sur la page de connexion ou
-ailleurs.
+Un seul fichier modifié : `css/style-public.css`.

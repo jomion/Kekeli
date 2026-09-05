@@ -105,15 +105,33 @@ nav.nav-publique a:hover { color: var(--accent-cyan); }
 .hero-text h1 { font-size: 40px; margin: 0 0 18px; line-height: 1.2; }
 .hero-text h1 span { color: var(--accent-cyan); }
 .hero-text p { font-size: 17px; color: #CBD5E1; margin-bottom: 26px; line-height: 1.6; max-width: 480px; }
+/* Redimensionné le 5 septembre 2026 (demande explicite : le bloc doit
+   "occuper proportionnellement et convenablement l'espace disponible dans
+   le héro") : la taille fixe 420×260 laissait un grand vide autour du bloc
+   sur les écrans larges, et ne grandissait pas avec l'espace réellement
+   disponible. Remplacé par une taille flexible (flex-grow, comme
+   .hero-text) plafonnée par max-width, avec une hauteur calculée à partir
+   du ratio (aspect-ratio) plutôt que fixée en pixels : le bloc grandit ou
+   rétrécit avec l'espace disponible tout en gardant les mêmes proportions,
+   pour une vraie photo (object-fit: cover, voir js/accueil-hero.js) comme
+   pour l'emoji de secours. */
 .hero-image {
   background: rgba(255,255,255,0.08); border: 2px dashed rgba(255,255,255,0.3); border-radius: 16px;
-  width: 100%; max-width: 420px; height: 260px; display: flex; justify-content: center; align-items: center;
-  font-size: 60px; overflow: hidden;
+  flex: 1 1 360px; width: 100%; max-width: 460px; aspect-ratio: 4 / 3;
+  display: flex; justify-content: center; align-items: center;
+  font-size: clamp(48px, 9vw, 72px); overflow: hidden;
 }
 /* Quand un bloc de la section d'accueil dynamique (js/accueil-hero.js) fournit
    une vraie image plutôt qu'un emoji, le cadre pointillé "espace réservé"
    laisse place à un cadre plein, plus adapté à une photo. */
 .hero-image.avec-photo { border-style: solid; border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.03); }
+/* Une fois le bloc image passé sur sa propre ligne (voir le point de
+   rupture du flex-wrap du .hero, autour de 900px), toute la largeur du héro
+   lui est disponible : on relâche le plafond et on aplatit un peu le ratio
+   pour qu'il en profite pleinement, au lieu de rester coincé à 460px. */
+@media (max-width: 900px) {
+  .hero-image { max-width: 560px; aspect-ratio: 16 / 10; }
+}
 .hero-points { display: flex; gap: 8px; margin-top: 22px; }
 .hero-point { width: 9px; height: 9px; border-radius: 50%; border: none; background: rgba(255,255,255,0.3); cursor: pointer; padding: 0; }
 .hero-point:hover { background: rgba(255,255,255,0.55); }
