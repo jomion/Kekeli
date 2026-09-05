@@ -1,53 +1,65 @@
-KEKELI — Livraison du 5 septembre 2026 (7)
+KEKELI — Livraison du 5 septembre 2026 (8)
 ============================================
 
-Petit lot de correctifs, en réponse directe à vos dernières remarques sur
-l'affichage des listings de séances.
+Ce lot répond directement à votre retour "tu n'as pris en compte mes
+demandes" — voici, point par point, ce qui manquait et ce qui est corrigé.
 
-1. Onglet du navigateur (page d'accueil)
-------------------------------------------
-Le texte "La Lumière du Savoir" a été retiré du titre de l'onglet sur la
-page d'accueil : il affiche maintenant simplement "KEKELI".
+1. Un vrai champ de titre, disponible dès la création
+------------------------------------------------------
+Jusqu'ici, à la création d'une séance, seul le "Titre" technique (celui
+transmis à l'IA) était demandé — le "titre du contenu" affiché sur le site
+restait vide tant que personne n'allait le remplir plus tard dans l'éditeur.
+C'est ce qui provoquait le nom générique "Séance N" persistant. Corrigé :
+dès la création, le titre saisi sert désormais AUSSI de titre affiché par
+défaut. Ce titre affiché reste modifiable séparément dans l'éditeur si vous
+voulez l'affiner ensuite, mais une séance n'est plus jamais créée sans lui.
+(S'applique aussi à la duplication d'une séance ou d'une SA entière : le
+titre affiché est recopié avec le reste.)
 
-2. Pourquoi certaines séances n'affichent qu'un nom générique
-------------------------------------------------------------------
-En vérifiant directement dans la base de données, ce n'est pas un bug
-d'affichage : les séances qui montrent seulement "Séance 4", "Séance 7",
-etc. n'ont tout simplement pas encore reçu de titre de contenu de la part
-d'un rédacteur (le champ est resté vide depuis leur création, elles sont
-encore en brouillon). Le nom "Séance 4" n'est qu'un identifiant technique
-automatique, pas un vrai titre — mais comme il s'affichait normalement,
-rien ne permettait de distinguer un brouillon jamais titré d'une séance
-réellement nommée. C'est réglé : partout où ce cas se présente (page
-Séances, gestion des séances en admin, arborescence Classes/matières), le
-nom générique s'affiche maintenant en gris/italique avec une pastille
-"à titrer", pour repérer d'un coup d'œil les séances qu'il reste à nommer
-dans l'éditeur.
+2. La séquence (SA) est de retour dans le chemin
+----------------------------------------------------
+Le chemin sous chaque séance (page Séances et gestion des séances admin)
+affiche de nouveau le nom de la séquence, en dernier segment (le plus proche
+de la séance) :
+  L'homme et sa santé › Unité 1 › Semaine 1 › SA1 — Le portrait
 
-3. Chemin sous chaque séance raccourci
-------------------------------------------
-Le préfixe numéroté "Thème X :" est retiré du chemin affiché sous chaque
-séance (page Séances et gestion des séances en admin). Exemple :
-  Avant : Thème 1 : L'homme et sa santé › Unité 1 › Semaine 1
-  Après : L'homme et sa santé › Unité 1 › Semaine 1
-Seul l'affichage change ; le titre complet reste tel quel dans la structure
-Classes/matières.
+3. Le contenu d'une séance, bloc par bloc, pour tout le monde
+-------------------------------------------------------------------
+Sur la page "Séances" (partagée par tous les rôles — élève, parent,
+enseignant, admin) et sur la page Admin ▸ Gestion des séances, chaque
+séance qui a du contenu propose maintenant un bouton "👁️ Voir le contenu"
+qui déplie, directement sous la ligne, le même type d'affichage que la vue
+"Paliers de cette séance" de l'élève : chaque bloc dans son propre encadré
+coloré, avec son type bien identifié (Texte, Activité, Exercice...) et un
+aperçu de son contenu, regroupés par palier quand il y en a.
+C'est un aperçu en LECTURE SEULE : pas de question à remplir, aucun corrigé
+chargé — juste de quoi voir clairement ce que contient une séance sans
+ouvrir l'éditeur. Chargé à la demande (au clic), pas pour toute la liste
+d'un coup, pour rester rapide.
 
 Fichiers modifiés (frontend, dans ce zip)
 -------------------------------------------
-- `index.html` : titre de l'onglet.
-- `js/pages/seances.js`, `js/pages/admin-gestion-seances.js`,
-  `js/pages/navigation.js` : pastille "à titrer" sur les séances sans titre
-  de contenu ; chemin raccourci (seances.js et admin-gestion-seances.js).
+- `js/pages/navigation.js` : titre affiché par défaut à la création et à la
+  duplication d'une séance/SA.
+- `js/pages/editeur-seance.js` : titre affiché (+ discipline) recopiés à la
+  duplication d'une séance depuis l'éditeur.
+- `js/pages/seances.js`, `js/pages/admin-gestion-seances.js` : séquence (SA)
+  de retour dans le chemin ; bouton "Voir le contenu".
+- `js/apercu-blocs-seance.js` (nouveau) : le rendu de l'aperçu bloc par bloc,
+  partagé par ces deux pages.
+- `js/editeur/blocs.js` : chargé sur ces deux pages (déjà utilisé ailleurs,
+  aucune modification de son contenu).
+- `pages/seances.html`, `pages/admin/gestion-seances.html` : ajout des deux
+  scripts ci-dessus.
+- `css/style-public.css`, `css/style.css` : mise en forme de l'aperçu.
 
-Aucun changement de base de données dans ce lot.
+Aucun changement de base de données dans ce lot — uniquement du code
+front-end.
 
-En cours de discussion (pas encore livré)
----------------------------------------------
-Vous avez demandé que la vue détaillée bloc par bloc (paliers, type
-Activité/Exercice/Quiz, contenu) — actuellement visible seulement par
-l'élève sur sa page de séance, et par vous en aperçu depuis l'éditeur —
-soit accessible à tous les utilisateurs (enseignant, parent, admin depuis
-la liste). Cette page élève est au cœur du site (c'est elle qui fait
-passer les exercices), donc avant d'y toucher je vous propose une piste
-précise dans mon message de suite, pour validation avant de coder.
+Point resté en discussion
+------------------------------
+La vue arborescence complète (Admin ▸ Classes/matières, l'affichage en arbre
+avec les niveaux dépliables) n'a pas encore ce même bouton "Voir le
+contenu" : c'est une vue plus complexe (imbriquée), et je préfère vous
+livrer d'abord ce qui est fait pour que vous puissiez déjà tester, plutôt
+que d'attendre. Dites-moi si vous la voulez aussi là.

@@ -339,11 +339,13 @@ async function rafraichirListeSea() {
 
   let liste = (seancesBrut || []).map(s => {
     const sa = saParId.get(s.sa_id) || null;
-    // La séquence (SA) n'apparaît plus du tout à l'affichage, y compris dans
-    // cette ligne de chemin (demande explicite du 4 septembre 2026) — seuls
-    // les niveaux intermédiaires réels (Thème/Unité/Semaine/Dossier...) y
-    // restent.
-    const cheminTitres = sa ? cheminTitresNoeudSea(sa.noeud_id, noeudParId) : [];
+    // La séquence (SA) était retirée du chemin depuis le 4 septembre 2026 ;
+    // demande explicite du 5 septembre 2026 (3e passe) : la remettre, comme
+    // dernier segment (le plus proche de la séance), en plus des niveaux
+    // intermédiaires réels (Thème/Unité/Semaine/Dossier...).
+    const cheminTitres = sa
+      ? [...cheminTitresNoeudSea(sa.noeud_id, noeudParId), sa.numero ? `SA${sa.numero} — ${sa.titre}` : sa.titre]
+      : [];
     const cheminOrdre = sa ? [...cheminOrdreNoeudSea(sa.noeud_id, noeudParId), sa.ordre ?? 0, s.ordre ?? 0] : [s.ordre ?? 0];
     return { ...s, cheminTitres, cheminOrdre, epinglee: seancesEpingleesIds.has(s.id) };
   });
@@ -423,25 +425,65 @@ function rendreListeSea(liste) {
   if (!liste.length) { zone.innerHTML = '<p class="chargement">Aucune séance ne correspond à ces critères.</p>'; return; }
 
   zone.innerHTML = `<div class="liste-lignes-seances">${liste.map(s => `
-    <div class="ligne-seance-partagee">
-      <div class="details-ligne-seance-partagee">
-        <div class="titre-ligne-seance-partagee" style="flex-wrap:wrap">
-          <span class="texte-titre-seance-partagee">${libelleTitreSeanceSea(s)}</span>
-          ${s.discipline ? `<span style="background:${couleurDisciplineSea(s.discipline)}22;color:${couleurDisciplineSea(s.discipline)};border:1px solid ${couleurDisciplineSea(s.discipline)}55;font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px">${echapperSea(s.discipline)}</span>` : ''}
-          ${roleSeances === 'admin' || roleSeances === 'autorite' ? `<span class="statut-pill statut-${s.statut}">${LIBELLES_STATUT_SEANCES[s.statut] || s.statut}</span>` : ''}
+    <div class="bloc-ligne-seance-partagee">
+      <div class="ligne-seance-partagee">
+        <div class="details-ligne-seance-partagee">
+          <div class="titre-ligne-seance-partagee" style="flex-wrap:wrap">
+            <span class="texte-titre-seance-partagee">${libelleTitreSeanceSea(s)}</span>
+            ${s.discipline ? `<span style="background:${couleurDisciplineSea(s.discipline)}22;color:${couleurDisciplineSea(s.discipline)};border:1px solid ${couleurDisciplineSea(s.discipline)}55;font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px">${echapperSea(s.discipline)}</span>` : ''}
+            ${roleSeances === 'admin' || roleSeances === 'autorite' ? `<span class="statut-pill statut-${s.statut}">${LIBELLES_STATUT_SEANCES[s.statut] || s.statut}</span>` : ''}
+          </div>
+          <div class="chemin-ligne-seance-partagee">${s.cheminTitres.map(t => echapperSea(simplifierSegmentCheminSea(t))).join(' › ')}</div>
         </div>
-        <div class="chemin-ligne-seance-partagee">${s.cheminTitres.map(t => echapperSea(simplifierSegmentCheminSea(t))).join(' › ')}</div>
+        <div class="actions-ligne-seance-partagee">
+          <button type="button" class="btn btn-discret" data-apercu-contenu="${s.id}">👁️ Voir le contenu</button>
+          <button type="button" class="bouton-epingler-sea ${s.epinglee ? 'epinglee' : ''}" data-epingler="${s.id}" title="${s.epinglee ? 'Retirer des épinglées' : 'Épingler cette séance'}">${s.epinglee ? '📌' : '📍'}</button>
+          ${roleSeances === 'eleve' && s.statut === 'publie' ? `<a class="btn btn-primaire" href="eleve/seance.html?id=${s.id}">📖 Lire</a>` : ''}
+          ${roleSeances === 'admin' ? `<a class="btn btn-discret" href="editeur-seance.html?id=${s.id}" title="Éditer le contenu">✏️ Éditer</a>` : ''}
+        </div>
       </div>
-      <div class="actions-ligne-seance-partagee">
-        <button type="button" class="bouton-epingler-sea ${s.epinglee ? 'epinglee' : ''}" data-epingler="${s.id}" title="${s.epinglee ? 'Retirer des épinglées' : 'Épingler cette séance'}">${s.epinglee ? '📌' : '📍'}</button>
-        ${roleSeances === 'eleve' && s.statut === 'publie' ? `<a class="btn btn-primaire" href="eleve/seance.html?id=${s.id}">📖 Lire</a>` : ''}
-        ${roleSeances === 'admin' ? `<a class="btn btn-discret" href="editeur-seance.html?id=${s.id}" title="Éditer le contenu">✏️ Éditer</a>` : ''}
-      </div>
+      <div class="apercu-contenu-seance-partagee" data-apercu-zone="${s.id}" hidden></div>
     </div>`).join('')}</div>`;
 
   zone.querySelectorAll('[data-epingler]').forEach(btn => {
     btn.addEventListener('click', () => basculerEpinglageSea(parseInt(btn.dataset.epingler, 10)));
   });
+  zone.querySelectorAll('[data-apercu-contenu]').forEach(btn => {
+    btn.addEventListener('click', () => basculerApercuContenuSea(parseInt(btn.dataset.apercuContenu, 10), btn));
+  });
+}
+
+// Aperçu en lecture seule du contenu d'une séance, bloc par bloc (5 septembre
+// 2026, 3e passe — demande explicite : "adapter l'affichage des activités à
+// celle des séquences ... avec les blocs clairement identifiables"),
+// accessible depuis cette page partagée par tous les rôles (élève, parent,
+// enseignant, admin). Chargé à la demande (au premier clic sur "Voir le
+// contenu"), pas pour toute la liste d'un coup, pour rester léger. Réutilise
+// `rendreApercuContenuSeance` (js/apercu-blocs-seance.js), déjà utilisée dans
+// l'admin de gestion des séances — voir ce fichier pour le détail du rendu.
+// Élève/parent/enseignant ne voient de toute façon dans cette liste que des
+// séances déjà publiées (filtre appliqué à la requête plus haut) : cet aperçu
+// ne donne accès à aucun contenu qu'ils ne pourraient pas déjà lire en
+// ouvrant la séance ; aucun corrigé n'est chargé ni affiché ici.
+const contenuBlocsChargeSea = new Map(); // seance_id -> blocs déjà récupérés
+async function basculerApercuContenuSea(seanceId, bouton) {
+  const zoneApercu = zone_apercuSea(seanceId);
+  if (!zoneApercu) return;
+  const ouvert = !zoneApercu.hidden;
+  if (ouvert) { zoneApercu.hidden = true; bouton.textContent = '👁️ Voir le contenu'; return; }
+
+  bouton.textContent = '🔼 Masquer';
+  zoneApercu.hidden = false;
+  if (!contenuBlocsChargeSea.has(seanceId)) {
+    zoneApercu.innerHTML = '<p class="chargement">Chargement du contenu...</p>';
+    const { data: blocs } = await supabaseClient.from('blocs_seance')
+      .select('id, type_bloc, contenu, palier, parent_bloc_id, ordre').eq('seance_id', seanceId);
+    contenuBlocsChargeSea.set(seanceId, blocs || []);
+  }
+  zoneApercu.innerHTML = rendreApercuContenuSeance(contenuBlocsChargeSea.get(seanceId));
+}
+function zone_apercuSea(seanceId) {
+  return document.querySelector(`[data-apercu-zone="${seanceId}"]`);
 }
 
 async function basculerEpinglageSea(seanceId) {

@@ -2037,7 +2037,9 @@ async function gererChangementStatut(e) {
 function dupliquerSeance() {
   confirmerAction('Dupliquer cette séance (avec tous ses blocs) ?', async () => {
     const { data: nouvelleSeance, error } = await supabaseClient.from('seances').insert({
-      sa_id: seance.sa_id, titre: seance.titre + ' (copie)', statut: 'brouillon', ordre: seance.ordre + 1,
+      sa_id: seance.sa_id, titre: seance.titre + ' (copie)',
+      titre_contenu: (seance.titre_contenu || seance.titre) + ' (copie)',
+      discipline: seance.discipline, statut: 'brouillon', ordre: seance.ordre + 1,
       cree_par: profilAdmin.id
     }).select().single();
     if (error) return alert(error.message);

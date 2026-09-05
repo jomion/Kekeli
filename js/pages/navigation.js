@@ -880,8 +880,16 @@ function creerSeanceDans(saId, redirigerVersEditeur = true, onCree) {
       // réordonnancement manuel viendra plus tard). Le palier, lui, se règle
       // par activité/exercice à l'intérieur de la séance, pas ici.
       const { count } = await supabaseClient.from('seances').select('id', { count: 'exact', head: true }).eq('sa_id', saId);
+      // Le titre saisi ici (seul champ titre demandé à la création, avant même
+      // l'ajout de sections/blocs) sert aussi de titre affiché par défaut
+      // (titre_contenu) — demande explicite du 5 septembre 2026, 3e passe :
+      // une séance ne doit plus jamais rester sans titre affiché tant que
+      // personne n'a pris la peine de saisir un "titre du contenu" séparé
+      // dans l'éditeur. Ce dernier reste modifiable ensuite indépendamment
+      // (ex: un titre plus riche que le titre de travail), et `titre` reste
+      // la donnée transmise à l'IA, inchangée.
       const { data, error } = await supabaseClient.from('seances').insert({
-        sa_id: saId, titre, discipline: discipline || null,
+        sa_id: saId, titre, titre_contenu: titre, discipline: discipline || null,
         statut: 'brouillon', ordre: count || 0, cree_par: session.user.id
       }).select().single();
       if (error) return alert(error.message);
@@ -932,7 +940,8 @@ async function dupliquerSARecursif(saOriginale, nouveauNoeudId, renommer = true)
   for (const se of seancesOriginales || []) {
     const { data: { session } } = await supabaseClient.auth.getSession();
     const { data: seanceCopie, error: erreurSeance } = await supabaseClient.from('seances').insert({
-      sa_id: copie.id, titre: se.titre, discipline: se.discipline, statut: 'brouillon', ordre: se.ordre, cree_par: session.user.id
+      sa_id: copie.id, titre: se.titre, titre_contenu: se.titre_contenu || se.titre, discipline: se.discipline,
+      statut: 'brouillon', ordre: se.ordre, cree_par: session.user.id
     }).select().single();
     if (erreurSeance) { alert(erreurSeance.message); continue; }
 

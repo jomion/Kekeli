@@ -764,6 +764,12 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .bouton-epingler-sea { background: none; border: 1px solid var(--bordure); border-radius: 50%; width: 34px; height: 34px; font-size: 15px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: background .15s, border-color .15s; }
 .bouton-epingler-sea:hover { background: rgba(0,0,209,.08); border-color: var(--bleu-kekeli); }
 .bouton-epingler-sea.epinglee { border-color: var(--accent-cyan); background: rgba(0,209,255,.15); }
+/* Aperçu bloc par bloc du contenu d'une séance (5 septembre 2026, 3e passe) :
+   déplié directement sous la ligne, dans une carte visuellement rattachée. */
+.apercu-contenu-seance-partagee:not([hidden]) {
+  background: var(--blanc); border-radius: 8px; margin-top: -4px; padding: 2px 14px 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07);
+}
 
 /* ===== Pages légales (pages/politique-confidentialite.html,
    pages/conditions-utilisation.html) — session du 4 septembre 2026,

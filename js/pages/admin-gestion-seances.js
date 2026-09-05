@@ -66,11 +66,14 @@ async function init() {
     const saInfo = saParId.get(s.sa_id) || null;
     const noeud = saInfo ? noeudParId.get(saInfo.noeud_id) : null;
     const chemin = saInfo ? remonterCheminHierarchiqueGS(saInfo.noeud_id, noeudParId) : { unite: null, semaine: null, dossier: null };
-    // Chemin (Thème › Unité › ...), même principe que la page "Séances"
-    // partagée (pages/seances.html). La séquence (SA) n'y apparaît plus du
-    // tout (demande explicite du 4 septembre 2026) — elle reste disponible
-    // comme filtre déroulant plus bas (libelleSA), pas comme texte affiché.
-    const cheminTitres = saInfo ? cheminTitresNoeudGS(saInfo.noeud_id, noeudParId) : [];
+    // Chemin (Thème › Unité › ... › SA), même principe que la page "Séances"
+    // partagée (pages/seances.html). La séquence (SA), retirée du chemin le
+    // 4 septembre 2026, y est remise depuis le 5 septembre 2026 (3e passe),
+    // comme dernier segment (le plus proche de la séance) — elle reste aussi
+    // disponible comme filtre déroulant plus bas (libelleSA).
+    const cheminTitres = saInfo
+      ? [...cheminTitresNoeudGS(saInfo.noeud_id, noeudParId), saInfo.numero ? `SA${saInfo.numero} — ${saInfo.titre}` : saInfo.titre]
+      : [];
     const infosBlocs = infosBlocsParSeanceGS.get(s.id) || { nbBlocs: 0, paliers: new Set() };
     return {
       ...s,
@@ -281,6 +284,9 @@ function rendreSeances() {
       'Publier cette séance ? Elle deviendra visible pour les élèves concernés.'
     ));
   });
+  zone.querySelectorAll('[data-apercu-contenu-gs]').forEach(btn => {
+    btn.addEventListener('click', () => basculerApercuContenuGS(parseInt(btn.dataset.apercuContenuGs, 10), btn));
+  });
   zone.querySelectorAll('[data-archiver-seance]').forEach(btn => {
     btn.addEventListener('click', () => changerStatutSeanceGS(
       parseInt(btn.dataset.archiverSeance, 10), 'archive',
@@ -349,19 +355,44 @@ function ligneSeanceHtmlGS(s) {
   const libelle = `<span>${libelleTitreSeanceGS(s)}</span> ${pastilleDisciplineGS(s.discipline)}`;
 
   return `
-    <div class="ligne ligne-seance-admin">
-      <div class="details-seance-admin">
-        <span class="titre-ligne" style="flex-wrap:wrap">${s.classe ? `<span class="badge-classe-admin">${echapperGS(s.classe.nom)}</span> ` : ''}${libelle} ${pastilleContenuGS(s)}</span>
-        ${chemin ? `<span class="chemin-ligne-seance-partagee">${chemin}</span>` : ''}
-        <span class="meta-seance-admin">${meta}</span>
+    <div class="bloc-ligne-seance-admin">
+      <div class="ligne ligne-seance-admin">
+        <div class="details-seance-admin">
+          <span class="titre-ligne" style="flex-wrap:wrap">${s.classe ? `<span class="badge-classe-admin">${echapperGS(s.classe.nom)}</span> ` : ''}${libelle} ${pastilleContenuGS(s)}</span>
+          ${chemin ? `<span class="chemin-ligne-seance-partagee">${chemin}</span>` : ''}
+          <span class="meta-seance-admin">${meta}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          ${s.nbBlocs ? `<button type="button" class="btn btn-discret" data-apercu-contenu-gs="${s.id}">👁️ Voir le contenu</button>` : ''}
+          <span class="statut-pill statut-${s.statut}">${LIBELLES_STATUT_GS[s.statut] || s.statut}</span>
+          ${s.statut === 'brouillon' ? `<button type="button" class="btn btn-discret" data-publier-seance="${s.id}">📤 Publier</button>` : ''}
+          ${s.statut === 'publie' ? `<button type="button" class="btn btn-discret" data-archiver-seance="${s.id}">🗄️ Archiver</button>` : ''}
+          <a href="../editeur-seance.html?id=${s.id}" class="btn btn-primaire">✏️ Éditer</a>
+        </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <span class="statut-pill statut-${s.statut}">${LIBELLES_STATUT_GS[s.statut] || s.statut}</span>
-        ${s.statut === 'brouillon' ? `<button type="button" class="btn btn-discret" data-publier-seance="${s.id}">📤 Publier</button>` : ''}
-        ${s.statut === 'publie' ? `<button type="button" class="btn btn-discret" data-archiver-seance="${s.id}">🗄️ Archiver</button>` : ''}
-        <a href="../editeur-seance.html?id=${s.id}" class="btn btn-primaire">✏️ Éditer</a>
-      </div>
+      <div class="apercu-contenu-seance-partagee" data-apercu-zone-gs="${s.id}" hidden></div>
     </div>`;
+}
+
+// Aperçu en lecture seule du contenu d'une séance, bloc par bloc (5 septembre
+// 2026, 3e passe — voir js/pages/seances.js pour le détail de la demande et
+// le rappel de sécurité ; même principe ici, dupliqué faute de module commun
+// entre ces deux pages). Chargé à la demande, au premier clic.
+const contenuBlocsChargeGS = new Map();
+async function basculerApercuContenuGS(seanceId, bouton) {
+  const zoneApercu = document.querySelector(`[data-apercu-zone-gs="${seanceId}"]`);
+  if (!zoneApercu) return;
+  if (!zoneApercu.hidden) { zoneApercu.hidden = true; bouton.textContent = '👁️ Voir le contenu'; return; }
+
+  bouton.textContent = '🔼 Masquer';
+  zoneApercu.hidden = false;
+  if (!contenuBlocsChargeGS.has(seanceId)) {
+    zoneApercu.innerHTML = '<p class="chargement">Chargement du contenu...</p>';
+    const { data: blocs } = await supabaseClient.from('blocs_seance')
+      .select('id, type_bloc, contenu, palier, parent_bloc_id, ordre').eq('seance_id', seanceId);
+    contenuBlocsChargeGS.set(seanceId, blocs || []);
+  }
+  zoneApercu.innerHTML = rendreApercuContenuSeance(contenuBlocsChargeGS.get(seanceId));
 }
 
 async function changerStatutSeanceGS(id, nouveauStatut, message) {
