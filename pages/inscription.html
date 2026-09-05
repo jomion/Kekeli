@@ -61,11 +61,17 @@
         <div class="rangee-champs-auth">
           <div class="champ-auth">
             <label>Mot de passe</label>
-            <input type="password" id="motDePasse" minlength="6" placeholder="•••••••• (6 caractères min.)" required>
+            <div class="champ-mot-de-passe">
+              <input type="password" id="motDePasse" minlength="6" placeholder="•••••••• (6 caractères min.)" required>
+              <button type="button" class="btn-afficher-mdp" data-cible="motDePasse" aria-label="Afficher le mot de passe">👁️</button>
+            </div>
           </div>
           <div class="champ-auth">
             <label>Confirmer le mot de passe</label>
-            <input type="password" id="motDePasseConfirmation" minlength="6" placeholder="••••••••" required>
+            <div class="champ-mot-de-passe">
+              <input type="password" id="motDePasseConfirmation" minlength="6" placeholder="••••••••" required>
+              <button type="button" class="btn-afficher-mdp" data-cible="motDePasseConfirmation" aria-label="Afficher le mot de passe">👁️</button>
+            </div>
           </div>
         </div>
 
@@ -111,6 +117,11 @@
           <select id="classe"></select>
           <p style="font-size:12px;color:var(--text-gris);margin:6px 0 0">Cette classe vous sera attribuée directement. Pour une classe supplémentaire, vous pourrez ensuite en faire la demande depuis votre espace (validée par l'administration).</p>
         </div>
+
+        <label class="case-consentement">
+          <input type="checkbox" id="accepteConditions" required>
+          <span>J'ai lu et j'accepte les <a href="conditions-utilisation.html" target="_blank" rel="noopener">conditions d'utilisation</a> et la <a href="politique-confidentialite.html" target="_blank" rel="noopener">politique de confidentialité</a> de KEKELI.</span>
+        </label>
 
         <p class="message-erreur-auth" id="messageErreur"></p>
         <button type="submit" class="btn-auth-principal" id="btnInscription">Créer mon compte</button>
@@ -217,6 +228,19 @@
     majNote();
     majChampsLocalisation();
 
+    // Aperçu du mot de passe : chaque bouton œil bascule le type de SON
+    // champ (visé par data-cible) entre password et text, et change
+    // d'icône/libellé pour refléter l'état courant.
+    document.querySelectorAll('.btn-afficher-mdp').forEach((bouton) => {
+      bouton.addEventListener('click', () => {
+        const champ = document.getElementById(bouton.dataset.cible);
+        const visible = champ.type === 'text';
+        champ.type = visible ? 'password' : 'text';
+        bouton.textContent = visible ? '👁️' : '🙈';
+        bouton.setAttribute('aria-label', visible ? 'Afficher le mot de passe' : 'Masquer le mot de passe');
+      });
+    });
+
     document.getElementById('formInscription').addEventListener('submit', async (e) => {
       e.preventDefault();
       const messageErreur = document.getElementById('messageErreur');
@@ -227,6 +251,10 @@
       const motDePasseConfirmation = document.getElementById('motDePasseConfirmation').value;
       if (motDePasse !== motDePasseConfirmation) {
         messageErreur.textContent = "Les deux mots de passe ne correspondent pas.";
+        return;
+      }
+      if (!document.getElementById('accepteConditions').checked) {
+        messageErreur.textContent = "Vous devez accepter les conditions d'utilisation et la politique de confidentialité pour créer un compte.";
         return;
       }
 

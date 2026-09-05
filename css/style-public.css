@@ -153,6 +153,23 @@ nav.nav-publique a:hover { color: var(--accent-cyan); }
 .champ-auth label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
 .champ-auth input, .champ-auth select { width: 100%; padding: 11px; border: 2px solid var(--bordure); border-radius: 8px; font-size: 14px; font-family: inherit; transition: border-color .15s, box-shadow .15s; }
 .champ-auth input:focus, .champ-auth select:focus { outline: none; border-color: var(--bleu-kekeli); box-shadow: 0 0 0 3px rgba(0,0,209,0.1); }
+/* Aperçu du mot de passe (session du 5 septembre 2026) : un bouton œil
+   superposé au champ, qui bascule son type text/password. Le padding-right
+   de l'input laisse la place au bouton sans le recouvrir. */
+.champ-mot-de-passe { position: relative; }
+.champ-mot-de-passe input { padding-right: 42px; }
+.btn-afficher-mdp {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; font-size: 17px; line-height: 1;
+  padding: 8px; border-radius: 6px; color: var(--text-gris);
+}
+.btn-afficher-mdp:hover { color: var(--bleu-kekeli); background: var(--bg-light); }
+/* Case à cocher d'acceptation des conditions d'utilisation et de la
+   politique de confidentialité, obligatoire pour finaliser l'inscription
+   (session du 5 septembre 2026) — voir pages/inscription.html. */
+.case-consentement { display: flex; align-items: flex-start; gap: 10px; margin: 2px 0 18px; font-size: 13px; line-height: 1.5; color: var(--text-dark); text-align: left; }
+.case-consentement input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; margin-top: 2px; cursor: pointer; accent-color: var(--bleu-kekeli); }
+.case-consentement a { color: var(--bleu-kekeli); font-weight: 700; }
 /* Regroupe deux (ou trois) champs sur une même rangée sur les écrans assez
    larges, pour une saisie plus fluide et moins verticale — repasse à une
    colonne sur mobile (voir la media query plus bas). */

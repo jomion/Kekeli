@@ -1,57 +1,32 @@
-KEKELI — Livraison du 5 septembre 2026
-=======================================
+KEKELI — Livraison du 5 septembre 2026 (2)
+============================================
 
-Ce paquet contient 5 corrections/ajouts, en réponse à votre message :
-« permission denied for table profils [...] footer sur toutes les pages [...]
-logo élève vers l'accueil [...] contraste des cartes [...] thème rose pour
-les filles ».
+En réponse à votre demande : « Ajoute à l'inscription l'aperçu du mot de
+passe, la validation des conditions d'utilisation et des politiques avant
+de valider l'inscription ».
 
-1. Correction du bug "permission denied for table profils"
-------------------------------------------------------------
-Corrigé directement dans la base de données (aucun fichier à livrer pour ce
-point) : il manquait une autorisation technique sur la colonne "sexe" pour
-que le parent puisse la modifier lui-même. C'est réparé et vérifié — vous
-pouvez réessayer d'ajouter/modifier le sexe de votre enfant, ça doit
-fonctionner maintenant.
+1. Aperçu du mot de passe
+-----------------------------
+Sur la page d'inscription, chacun des deux champs "Mot de passe" et
+"Confirmer le mot de passe" a maintenant son propre bouton œil (👁️) juste
+à l'intérieur du champ. Un clic affiche le mot de passe en clair (l'icône
+devient 🙈), un second clic le remasque. Les deux champs sont indépendants
+l'un de l'autre.
 
-2. Pied de page sur (presque) toutes les pages
-------------------------------------------------
-Le pied de page riche (logo, slogan, navigation, "Mon compte", informations
-légales) qui n'était que sur l'accueil et les 2 pages légales est maintenant
-partagé et posé sur 39 des 43 pages du site.
+2. Acceptation obligatoire des conditions et de la politique
+------------------------------------------------------------------
+Juste au-dessus du bouton "Créer mon compte", une case à cocher a été
+ajoutée : « J'ai lu et j'accepte les conditions d'utilisation et la
+politique de confidentialité de KEKELI. » Les deux mentions sont des liens
+cliquables qui ouvrent les pages correspondantes dans un nouvel onglet.
 
-Les 4 pages volontairement laissées de côté sont : la page de connexion,
-la page d'inscription, la page "compléter mon profil" et la page de
-connexion admin. Ces 4 pages ont une mise en page centrée en plein écran
-(comme une carte flottante au milieu de l'écran) ; y ajouter le pied de
-page casserait ce centrage. Dites-moi si vous préférez que je l'ajoute
-quand même sur ces 4 pages, avec un ajustement de mise en page.
+Tant que cette case n'est pas cochée, l'inscription ne peut pas être
+validée : le navigateur bloque directement l'envoi du formulaire (message
+natif), et si jamais ce blocage était contourné, le site affiche son
+propre message d'erreur ("Vous devez accepter les conditions d'utilisation
+et la politique de confidentialité pour créer un compte.") avant même de
+contacter le serveur.
 
-3. Le logo de l'élève ramène à l'accueil
--------------------------------------------
-Dans le thème Premium, cliquer sur le logo KEKELI dans la barre latérale de
-l'élève ramène maintenant à la page d'accueil (comme c'était déjà le cas
-dans le thème classique).
-
-4. Contraste des cartes sur le nouveau fond
------------------------------------------------
-Sur les zones claires de la nouvelle image de ciel, les cartes blanches
-(fonctionnalités, paliers, tableaux de bord...) avaient une ombre trop
-discrète et se fondaient presque dans le fond. J'ai renforcé l'ombre et
-ajouté un fin liseré à toutes les cartes concernées (thème classique et
-thème Premium), sans changer leur couleur ni leur forme.
-
-5. Thème rose pour les élèves filles
-----------------------------------------
-Quand le profil d'un élève indique "fille", le bleu de son espace (thème
-classique et thème Premium) est automatiquement remplacé par un rose,
-partout où le bleu apparaissait (boutons, bordures, icônes actives, etc.).
-Les élèves garçons et tous les autres comptes (parent, enseignant,
-administrateur...) ne sont pas concernés et gardent le bleu habituel.
-
-Remarque : les pages partagées entre plusieurs rôles (Classes, Séances,
-Paramètres) restent bleues même pour une élève fille, car elles ne
-passent pas par le même point d'entrée. Dites-moi si vous voulez qu'elles
-suivent aussi le thème rose.
-
-— Comme toujours, poussez-moi vos retours, je continue derrière.
+Ces deux ajouts ne concernent que la page d'inscription (`pages/inscription.html`)
+— dites-moi si vous voulez la même chose sur la page de connexion ou
+ailleurs.
