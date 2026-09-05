@@ -1,0 +1,33 @@
+/* Pied de page public partagé par (presque) toutes les pages du site — voir
+   js/pied-de-page.js, qui construit son contenu, et js/entete-navigation.js
+   pour le même principe côté en-tête. Feuille de style à part (plutôt que
+   dupliquée dans css/style.css et css/style-public.css) : ses couleurs sont
+   volontairement fixes (pas de var(--bleu-...) propre à chaque thème), pour
+   que le pied de page ait un rendu strictement identique partout, quel que
+   soit le thème de la page (admin, public/élève classique, premium élève).
+
+   Volontairement absent des pages de connexion/inscription/complétion de
+   profil (page-auth) et de la connexion admin séparée : ces pages sont de
+   simples cartes centrées plein écran (voir .page-auth), où un pied de page
+   casserait le centrage vertical — voir aussi l'exclusion déjà en place
+   pour le fond d'écran ciel sur ces mêmes pages. */
+.pied-de-page-public { background: #000000; color: #CBD5E1; padding: 50px 50px 0; font-size: 13px; margin-top: 60px; }
+.pied-page-contenu {
+  max-width: 1100px; margin: 0 auto; padding-bottom: 36px;
+  display: grid; grid-template-columns: 2fr 1fr 1fr 1.4fr; gap: 30px 24px;
+}
+.pied-page-colonne-marque .pied-page-logo {
+  display: flex; align-items: center; gap: 10px; font-size: 19px; font-weight: 800; color: white; margin-bottom: 10px;
+}
+.pied-page-colonne-marque .pied-page-logo img { height: 28px; width: auto; }
+.pied-page-slogan { color: #00D1FF; font-weight: 700; font-size: 14px; margin: 0 0 10px; }
+.pied-page-desc { font-size: 13px; line-height: 1.6; color: #94A3B8; margin: 0; max-width: 320px; }
+.pied-page-colonne h3 { color: white; font-size: 12.5px; text-transform: uppercase; letter-spacing: .5px; margin: 0 0 14px; }
+.pied-page-colonne ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.pied-page-colonne a { color: #CBD5E1; font-size: 13.5px; transition: color .15s; }
+.pied-page-colonne a:hover { color: #00D1FF; }
+.pied-page-bas { border-top: 1px solid rgba(255,255,255,0.12); padding: 18px 0; text-align: center; font-size: 12.5px; color: #94A3B8; }
+@media (max-width: 720px) {
+  .pied-page-contenu { grid-template-columns: 1fr 1fr; }
+  .pied-page-colonne-marque { grid-column: 1 / -1; }
+}

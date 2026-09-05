@@ -310,6 +310,16 @@ async function requireRole(roleAttendu) {
     return null;
   }
   if (await redirigerSiProfilIncomplet(profil)) return null;
+  // Thème rose pour les élèves filles (session du 4 septembre 2026, demande
+  // explicite : "je veux que si l'enfant est une fille que le bleu soit
+  // remplacé par une couleur rose"). Posé ici, au point d'entrée unique de
+  // toutes les pages élève (avant même la construction de l'en-tête/sidebar
+  // par initEnteteNavigation), plutôt que dans chaque page élève une par
+  // une — voir la classe .theme-fille dans css/style-public.css (thème
+  // classique) et css/theme-premium-eleve.css (thème premium).
+  if (profil.role === 'eleve' && profil.sexe === 'F') {
+    document.body.classList.add('theme-fille');
+  }
   return profil;
 }
 

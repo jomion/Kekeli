@@ -225,7 +225,7 @@ async function construireShellPremiumEleve(config, liensVisibles) {
   sidebar.id = 'premSidebar';
   sidebar.innerHTML = `
     <div class="prem-sidebar-entete">
-      <div class="prem-sidebar-logo"><img src="${racine}assets/logo/logo.png" alt="KEKELI"><span class="prem-sidebar-logo-texte">KEKELI</span></div>
+      <a href="${racine}index.html" class="prem-sidebar-logo"><img src="${racine}assets/logo/logo.png" alt="KEKELI"><span class="prem-sidebar-logo-texte">KEKELI</span></a>
       <button type="button" class="prem-sidebar-toggle" id="premBtnReplierSidebar" title="Réduire ou agrandir le menu" aria-label="Réduire ou agrandir le menu">${iconePrem('volet', 16)}</button>
     </div>
     <nav class="prem-sidebar-nav">${liensSidebar.map(ligneSidebarHtml).join('')}</nav>

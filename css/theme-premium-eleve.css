@@ -54,7 +54,11 @@ body.theme-premium-actif {
   --prem-texte: #1E2233;
   --prem-texte-gris: #94A0B8;
   --prem-bordure: #E7EAF3;
-  --prem-ombre: 0 6px 20px rgba(30,40,80,0.07);
+  /* Alpha remonté de 0.07 à 0.13 et liseré net ajouté (session du 5 septembre
+     2026) : sur les zones claires du fond ciel (voir body.theme-premium-actif
+     plus bas), l'ombre d'origine devenait presque invisible et les cartes
+     blanches se fondaient dans le ciel. */
+  --prem-ombre: 0 6px 20px rgba(30,40,80,0.13), 0 0 0 1px rgba(30,40,80,0.06);
   --prem-sidebar-largeur: 264px;
   --prem-topbar-hauteur: 72px;
 
@@ -116,7 +120,7 @@ body.theme-premium-actif.prem-sidebar-repliee .prem-sidebar { width: 84px; paddi
 }
 
 .prem-sidebar-entete { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 4px 6px 20px; }
-.prem-sidebar-logo { display: flex; align-items: center; gap: 9px; font-size: 18px; font-weight: 800; color: var(--prem-texte); overflow: hidden; }
+.prem-sidebar-logo { display: flex; align-items: center; gap: 9px; font-size: 18px; font-weight: 800; color: var(--prem-texte); overflow: hidden; cursor: pointer; }
 .prem-sidebar-logo img { height: 28px; width: 28px; object-fit: contain; border-radius: 7px; flex-shrink: 0; }
 .prem-sidebar-logo-texte { white-space: nowrap; }
 .prem-sidebar-toggle {
@@ -537,3 +541,14 @@ body.theme-premium-actif .fleches-ordre button { border-radius: 8px; }
    ne charge PAS ce fichier ; classes ci-dessous conservées pour mémoire
    si un jour la page adopte elle aussi ce thème — actuellement inutilisées).
    ============================================================ */
+
+/* Thème rose pour les élèves filles, variante Premium (voir la même
+   explication dans css/style-public.css). --prem-rose/--prem-rose-clair ne
+   sont PAS touchées ici : elles servent déjà au code sémantique des réponses
+   incorrectes, pas à la couleur d'accent principale. */
+body.theme-premium-actif.theme-fille {
+  --prem-bleu: #EC4899;
+  --prem-bleu-fonce: #BE185D;
+  --prem-bleu-clair: #FCE7F3;
+  --prem-violet: #F472B6;
+}

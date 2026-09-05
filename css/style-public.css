@@ -7,7 +7,7 @@
 /* --- Éditeur de blocs de devoir (partagé enseignant + admin) -----------
    Voir js/editeur/devoir-blocs.js — même structure que la version admin
    dans css/style.css, avec les variables de ce thème-ci. */
-.bloc { background: white; border-radius: 10px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border-left: 5px solid var(--bleu-kekeli); }
+.bloc { background: white; border-radius: 10px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); border-left: 5px solid var(--bleu-kekeli); }
 .bloc-entete { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .bloc-type { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--bleu-kekeli); }
 .bloc-actions { display: flex; gap: 6px; align-items: center; }
@@ -123,39 +123,18 @@ nav.nav-publique a:hover { color: var(--accent-cyan); }
 .features h2 { color: var(--noir-kekeli); font-size: 26px; margin-bottom: 8px; }
 .features .sous-titre { color: var(--text-gris); margin-bottom: 34px; }
 .grid-features { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 22px; }
-.feature-card { background: white; padding: 28px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,209,0.06); border-top: 5px solid var(--bleu-kekeli); text-align: left; }
+.feature-card { background: white; padding: 28px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,209,0.10), 0 0 0 1px rgba(15,23,42,0.07); border-top: 5px solid var(--bleu-kekeli); text-align: left; }
 .feature-icon { font-size: 32px; margin-bottom: 12px; }
 .feature-card h3 { margin: 0 0 8px; font-size: 16px; color: var(--noir-kekeli); }
 .feature-card p { margin: 0; font-size: 14px; color: var(--text-gris); line-height: 1.5; }
 
 .grille-paliers { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 10px; }
-.puce-palier { display: flex; align-items: center; gap: 8px; background: white; border-radius: 30px; padding: 10px 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); font-size: 13px; font-weight: 700; color: var(--bleu-kekeli); }
+.puce-palier { display: flex; align-items: center; gap: 8px; background: white; border-radius: 30px; padding: 10px 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); font-size: 13px; font-weight: 700; color: var(--bleu-kekeli); }
 
-/* Pied de page public complet (logo/slogan, navigation, informations
-   légales — voir pages/politique-confidentialite.html et
-   pages/conditions-utilisation.html) — session du 4 septembre 2026, en
-   réponse directe à une demande explicite. Remplace l'ancien pied de page
-   minimal (une seule ligne centrée). */
-.pied-de-page-public { background: var(--noir-kekeli); color: #CBD5E1; padding: 50px 50px 0; font-size: 13px; }
-.pied-page-contenu {
-  max-width: 1100px; margin: 0 auto; padding-bottom: 36px;
-  display: grid; grid-template-columns: 2fr 1fr 1fr 1.4fr; gap: 30px 24px;
-}
-.pied-page-colonne-marque .pied-page-logo {
-  display: flex; align-items: center; gap: 10px; font-size: 19px; font-weight: 800; color: white; margin-bottom: 10px;
-}
-.pied-page-colonne-marque .pied-page-logo img { height: 28px; width: auto; }
-.pied-page-slogan { color: var(--accent-cyan); font-weight: 700; font-size: 14px; margin: 0 0 10px; }
-.pied-page-desc { font-size: 13px; line-height: 1.6; color: #94A3B8; margin: 0; max-width: 320px; }
-.pied-page-colonne h3 { color: white; font-size: 12.5px; text-transform: uppercase; letter-spacing: .5px; margin: 0 0 14px; }
-.pied-page-colonne ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.pied-page-colonne a { color: #CBD5E1; font-size: 13.5px; transition: color .15s; }
-.pied-page-colonne a:hover { color: var(--accent-cyan); }
-.pied-page-bas { border-top: 1px solid rgba(255,255,255,0.12); padding: 18px 0; text-align: center; font-size: 12.5px; color: #94A3B8; }
-@media (max-width: 720px) {
-  .pied-page-contenu { grid-template-columns: 1fr 1fr; }
-  .pied-page-colonne-marque { grid-column: 1 / -1; }
-}
+/* Le pied de page public complet (logo/slogan, navigation, informations
+   légales) vit désormais dans css/pied-de-page.css, partagé par toutes les
+   pages du site (voir js/pied-de-page.js) — session du 4 septembre 2026.
+   Retiré d'ici pour éviter deux copies qui pourraient diverger. */
 
 /* ===== Cartes de connexion / inscription ===== */
 .page-auth { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; background: linear-gradient(135deg, var(--noir-kekeli) 0%, var(--bleu-kekeli) 100%); }
@@ -308,11 +287,11 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 }
 
 .conteneur-tableau-bord { max-width: 900px; margin: 40px auto; padding: 0 20px; }
-.carte-bienvenue { background: white; border-radius: 14px; padding: 32px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-top: 6px solid var(--accent-cyan); margin-bottom: 26px; }
+.carte-bienvenue { background: white; border-radius: 14px; padding: 32px; box-shadow: 0 4px 15px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); border-top: 6px solid var(--accent-cyan); margin-bottom: 26px; }
 .carte-bienvenue h1 { color: var(--noir-kekeli); font-size: 24px; margin: 0 0 8px; }
 .carte-bienvenue p { color: var(--text-gris); margin: 0; }
 .grille-actions-tb { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
-.carte-action-tb { background: white; border-radius: 12px; padding: 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 2px solid transparent; }
+.carte-action-tb { background: white; border-radius: 12px; padding: 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); border: 2px solid transparent; }
 .carte-action-tb.disponible { border-color: var(--bleu-kekeli); cursor: pointer; }
 .carte-action-tb.a-venir { opacity: .6; }
 .carte-action-tb.disponible:hover { transform: translateY(-2px); }
@@ -349,7 +328,7 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 
 /* ===== Listes (devoirs, notes) ===== */
 .liste-lignes-pub { display: flex; flex-direction: column; gap: 10px; }
-.ligne-pub { background: white; border-radius: 10px; padding: 14px 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ligne-pub { background: white; border-radius: 10px; padding: 14px 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .ligne-pub .titre-ligne-pub { font-weight: 700; font-size: 14px; color: var(--noir-kekeli); }
 .ligne-pub .sous-ligne-pub { font-size: 12px; color: var(--text-gris); margin-top: 2px; }
 .pastille-statut { font-size: 11px; font-weight: 800; padding: 4px 12px; border-radius: 12px; white-space: nowrap; }
@@ -383,7 +362,7 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 
 /* ===== Écrans de bienvenue (élève / enseignant) ===== */
 .welcome-container-eleve { max-width: 900px; margin: 30px auto; padding: 0 20px; text-align: center; }
-.welcome-card-eleve { background: white; border-radius: 16px; padding: 36px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-top: 6px solid #FFCC00; margin-bottom: 28px; }
+.welcome-card-eleve { background: white; border-radius: 16px; padding: 36px; box-shadow: 0 4px 15px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); border-top: 6px solid #FFCC00; margin-bottom: 28px; }
 .welcome-card-eleve.theme-enseignant { border-top-color: var(--bleu-kekeli); }
 .mascot-avatar-eleve { font-size: 56px; background: #FFF9E6; width: 92px; height: 92px; line-height: 92px; border-radius: 50%; margin: 0 auto 14px; border: 3px solid #FFCC00; }
 .mascot-avatar-eleve.theme-enseignant { background: #EBF5FB; border-color: var(--bleu-kekeli); }
@@ -392,7 +371,7 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .streak-info-eleve { display: inline-flex; align-items: center; gap: 10px; background: #F1F5F9; padding: 8px 18px; border-radius: 30px; font-weight: bold; color: #E67E22; margin-top: 10px; }
 .section-title-eleve { text-align: left; font-size: 19px; color: var(--bleu-kekeli); margin-bottom: 18px; }
 .actions-grid-eleve { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 18px; }
-.action-card-eleve { background: white; border-radius: 12px; padding: 22px; text-align: left; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 2px solid transparent; transition: all .2s; text-decoration: none; color: inherit; display: block; }
+.action-card-eleve { background: white; border-radius: 12px; padding: 22px; text-align: left; box-shadow: 0 2px 8px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); border: 2px solid transparent; transition: all .2s; text-decoration: none; color: inherit; display: block; }
 .action-card-eleve:hover { border-color: var(--bleu-kekeli); transform: translateY(-3px); }
 .action-icon-eleve { font-size: 28px; margin-bottom: 10px; }
 .action-title-eleve { font-size: 17px; font-weight: bold; color: var(--bleu-kekeli); margin-bottom: 5px; }
@@ -402,15 +381,15 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 /* ===== Tableau de bord élève ===== */
 .carte-bienvenue-eleve { text-align: center; }
 .mascotte-eleve { font-size: 56px; background: #E6FBFF; width: 96px; height: 96px; line-height: 96px; border-radius: 50%; margin: 0 auto 14px; border: 3px solid var(--accent-cyan); }
-.profile-card-eleve { background: white; border-left: 6px solid var(--bleu-kekeli); padding: 1.4rem 1.6rem; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); margin-bottom: 1.6rem; }
+.profile-card-eleve { background: white; border-left: 6px solid var(--bleu-kekeli); padding: 1.4rem 1.6rem; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); margin-bottom: 1.6rem; }
 .progress-bar-bg-eleve { background: #E2E8F0; height: 12px; border-radius: 6px; overflow: hidden; margin-top: .5rem; }
 .progress-bar-fill-eleve { background: linear-gradient(90deg, var(--bleu-kekeli), var(--accent-cyan)); height: 100%; border-radius: 6px; }
 .dashboard-grid-eleve { display: grid; grid-template-columns: 2fr 1fr; gap: 1.4rem; }
 @media (max-width: 900px) { .dashboard-grid-eleve { grid-template-columns: 1fr; } }
 .grille-paliers-tb { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.6rem; }
-.palier-card-tb { background: white; padding: 1.2rem; border-radius: 12px; text-align: center; border-top: 5px solid; box-shadow: 0 1px 4px rgba(0,0,0,0.05); text-decoration: none; color: inherit; display: block; }
+.palier-card-tb { background: white; padding: 1.2rem; border-radius: 12px; text-align: center; border-top: 5px solid; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); text-decoration: none; color: inherit; display: block; }
 .palier-card-tb.courant { box-shadow: 0 0 0 3px rgba(0,0,209,0.15); }
-.widget-eleve { background: white; padding: 1.2rem 1.4rem; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); margin-bottom: 1.2rem; }
+.widget-eleve { background: white; padding: 1.2rem 1.4rem; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); margin-bottom: 1.2rem; }
 .stat-item-eleve { display: flex; justify-content: space-between; padding: .6rem 0; border-bottom: 1px solid var(--bordure); font-size: 14px; }
 .stat-item-eleve:last-child { border-bottom: none; }
 
@@ -418,20 +397,20 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .fil-ariane-eleve { font-size: 13px; color: var(--text-gris); margin-bottom: 14px; }
 .fil-ariane-eleve a { color: var(--bleu-kekeli); text-decoration: none; font-weight: 700; cursor: pointer; }
 .grille-champs-eleve { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 16px; }
-.carte-champ-eleve { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); cursor: pointer; transition: transform .15s; border: 2px solid transparent; }
+.carte-champ-eleve { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); cursor: pointer; transition: transform .15s; border: 2px solid transparent; }
 .carte-champ-eleve:hover { transform: translateY(-3px); border-color: var(--bleu-kekeli); }
 .icone-champ-eleve { font-size: 30px; margin-bottom: 8px; }
 .grille-sa-eleve { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
-.carte-sa-eleve { background: white; border-radius: 12px; padding: 16px 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.carte-sa-eleve { background: white; border-radius: 12px; padding: 16px 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .carte-sa-eleve:hover { border-left: 5px solid var(--bleu-kekeli); }
-.subject-header { background: white; padding: 1.5rem 2rem; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); margin-bottom: 1.5rem; border-top: 6px solid var(--bleu-kekeli); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.subject-header { background: white; padding: 1.5rem 2rem; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); margin-bottom: 1.5rem; border-top: 6px solid var(--bleu-kekeli); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
 .grille-paliers-eleve { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
-.palier-card-eleve { background: white; padding: 1.2rem; border-radius: 12px; text-align: center; border-top: 5px solid; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+.palier-card-eleve { background: white; padding: 1.2rem; border-radius: 12px; text-align: center; border-top: 5px solid; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); }
 .palier-card-eleve.verrouille { opacity: .55; }
 .palier-icon-eleve { font-size: 2rem; margin-bottom: .4rem; }
 .btn-palier-eleve { color: white; border: none; padding: .5rem 1rem; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%; margin-top: .6rem; text-decoration: none; display: inline-block; }
 .session-list-eleve { display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem; }
-.session-card-eleve { background: white; border-radius: 12px; padding: 1.2rem 1.5rem; display: flex; align-items: center; gap: 1.2rem; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border: 1px solid var(--bordure); }
+.session-card-eleve { background: white; border-radius: 12px; padding: 1.2rem 1.5rem; display: flex; align-items: center; gap: 1.2rem; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); border: 1px solid var(--bordure); }
 .session-card-eleve.active { border-left: 6px solid var(--bleu-kekeli); }
 .session-card-eleve.completed { border-left: 6px solid #22A559; opacity: .9; }
 .session-card-eleve.locked { background: #F1F5F9; color: var(--text-gris); border-style: dashed; }
@@ -440,7 +419,7 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .session-title-eleve { font-size: 1.05rem; font-weight: 700; }
 
 /* ===== Page séance (lecture + travail : exercices / activités) ===== */
-.bloc-lecture { background: white; border-radius: 10px; padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border-left: 5px solid var(--bleu-kekeli); }
+.bloc-lecture { background: white; border-radius: 10px; padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); border-left: 5px solid var(--bleu-kekeli); }
 .bloc-lecture-titre { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--bleu-kekeli); margin-bottom: 8px; }
 .bloc-lecture img { max-width: 100%; border-radius: 8px; display: block; margin: 0 0 8px; }
 .bloc-lecture table { border-collapse: collapse; width: 100%; }
@@ -479,7 +458,7 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .recap-score { font-size: 20px; font-weight: 800; color: var(--bleu-kekeli); margin-bottom: 10px; }
 .acces-suspendu-exercice { background: #FFF3E0; border-left: 4px solid #FF9800; border-radius: 8px; padding: 12px 14px; font-size: 14px; color: #7A4A00; }
 .note-essai-gratuit { font-size: 12px; color: #B8860B; background: #FFF8E1; border-radius: 6px; padding: 6px 10px; display: inline-block; margin-bottom: 8px; }
-.entete-seance-eleve { background: white; border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border-left: 5px solid var(--bleu-kekeli); }
+.entete-seance-eleve { background: white; border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); border-left: 5px solid var(--bleu-kekeli); }
 /* Fil d'ariane miniature (arborescence complète : classe > matière >
    thème/unité/semaine/dossier... > SA > séance), suivi du titre de la séance
    en grand puis de la discipline (le titre prime sur la discipline dans
@@ -527,13 +506,13 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .fil-ariane .sep { color: var(--bordure); font-weight: 700; }
 
 .grille-cartes { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
-.carte { background: var(--blanc); border-radius: 10px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-top: 4px solid var(--bleu-kekeli); cursor: pointer; transition: transform .15s, box-shadow .15s; }
+.carte { background: var(--blanc); border-radius: 10px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); border-top: 4px solid var(--bleu-kekeli); cursor: pointer; transition: transform .15s, box-shadow .15s; }
 .carte:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,209,0.12); }
 .carte .titre-carte { font-weight: 700; color: var(--bleu-kekeli); font-size: 15px; margin-bottom: 4px; }
 .carte .sous-titre-carte { font-size: 12px; color: var(--text-gris); }
 
 .liste-lignes { display: flex; flex-direction: column; gap: 8px; }
-.ligne { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--blanc); border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+.ligne { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--blanc); border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); }
 .ligne .titre-ligne { font-weight: 600; font-size: 14px; }
 .statut-pill { font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: 700; }
 .statut-brouillon { background: #F1F5F9; color: var(--text-gris); }
@@ -543,7 +522,7 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .message-erreur { color: var(--rouge); font-size: 13px; margin: 8px 0; }
 .chargement { padding: 60px 20px; text-align: center; color: var(--text-gris); }
 
-.carte-champ { background: white; border-left: 5px solid var(--bleu-kekeli); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; flex-direction: column; cursor: pointer; transition: border-color .2s, transform .2s, box-shadow .2s; position: relative; }
+.carte-champ { background: white; border-left: 5px solid var(--bleu-kekeli); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); display: flex; flex-direction: column; cursor: pointer; transition: border-color .2s, transform .2s, box-shadow .2s; position: relative; }
 .carte-champ:hover { border-left-color: var(--accent-cyan); transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,209,0.14); z-index: 5; }
 .survol-enfants-champ { position: absolute; left: 12px; right: 12px; top: calc(100% - 8px); background: var(--bleu-kekeli-fonce); color: white; border-radius: 10px; padding: 12px 14px; box-shadow: 0 12px 28px rgba(0,0,0,0.28); opacity: 0; visibility: hidden; transform: translateY(-6px); transition: opacity .16s ease, transform .16s ease; pointer-events: none; z-index: 20; }
 .carte-champ:hover .survol-enfants-champ { opacity: 1; visibility: visible; transform: translateY(0); }
@@ -607,7 +586,7 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .titre-cycle { font-size: 18px; font-weight: 800; color: var(--bleu-kekeli); border-bottom: 2px solid var(--bordure); padding-bottom: 8px; margin: 34px 0 20px; }
 .titre-cycle:first-of-type { margin-top: 10px; }
 .grille-classes { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 22px; }
-.carte-classe-detail { background: white; border-radius: 14px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-top: 6px solid var(--bleu-kekeli); display: flex; flex-direction: column; justify-content: space-between; transition: transform .2s; cursor: pointer; }
+.carte-classe-detail { background: white; border-radius: 14px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); border-top: 6px solid var(--bleu-kekeli); display: flex; flex-direction: column; justify-content: space-between; transition: transform .2s; cursor: pointer; }
 .carte-classe-detail:hover { transform: translateY(-4px); }
 .entete-carte-classe { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .badge-classe { background: rgba(0,209,255,.15); color: var(--bleu-kekeli); border: 1px solid var(--accent-cyan); padding: 6px 14px; border-radius: 8px; font-weight: 800; font-size: 20px; }
@@ -649,7 +628,7 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .liste-lignes-seances { display: flex; flex-direction: column; gap: 8px; }
 .ligne-seance-partagee {
   display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-  background: var(--blanc); border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  background: var(--blanc); border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07);
 }
 .details-ligne-seance-partagee { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .titre-ligne-seance-partagee { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -677,3 +656,16 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .carte-legale ul { padding-left: 20px; margin: 8px 0; }
 .carte-legale a { color: var(--bleu-kekeli); }
 .carte-legale .encadre-legale { background: var(--bg-light); border-left: 4px solid var(--accent-cyan); border-radius: 8px; padding: 14px 18px; margin: 20px 0; font-size: 13.5px; color: var(--text-gris); }
+
+/* Thème rose pour les élèves filles (session du 4 septembre 2026, demande
+   explicite : "je veux que si l'enfant est une fille que le bleu soit
+   remplacé par une couleur rose"). La classe .theme-fille est ajoutée sur
+   <body> par requireRole() dans js/auth-utilisateur.js, uniquement pour les
+   profils élève avec sexe = 'F'. Comme presque tout le thème classique
+   consomme --bleu-kekeli/--bleu-kekeli-fonce/--accent-cyan, une simple
+   redéfinition de ces variables suffit à propager le rose partout. */
+body.theme-fille {
+  --bleu-kekeli: #D6006F;
+  --bleu-kekeli-fonce: #99004E;
+  --accent-cyan: #FF8FC7;
+}

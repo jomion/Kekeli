@@ -1,58 +1,57 @@
-KEKELI — Nouveau fond ciel + pied de page complet (4 septembre 2026)
-========================================================================
+KEKELI — Livraison du 5 septembre 2026
+=======================================
 
-1. NOUVELLE IMAGE DE FOND
----------------------------
-Le fond d'écran du site (posé le même jour un peu plus tôt) a été remplacé
-par la nouvelle image de ciel que tu as envoyée — même emplacement
-(assets/fond/fond-ciel.jpg), donc aucun autre fichier n'a eu besoin d'être
-modifié pour ce changement. Toujours absent sur les pages de connexion et
-d'inscription, comme convenu.
+Ce paquet contient 5 corrections/ajouts, en réponse à votre message :
+« permission denied for table profils [...] footer sur toutes les pages [...]
+logo élève vers l'accueil [...] contraste des cartes [...] thème rose pour
+les filles ».
 
-2. PIED DE PAGE COMPLET SUR L'ACCUEIL
------------------------------------------
-Le pied de page de la page d'accueil publique (index.html), jusqu'ici une
-simple ligne de texte, est maintenant un vrai pied de page avec :
-- ton logo et le slogan que tu as donné : "L'éducation qui éclaire l'avenir" ;
-- une colonne "Navigation" (Accueil, Classes, Paliers) ;
-- une colonne "Mon compte" (Se connecter, Créer un compte) ;
-- une colonne "Informations légales" avec deux nouvelles pages : Politique
-  de confidentialité et Conditions d'utilisation, plus un lien "Nous
-  contacter" (adresse e-mail, voir point 4 ci-dessous) ;
-- une ligne de copyright en bas avec l'année mise à jour automatiquement.
+1. Correction du bug "permission denied for table profils"
+------------------------------------------------------------
+Corrigé directement dans la base de données (aucun fichier à livrer pour ce
+point) : il manquait une autorisation technique sur la colonne "sexe" pour
+que le parent puisse la modifier lui-même. C'est réparé et vérifié — vous
+pouvez réessayer d'ajouter/modifier le sexe de votre enfant, ça doit
+fonctionner maintenant.
 
-3. DEUX NOUVELLES PAGES : POLITIQUE DE CONFIDENTIALITÉ ET CONDITIONS D'UTILISATION
---------------------------------------------------------------------------------------
-- pages/politique-confidentialite.html
-- pages/conditions-utilisation.html
-Ce sont des textes rédigés à partir de ce que fait réellement le site
-aujourd'hui (comptes créés par les parents pour les élèves, contrôle
-parental, hébergement des données en Europe, pas de paiement en ligne
-automatisé, etc.).
+2. Pied de page sur (presque) toutes les pages
+------------------------------------------------
+Le pied de page riche (logo, slogan, navigation, "Mon compte", informations
+légales) qui n'était que sur l'accueil et les 2 pages légales est maintenant
+partagé et posé sur 39 des 43 pages du site.
 
-IMPORTANT — À LIRE AVANT DE PUBLIER CES DEUX PAGES TELLES QUELLES
---------------------------------------------------------------------
-Je ne suis pas juriste, et ces deux textes sont des modèles de base, pas
-des documents validés par un avocat. Avant de les considérer comme
-définitifs, il faudrait idéalement :
-- les faire relire par un professionnel du droit (au Bénin ou dans le pays
-  où KEKELI est officiellement établi) ;
-- compléter l'identité légale de l'éditeur du site si tu en as une
-  (nom de la structure, adresse) — je ne l'ai pas inventée, ces documents
-  restent volontairement génériques sur ce point ;
-- vérifier/remplacer l'adresse e-mail de contact utilisée dans les deux
-  pages et dans le pied de page : contact@kekeli.app — c'est une
-  proposition cohérente avec le domaine technique déjà utilisé par le site
-  (eleves.kekeli.app), mais je ne sais pas si cette adresse existe
-  réellement chez toi. Dis-moi la bonne adresse si elle est différente, je
-  la mettrai à jour partout en une fois.
-Un encadré en haut de chacune des deux pages rappelle déjà ce point aux
-lecteurs.
+Les 4 pages volontairement laissées de côté sont : la page de connexion,
+la page d'inscription, la page "compléter mon profil" et la page de
+connexion admin. Ces 4 pages ont une mise en page centrée en plein écran
+(comme une carte flottante au milieu de l'écran) ; y ajouter le pied de
+page casserait ce centrage. Dites-moi si vous préférez que je l'ajoute
+quand même sur ces 4 pages, avec un ajustement de mise en page.
 
-FICHIERS INCLUS DANS CE ZIP
------------------------------
-- assets/fond/fond-ciel.jpg (remplacé — nouvelle image de fond)
-- index.html (nouveau pied de page complet)
-- css/style-public.css (styles du pied de page + des deux nouvelles pages)
-- pages/politique-confidentialite.html (nouveau)
-- pages/conditions-utilisation.html (nouveau)
+3. Le logo de l'élève ramène à l'accueil
+-------------------------------------------
+Dans le thème Premium, cliquer sur le logo KEKELI dans la barre latérale de
+l'élève ramène maintenant à la page d'accueil (comme c'était déjà le cas
+dans le thème classique).
+
+4. Contraste des cartes sur le nouveau fond
+-----------------------------------------------
+Sur les zones claires de la nouvelle image de ciel, les cartes blanches
+(fonctionnalités, paliers, tableaux de bord...) avaient une ombre trop
+discrète et se fondaient presque dans le fond. J'ai renforcé l'ombre et
+ajouté un fin liseré à toutes les cartes concernées (thème classique et
+thème Premium), sans changer leur couleur ni leur forme.
+
+5. Thème rose pour les élèves filles
+----------------------------------------
+Quand le profil d'un élève indique "fille", le bleu de son espace (thème
+classique et thème Premium) est automatiquement remplacé par un rose,
+partout où le bleu apparaissait (boutons, bordures, icônes actives, etc.).
+Les élèves garçons et tous les autres comptes (parent, enseignant,
+administrateur...) ne sont pas concernés et gardent le bleu habituel.
+
+Remarque : les pages partagées entre plusieurs rôles (Classes, Séances,
+Paramètres) restent bleues même pour une élève fille, car elles ne
+passent pas par le même point d'entrée. Dites-moi si vous voulez qu'elles
+suivent aussi le thème rose.
+
+— Comme toujours, poussez-moi vos retours, je continue derrière.
