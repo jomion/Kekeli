@@ -19,14 +19,40 @@ let devoirBlocsEtat = {}; // devoirId -> { blocs, conteneurEl, minuteriesBloc }
 let minuteriesCorrigeDevoir = {}; // blocId -> timer (partagé, blocId est unique dans toute la table)
 
 async function initEditeurBlocsDevoir(devoirId, conteneurEl) {
-  devoirBlocsEtat[devoirId] = { blocs: [], conteneurEl, minuteriesBloc: {} };
+  devoirBlocsEtat[devoirId] = { blocs: [], conteneurEl, minuteriesBloc: {}, competencesDisponibles: [] };
+  await chargerCompetencesDisponiblesDevoir(devoirId);
   await chargerBlocsDevoir(devoirId);
   rendreBlocsDevoir(devoirId);
 }
 
+// Compétences actives du référentiel pour la classe/matière de ce devoir
+// (Phase 2 "Accompagnement personnalisé", Premium) — transversales incluses
+// (classe_id null). Chargé une seule fois par devoir, avant les blocs.
+async function chargerCompetencesDisponiblesDevoir(devoirId) {
+  const { data: devoir } = await supabaseClient.from('devoirs').select('classe_id, champ_formation_id').eq('id', devoirId).single();
+  if (!devoir) return;
+  const { data: competences } = await supabaseClient.from('competences').select('id, intitule, domaine, ordre')
+    .eq('champ_formation_id', devoir.champ_formation_id).eq('actif', true)
+    .or(`classe_id.eq.${devoir.classe_id},classe_id.is.null`)
+    .order('domaine').order('ordre');
+  devoirBlocsEtat[devoirId].competencesDisponibles = competences || [];
+}
+
 async function chargerBlocsDevoir(devoirId) {
   const { data } = await supabaseClient.from('blocs_seance').select('*').eq('devoir_id', devoirId).order('ordre');
-  devoirBlocsEtat[devoirId].blocs = data || [];
+  const liste = data || [];
+
+  // Compétences déjà rattachées à chaque bloc (table de liaison, jamais dans
+  // bloc.contenu — même principe que côté éditeur de séance).
+  const idsBlocs = liste.map(b => b.id);
+  if (idsBlocs.length) {
+    const { data: liens } = await supabaseClient.from('blocs_competences').select('bloc_id, competence_id').in('bloc_id', idsBlocs);
+    const idsParBloc = {};
+    (liens || []).forEach(l => { (idsParBloc[l.bloc_id] ??= []).push(l.competence_id); });
+    liste.forEach(b => { b.competencesIds = idsParBloc[b.id] || []; });
+  }
+
+  devoirBlocsEtat[devoirId].blocs = liste;
 }
 
 function rendreBlocsDevoir(devoirId) {
@@ -36,7 +62,7 @@ function rendreBlocsDevoir(devoirId) {
 
   conteneurEl.innerHTML = `
     <div class="liste-blocs-devoir">
-      ${blocs.length ? blocs.map(b => html_ligneBlocDevoir(b)).join('') : '<p class="note-future">Aucun bloc pour l\'instant — ajoute un exercice, un quiz, une évaluation ou une activité.</p>'}
+      ${blocs.length ? blocs.map(b => html_ligneBlocDevoir(b, etat.competencesDisponibles)).join('') : '<p class="note-future">Aucun bloc pour l\'instant — ajoute un exercice, un quiz, une évaluation ou une activité.</p>'}
     </div>
     <div class="menu-ajout-bloc-devoir" style="position:relative;margin-top:10px">
       <button type="button" class="btn btn-discret" data-toggle-ajout-devoir>+ Ajouter un bloc</button>
@@ -52,7 +78,7 @@ function rendreBlocsDevoir(devoirId) {
   attacherEcouteursBlocsDevoir(devoirId);
 }
 
-function html_ligneBlocDevoir(b) {
+function html_ligneBlocDevoir(b, competencesDisponibles) {
   const info = infoType(b.type_bloc);
   const couleur = (b.contenu && b.contenu.couleurBloc) || info.couleur;
   return `
@@ -64,15 +90,16 @@ function html_ligneBlocDevoir(b) {
           <button title="Supprimer" data-action-bloc-devoir="supprimer" type="button">🗑️</button>
         </div>
       </div>
-      <div class="bloc-corps">${html_corpsBlocDevoir(b)}</div>
+      <div class="bloc-corps">${html_corpsBlocDevoir(b, competencesDisponibles)}</div>
     </div>`;
 }
 
-function html_corpsBlocDevoir(bloc) {
+function html_corpsBlocDevoir(bloc, competencesDisponibles) {
   const c = bloc.contenu || {};
   const questions = Array.isArray(c.questions) ? c.questions : [];
   return `
     <textarea data-champ-devoir="consigne" placeholder="Consigne générale (ex : Réponds aux questions suivantes)">${echapper(c.consigne)}</textarea>
+    ${html_selectCompetencesBloc(bloc, competencesDisponibles || [])}
     <div class="editeur-questions" data-questions-bloc-devoir="1">
       <div class="liste-questions" data-liste-questions>
         ${questions.length ? questions.map((q, i) => html_questionEditeur(q, i, null)).join('') : '<p class="note-future">Aucune question pour l\'instant.</p>'}
@@ -112,6 +139,27 @@ function attacherEcouteursBlocsDevoir(devoirId) {
       btn.addEventListener('click', () => {
         if (btn.dataset.actionBlocDevoir === 'dupliquer') dupliquerBlocDevoir(devoirId, bloc);
         if (btn.dataset.actionBlocDevoir === 'supprimer') supprimerBlocDevoir(devoirId, bloc);
+      });
+    });
+
+    // Compétences travaillées (Phase 2 "Accompagnement personnalisé", Premium)
+    // — même principe que côté éditeur de séance : écriture immédiate dans la
+    // table de liaison blocs_competences, jamais dans bloc.contenu.
+    el.querySelectorAll('[data-competence-bloc]').forEach(caseCompetence => {
+      caseCompetence.addEventListener('change', async () => {
+        const competenceId = parseInt(caseCompetence.dataset.competenceBloc, 10);
+        bloc.competencesIds = Array.isArray(bloc.competencesIds) ? bloc.competencesIds : [];
+        if (caseCompetence.checked) {
+          if (!bloc.competencesIds.includes(competenceId)) {
+            const { error } = await supabaseClient.from('blocs_competences').insert({ bloc_id: bloc.id, competence_id: competenceId });
+            if (error) { caseCompetence.checked = false; alert(error.message); return; }
+            bloc.competencesIds.push(competenceId);
+          }
+        } else {
+          const { error } = await supabaseClient.from('blocs_competences').delete().eq('bloc_id', bloc.id).eq('competence_id', competenceId);
+          if (error) { caseCompetence.checked = true; alert(error.message); return; }
+          bloc.competencesIds = bloc.competencesIds.filter(id => id !== competenceId);
+        }
       });
     });
 
@@ -470,6 +518,12 @@ async function dupliquerBlocDevoir(devoirId, bloc) {
   if (['exercice', 'quiz', 'evaluation', 'activite'].includes(bloc.type_bloc)) {
     const { data: corrigeOriginal } = await supabaseClient.from('corriges_exercices').select('corrige').eq('bloc_id', bloc.id).maybeSingle();
     if (corrigeOriginal) await supabaseClient.from('corriges_exercices').insert({ bloc_id: data.id, corrige: corrigeOriginal.corrige });
+  }
+  if (Array.isArray(bloc.competencesIds) && bloc.competencesIds.length) {
+    await supabaseClient.from('blocs_competences').insert(
+      bloc.competencesIds.map(competenceId => ({ bloc_id: data.id, competence_id: competenceId }))
+    );
+    data.competencesIds = [...bloc.competencesIds];
   }
   etat.blocs.push(data);
   rendreBlocsDevoir(devoirId);

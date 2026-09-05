@@ -5,6 +5,13 @@ const idSeance = new URLSearchParams(window.location.search).get('id');
 let seance = null;
 let chaineNavigation = null; // { sa, noeud, classe_id, champ_id, classeNom, champNom }
 let blocs = [];
+// Compétences du référentiel disponibles pour la classe/matière de cette
+// séance (Phase 2 — Accompagnement pédagogique personnalisé, Premium) — lu
+// par html_selectCompetencesBloc() dans js/editeur/blocs.js. Chaque bloc
+// exercice/quiz/évaluation/activité porte sa propre sélection dans
+// bloc.competencesIds (posée par chargerBlocs(), jamais dans bloc.contenu :
+// la source de vérité reste la table de liaison blocs_competences).
+let COMPETENCES_DISPONIBLES_EDITEUR = [];
 let profilAdmin = null;
 let peutEditer = false;
 let peutValider = false;
@@ -132,6 +139,29 @@ async function chargerBlocs() {
   const { data, error } = await supabaseClient.from('blocs_seance').select('*').eq('seance_id', idSeance).order('ordre');
   if (error) { console.error(error); return; }
   blocs = data;
+
+  // Compétences déjà rattachées à chaque bloc (table de liaison, jamais dans
+  // bloc.contenu — voir html_selectCompetencesBloc dans js/editeur/blocs.js).
+  const idsBlocs = blocs.map(b => b.id);
+  if (idsBlocs.length) {
+    const { data: liens } = await supabaseClient.from('blocs_competences').select('bloc_id, competence_id').in('bloc_id', idsBlocs);
+    const idsParBloc = {};
+    (liens || []).forEach(l => { (idsParBloc[l.bloc_id] ??= []).push(l.competence_id); });
+    blocs.forEach(b => { b.competencesIds = idsParBloc[b.id] || []; });
+  }
+
+  await chargerCompetencesDisponiblesEditeur();
+}
+
+// Compétences actives du référentiel pour la classe/matière de cette séance
+// (transversales incluses, classe_id null) — proposées dans le sélecteur de
+// chaque bloc exercice/quiz/évaluation/activité.
+async function chargerCompetencesDisponiblesEditeur() {
+  const { data } = await supabaseClient.from('competences').select('id, intitule, domaine, ordre')
+    .eq('champ_formation_id', chaineNavigation.champ_id).eq('actif', true)
+    .or(`classe_id.eq.${chaineNavigation.classe_id},classe_id.is.null`)
+    .order('domaine').order('ordre');
+  COMPETENCES_DISPONIBLES_EDITEUR = data || [];
 }
 
 // --- RENDU GÉNÉRAL -------------------------------------------------------
@@ -513,6 +543,29 @@ function attacherEcouteursBloc(bloc) {
       programmerSauvegardeBloc(bloc);
     });
   }
+
+  // Compétences travaillées (Phase 2 "Accompagnement personnalisé", Premium)
+  // — persistées directement dans blocs_competences (table de liaison), pas
+  // dans bloc.contenu : chaque coche/décoche déclenche un insert/delete
+  // immédiat, sans passer par programmerSauvegardeBloc (pas de debounce ici,
+  // il n'y a rien à taper — une seule action = une seule écriture).
+  el.querySelectorAll(':scope > .bloc-corps [data-competence-bloc]').forEach(caseCompetence => {
+    caseCompetence.addEventListener('change', async () => {
+      const competenceId = parseInt(caseCompetence.dataset.competenceBloc, 10);
+      bloc.competencesIds = Array.isArray(bloc.competencesIds) ? bloc.competencesIds : [];
+      if (caseCompetence.checked) {
+        if (!bloc.competencesIds.includes(competenceId)) {
+          const { error } = await supabaseClient.from('blocs_competences').insert({ bloc_id: bloc.id, competence_id: competenceId });
+          if (error) { caseCompetence.checked = false; alert(error.message); return; }
+          bloc.competencesIds.push(competenceId);
+        }
+      } else {
+        const { error } = await supabaseClient.from('blocs_competences').delete().eq('bloc_id', bloc.id).eq('competence_id', competenceId);
+        if (error) { caseCompetence.checked = true; alert(error.message); return; }
+        bloc.competencesIds = bloc.competencesIds.filter(id => id !== competenceId);
+      }
+    });
+  });
 
   // Nom du bloc modifiable (remplace le libellé figé du type)
   const inputLibelle = el.querySelector(':scope > .bloc-entete [data-libelle-bloc]');
@@ -2019,6 +2072,14 @@ function dupliquerSeance() {
         .from('corriges_exercices').select('corrige').eq('bloc_id', b.id).maybeSingle();
       if (corrigeSource) {
         await supabaseClient.from('corriges_exercices').insert({ bloc_id: correspondance[b.id], corrige: corrigeSource.corrige });
+      }
+      // Compétences rattachées (Phase 2 "Accompagnement personnalisé") : même
+      // logique que le corrigé ci-dessus — sans cette copie, un bloc dupliqué
+      // perdrait silencieusement son suivi de progression.
+      if (Array.isArray(b.competencesIds) && b.competencesIds.length) {
+        await supabaseClient.from('blocs_competences').insert(
+          b.competencesIds.map(competenceId => ({ bloc_id: correspondance[b.id], competence_id: competenceId }))
+        );
       }
     }
 

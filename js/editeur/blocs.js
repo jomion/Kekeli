@@ -302,6 +302,32 @@ function html_selectPalier(bloc) {
   </select>`;
 }
 
+// Sélecteur de compétences travaillées par ce bloc (Phase 2 — Accompagnement
+// pédagogique personnalisé, Premium) : liste à cocher, une compétence par
+// pastille. `dispo` est fourni par l'appelant (chargé pour la classe/matière
+// de la séance ou du devoir en cours) — jamais construit ici pour éviter de
+// coupler ce fichier partagé à une source de données précise. La sélection
+// courante du bloc n'est PAS dans bloc.contenu : elle vit dans la table de
+// liaison `blocs_competences`, chargée à part et posée sur bloc.competencesIds
+// par l'appelant avant le premier rendu (voir chargerBlocs() côté éditeur de
+// séance et chargerBlocsDevoir() côté éditeur de devoir).
+function html_selectCompetencesBloc(bloc, dispo) {
+  if (!Array.isArray(dispo) || !dispo.length) {
+    return '<p class="note-future">Aucune compétence configurée pour cette matière/classe — gérez le référentiel dans Admin ▸ Compétences pour pouvoir suivre la progression des élèves sur ce bloc (fonctionnalité Premium).</p>';
+  }
+  const selectionnees = new Set((bloc.competencesIds || []).map(String));
+  return `
+    <div class="champ-ligne" style="flex-direction:column;align-items:flex-start;gap:6px">
+      <label>🧩 Compétences travaillées (suivi de progression Premium)</label>
+      <div class="liste-competences-bloc" data-liste-competences-bloc style="display:flex;flex-wrap:wrap;gap:6px">
+        ${dispo.map(c => `
+          <label class="checkbox-modal" style="display:inline-flex;align-items:center;gap:5px;border:1px solid var(--bordure);border-radius:20px;padding:3px 10px;font-size:12px;cursor:pointer">
+            <input type="checkbox" data-competence-bloc="${c.id}" ${selectionnees.has(String(c.id)) ? 'checked' : ''}> ${echapper(c.intitule)}
+          </label>`).join('')}
+      </div>
+    </div>`;
+}
+
 // --- ÉDITEUR D'EXERCICE / QUIZ / ÉVALUATION (questions + corrigé) ----------
 // Les questions (énoncé, type, options) restent dans bloc.contenu.questions —
 // c'est ce que l'élève reçoit pour répondre. Le corrigé (bonnes réponses,
@@ -337,6 +363,7 @@ function html_editeurExercice(bloc, c) {
     <!-- Sans palier, cet exercice est un bloc de contenu ordinaire : ni seuil
          ni progression à configurer, uniquement visible/masqué via data-bloc-seuil
          ci-dessus (le champ garde sa valeur en base, juste masqué à l'écran). -->
+    ${html_selectCompetencesBloc(bloc, typeof COMPETENCES_DISPONIBLES_EDITEUR !== 'undefined' ? COMPETENCES_DISPONIBLES_EDITEUR : [])}
     <div class="editeur-questions" data-questions-bloc="${bloc.id}">
       <div class="liste-questions" data-liste-questions>
         ${questions.length ? questions.map((q, i) => html_questionEditeur(q, i, null)).join('') : '<p class="note-future">Aucune question pour l\'instant.</p>'}

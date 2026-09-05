@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KEKELI Admin - Référentiel de compétences</title>
+<link rel="stylesheet" href="../../css/style.css">
+<style>
+  .filtres-competences { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+  .filtres-competences select { padding: 9px; border-radius: 8px; border: 1px solid var(--bordure); }
+  .barre-actions-competences { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+  .groupe-domaine-competences { margin-bottom: 22px; }
+  .groupe-domaine-competences h3 { font-size: 14px; color: var(--bleu-principal); margin: 0 0 8px; text-transform: uppercase; letter-spacing: .03em; }
+  .carte-competence { background: white; border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border-left: 4px solid var(--bleu-principal); margin-bottom: 8px; }
+  .carte-competence.inactive { opacity: .55; }
+  .carte-competence .entete-competence { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+  .carte-competence h4 { margin: 0 0 4px; font-size: 14px; }
+  .carte-competence p { margin: 0; font-size: 12px; color: var(--texte-gris); }
+  .pastille-classe-competence { display: inline-block; background: var(--bleu-clair); color: var(--bleu-principal); border-radius: 20px; padding: 2px 10px; font-size: 11px; font-weight: 700; margin-top: 6px; }
+  .actions-competence { display: flex; gap: 6px; flex-shrink: 0; }
+  .actions-competence button { padding: 4px 10px; font-size: 11px; }
+  .carte-proposition-ia textarea { font-family: inherit; resize: vertical; }
+</style>
+<link rel="stylesheet" href="../../css/pied-de-page.css">
+</head>
+<body>
+  <header></header>
+
+  <div class="conteneur">
+    <div class="titre-page">🧩 Référentiel de compétences</div>
+    <div class="sous-titre-page">Compétences suivies pour l'accompagnement personnalisé (Premium) — chaque compétence peut être rattachée à des exercices pour mesurer la maîtrise des élèves.</div>
+    <div id="contenu" class="chargement">Chargement...</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/supabaseClient.js"></script>
+  <script>const RACINE_SITE = "../../";</script>
+  <script src="../../js/auth-admin.js"></script>
+  <script src="../../js/notifications.js"></script>
+  <script src="../../js/modal.js"></script>
+  <script src="../../js/navigation-config.js"></script>
+  <script src="../../js/banniere-site.js"></script>
+  <script src="../../js/entete-navigation.js"></script>
+  <script src="../../js/pages/admin-competences.js"></script>
+  <footer></footer>
+  <script src="../../js/pied-de-page.js"></script>
+</body>
+</html>

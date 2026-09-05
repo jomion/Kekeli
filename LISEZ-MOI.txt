@@ -1,32 +1,85 @@
-KEKELI — Livraison du 5 septembre 2026 (3)
+KEKELI — Livraison du 5 septembre 2026 (5)
 ============================================
 
-En réponse à votre demande : « Redimensionne le bloc d'image du héro pour
-qu'elle occupe proportionnellement et convenablement l'espace disponible
-dans le héro ».
+Première brique du système Premium « Accompagnement pédagogique
+personnalisé » que vous avez demandé — conformément à votre règle absolue
+(analyser d'abord, valider le plan, puis avancer phase par phase), le plan
+complet a été analysé et validé avec vous avant tout code. Ceci est la
+Phase 2 sur 13 : « Structure des données et suivi des compétences » — la
+fondation sur laquelle s'appuieront le diagnostic, le parcours personnalisé
+et la remédiation automatique dans les phases suivantes.
 
-Le problème
----------------
-Le cadre de l'image du grand bandeau d'accueil (le "héro") avait une
-taille fixe (420 × 260 pixels), quelle que soit la taille de l'écran. Sur
-un écran large, cela laissait beaucoup de vide autour du cadre ; sur un
-écran plus étroit (une fois le bloc image passé sous le texte), le cadre
-restait petit au lieu de profiter de la largeur disponible.
+Ce que cette livraison met en place
+------------------------------------
+1. Un référentiel de compétences pédagogiques. Une compétence est une
+   capacité précise et évaluable (ex : « Comparer deux fractions de même
+   dénominateur »), rattachée à une matière et, si besoin, à une classe
+   (ou transversale à toutes les classes).
 
-Le correctif
-----------------
-Le cadre s'agrandit et se rétrécit désormais avec l'espace réellement
-disponible dans le héro, tout en gardant des proportions harmonieuses
-(grâce à un ratio largeur/hauteur fixe plutôt qu'une hauteur figée en
-pixels) :
-- Sur un grand écran, il occupe une part nettement plus généreuse et
-  équilibrée de l'espace à côté du texte.
-- Une fois qu'il passe sous le texte (tablette, mobile), il profite de
-  toute la largeur disponible au lieu de rester petit.
+2. Une nouvelle page d'administration : Admin ▸ Compétences.
+   - Créer/modifier/désactiver/supprimer une compétence.
+   - Filtrer par matière et par classe.
+   - « 🤖 Proposer avec l'IA » : vous choisissez une matière, une classe et
+     une séance déjà publiée ; l'IA lit son contenu et propose une liste de
+     compétences candidates. Rien n'est jamais enregistré automatiquement —
+     vous relisez, corrigez si besoin, cochez celles à garder, puis validez.
 
-Ce changement s'applique aussi bien à l'emoji de secours (☀️, affiché tant
-qu'aucune image n'est configurée) qu'à une vraie photo envoyée depuis
-`pages/admin/section-accueil.html` — la photo se recadre toujours
-proprement pour remplir le cadre, désormais plus grand.
+3. Dans l'éditeur de séance ET dans l'éditeur de devoir, chaque bloc
+   Exercice/Quiz/Évaluation/Activité affiche désormais la liste des
+   compétences de sa matière/classe, à cocher librement (aucune n'est
+   cochée par défaut). C'est ce qui permet de savoir, plus tard, quelles
+   compétences un exercice fait vraiment travailler.
 
-Un seul fichier modifié : `css/style-public.css`.
+4. Suivi automatique de la maîtrise de chaque élève, compétence par
+   compétence, recalculé en tâche de fond à chaque réponse d'exercice ou
+   rendu d'activité — invisible dans cette livraison (aucune page ne
+   l'affiche encore), il alimentera le tableau de bord élève/parent et le
+   parcours personnalisé dans les prochaines phases.
+
+Ce qui n'est PAS encore fait (volontairement, selon le plan validé)
+-----------------------------------------------------------------
+Le diagnostic, le parcours personnalisé de l'élève (la fonctionnalité
+prioritaire), la remédiation automatique, le tuteur IA élève et les
+tableaux de bord arrivent dans les phases suivantes (3 à 13), chacune
+livrée et vérifiée séparément avant de passer à la suivante — comme
+demandé. Pour le tuteur IA élève (Phase 6), vous avez indiqué vouloir
+utiliser l'API GPT (OpenAI) en priorité, avec les fournisseurs actuels
+(Gemini puis Groq) en secours : c'est noté dans le plan, ce sera mis en
+place au moment de construire cette phase (un nouveau secret OPENAI_API_KEY
+vous sera alors demandé).
+
+Sécurité
+--------
+Comme pour tout le reste du site, aucune information de correction n'est
+exposée aux élèves, et le contrôle d'accès (qui peut créer/modifier une
+compétence, qui peut voir la progression de quel élève) est vérifié côté
+serveur (règles de sécurité de la base de données), jamais seulement côté
+navigateur. Une vérification de sécurité de la base de données a été
+relancée après ces changements : aucune nouvelle alerte.
+
+Fichiers modifiés/ajoutés (frontend, dans ce zip)
+--------------------------------------------------
+- `pages/admin/competences.html` (nouveau) — page d'administration.
+- `js/pages/admin-competences.js` (nouveau) — logique de la page ci-dessus.
+- `js/navigation-config.js` — ajout du lien "Compétences" au menu admin.
+- `js/editeur/blocs.js` — sélecteur de compétences pour les blocs
+  Exercice/Quiz/Évaluation/Activité (partagé séance + devoir).
+- `js/pages/editeur-seance.js` — chargement/sauvegarde des compétences
+  cochées sur chaque bloc d'une séance (+ copie lors d'une duplication de
+  séance, pour ne pas perdre le rattachement).
+- `js/editeur/devoir-blocs.js` — même sélecteur côté devoirs.
+
+Côté base de données (déjà en ligne, hors de ce zip)
+------------------------------------------------------
+- 3 nouvelles tables (`competences`, `blocs_competences`,
+  `progression_competences`), sécurité activée sur les trois dès leur
+  création.
+- Calcul automatique de la progression à chaque réponse d'élève (ne peut
+  jamais bloquer l'enregistrement d'une réponse, même en cas d'erreur
+  interne).
+- Nouvelle action `proposerCompetences` dans le service IA existant, pour
+  le bouton « Proposer avec l'IA » ci-dessus.
+
+Comme d'habitude, aucun fichier SQL n'est conservé dans ce dépôt Git — les
+changements de base de données sont appliqués directement et documentés
+dans le document de suivi du projet.
