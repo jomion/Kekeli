@@ -128,7 +128,7 @@ async function rendreFilAriane() {
 
   filAriane.innerHTML = segments.map(s =>
     `<span class="segment" data-retour="${s.url}" title="${echapper(s.titre)}">${echapper(s.label)}</span><span class="sep">›</span>`
-  ).join('') + `<span class="segment actif">${echapper(seance.titre)}</span>`;
+  ).join('') + `<span class="segment actif">${echapper(seance.titre_contenu || seance.titre)}</span>`;
 
   filAriane.querySelectorAll('[data-retour]').forEach(el => {
     el.addEventListener('click', () => { window.location.href = el.dataset.retour; });
@@ -172,9 +172,17 @@ function rendre() {
   contenu.innerHTML = `
     <div class="barre-editeur">
       <div>
-        <input type="text" id="inputTitreSeance" value="${echapper(seance.titre)}" placeholder="Titre de la séance"
-          title="Titre de la séance — sert de repère unique dans toutes les listes et pour l'IA (ex: « Séance 1 — Les fractions »)."
-          style="border:none;border-bottom:1px solid transparent;background:transparent;font-size:20px;font-weight:700;color:var(--bleu-principal);padding:2px 0;margin:0 0 4px;width:100%;max-width:520px"
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texte-gris);letter-spacing:.04em;margin-bottom:2px">Titre affiché (élèves, parents, listes...)</div>
+        <input type="text" id="inputTitreContenu" value="${echapper(seance.titre_contenu || '')}"
+          placeholder="${seance.titre ? `Par défaut : ${seance.titre}` : 'Titre affiché partout sur le site'}"
+          title="C'est CE titre qui s'affiche partout (élèves, parents, listes Séances/Admin). Laissé vide, le titre technique ci-dessous sert de valeur par défaut — mais reste modifiable séparément ici."
+          style="border:none;border-bottom:1px solid transparent;background:transparent;font-size:20px;font-weight:700;color:var(--bleu-principal);padding:2px 0;margin:0 0 6px;width:100%;max-width:520px"
+          onfocus="this.style.borderBottomColor='var(--bordure)'" onblur="this.style.borderBottomColor='transparent'">
+
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texte-gris);letter-spacing:.04em;margin-bottom:2px">Titre technique (repère interne + génération IA)</div>
+        <input type="text" id="inputTitreSeance" value="${echapper(seance.titre)}" placeholder="Titre technique de la séance"
+          title="Titre technique — sert de repère unique dans les listes admin et de base pour la génération IA (ex: « Séance 1 — Les fractions »). Ne s'affiche PAS aux élèves si un titre affiché est renseigné au-dessus."
+          style="border:none;border-bottom:1px solid transparent;background:transparent;font-size:13px;font-weight:600;color:var(--texte-gris);padding:2px 0;margin:0 0 4px;width:100%;max-width:420px"
           onfocus="this.style.borderBottomColor='var(--bordure)'" onblur="this.style.borderBottomColor='transparent'">
         <br>
         <input type="text" id="inputDiscipline" placeholder="Discipline (ex: Lecture, Grammaire, Conjugaison...)" value="${echapper(seance.discipline)}"
@@ -222,6 +230,17 @@ function rendre() {
     seance.titre = nouveauTitre;
     await supabaseClient.from('seances').update({ titre: seance.titre }).eq('id', seance.id);
     await rendreFilAriane(); // le dernier segment (nom de la séance) doit refléter le nouveau titre
+    afficherSauvegarde();
+  });
+  document.getElementById('inputTitreContenu').addEventListener('change', async (e) => {
+    // Titre affiché : distinct du titre technique ci-dessus (voir commentaire
+    // sur `seance.titre` plus haut). Peut être vidé volontairement : dans ce
+    // cas titre_contenu redevient null et l'affichage retombe sur le titre
+    // technique partout (comportement déjà en place, pastille "à titrer" incluse).
+    seance.titre_contenu = e.target.value.trim() || null;
+    await supabaseClient.from('seances').update({ titre_contenu: seance.titre_contenu }).eq('id', seance.id);
+    e.target.placeholder = seance.titre ? `Par défaut : ${seance.titre}` : 'Titre affiché partout sur le site';
+    await rendreFilAriane();
     afficherSauvegarde();
   });
   document.getElementById('listeTypes').addEventListener('click', (e) => {

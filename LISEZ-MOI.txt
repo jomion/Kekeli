@@ -1,65 +1,66 @@
-KEKELI — Livraison du 5 septembre 2026 (8)
+KEKELI — Livraison du 5 septembre 2026 (9)
 ============================================
 
-Ce lot répond directement à votre retour "tu n'as pris en compte mes
-demandes" — voici, point par point, ce qui manquait et ce qui est corrigé.
+Ce lot répond à votre question directe : « quelle partie de l'édition
+tu considère comme titre de la séance ? ». En regardant vos deux
+captures d'écran et le code de l'éditeur, j'ai trouvé le vrai trou :
+le champ « titre » demandé dans le lot précédent n'existait en réalité
+QUE dans la logique de création automatique — il n'y avait jamais eu
+de champ visible dans l'éditeur pour le modifier à la main. C'est
+exactement ce que vous aviez demandé et que je n'avais pas livré.
+Voici le correctif.
 
-1. Un vrai champ de titre, disponible dès la création
-------------------------------------------------------
-Jusqu'ici, à la création d'une séance, seul le "Titre" technique (celui
-transmis à l'IA) était demandé — le "titre du contenu" affiché sur le site
-restait vide tant que personne n'allait le remplir plus tard dans l'éditeur.
-C'est ce qui provoquait le nom générique "Séance N" persistant. Corrigé :
-dès la création, le titre saisi sert désormais AUSSI de titre affiché par
-défaut. Ce titre affiché reste modifiable séparément dans l'éditeur si vous
-voulez l'affiner ensuite, mais une séance n'est plus jamais créée sans lui.
-(S'applique aussi à la duplication d'une séance ou d'une SA entière : le
-titre affiché est recopié avec le reste.)
+Ce qui causait l'incohérence
+------------------------------
+Dans l'éditeur d'une séance, un seul champ de titre était visible,
+appelé "Titre de la séance" — mais il modifiait uniquement le titre
+TECHNIQUE (celui utilisé pour la génération IA), jamais le titre
+AFFICHÉ. Résultat : aucun moyen, depuis l'éditeur, de corriger ou
+d'ajuster le titre qu'un élève voit réellement. Pour les séances
+créées avant le lot précédent (la grande majorité), ce titre affiché
+restait vide, et chaque page qui doit l'afficher retombe alors sur le
+titre technique brut — qui est parfois une vraie phrase ("Les
+caractéristiques du portrait"), parfois un simple repère générique
+("Séance 4", "Séquence 1"), selon la façon dont le contenu a été
+importé à l'origine. D'où l'impression de titres tantôt corrects,
+tantôt incohérents, sans lien avec ce que vous pouviez changer.
 
-2. La séquence (SA) est de retour dans le chemin
-----------------------------------------------------
-Le chemin sous chaque séance (page Séances et gestion des séances admin)
-affiche de nouveau le nom de la séquence, en dernier segment (le plus proche
-de la séance) :
-  L'homme et sa santé › Unité 1 › Semaine 1 › SA1 — Le portrait
+Le correctif
+--------------
+L'éditeur affiche maintenant CLAIREMENT deux champs séparés et
+étiquetés, dans cet ordre, dès l'ouverture de la séance (avant même
+la liste des sections/blocs) :
 
-3. Le contenu d'une séance, bloc par bloc, pour tout le monde
--------------------------------------------------------------------
-Sur la page "Séances" (partagée par tous les rôles — élève, parent,
-enseignant, admin) et sur la page Admin ▸ Gestion des séances, chaque
-séance qui a du contenu propose maintenant un bouton "👁️ Voir le contenu"
-qui déplie, directement sous la ligne, le même type d'affichage que la vue
-"Paliers de cette séance" de l'élève : chaque bloc dans son propre encadré
-coloré, avec son type bien identifié (Texte, Activité, Exercice...) et un
-aperçu de son contenu, regroupés par palier quand il y en a.
-C'est un aperçu en LECTURE SEULE : pas de question à remplir, aucun corrigé
-chargé — juste de quoi voir clairement ce que contient une séance sans
-ouvrir l'éditeur. Chargé à la demande (au clic), pas pour toute la liste
-d'un coup, pour rester rapide.
+  1. « TITRE AFFICHÉ (élèves, parents, listes...) » — en gras, en
+     premier : c'est ce champ qui s'affiche partout sur le site.
+     Modifiable directement, sans passer par la base de données.
+  2. « TITRE TECHNIQUE (repère interne + génération IA) » — plus
+     discret, en dessous : sert uniquement de repère dans les listes
+     admin et de base pour la génération de contenu par l'IA.
 
-Fichiers modifiés (frontend, dans ce zip)
+Pour une séance déjà créée sans titre affiché, le champ 1 apparaît
+vide avec une indication "Par défaut : <titre technique>" — vous
+tapez le vrai titre que vous voulez voir affiché, il est enregistré
+immédiatement. Le fil d'ariane en haut de l'éditeur reflète aussi
+désormais ce titre affiché plutôt que le titre technique.
+
+Fichier modifié (frontend, dans ce zip)
 -------------------------------------------
-- `js/pages/navigation.js` : titre affiché par défaut à la création et à la
-  duplication d'une séance/SA.
-- `js/pages/editeur-seance.js` : titre affiché (+ discipline) recopiés à la
-  duplication d'une séance depuis l'éditeur.
-- `js/pages/seances.js`, `js/pages/admin-gestion-seances.js` : séquence (SA)
-  de retour dans le chemin ; bouton "Voir le contenu".
-- `js/apercu-blocs-seance.js` (nouveau) : le rendu de l'aperçu bloc par bloc,
-  partagé par ces deux pages.
-- `js/editeur/blocs.js` : chargé sur ces deux pages (déjà utilisé ailleurs,
-  aucune modification de son contenu).
-- `pages/seances.html`, `pages/admin/gestion-seances.html` : ajout des deux
-  scripts ci-dessus.
-- `css/style-public.css`, `css/style.css` : mise en forme de l'aperçu.
+- `js/pages/editeur-seance.js` : nouveau champ « Titre affiché »
+  (titre_contenu) séparé et mis en avant, champ technique existant
+  conservé mais redescendu au second plan ; fil d'ariane de l'éditeur
+  mis à jour pour suivre le titre affiché.
 
-Aucun changement de base de données dans ce lot — uniquement du code
-front-end.
+Aucun changement de base de données dans ce lot — le champ existait
+déjà, seule l'interface pour l'utiliser manquait.
 
 Point resté en discussion
 ------------------------------
-La vue arborescence complète (Admin ▸ Classes/matières, l'affichage en arbre
-avec les niveaux dépliables) n'a pas encore ce même bouton "Voir le
-contenu" : c'est une vue plus complexe (imbriquée), et je préfère vous
-livrer d'abord ce qui est fait pour que vous puissiez déjà tester, plutôt
-que d'attendre. Dites-moi si vous la voulez aussi là.
+Sur la page "Séances" élève/parent/enseignant et sur la page
+d'accueil élève par matière, les séances sans titre affiché retombent
+silencieusement sur le titre technique (parfois "Séquence 1" répété
+plusieurs fois) sans aucune pastille d'avertissement — contrairement
+aux pages Admin qui affichent "à titrer". Avec ce nouveau champ, vous
+pouvez maintenant corriger ces titres vous-même au fil de l'eau.
+Dites-moi si vous voulez en plus une pastille "à titrer" visible côté
+élève, ou si vous préférez que ça reste discret pour eux.
