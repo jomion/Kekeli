@@ -1,66 +1,29 @@
-KEKELI — Livraison du 5 septembre 2026 (9)
-============================================
+KEKELI — Livraison du 5 septembre 2026 (10)
+=============================================
 
-Ce lot répond à votre question directe : « quelle partie de l'édition
-tu considère comme titre de la séance ? ». En regardant vos deux
-captures d'écran et le code de l'éditeur, j'ai trouvé le vrai trou :
-le champ « titre » demandé dans le lot précédent n'existait en réalité
-QUE dans la logique de création automatique — il n'y avait jamais eu
-de champ visible dans l'éditeur pour le modifier à la main. C'est
-exactement ce que vous aviez demandé et que je n'avais pas livré.
-Voici le correctif.
+Correctif rapide suite à votre retour sur le lot précédent (nouveau
+champ « Titre affiché » dans l'éditeur).
 
-Ce qui causait l'incohérence
-------------------------------
-Dans l'éditeur d'une séance, un seul champ de titre était visible,
-appelé "Titre de la séance" — mais il modifiait uniquement le titre
-TECHNIQUE (celui utilisé pour la génération IA), jamais le titre
-AFFICHÉ. Résultat : aucun moyen, depuis l'éditeur, de corriger ou
-d'ajuster le titre qu'un élève voit réellement. Pour les séances
-créées avant le lot précédent (la grande majorité), ce titre affiché
-restait vide, et chaque page qui doit l'afficher retombe alors sur le
-titre technique brut — qui est parfois une vraie phrase ("Les
-caractéristiques du portrait"), parfois un simple repère générique
-("Séance 4", "Séquence 1"), selon la façon dont le contenu a été
-importé à l'origine. D'où l'impression de titres tantôt corrects,
-tantôt incohérents, sans lien avec ce que vous pouviez changer.
+Le problème
+--------------
+En testant le nouveau champ « Titre affiché », vous avez remarqué que
+le taper y faisait aussi grossir le chemin (fil d'ariane) tout en haut
+de l'éditeur — un vrai titre affiché étant souvent une phrase complète
+("Les types de phrases : phrase déclarative, phrase impérative"), le
+chemin devenait trop long et illisible.
 
 Le correctif
 --------------
-L'éditeur affiche maintenant CLAIREMENT deux champs séparés et
-étiquetés, dans cet ordre, dès l'ouverture de la séance (avant même
-la liste des sections/blocs) :
-
-  1. « TITRE AFFICHÉ (élèves, parents, listes...) » — en gras, en
-     premier : c'est ce champ qui s'affiche partout sur le site.
-     Modifiable directement, sans passer par la base de données.
-  2. « TITRE TECHNIQUE (repère interne + génération IA) » — plus
-     discret, en dessous : sert uniquement de repère dans les listes
-     admin et de base pour la génération de contenu par l'IA.
-
-Pour une séance déjà créée sans titre affiché, le champ 1 apparaît
-vide avec une indication "Par défaut : <titre technique>" — vous
-tapez le vrai titre que vous voulez voir affiché, il est enregistré
-immédiatement. Le fil d'ariane en haut de l'éditeur reflète aussi
-désormais ce titre affiché plutôt que le titre technique.
+Le dernier segment de ce chemin (celui qui représente la séance en
+cours) affiche de nouveau le titre TECHNIQUE, court par nature (ex.
+« Séance 4 »), jamais le titre affiché. Le titre affiché reste bien
+visible et modifiable dans son propre champ juste au-dessus, en gras
+— il n'a simplement plus sa place dans un chemin de navigation, qui
+doit rester compact.
 
 Fichier modifié (frontend, dans ce zip)
 -------------------------------------------
-- `js/pages/editeur-seance.js` : nouveau champ « Titre affiché »
-  (titre_contenu) séparé et mis en avant, champ technique existant
-  conservé mais redescendu au second plan ; fil d'ariane de l'éditeur
-  mis à jour pour suivre le titre affiché.
+- `js/pages/editeur-seance.js` : fil d'ariane de l'éditeur revenu au
+  titre technique pour son dernier segment.
 
-Aucun changement de base de données dans ce lot — le champ existait
-déjà, seule l'interface pour l'utiliser manquait.
-
-Point resté en discussion
-------------------------------
-Sur la page "Séances" élève/parent/enseignant et sur la page
-d'accueil élève par matière, les séances sans titre affiché retombent
-silencieusement sur le titre technique (parfois "Séquence 1" répété
-plusieurs fois) sans aucune pastille d'avertissement — contrairement
-aux pages Admin qui affichent "à titrer". Avec ce nouveau champ, vous
-pouvez maintenant corriger ces titres vous-même au fil de l'eau.
-Dites-moi si vous voulez en plus une pastille "à titrer" visible côté
-élève, ou si vous préférez que ça reste discret pour eux.
+Aucun changement de base de données.

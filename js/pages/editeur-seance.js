@@ -126,9 +126,15 @@ async function rendreFilAriane() {
 
   segments.push({ label: chaineNavigation.sa.titre, url: urlNavigationVersSA(), titre: "Retour à cette Situation d'Apprentissage" });
 
+  // Dernier segment du fil d'ariane : volontairement le titre TECHNIQUE
+  // (court, ex. « Séance 4 »), jamais le titre affiché (`titre_contenu`,
+  // souvent une vraie phrase) — sinon le chemin s'allonge démesurément dès
+  // qu'un vrai titre affiché est renseigné (retour direct du 5 septembre 2026,
+  // 5e passe). Le titre affiché reste bien visible juste au-dessus, dans son
+  // propre champ dédié — il n'a pas sa place dans un chemin de navigation.
   filAriane.innerHTML = segments.map(s =>
     `<span class="segment" data-retour="${s.url}" title="${echapper(s.titre)}">${echapper(s.label)}</span><span class="sep">›</span>`
-  ).join('') + `<span class="segment actif">${echapper(seance.titre_contenu || seance.titre)}</span>`;
+  ).join('') + `<span class="segment actif">${echapper(seance.titre)}</span>`;
 
   filAriane.querySelectorAll('[data-retour]').forEach(el => {
     el.addEventListener('click', () => { window.location.href = el.dataset.retour; });
