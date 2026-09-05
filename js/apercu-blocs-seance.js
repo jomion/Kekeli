@@ -21,6 +21,10 @@
 
 const ORDRE_PALIER_APERCU_BLOCS = ['azovi', 'devi', 'ogan', 'axosu'];
 const LIBELLES_PALIER_APERCU_BLOCS = { azovi: '🌱 Azɔ̀ví', devi: '🪘 Dèví', ogan: '🦁 Ògán', axosu: '👑 Axɔ́sú' };
+// Couleurs "pleines" (fond dense) des sections Paliers, reportées ici depuis
+// js/pages/eleve-seance.js (5 septembre 2026) pour que cet aperçu compact
+// (listings admin/enseignant) reste visuellement cohérent avec la vraie page.
+const COULEURS_PALIER_APERCU_BLOCS = { azovi: '#15803D', devi: '#1D4ED8', ogan: '#9A3412', axosu: '#B91C1C' };
 const TYPES_TRAVAIL_APERCU_BLOCS = ['exercice', 'quiz', 'evaluation', 'activite'];
 const TYPES_MASQUES_APERCU_BLOCS = ['titre', 'consigne']; // sections : seul leur contenu compte, comme le compteur "● N blocs" déjà en place
 
@@ -81,8 +85,11 @@ function rendreApercuContenuSeance(blocsBruts) {
 
   let html = sansPalier.map(rendreCarteApercuBloc).join('');
   ORDRE_PALIER_APERCU_BLOCS.filter(p => parPalier[p]).forEach(p => {
-    html += `<div style="font-size:12px;font-weight:700;color:#003366;margin:10px 0 6px">${LIBELLES_PALIER_APERCU_BLOCS[p]}</div>`
-      + parPalier[p].map(rendreCarteApercuBloc).join('');
+    const couleurPalier = COULEURS_PALIER_APERCU_BLOCS[p] || '#003366';
+    html += `<div style="background:${couleurPalier};border-radius:10px;padding:10px 12px;margin:10px 0 8px">
+      <div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:6px">${LIBELLES_PALIER_APERCU_BLOCS[p]}</div>
+      ${parPalier[p].map(rendreCarteApercuBloc).join('')}
+    </div>`;
   });
   return `<div style="padding:10px 4px 2px">${html}</div>`;
 }

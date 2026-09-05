@@ -2133,6 +2133,10 @@ function dupliquerSeance() {
 // doit être reportée ici pour que l'aperçu ne redevienne pas obsolète.
 const TYPES_TRAVAIL_APERCU = ['exercice', 'quiz', 'evaluation', 'activite'];
 const LIBELLES_PALIER_APERCU = { azovi: '🌱 Azɔ̀ví', devi: '🪘 Dèví', ogan: '🦁 Ògán', axosu: '👑 Axɔ́sú' };
+// Couleurs "pleines" (fond dense) des sections Paliers — reporté ici depuis
+// js/pages/eleve-seance.js (5 septembre 2026) pour que l'aperçu élève reste
+// identique à la vraie page.
+const COULEURS_PALIER_APERCU = { azovi: '#15803D', devi: '#1D4ED8', ogan: '#9A3412', axosu: '#B91C1C' };
 
 async function ouvrirApercu() {
   const fenetre = window.open('', '_blank');
@@ -2272,8 +2276,9 @@ async function ouvrirApercu() {
       <p style="font-size:12px;color:var(--text-gris);margin-top:-10px">Aperçu : les paliers sont montrés ici tous déverrouillés — l'élève les débloque progressivement, palier après palier.</p>
       ${paliersPresents.map(p => {
         const blocsPalier = (blocsParPalier[p] || []).sort((a, b) => a.ordre - b.ordre);
-        return `<div class="bloc-lecture" style="border-left-color:var(--bleu-kekeli);margin-top:14px">
-          <div class="bloc-lecture-titre">${LIBELLES_PALIER_APERCU[p] || p}</div>
+        const couleurPalier = COULEURS_PALIER_APERCU[p] || 'var(--bleu-kekeli)';
+        return `<div class="bloc-lecture carte-palier-eleve" style="background:${couleurPalier};border-left-color:${couleurPalier};margin-top:14px">
+          <div class="bloc-lecture-titre" style="color:#fff">${LIBELLES_PALIER_APERCU[p] || p}</div>
           ${blocsPalier.map(b => TYPES_TRAVAIL_APERCU.includes(b.type_bloc) ? rendreBlocApercuTravail(b) : rendreBlocApercu(b)).join('')}
         </div>`;
       }).join('')}
@@ -2291,14 +2296,17 @@ async function ouvrirApercu() {
 
   // Reproduit exactement l'en-tête de la vraie page élève (voir
   // js/pages/eleve-seance.js) : titre_contenu si renseigné (sinon le titre
-  // brut), avec la discipline affichée à côté plutôt qu'à sa place.
+  // brut), avec la discipline affichée en badge AVANT le titre (retour du
+  // 5 septembre 2026 — la discipline était auparavant accolée après le
+  // titre, en petit texte gris peu visible).
   const enTete = `
     <div style="background:#FFF7DA;border:1px solid #F5D77A;border-radius:8px;padding:6px 12px;font-size:12px;color:#7A5A00;margin-bottom:14px;text-align:center">
       🔍 Aperçu élève — lecture seule, tel qu'affiché à un élève sur la vraie page
     </div>
     <div class="entete-seance-eleve">
       <p style="margin:0" class="miniature-arborescence-eleve">${filArianeHtml}</p>
-      <h1 class="titre-seance-eleve">${echapper(seance.titre_contenu || seance.titre)}${seance.discipline ? ` <span style="font-size:13px;font-weight:600;color:var(--text-gris);vertical-align:middle">— ${echapper(seance.discipline)}</span>` : ''}</h1>
+      ${seance.discipline ? `<span class="badge-discipline-seance">${echapper(seance.discipline)}</span>` : ''}
+      <h1 class="titre-seance-eleve">${echapper(seance.titre_contenu || seance.titre)}</h1>
     </div>`;
 
   const corpsHtml = `

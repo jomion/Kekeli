@@ -1,29 +1,48 @@
-KEKELI — Livraison du 5 septembre 2026 (10)
+KEKELI — Livraison du 5 septembre 2026 (11)
 =============================================
 
-Correctif rapide suite à votre retour sur le lot précédent (nouveau
-champ « Titre affiché » dans l'éditeur).
+Deux corrections d'affichage sur la page de séance de l'élève, suite à vos
+deux captures d'écran.
 
-Le problème
---------------
-En testant le nouveau champ « Titre affiché », vous avez remarqué que
-le taper y faisait aussi grossir le chemin (fil d'ariane) tout en haut
-de l'éditeur — un vrai titre affiché étant souvent une phrase complète
-("Les types de phrases : phrase déclarative, phrase impérative"), le
-chemin devenait trop long et illisible.
+1) La discipline passe avant le titre, en badge visible
+-----------------------------------------------------------
+Avant, la discipline ("Expression Écrite (Imprégnation)") s'affichait APRÈS
+le titre, en petit texte gris peu visible. Elle s'affiche maintenant AVANT
+le titre, sous forme de badge coloré (pastille arrondie, texte en gras) —
+nettement plus visible, et dans l'ordre logique : d'abord la discipline,
+puis le titre de la séance.
 
-Le correctif
---------------
-Le dernier segment de ce chemin (celui qui représente la séance en
-cours) affiche de nouveau le titre TECHNIQUE, court par nature (ex.
-« Séance 4 »), jamais le titre affiché. Le titre affiché reste bien
-visible et modifiable dans son propre champ juste au-dessus, en gras
-— il n'a simplement plus sa place dans un chemin de navigation, qui
-doit rester compact.
+2) Les sections "Paliers de cette séance" ont chacune leur couleur
+-----------------------------------------------------------------
+Avant, les 4 sections de paliers (Azɔ̀ví, Dèví, Ògán, Axɔ́sú) s'affichaient
+toutes avec le même bandeau bleu sur fond blanc — aucun moyen visuel de les
+distinguer d'un coup d'œil. Chaque section a maintenant un fond de couleur
+dense qui lui est propre :
+  - Azɔ̀ví  : vert dense
+  - Dèví    : bleu dense
+  - Ògán    : orange très dense
+  - Axɔ́sú   : rouge
 
-Fichier modifié (frontend, dans ce zip)
+Ce changement est appliqué partout où cette section apparaît : la vraie
+page élève, l'aperçu élève depuis l'éditeur, et l'aperçu compact utilisé
+dans les listes de séances (admin/enseignant). Vérifié aussi avec le thème
+Premium et le thème "fille" actifs en même temps (la page élève garde un
+texte blanc bien lisible sur chaque fond).
+
+À savoir : ailleurs sur le site, le palier Axɔ́sú est encore affiché en
+violet (tableau de bord élève, page "Jeux éducatifs") — ces deux pages-là
+n'ont pas été touchées, dites-moi si vous voulez harmoniser aussi ces
+couleurs-là en rouge.
+
+Fichiers modifiés (frontend, dans ce zip)
 -------------------------------------------
-- `js/pages/editeur-seance.js` : fil d'ariane de l'éditeur revenu au
-  titre technique pour son dernier segment.
+- `js/pages/eleve-seance.js` : badge discipline avant le titre + couleurs
+  dense par palier.
+- `js/pages/editeur-seance.js` : même correctif reporté dans l'aperçu élève
+  (doit toujours refléter exactement la vraie page).
+- `js/apercu-blocs-seance.js` : même code couleur par palier dans l'aperçu
+  compact des listes admin/enseignant.
+- `css/theme-premium-eleve.css` : ajustement pour que le titre de chaque
+  section palier reste bien blanc et lisible même en thème Premium.
 
 Aucun changement de base de données.

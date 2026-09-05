@@ -508,6 +508,12 @@ body.theme-premium-actif .bloc-lecture {
   border-left: none !important; border: 1px solid var(--prem-bordure); padding: 20px 22px;
 }
 body.theme-premium-actif .bloc-lecture-titre { color: var(--prem-bleu) !important; font-family: 'Poppins', sans-serif; letter-spacing: 0; }
+/* Sections Paliers (5 septembre 2026) : fond dense propre à chaque palier,
+   fixé en style inline directement par js/pages/eleve-seance.js (il prime
+   déjà sur le fond de la règle .bloc-lecture ci-dessus, qui n'est pas en
+   !important) — seul le titre doit être forcé en blanc ici, car la règle
+   générale juste au-dessus le passe en var(--prem-bleu) avec !important. */
+body.theme-premium-actif .carte-palier-eleve .bloc-lecture-titre { color: #fff !important; }
 body.theme-premium-actif .question-lecture { border-top-color: var(--prem-bordure); }
 body.theme-premium-actif .question-lecture input[type=text], body.theme-premium-actif .question-lecture textarea,
 body.theme-premium-actif .champ-trou, body.theme-premium-actif .activite-lecture textarea, body.theme-premium-actif .activite-lecture input {

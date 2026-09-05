@@ -30,6 +30,11 @@ let formulairesReouverts = new Set(); // bloc_id pour lesquels l'élève a cliqu
 
 const TYPES_TRAVAIL = ['exercice', 'quiz', 'evaluation', 'activite'];
 const LIBELLES_PALIER_ELEVE = { azovi: '🌱 Azɔ̀ví', devi: '🪘 Dèví', ogan: '🦁 Ògán', axosu: '👑 Axɔ́sú' };
+// Couleurs "pleines" (fond dense) des sections Paliers, demandées le 5
+// septembre 2026 pour remplacer le bandeau bleu unique — l'axosu est ici
+// rouge (différent du violet utilisé ailleurs, ex. tableau de bord/jeux
+// éducatifs, ce que le porteur du projet sait — cf. LISEZ-MOI).
+const COULEURS_PALIER_ELEVE = { azovi: '#15803D', devi: '#1D4ED8', ogan: '#9A3412', axosu: '#B91C1C' };
 const LIBELLES_MEDAILLE = { bronze: '🥉 Bronze', argent: '🥈 Argent', or: '🥇 Or', diamant: '💎 Diamant' };
 
 (async function () {
@@ -160,13 +165,15 @@ function rendre() {
   tousBlocsTop.filter(b => b.palier).forEach(b => { (blocsParPalier[b.palier] ??= []).push(b); });
   const aDesPaliers = etatPaliersSeance.some(p => p.nb_total > 0);
 
-  // Arborescence complète dans la miniature (fil d'ariane), suivie du titre
-  // de la séance en grand (titre_contenu si renseigné par l'admin, sinon le
-  // titre brut — la discipline seule, utilisée du 4 au 5 septembre 2026,
-  // rendait indiscernables deux séances d'une même discipline ; elle reste
-  // affichée, mais à côté du titre, pas à sa place). Chaque niveau (sauf le
-  // dernier) est cliquable et ramène directement à ce niveau sur
-  // pages/eleve/matiere.html — voir js/pages/eleve-matiere.js.
+  // Arborescence complète dans la miniature (fil d'ariane), suivie du
+  // badge de discipline puis du titre de la séance en grand (titre_contenu
+  // si renseigné par l'admin, sinon le titre brut — la discipline seule,
+  // utilisée du 4 au 5 septembre 2026, rendait indiscernables deux séances
+  // d'une même discipline ; elle reste affichée, mais désormais en badge
+  // AVANT le titre plutôt qu'en petit texte gris après, retour du
+  // 5 septembre 2026). Chaque niveau (sauf le dernier) est cliquable et
+  // ramène directement à ce niveau sur pages/eleve/matiere.html — voir
+  // js/pages/eleve-matiere.js.
   const segmentsArbo = [];
   if (cheminSeance.classeNom) segmentsArbo.push({ label: cheminSeance.classeNom });
   if (cheminSeance.champNom) segmentsArbo.push({ label: cheminSeance.champNom, href: cheminSeance.champId ? `matiere.html?champId=${cheminSeance.champId}` : null });
@@ -199,7 +206,8 @@ function rendre() {
     <div class="fil-ariane-eleve"><a href="matiere.html">← Retour à mes matières</a></div>
     <div class="entete-seance-eleve">
       <p style="margin:0" class="miniature-arborescence-eleve">${filAriane}</p>
-      <h1 class="titre-seance-eleve">${echapper(seanceCourante.titre_contenu || seanceCourante.titre)}${seanceCourante.discipline ? ` <span style="font-size:13px;font-weight:600;color:var(--text-gris);vertical-align:middle">— ${echapper(seanceCourante.discipline)}</span>` : ''}</h1>
+      ${seanceCourante.discipline ? `<span class="badge-discipline-seance">${echapper(seanceCourante.discipline)}</span>` : ''}
+      <h1 class="titre-seance-eleve">${echapper(seanceCourante.titre_contenu || seanceCourante.titre)}</h1>
     </div>
 
     <div class="zone-travail-seance"${colonneExerciceVide ? ' style="grid-template-columns:1fr"' : ''}>
@@ -240,8 +248,9 @@ function html_sectionPaliers(blocsParPalier) {
           <p style="margin:0;color:var(--text-gris);font-size:13px">Termine d'abord le palier précédent (toutes les activités réussies, sauf une au maximum) pour débloquer celui-ci.</p>
         </div>`;
       }
-      return `<div class="bloc-lecture" style="border-left-color:var(--bleu-kekeli);margin-top:14px">
-        <div class="bloc-lecture-titre">${libelle} — ${p.nb_reussies}/${p.nb_total} réussi${p.nb_reussies > 1 ? 's' : ''}</div>
+      const couleurPalier = COULEURS_PALIER_ELEVE[p.palier] || 'var(--bleu-kekeli)';
+      return `<div class="bloc-lecture carte-palier-eleve" style="background:${couleurPalier};border-left-color:${couleurPalier};margin-top:14px">
+        <div class="bloc-lecture-titre" style="color:#fff">${libelle} — ${p.nb_reussies}/${p.nb_total} réussi${p.nb_reussies > 1 ? 's' : ''}</div>
         ${blocs.map(b => TYPES_TRAVAIL.includes(b.type_bloc) ? rendreBlocTravail(b) : rendreBlocLecture(b)).join('')}
       </div>`;
     }).join('')}
