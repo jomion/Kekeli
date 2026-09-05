@@ -121,14 +121,18 @@ function rendreDevoir() {
 function rendreBlocTravailDevoir(b) {
   const info = infoType(b.type_bloc);
   const c = b.contenu || {};
-  const couleur = c.couleurBloc || info.couleur || '#0000D1';
+  // Bordure/texte theme-aware (var(--bleu-kekeli), voir js/pages/eleve-seance.js
+  // pour l'explication complète — 5 septembre 2026, 7e lot), teinte de fond
+  // sur la valeur hex (teinteClaire ne comprend pas les variables CSS).
+  const couleur = c.couleurBloc || info.couleur || 'var(--bleu-kekeli)';
+  const couleurFond = c.couleurBloc || info.couleur || '#0000D1';
   const libelle = c.libelle || info.label;
   // Voir la même logique (et son explication) dans js/pages/eleve-seance.js :
   // une activité déjà rendue via l'ancien mode (texte libre) garde son
   // affichage legacy ; une nouvelle activité passe par le parcours structuré.
   const aRenduLegacy = b.type_bloc === 'activite' && (rendusActivitesExistantsDevoir[b.id] || []).length > 0;
   const corps = aRenduLegacy ? rendreActiviteDevoir(b, c) : rendreExerciceDevoir(b, c);
-  return `<div class="bloc-lecture" style="border-left-color:${couleur};background:${teinteClaire(couleur, 0.04)}">
+  return `<div class="bloc-lecture" style="border-left-color:${couleur};background:${teinteClaire(couleurFond, 0.04)}">
     <div class="bloc-lecture-titre" style="color:${couleur}">${info.icone} ${echapper(libelle)}</div>
     ${corps}
   </div>`;

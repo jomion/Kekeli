@@ -1,48 +1,40 @@
-KEKELI — Livraison du 5 septembre 2026 (11)
+KEKELI — Livraison du 5 septembre 2026 (12)
 =============================================
 
-Deux corrections d'affichage sur la page de séance de l'élève, suite à vos
-deux captures d'écran.
+Deux ajustements suite à votre dernier retour sur les sections "Paliers de
+cette séance" (capture d'écran de la séance "Vocabulaire Thématique").
 
-1) La discipline passe avant le titre, en badge visible
------------------------------------------------------------
-Avant, la discipline ("Expression Écrite (Imprégnation)") s'affichait APRÈS
-le titre, en petit texte gris peu visible. Elle s'affiche maintenant AVANT
-le titre, sous forme de badge coloré (pastille arrondie, texte en gras) —
-nettement plus visible, et dans l'ordre logique : d'abord la discipline,
-puis le titre de la séance.
+1) Paliers : la couleur reste sur la section, pas sur un fond plein
+------------------------------------------------------------------
+Le lot précédent avait donné à chaque section de palier un fond de couleur
+plein (vert/bleu/orange/rouge). Vous avez précisé vouloir la même logique
+que le bloc "Vocabulaire Thématique" de votre capture : une bordure de
+couleur sur la gauche, sur un fond clair — comme tous les autres blocs du
+site — pas un fond plein. Corrigé : chaque section de palier a maintenant
+juste sa bordure de couleur (vert/bleu/orange/rouge selon le palier), avec
+un fond très clair. Chaque activité à l'intérieur garde son propre encadré
+et son propre fond, bien distinct de la section qui la contient.
 
-2) Les sections "Paliers de cette séance" ont chacune leur couleur
------------------------------------------------------------------
-Avant, les 4 sections de paliers (Azɔ̀ví, Dèví, Ògán, Axɔ́sú) s'affichaient
-toutes avec le même bandeau bleu sur fond blanc — aucun moyen visuel de les
-distinguer d'un coup d'œil. Chaque section a maintenant un fond de couleur
-dense qui lui est propre :
-  - Azɔ̀ví  : vert dense
-  - Dèví    : bleu dense
-  - Ògán    : orange très dense
-  - Axɔ́sú   : rouge
-
-Ce changement est appliqué partout où cette section apparaît : la vraie
-page élève, l'aperçu élève depuis l'éditeur, et l'aperçu compact utilisé
-dans les listes de séances (admin/enseignant). Vérifié aussi avec le thème
-Premium et le thème "fille" actifs en même temps (la page élève garde un
-texte blanc bien lisible sur chaque fond).
-
-À savoir : ailleurs sur le site, le palier Axɔ́sú est encore affiché en
-violet (tableau de bord élève, page "Jeux éducatifs") — ces deux pages-là
-n'ont pas été touchées, dites-moi si vous voulez harmoniser aussi ces
-couleurs-là en rouge.
+2) Bordure rose pour les élèves filles, bleu pour les garçons
+---------------------------------------------------------------
+Pour un bloc de contenu sans couleur personnalisée (comme "Vocabulaire
+Thématique"), la bordure/le titre suivent maintenant automatiquement le
+thème déjà en place sur le site : rose pour une élève fille, bleu pour un
+garçon — exactement comme le reste du thème rose déjà existant (boutons,
+liens...). Avant, cette couleur par défaut était figée en bleu, sans
+suivre ce thème.
 
 Fichiers modifiés (frontend, dans ce zip)
 -------------------------------------------
-- `js/pages/eleve-seance.js` : badge discipline avant le titre + couleurs
-  dense par palier.
-- `js/pages/editeur-seance.js` : même correctif reporté dans l'aperçu élève
-  (doit toujours refléter exactement la vraie page).
-- `js/apercu-blocs-seance.js` : même code couleur par palier dans l'aperçu
-  compact des listes admin/enseignant.
-- `css/theme-premium-eleve.css` : ajustement pour que le titre de chaque
-  section palier reste bien blanc et lisible même en thème Premium.
+- `js/pages/eleve-seance.js` : paliers en bordure de couleur (plus de fond
+  plein), couleur par défaut des blocs sensible au thème rose.
+- `js/pages/editeur-seance.js` : même correctif dans l'aperçu élève.
+- `js/apercu-blocs-seance.js` : même correctif dans l'aperçu compact des
+  listes admin/enseignant.
+- `js/pages/eleve-devoir-rendu.js` : même couleur par défaut sensible au
+  thème rose, pour les devoirs.
+- `css/theme-premium-eleve.css` : retrait d'un ajustement du lot précédent
+  qui n'est plus nécessaire (le titre des sections palier suit maintenant
+  la même règle que tous les autres blocs en thème Premium).
 
 Aucun changement de base de données.

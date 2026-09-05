@@ -249,8 +249,14 @@ function html_sectionPaliers(blocsParPalier) {
         </div>`;
       }
       const couleurPalier = COULEURS_PALIER_ELEVE[p.palier] || 'var(--bleu-kekeli)';
-      return `<div class="bloc-lecture carte-palier-eleve" style="background:${couleurPalier};border-left-color:${couleurPalier};margin-top:14px">
-        <div class="bloc-lecture-titre" style="color:#fff">${libelle} — ${p.nb_reussies}/${p.nb_total} réussi${p.nb_reussies > 1 ? 's' : ''}</div>
+      // La couleur du palier ne colore QUE la section (bordure + titre), pas
+      // un fond plein — retour du 5 septembre 2026 (7e lot), sur demande
+      // explicite : "Pour les palier la couleur doit être uniquement pour
+      // la section. Tout ce qui vient s'ajouter comme activité doit avoir
+      // sa propre background". Chaque activité à l'intérieur garde donc son
+      // propre encadré/fond (rendreBlocTravail/rendreBlocLecture, inchangés).
+      return `<div class="bloc-lecture carte-palier-eleve" style="border-left-color:${couleurPalier};background:${teinteClaire(couleurPalier, 0.04)};margin-top:14px">
+        <div class="bloc-lecture-titre" style="color:${couleurPalier}">${libelle} — ${p.nb_reussies}/${p.nb_total} réussi${p.nb_reussies > 1 ? 's' : ''}</div>
         ${blocs.map(b => TYPES_TRAVAIL.includes(b.type_bloc) ? rendreBlocTravail(b) : rendreBlocLecture(b)).join('')}
       </div>`;
     }).join('')}
@@ -260,7 +266,15 @@ function html_sectionPaliers(blocsParPalier) {
 function rendreBlocTravail(b) {
   const info = infoType(b.type_bloc);
   const c = b.contenu || {};
-  const couleur = c.couleurBloc || info.couleur || '#0000D1';
+  // Bordure/texte : var(--bleu-kekeli) plutôt que le bleu figé, pour qu'un
+  // bloc sans couleur propre suive automatiquement le thème rose des élèves
+  // filles (demande explicite du 5 septembre 2026, 7e lot : "bordure rose
+  // pour les filles et bleu pour les garçons") — même mécanisme déjà en
+  // place ailleurs sur le site (voir "Thème rose pour les élèves filles").
+  // Le calcul de la teinte de fond (`couleurFond`), lui, reste sur la valeur
+  // hexadécimale : `teinteClaire()` ne sait pas interpréter une variable CSS.
+  const couleur = c.couleurBloc || info.couleur || 'var(--bleu-kekeli)';
+  const couleurFond = c.couleurBloc || info.couleur || '#0000D1';
   const libelle = c.libelle || info.label;
   // Un bloc "activite" créé AVANT la refonte des Activités (texte libre,
   // corrigé à la main par un enseignant) continue de s'afficher via
@@ -270,7 +284,7 @@ function rendreBlocTravail(b) {
   // (questions + corrigé auto), comme un exercice/quiz/évaluation.
   const aRenduLegacy = b.type_bloc === 'activite' && (rendusActivitesExistants[b.id] || []).length > 0;
   const corps = aRenduLegacy ? rendreActivite(b, c) : rendreExercice(b, c);
-  return `<div class="bloc-lecture" style="border-left-color:${couleur};background:${teinteClaire(couleur, 0.04)}">
+  return `<div class="bloc-lecture" style="border-left-color:${couleur};background:${teinteClaire(couleurFond, 0.04)}">
     <div class="bloc-lecture-titre" style="color:${couleur}">${info.icone} ${echapper(libelle)}</div>
     ${corps}
   </div>`;
@@ -279,7 +293,10 @@ function rendreBlocTravail(b) {
 function rendreBlocLecture(b, estEnfant = false) {
   const info = infoType(b.type_bloc);
   const c = b.contenu || {};
-  const couleur = c.couleurBloc || info.couleur || '#0000D1';
+  // Même principe que rendreBlocTravail ci-dessus (bordure/texte theme-aware,
+  // teinte de fond sur la valeur hex).
+  const couleur = c.couleurBloc || info.couleur || 'var(--bleu-kekeli)';
+  const couleurFond = c.couleurBloc || info.couleur || '#0000D1';
   // Le bloc "Contenu" (valeur interne 'titre') est masqué à l'élève par
   // défaut — voir le même choix dans js/pages/editeur-seance.js (htmlBloc,
   // rendreBlocApercu) et la case "Titre visible" de l'éditeur.
@@ -319,7 +336,7 @@ function rendreBlocLecture(b, estEnfant = false) {
   // il s'affiche dans le prolongement direct du contenu parent, parfaitement
   // aligné avec lui (pas de fond, pas de bordure, pas de padding qui décale).
   if (estEnfant) return contenuInterieur;
-  return `<div class="bloc-lecture" style="border-left-color:${couleur};background:${teinteClaire(couleur, 0.04)}">${contenuInterieur}</div>`;
+  return `<div class="bloc-lecture" style="border-left-color:${couleur};background:${teinteClaire(couleurFond, 0.04)}">${contenuInterieur}</div>`;
 }
 
 function libelleMedaille(medaille, numeroEssai) {

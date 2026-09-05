@@ -86,8 +86,12 @@ function rendreApercuContenuSeance(blocsBruts) {
   let html = sansPalier.map(rendreCarteApercuBloc).join('');
   ORDRE_PALIER_APERCU_BLOCS.filter(p => parPalier[p]).forEach(p => {
     const couleurPalier = COULEURS_PALIER_APERCU_BLOCS[p] || '#003366';
-    html += `<div style="background:${couleurPalier};border-radius:10px;padding:10px 12px;margin:10px 0 8px">
-      <div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:6px">${LIBELLES_PALIER_APERCU_BLOCS[p]}</div>
+    // La couleur du palier ne colore que la section (bordure gauche), pas un
+    // fond plein — chaque bloc à l'intérieur garde son propre encadré via
+    // rendreCarteApercuBloc (5 septembre 2026, 7e lot, voir js/pages/eleve-seance.js).
+    const fondPalier = (typeof teinteClaire === 'function') ? teinteClaire(couleurPalier, 0.05) : `${couleurPalier}0D`;
+    html += `<div style="border-left:4px solid ${couleurPalier};background:${fondPalier};border-radius:8px;padding:10px 12px;margin:10px 0 8px">
+      <div style="font-size:12px;font-weight:700;color:${couleurPalier};margin-bottom:6px">${LIBELLES_PALIER_APERCU_BLOCS[p]}</div>
       ${parPalier[p].map(rendreCarteApercuBloc).join('')}
     </div>`;
   });

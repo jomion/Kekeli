@@ -2216,9 +2216,13 @@ async function ouvrirApercu() {
   function rendreBlocApercuTravail(b) {
     const info = infoType(b.type_bloc);
     const c = b.contenu || {};
-    const couleur = c.couleurBloc || info.couleur || '#0000D1';
+    // Bordure/texte theme-aware (var(--bleu-kekeli), voir js/pages/eleve-seance.js
+    // pour l'explication), teinte de fond sur la valeur hex (teinteClaire ne
+    // comprend pas les variables CSS).
+    const couleur = c.couleurBloc || info.couleur || 'var(--bleu-kekeli)';
+    const couleurFond = c.couleurBloc || info.couleur || '#0000D1';
     const libelle = c.libelle || info.label;
-    return `<div class="bloc-lecture" style="border-left-color:${couleur};background:${teinteClaire(couleur, 0.04)}">
+    return `<div class="bloc-lecture" style="border-left-color:${couleur};background:${teinteClaire(couleurFond, 0.04)}">
       <div class="bloc-lecture-titre" style="color:${couleur}">${info.icone} ${echapper(libelle)}</div>
       ${rendreApercuExercice(c)}
     </div>`;
@@ -2227,7 +2231,9 @@ async function ouvrirApercu() {
   function rendreBlocApercu(b, estEnfant = false) {
     const info = infoType(b.type_bloc);
     const c = b.contenu || {};
-    const couleur = c.couleurBloc || info.couleur || '#0000D1';
+    // Même principe que rendreBlocApercuTravail ci-dessus.
+    const couleur = c.couleurBloc || info.couleur || 'var(--bleu-kekeli)';
+    const couleurFond = c.couleurBloc || info.couleur || '#0000D1';
     const afficherTitre = typeof c.afficherTitre === 'boolean' ? c.afficherTitre : b.type_bloc !== 'titre';
     const libelle = c.libelle || info.label;
     let corps = '';
@@ -2265,7 +2271,7 @@ async function ouvrirApercu() {
     // carte : il s'affiche dans le prolongement direct du parent, aligné
     // avec lui — exactement comme sur la vraie page élève.
     if (estEnfant) return contenuInterieur;
-    return `<div class="bloc-lecture" style="border-left-color:${couleur};background:${teinteClaire(couleur, 0.04)}">${contenuInterieur}</div>`;
+    return `<div class="bloc-lecture" style="border-left-color:${couleur};background:${teinteClaire(couleurFond, 0.04)}">${contenuInterieur}</div>`;
   }
 
   function html_sectionPaliersApercu(blocsParPalier) {
@@ -2277,8 +2283,12 @@ async function ouvrirApercu() {
       ${paliersPresents.map(p => {
         const blocsPalier = (blocsParPalier[p] || []).sort((a, b) => a.ordre - b.ordre);
         const couleurPalier = COULEURS_PALIER_APERCU[p] || 'var(--bleu-kekeli)';
-        return `<div class="bloc-lecture carte-palier-eleve" style="background:${couleurPalier};border-left-color:${couleurPalier};margin-top:14px">
-          <div class="bloc-lecture-titre" style="color:#fff">${LIBELLES_PALIER_APERCU[p] || p}</div>
+        // La couleur du palier ne colore que la section (bordure + titre),
+        // pas un fond plein — voir js/pages/eleve-seance.js (5 septembre
+        // 2026, 7e lot) pour le détail ; chaque activité à l'intérieur garde
+        // son propre encadré.
+        return `<div class="bloc-lecture carte-palier-eleve" style="border-left-color:${couleurPalier};background:${teinteClaire(couleurPalier, 0.04)};margin-top:14px">
+          <div class="bloc-lecture-titre" style="color:${couleurPalier}">${LIBELLES_PALIER_APERCU[p] || p}</div>
           ${blocsPalier.map(b => TYPES_TRAVAIL_APERCU.includes(b.type_bloc) ? rendreBlocApercuTravail(b) : rendreBlocApercu(b)).join('')}
         </div>`;
       }).join('')}
