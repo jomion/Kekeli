@@ -653,6 +653,24 @@ function pastilleContenuNav(info) {
     (iconesPaliers ? ` <span style="font-size:12px" title="Paliers déjà présents : ${paliersOrdonnes.join(', ')}">${iconesPaliers}</span>` : '');
 }
 
+// Pastille discipline colorée (même principe que js/pages/seances.js /
+// admin-gestion-seances.js, dupliqué car ces pages ne partagent pas de
+// module) — remise en place le 5 septembre 2026 : le libellé principal
+// d'une séance redevient son titre (titre_contenu si renseigné, sinon
+// titre brut), la discipline seule ne suffisant pas à distinguer deux
+// séances d'une même discipline dans la liste.
+const PALETTE_DISCIPLINE_NAV = ['#3B5EFF', '#22C55E', '#F43F5E', '#F59E0B', '#8B5CF6', '#06B6D4', '#EC4899', '#84CC16'];
+function couleurDisciplineNav(nom) {
+  let h = 0;
+  for (let i = 0; i < nom.length; i++) h = (h * 31 + nom.charCodeAt(i)) >>> 0;
+  return PALETTE_DISCIPLINE_NAV[h % PALETTE_DISCIPLINE_NAV.length];
+}
+function pastilleDisciplineNav(discipline) {
+  if (!discipline) return '';
+  const c = couleurDisciplineNav(discipline);
+  return `<span style="background:${c}22;color:${c};border:1px solid ${c}55;font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px">${echapper(discipline)}</span>`;
+}
+
 function etiquetteType(t) {
   return { theme: 'Thème', unite: 'Unité', semaine: 'Semaine', dossier: 'Dossier', discipline: 'Discipline' }[t] || t;
 }
@@ -671,10 +689,6 @@ async function afficherSeances() {
   const pillsStatut = { brouillon: 'Brouillon', publie: 'Publié', archive: 'Archivé' };
   const boutonAjout = etat.peutEditer ? `<button class="btn btn-accent" id="btnCreerSeance" style="margin-bottom:14px">+ Nouvelle séance</button>` : '';
 
-  // Seule la discipline sert de libellé (le titre brut, souvent générique,
-  // n'est plus affiché — voir rendreSeance dans afficherArborescence pour le
-  // même choix) ; la pastille de remplissage + paliers aide à repérer ce qui
-  // reste à compléter, y compris entre séances de même discipline.
   const idsSeances = (data || []).map(s => s.id);
   const { data: blocsSA } = idsSeances.length
     ? await supabaseClient.from('blocs_seance').select('id, seance_id, type_bloc, palier').in('seance_id', idsSeances)
@@ -688,7 +702,7 @@ async function afficherSeances() {
 
   contenu.innerHTML = `${boutonAjout}<div class="liste-lignes">${data.map(s => `
     <div class="ligne">
-      <div><div class="titre-ligne" style="display:flex;align-items:center;gap:6px">${echapper(s.discipline || s.titre)} ${pastilleContenuNav(infoContenuParSeance[s.id])}</div><span class="statut-pill statut-${s.statut}">${pillsStatut[s.statut]}</span></div>
+      <div><div class="titre-ligne" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${echapper(s.titre_contenu || s.titre)} ${pastilleDisciplineNav(s.discipline)} ${pastilleContenuNav(infoContenuParSeance[s.id])}</div><span class="statut-pill statut-${s.statut}">${pillsStatut[s.statut]}</span></div>
       <div style="display:flex;gap:8px">
         ${etat.peutEditer ? `<a class="btn btn-primaire" href="editeur-seance.html?id=${s.id}">Modifier la séance</a>` : ''}
         ${etat.estEleve && !etat.peutEditer ? `<a class="btn btn-primaire" href="eleve/seance.html?id=${s.id}">📖 Lire la séance</a>` : ''}
@@ -1071,18 +1085,16 @@ async function afficherArborescence() {
   }
 
   function rendreSeance(se) {
-    // Seule la discipline sert de libellé (demande explicite du 4 septembre
-    // 2026 : ni le titre brut de la séance, souvent générique ("Séquence 1"),
-    // ni le nom de la séquence/SA ne doivent apparaître à l'affichage — le
-    // champ titre continue d'exister en base, inchangé, pour l'IA). À la
-    // place du titre, la pastille de remplissage + paliers (même principe
-    // qu'en gestion-seances.html) aide à repérer ce qu'il reste à compléter,
-    // y compris quand plusieurs séances d'une même SA partagent la même
-    // discipline.
-    const labelPrincipal = echapper(se.discipline || se.titre);
+    // Le titre (titre_contenu si renseigné, sinon le titre brut) redevient le
+    // libellé principal (5 septembre 2026 : la discipline seule, utilisée
+    // depuis le 4 septembre 2026, rendait indiscernables deux séances d'une
+    // même SA partageant la même discipline) ; la discipline reste visible en
+    // pastille à côté, et la pastille de remplissage + paliers continue
+    // d'aider à repérer ce qu'il reste à compléter.
+    const labelPrincipal = echapper(se.titre_contenu || se.titre);
     return `<div class="ligne-arbo type-seance">
       <span class="bascule">·</span>
-      <a class="libelle-arbo" href="editeur-seance.html?id=${se.id}" style="display:flex;align-items:center;gap:6px">${labelPrincipal}</a>
+      <a class="libelle-arbo" href="editeur-seance.html?id=${se.id}" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${labelPrincipal} ${pastilleDisciplineNav(se.discipline)}</a>
       ${pastilleContenuNav(infoContenuParSeance[se.id])}
       <span class="statut-pill statut-${se.statut}" style="margin-left:6px">${pillsStatut[se.statut]}</span>
       ${etat.peutEditer ? `<div class="actions-arbo">

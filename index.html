@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KEKELI - La Lumière du Savoir</title>
+<link rel="icon" type="image/png" href="assets/logo/logo.png">
 <link rel="stylesheet" href="css/style-public.css">
 <link rel="stylesheet" href="css/pied-de-page.css">
 </head>
@@ -26,20 +27,27 @@
     </div>
   </header>
 
-  <section class="hero">
-    <div class="hero-text">
-      <!-- Contenu statique de secours : reste affiché tel quel si la section
-           dynamique (js/accueil-hero.js, blocs gérés par le super admin depuis
-           pages/admin/section-accueil.html) échoue à charger ou si aucun bloc
-           n'est configuré. -->
-      <div id="heroTexteDynamique">
-        <h1>Apprendre, progresser et <span>réussir ensemble</span>.</h1>
-        <p>La plateforme éducative interactive adaptée aux élèves du primaire. Accédez à vos cours, relevez des défis par paliers et suivez vos progrès en temps réel.</p>
+  <section class="hero" id="heroSection">
+    <div id="heroSlideUnique" style="display:contents">
+      <div class="hero-text">
+        <!-- Contenu statique de secours : reste affiché tel quel si la section
+             dynamique (js/accueil-hero.js, blocs gérés par le super admin depuis
+             pages/admin/section-accueil.html) échoue à charger ou si aucun bloc
+             n'est configuré, ou si la disposition choisie est "Carrousel". -->
+        <div id="heroTexteDynamique">
+          <h1>Apprendre, progresser et <span>réussir ensemble</span>.</h1>
+          <p>La plateforme éducative interactive adaptée aux élèves du primaire. Accédez à vos cours, relevez des défis par paliers et suivez vos progrès en temps réel.</p>
+        </div>
+        <a href="pages/login.html" class="btn btn-filled" id="lienAccederEspace" style="padding:15px 30px;font-size:16px">Accéder à mon espace 🚀</a>
+        <div class="hero-points" id="heroPoints"></div>
       </div>
-      <a href="pages/login.html" class="btn btn-filled" id="lienAccederEspace" style="padding:15px 30px;font-size:16px">Accéder à mon espace 🚀</a>
-      <div class="hero-points" id="heroPoints"></div>
+      <div class="hero-image" id="heroImageDynamique">☀️</div>
     </div>
-    <div class="hero-image" id="heroImageDynamique">☀️</div>
+    <!-- Rempli par js/accueil-hero.js uniquement quand la disposition choisie
+         par le super admin est "Grille" ou "Sections compactes" (plusieurs
+         blocs affichés en même temps, sans défilement) — voir
+         pages/admin/section-accueil.html. Masqué et vide sinon. -->
+    <div class="hero-blocs-multiples" id="heroBlocsMultiples" style="display:none"></div>
   </section>
 
   <section class="features">

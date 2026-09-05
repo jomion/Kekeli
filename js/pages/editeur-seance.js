@@ -2125,10 +2125,10 @@ async function ouvrirApercu() {
       const { data: parent } = await supabaseClient.from('noeuds_parcours').select('id, parent_id, titre').eq('id', n.parent_id).single();
       n = parent;
     }
-    // La séquence (SA) et le titre brut de la séance ne sont plus affichés
-    // (demande explicite du 4 septembre 2026) — seule la discipline reste
-    // visible, comme sur la vraie page élève (js/pages/eleve-seance.js).
-    segmentsChemin.push(chaineNavigation.classeNom, chaineNavigation.champNom, ...titresNoeuds, seance.discipline || seance.titre);
+    // Reproduit exactement le fil d'ariane de la vraie page élève (voir
+    // js/pages/eleve-seance.js) : la séquence (SA) n'apparaît pas, le dernier
+    // niveau affiché est la discipline si renseignée, sinon le titre.
+    segmentsChemin.push(chaineNavigation.classeNom, chaineNavigation.champNom, ...titresNoeuds, seance.discipline || seance.titre_contenu || seance.titre);
   }
   const filArianeHtml = segmentsChemin.filter(Boolean).map(s => `<span>${echapper(s)}</span>`).join(' <span class="sep-arbo-eleve">›</span> ');
 
@@ -2262,17 +2262,16 @@ async function ouvrirApercu() {
   const aDesPaliers = Object.keys(blocsParPalier).length > 0;
   const colonneExerciceVide = blocsTravail.length === 0 && aDesPaliers;
 
-  // Seule la discipline s'affiche (comme sur la vraie page élève) : ni le
-  // titre brut de la séance ni la séquence (SA) n'apparaissent — voir
-  // js/pages/eleve-seance.js pour le même choix, et le titre reste bien sûr
-  // toujours modifiable plus haut dans l'éditeur (utilisé tel quel par l'IA).
+  // Reproduit exactement l'en-tête de la vraie page élève (voir
+  // js/pages/eleve-seance.js) : titre_contenu si renseigné (sinon le titre
+  // brut), avec la discipline affichée à côté plutôt qu'à sa place.
   const enTete = `
     <div style="background:#FFF7DA;border:1px solid #F5D77A;border-radius:8px;padding:6px 12px;font-size:12px;color:#7A5A00;margin-bottom:14px;text-align:center">
       🔍 Aperçu élève — lecture seule, tel qu'affiché à un élève sur la vraie page
     </div>
     <div class="entete-seance-eleve">
       <p style="margin:0" class="miniature-arborescence-eleve">${filArianeHtml}</p>
-      <h1 class="titre-seance-eleve">${echapper(seance.discipline || seance.titre)}</h1>
+      <h1 class="titre-seance-eleve">${echapper(seance.titre_contenu || seance.titre)}${seance.discipline ? ` <span style="font-size:13px;font-weight:600;color:var(--text-gris);vertical-align:middle">— ${echapper(seance.discipline)}</span>` : ''}</h1>
     </div>`;
 
   const corpsHtml = `

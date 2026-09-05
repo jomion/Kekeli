@@ -406,8 +406,9 @@ function rendreListeSea(liste) {
   zone.innerHTML = `<div class="liste-lignes-seances">${liste.map(s => `
     <div class="ligne-seance-partagee">
       <div class="details-ligne-seance-partagee">
-        <div class="titre-ligne-seance-partagee">
-          <span class="texte-titre-seance-partagee" ${s.discipline ? `style="color:${couleurDisciplineSea(s.discipline)}"` : ''}>${echapperSea(s.discipline || s.titre)}</span>
+        <div class="titre-ligne-seance-partagee" style="flex-wrap:wrap">
+          <span class="texte-titre-seance-partagee">${echapperSea(s.titre_contenu || s.titre)}</span>
+          ${s.discipline ? `<span style="background:${couleurDisciplineSea(s.discipline)}22;color:${couleurDisciplineSea(s.discipline)};border:1px solid ${couleurDisciplineSea(s.discipline)}55;font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px">${echapperSea(s.discipline)}</span>` : ''}
           ${roleSeances === 'admin' || roleSeances === 'autorite' ? `<span class="statut-pill statut-${s.statut}">${LIBELLES_STATUT_SEANCES[s.statut] || s.statut}</span>` : ''}
         </div>
         <div class="chemin-ligne-seance-partagee">${s.cheminTitres.map(t => echapperSea(t)).join(' › ')}</div>

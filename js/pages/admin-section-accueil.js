@@ -18,6 +18,15 @@
 
 let profilBH = null;
 let blocsAccueilExistants = [];
+let dispositionHeroActuelle = 'carrousel';
+
+const LIBELLES_TAILLE_BH = { petite: 'Petite (~30%)', moyenne: 'Moyenne (~40%)', grande: 'Grande (~50%)' };
+const LIBELLES_POSITION_BH = { gauche: 'Gauche', droite: 'Droite', centre: 'Centre' };
+const LIBELLES_DISPOSITION_BH = {
+  carrousel: 'Carrousel — un seul bloc affiché à la fois, en rotation automatique',
+  grille: 'Grille — tous les blocs actifs affichés en même temps, côte à côte',
+  sections_compactes: 'Sections compactes — tous les blocs actifs empilés en lignes serrées'
+};
 
 function echapperBH(v) {
   return (v ?? '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -41,7 +50,7 @@ async function init() {
     return;
   }
 
-  await chargerBlocsAccueil();
+  await Promise.all([chargerBlocsAccueil(), chargerDispositionHero()]);
   afficherPageBH();
 }
 
@@ -50,10 +59,25 @@ async function chargerBlocsAccueil() {
   blocsAccueilExistants = data || [];
 }
 
+async function chargerDispositionHero() {
+  const { data } = await supabaseClient.from('parametres_accueil_hero').select('disposition').eq('id', 1).maybeSingle();
+  dispositionHeroActuelle = data?.disposition || 'carrousel';
+}
+
 function afficherPageBH() {
   document.getElementById('contenu').innerHTML = `
     <div class="titre-page">🖼️ Section d'accueil (bandeau)</div>
-    <div class="sous-titre-page">Le grand bandeau tout en haut de la page d'accueil publique (index.html). Plusieurs blocs actifs s'affichent en carrousel, l'un après l'autre.</div>
+    <div class="sous-titre-page">Le grand bandeau tout en haut de la page d'accueil publique (index.html).</div>
+
+    <div class="formulaire-admin" style="max-width:520px;margin-bottom:22px">
+      <label>Disposition du bandeau (quand plusieurs blocs sont actifs)
+        <select id="selectDispositionBH">
+          ${Object.entries(LIBELLES_DISPOSITION_BH).map(([v, libelle]) =>
+            `<option value="${v}" ${dispositionHeroActuelle === v ? 'selected' : ''}>${libelle}</option>`).join('')}
+        </select>
+      </label>
+      <p class="note-future" style="margin-top:6px">La disposition Grille ou Sections compactes affiche tous les blocs actifs en même temps, sans défilement pour un nombre raisonnable de blocs (jusqu'à 4-5 environ) — au-delà, désactivez les blocs les moins prioritaires.</p>
+    </div>
 
     <button class="btn btn-primaire" id="btnOuvrirFormulaireBH" style="margin-bottom:16px">➕ Ajouter un bloc</button>
     <div id="zoneFormulaireBH"></div>
@@ -62,7 +86,17 @@ function afficherPageBH() {
     <div class="liste-lignes" id="zoneListeBH"></div>
   `;
   document.getElementById('btnOuvrirFormulaireBH').addEventListener('click', () => ouvrirFormulaireBH());
+  document.getElementById('selectDispositionBH').addEventListener('change', (e) => enregistrerDispositionBH(e.target.value));
   rendreListeBH();
+}
+
+async function enregistrerDispositionBH(valeur) {
+  const select = document.getElementById('selectDispositionBH');
+  select.disabled = true;
+  const { error } = await supabaseClient.from('parametres_accueil_hero').update({ disposition: valeur, modifie_le: new Date().toISOString() }).eq('id', 1);
+  select.disabled = false;
+  if (error) { alert(error.message); select.value = dispositionHeroActuelle; return; }
+  dispositionHeroActuelle = valeur;
 }
 
 function rendreListeBH() {
@@ -77,6 +111,7 @@ function rendreListeBH() {
       <div style="flex:1;min-width:0">
         <span class="titre-ligne">${echapperBH(b.titre)}</span>
         <span class="statut-pill ${b.actif ? 'statut-publie' : 'statut-brouillon'}" style="margin-left:8px">${b.actif ? 'Actif' : 'Masqué'}</span>
+        <span style="font-size:11px;color:var(--texte-gris);margin-left:8px">🖼️ ${LIBELLES_TAILLE_BH[b.taille_image] || LIBELLES_TAILLE_BH.moyenne} · ${LIBELLES_POSITION_BH[b.position_image] || LIBELLES_POSITION_BH.droite}</span>
         ${b.texte ? `<div style="font-size:12px;color:var(--texte-gris);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${echapperBH(b.texte)}</div>` : ''}
       </div>
       <div style="display:flex;gap:6px;align-items:center">
@@ -115,6 +150,21 @@ function ouvrirFormulaireBH(blocAEditer) {
         </label>
         <label>Emoji de secours (si pas d'image)
           <input type="text" name="emoji" maxlength="4" placeholder="☀️" value="${echapperBH(blocAEditer?.emoji || '☀️')}">
+        </label>
+      </div>
+
+      <div class="rangee-champs" style="margin-top:14px">
+        <label>Taille de l'image (PC — pleine largeur automatique sur mobile)
+          <select name="taille_image">
+            ${Object.entries(LIBELLES_TAILLE_BH).map(([v, libelle]) =>
+              `<option value="${v}" ${(blocAEditer?.taille_image || 'moyenne') === v ? 'selected' : ''}>${libelle}</option>`).join('')}
+          </select>
+        </label>
+        <label>Position de l'image
+          <select name="position_image">
+            ${Object.entries(LIBELLES_POSITION_BH).map(([v, libelle]) =>
+              `<option value="${v}" ${(blocAEditer?.position_image || 'droite') === v ? 'selected' : ''}>${libelle}</option>`).join('')}
+          </select>
         </label>
       </div>
       ${blocAEditer?.image_url ? `
@@ -165,6 +215,8 @@ async function enregistrerBlocBH(e, blocId) {
     titre,
     texte: (donnees.get('texte') || '').toString().trim() || null,
     emoji: (donnees.get('emoji') || '').toString().trim() || '☀️',
+    taille_image: (donnees.get('taille_image') || 'moyenne').toString(),
+    position_image: (donnees.get('position_image') || 'droite').toString(),
     actif: donnees.get('actif') === 'on',
     modifie_le: new Date().toISOString()
   };

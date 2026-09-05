@@ -18,6 +18,16 @@ let profilEleveMat = null;
 let classeIdEleve = null;
 let etatMat = { champ: null, cheminNoeuds: [], sa: null }; // cheminNoeuds : [{id, titre}] du plus haut au plus bas
 
+// Petite pastille discipline (neutre, thème gratuit) — le libellé principal
+// d'une séance redevient titre_contenu||titre (5 septembre 2026 : afficher
+// seulement la discipline rendait les séances d'une même discipline
+// indiscernables entre elles) ; la discipline reste visible, mais en repère
+// secondaire, à côté du titre.
+function pastilleDisciplineMat(discipline) {
+  if (!discipline) return '';
+  return `<span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;background:var(--fond-app,#F1F5F9);color:var(--text-gris);border:1px solid var(--bordure)">${echapper(discipline)}</span>`;
+}
+
 const PRESENTATION_CHAMPS_ELEVE = {
   francais:     { icone: '📚' }, mathematique: { icone: '📐' }, es: { icone: '🌍' },
   est:          { icone: '🔬' }, ea: { icone: '🎨' }, eps: { icone: '⚽' }
@@ -285,7 +295,7 @@ async function afficherSeancesListe() {
           <div class="session-icon-eleve">${icone}</div>
           <div class="session-content-eleve">
             <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-gris)">Séance ${i + 1}</div>
-            <div class="session-title-eleve">${echapper(s.discipline || s.titre)}</div>
+            <div class="session-title-eleve" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${echapper(s.titre_contenu || s.titre)} ${pastilleDisciplineMat(s.discipline)}</div>
           </div>
           <div>${bouton}</div>
         </div>`;
@@ -433,16 +443,7 @@ async function afficherMatierePremium() {
   const listesParSa = await Promise.all(entreesSa.map(({ sa }) =>
     supabaseClient.rpc('etat_seances_sa', { p_eleve_id: profilEleveMat.id, p_sa_id: sa.id })
   ));
-  const [{ data: pins }, { data: titresContenu }] = await Promise.all([
-    supabaseClient.from('seances_epinglees').select('seance_id').eq('utilisateur_id', profilEleveMat.id),
-    // 🔖 "Titre du contenu" (seances.titre_contenu) : pas renvoyé par
-    // etat_seances_sa (qui ne porte que id/titre/ordre/discipline/termine/
-    // verrouille) — récupéré séparément pour l'afficher en étiquette repère
-    // (comme sur pages/seances.html), une fois qu'on connaît les id de séance.
-    entreesSa.length
-      ? supabaseClient.from('seances').select('id, titre_contenu').eq('sa_id', ongletActif.id) // filtré plus bas par id réel
-      : Promise.resolve({ data: [] }),
-  ]);
+  const { data: pins } = await supabaseClient.from('seances_epinglees').select('seance_id').eq('utilisateur_id', profilEleveMat.id);
   const idsEpingles = new Set((pins || []).map(p => p.seance_id));
 
   let seances = [];
@@ -452,16 +453,9 @@ async function afficherMatierePremium() {
       seances.push({ ...s, chemin, saLabel, semaine: chemin[chemin.length - 1] || null, epinglee: idsEpingles.has(s.id) });
     });
   });
-  // Complète titre_contenu séance par séance (la requête groupée ci-dessus ne
-  // couvre qu'un sa_id à la fois par construction du schéma — on va donc
-  // chercher, pour l'ensemble des séances déjà collectées, leur éventuel
-  // repère en une seule requête .in(), plus fiable que le filtre approximatif
-  // du Promise.all ci-dessus).
-  if (seances.length) {
-    const { data: reperes } = await supabaseClient.from('seances').select('id, titre_contenu').in('id', seances.map(s => s.id));
-    const parId = new Map((reperes || []).map(r => [r.id, r.titre_contenu]));
-    seances.forEach(s => { s.titreContenu = parId.get(s.id) || null; });
-  }
+  // titre_contenu est directement renvoyé par etat_seances_sa (voir la
+  // migration ajoute_titre_contenu_etat_seances_sa du 5 septembre 2026) —
+  // plus besoin d'une requête séparée pour le récupérer.
 
   const total = seances.length;
   const termines = seances.filter(s => s.termine).length;
@@ -674,8 +668,8 @@ function htmlListeSeancesPremiumMat(seances, titreOnglet, positionOnglet) {
       <div class="prem-carte-seance ${classeItem}">
         <div class="prem-carte-seance-icone" style="background:${couleur}">${iconePrem(icone, 20)}</div>
         <div class="prem-carte-seance-corps">
-          <div class="prem-carte-seance-titre">${echapper(s.discipline || s.titre)}</div>
-          <div class="prem-carte-seance-repere">${echapper(segmentsMeta.join(' • '))}</div>
+          <div class="prem-carte-seance-titre">${echapper(s.titre_contenu || s.titre)}</div>
+          <div class="prem-carte-seance-repere">${echapper([s.discipline, segmentsMeta.join(' • ')].filter(Boolean).join(' — '))}</div>
         </div>
         <button type="button" class="prem-carte-seance-epingle${s.epinglee ? ' epinglee' : ''}" data-epingler-mat="${s.id}" title="${s.epinglee ? 'Retirer des épinglées' : 'Épingler cette séance'}">${iconePrem('coeur', 15)}</button>
         ${bouton}

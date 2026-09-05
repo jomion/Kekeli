@@ -51,7 +51,7 @@ async function chargerJeuxEducatifs() {
   const { data: saClasse } = idsNoeuds.length ? await supabaseClient.from('sa').select('id').in('noeud_id', idsNoeuds) : { data: [] };
   const idsSA = (saClasse || []).map(s => s.id);
   const { data: seancesClasse } = idsSA.length
-    ? await supabaseClient.from('seances').select('id, titre, discipline').eq('statut', 'publie').in('sa_id', idsSA)
+    ? await supabaseClient.from('seances').select('id, titre, titre_contenu, discipline').eq('statut', 'publie').in('sa_id', idsSA)
     : { data: [] };
   const seancesParId = {};
   (seancesClasse || []).forEach(s => { seancesParId[s.id] = s; });
@@ -91,7 +91,8 @@ async function chargerJeuxEducatifs() {
             <div class="palier-card-eleve" style="border-top-color:${info.couleur};text-align:left">
               <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
                 <div>
-                  <div style="font-weight:800">${echapperJeux(s.discipline || s.titre)}</div>
+                  <div style="font-weight:800">${echapperJeux(s.titre_contenu || s.titre)}</div>
+                  ${s.discipline ? `<div style="font-size:11px;color:var(--text-gris)">${echapperJeux(s.discipline)}</div>` : ''}
                 </div>
                 <div class="palier-icon-eleve" style="margin:0;font-size:1.4rem">${info.icone}</div>
               </div>

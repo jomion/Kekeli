@@ -153,8 +153,80 @@ function ouvrirNouvelleCompetence() {
       if (error) return alert(error.message);
       champSelectionneCompetences = champFormationId;
       await chargerCompetences();
+      // Demande du porteur du projet (5 septembre 2026) : pouvoir associer
+      // directement la compétence qu'on vient de créer à une séance déjà
+      // publiée, sans repasser par l'éditeur de séance — tous les blocs
+      // Exercice/Quiz/Évaluation/Activité de la séance choisie sont alors
+      // tagués d'un coup (pas de sélection bloc par bloc ici).
+      confirmerAction("Compétence créée. Voulez-vous l'associer tout de suite à une séance déjà publiée ?", () => {
+        ouvrirChoixClasseAssociation(code);
+      });
     }
   });
+}
+
+// --- Association d'une compétence à toute une séance existante ------------
+// (tous ses blocs Exercice/Quiz/Évaluation/Activité en une seule fois).
+
+function ouvrirChoixClasseAssociation(code) {
+  // La compétence vient d'être créée par le insert ci-dessus : on la
+  // retrouve par son code unique (généré juste avant) plutôt que de faire
+  // dépendre ce flux de la valeur retournée par insert() (non demandée dans
+  // le payload d'origine, pour ne rien changer au comportement existant en
+  // cas d'erreur).
+  supabaseClient.from('competences').select('id, champ_formation_id, classe_id, intitule').eq('code', code).single()
+    .then(({ data: competence }) => {
+      if (!competence) return;
+      if (competence.classe_id) {
+        ouvrirChoixSeanceAssociation(competence, competence.classe_id);
+      } else {
+        ouvrirModal({
+          titre: 'Associer à une classe',
+          champs: [{
+            nom: 'classe_id',
+            label: 'Cette compétence est transversale — pour quelle classe voulez-vous choisir une séance ?',
+            type: 'select', options: classesCompetences.map(c => ({ valeur: c.id, label: c.nom }))
+          }],
+          texteValider: 'Continuer',
+          onValider: async ({ classe_id }) => ouvrirChoixSeanceAssociation(competence, parseInt(classe_id, 10))
+        });
+      }
+    });
+}
+
+async function ouvrirChoixSeanceAssociation(competence, classeId) {
+  const { data: noeuds } = await supabaseClient.from('noeuds_parcours').select('id').eq('classe_id', classeId).eq('champ_formation_id', competence.champ_formation_id);
+  const idsNoeuds = (noeuds || []).map(n => n.id);
+  if (!idsNoeuds.length) return alert('Aucun contenu (unité/séquence) trouvé pour cette matière et cette classe.');
+
+  const { data: sas } = await supabaseClient.from('sa').select('id').in('noeud_id', idsNoeuds);
+  const idsSa = (sas || []).map(s => s.id);
+  if (!idsSa.length) return alert('Aucune séquence trouvée pour cette matière et cette classe.');
+
+  const { data: seances } = await supabaseClient.from('seances').select('id, titre, titre_contenu, discipline')
+    .in('sa_id', idsSa).eq('statut', 'publie').order('id');
+  if (!seances || !seances.length) return alert('Aucune séance publiée trouvée pour cette matière et cette classe.');
+
+  ouvrirModal({
+    titre: `Lier « ${competence.intitule} » à une séance`,
+    champs: [{
+      nom: 'seance_id', label: 'Séance publiée',
+      type: 'select', options: seances.map(s => ({ valeur: s.id, label: `${s.titre}${s.titre_contenu ? ' — ' + s.titre_contenu : ''}${s.discipline ? ' (' + s.discipline + ')' : ''}` }))
+    }],
+    texteValider: 'Lier tous ses exercices à cette compétence',
+    onValider: async ({ seance_id }) => await lierCompetenceASeance(competence.id, parseInt(seance_id, 10))
+  });
+}
+
+async function lierCompetenceASeance(competenceId, seanceId) {
+  const { data: blocs } = await supabaseClient.from('blocs_seance').select('id')
+    .eq('seance_id', seanceId).in('type_bloc', ['exercice', 'quiz', 'evaluation', 'activite']);
+  if (!blocs || !blocs.length) return alert("Cette séance n'a aucun bloc Exercice/Quiz/Évaluation/Activité à lier — la compétence a bien été créée, mais reste non rattachée à cette séance.");
+
+  const { error } = await supabaseClient.from('blocs_competences')
+    .upsert(blocs.map(b => ({ bloc_id: b.id, competence_id: competenceId })), { onConflict: 'bloc_id,competence_id', ignoreDuplicates: true });
+  if (error) return alert(error.message);
+  alert(`Compétence liée à ${blocs.length} bloc${blocs.length > 1 ? 's' : ''} de la séance.`);
 }
 
 function ouvrirModifierCompetence(id) {

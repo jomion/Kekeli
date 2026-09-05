@@ -323,17 +323,17 @@ function pastilleContenuGS(s) {
 function ligneSeanceHtmlGS(s) {
   const meta = `Modifiée le ${formaterDateGS(s.modifie_le)}`;
   const chemin = (s.cheminTitres || []).map(t => echapperGS(t)).join(' › ');
-  // Seule la discipline sert de libellé désormais (le titre brut de la
-  // séance, souvent générique — ex. "Séquence 1" —, n'est plus affiché ; il
-  // reste en base, inchangé, pour l'IA — voir js/pages/eleve-seance.js pour
-  // le même choix). Repli sur le titre uniquement pour la poignée de
-  // séances sans discipline renseignée.
-  const libelle = s.discipline ? pastilleDisciplineGS(s.discipline) : `<span>${echapperGS(s.titre)}</span>`;
+  // Le titre (titre_contenu si renseigné par l'admin dans l'éditeur, sinon le
+  // titre brut) est le libellé principal ; la discipline reste affichée en
+  // pastille à côté (5 septembre 2026 : la discipline seule, utilisée depuis
+  // le 4 septembre 2026, rendait indiscernables deux séances d'une même
+  // discipline dans cette liste).
+  const libelle = `<span>${echapperGS(s.titre_contenu || s.titre)}</span> ${pastilleDisciplineGS(s.discipline)}`;
 
   return `
     <div class="ligne ligne-seance-admin">
       <div class="details-seance-admin">
-        <span class="titre-ligne">${s.classe ? `<span class="badge-classe-admin">${echapperGS(s.classe.nom)}</span> ` : ''}${libelle} ${pastilleContenuGS(s)}</span>
+        <span class="titre-ligne" style="flex-wrap:wrap">${s.classe ? `<span class="badge-classe-admin">${echapperGS(s.classe.nom)}</span> ` : ''}${libelle} ${pastilleContenuGS(s)}</span>
         ${chemin ? `<span class="chemin-ligne-seance-partagee">${chemin}</span>` : ''}
         <span class="meta-seance-admin">${meta}</span>
       </div>

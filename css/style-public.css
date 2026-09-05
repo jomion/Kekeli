@@ -101,41 +101,128 @@ nav.nav-publique a:hover { color: var(--accent-cyan); }
   color: white; padding: 70px 50px; display: flex; align-items: center; justify-content: space-between;
   gap: 40px; flex-wrap: wrap;
 }
-.hero-text { flex: 1; min-width: 280px; }
+/* Ajouté le 5 septembre 2026 (demande explicite : le bouton "Continuer mon
+   espace" / "Accéder à mon espace" doit rester "toujours en bas" du héro,
+   quelle que soit la longueur du texte affiché au-dessus). Le bloc de texte
+   s'étire désormais sur toute la hauteur de la ligne (align-self: stretch,
+   au lieu d'être seulement centré comme avant) et devient lui-même une
+   colonne flexible ; le bouton reçoit une marge haute automatique
+   (voir #lienAccederEspace ci-dessous) qui absorbe tout l'espace libre
+   au-dessus de lui et le pousse ainsi tout en bas, au niveau du bas de
+   l'image du héro, que le titre/paragraphe dynamique (js/accueil-hero.js)
+   soit court ou long. */
+.hero-text { flex: 1 1 0%; min-width: 280px; align-self: stretch; display: flex; flex-direction: column; }
 .hero-text h1 { font-size: 40px; margin: 0 0 18px; line-height: 1.2; }
 .hero-text h1 span { color: var(--accent-cyan); }
 .hero-text p { font-size: 17px; color: #CBD5E1; margin-bottom: 26px; line-height: 1.6; max-width: 480px; }
-/* Redimensionné le 5 septembre 2026 (demande explicite : le bloc doit
-   "occuper proportionnellement et convenablement l'espace disponible dans
-   le héro") : la taille fixe 420×260 laissait un grand vide autour du bloc
-   sur les écrans larges, et ne grandissait pas avec l'espace réellement
-   disponible. Remplacé par une taille flexible (flex-grow, comme
-   .hero-text) plafonnée par max-width, avec une hauteur calculée à partir
-   du ratio (aspect-ratio) plutôt que fixée en pixels : le bloc grandit ou
-   rétrécit avec l'espace disponible tout en gardant les mêmes proportions,
-   pour une vraie photo (object-fit: cover, voir js/accueil-hero.js) comme
-   pour l'emoji de secours. */
+#lienAccederEspace { margin-top: auto; align-self: flex-start; }
+/* Redimensionné le 5 septembre 2026, puis rendu réglable par bloc le même
+   jour (demande explicite : "50% de l'espace disponible sur PC", avec un
+   choix Petite/Moyenne/Grande depuis Admin ▸ Section d'accueil). --taille-img
+   fixe la part de largeur du bloc image dans le héro (flex-basis + max-width,
+   flex-grow à 0 pour ne pas dépasser ce réglage) ; .hero-text absorbe le
+   reste (flex: 1 1 auto). Hauteur toujours calculée via aspect-ratio, jamais
+   fixée en pixels, pour rester fluide à toute taille. */
 .hero-image {
+  --taille-img: 40%;
   background: rgba(255,255,255,0.08); border: 2px dashed rgba(255,255,255,0.3); border-radius: 16px;
-  flex: 1 1 360px; width: 100%; max-width: 460px; aspect-ratio: 4 / 3;
+  flex: 0 0 var(--taille-img); width: 100%; max-width: var(--taille-img); aspect-ratio: 4 / 3;
   display: flex; justify-content: center; align-items: center;
   font-size: clamp(48px, 9vw, 72px); overflow: hidden;
 }
+.hero-image.taille-petite { --taille-img: 30%; }
+.hero-image.taille-moyenne { --taille-img: 40%; }
+.hero-image.taille-grande { --taille-img: 50%; }
 /* Quand un bloc de la section d'accueil dynamique (js/accueil-hero.js) fournit
    une vraie image plutôt qu'un emoji, le cadre pointillé "espace réservé"
    laisse place à un cadre plein, plus adapté à une photo. */
 .hero-image.avec-photo { border-style: solid; border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.03); }
+/* Position de l'image par rapport au texte (réglage "Gauche/Droite/Centre"
+   de Admin ▸ Section d'accueil), portée par le conteneur .hero lui-même
+   (js/accueil-hero.js bascule la classe selon le bloc affiché) : Droite est
+   l'ordre naturel du HTML (texte puis image), Gauche inverse l'ordre visuel
+   sans toucher au DOM, Centre empile image au-dessus du texte, tout centré —
+   pratique pour un bloc "affiche" plutôt que "texte + illustration". */
+.hero.position-gauche { flex-direction: row-reverse; }
+.hero.position-centre { flex-direction: column; text-align: center; }
+.hero.position-centre .hero-text { align-items: center; }
+.hero.position-centre .hero-text p { max-width: 620px; }
+.hero.position-centre #lienAccederEspace { align-self: center; }
+.hero.position-centre .hero-image { --taille-img: 60%; max-width: 420px; }
 /* Une fois le bloc image passé sur sa propre ligne (voir le point de
    rupture du flex-wrap du .hero, autour de 900px), toute la largeur du héro
-   lui est disponible : on relâche le plafond et on aplatit un peu le ratio
-   pour qu'il en profite pleinement, au lieu de rester coincé à 460px. */
+   lui est disponible : on relâche le plafond (quel que soit le réglage de
+   taille choisi sur PC) et on aplatit un peu le ratio pour que l'image en
+   profite pleinement — occupation "optimale" sur mobile demandée le
+   5 septembre 2026, plutôt qu'un pourcentage figé qui n'aurait plus de sens
+   sur une seule colonne. */
 @media (max-width: 900px) {
-  .hero-image { max-width: 560px; aspect-ratio: 16 / 10; }
+  .hero-image, .hero.position-centre .hero-image { --taille-img: 100%; max-width: 560px; aspect-ratio: 16 / 10; }
+  .hero.position-gauche { flex-direction: column; }
 }
 .hero-points { display: flex; gap: 8px; margin-top: 22px; }
 .hero-point { width: 9px; height: 9px; border-radius: 50%; border: none; background: rgba(255,255,255,0.3); cursor: pointer; padding: 0; }
 .hero-point:hover { background: rgba(255,255,255,0.55); }
 .hero-point.actif { background: var(--accent-cyan); }
+
+/* ===== Dispositions multi-blocs (réglage global "Disposition du bandeau"
+   de Admin ▸ Section d'accueil, 5 septembre 2026) : par défaut le bandeau
+   reste un carrousel (#heroSlideUnique, un seul bloc visible à la fois,
+   logique ci-dessus inchangée) ; ces deux dispositions affichent TOUS les
+   blocs actifs en même temps, sans défilement pour un nombre raisonnable de
+   blocs (jusqu'à 4-5 environ — au-delà, réduire le nombre de blocs actifs
+   reste le seul moyen de garantir l'absence de défilement, quelle que soit
+   la disposition). #heroBlocsMultiples remplace alors #heroSlideUnique. */
+.hero-blocs-multiples { width: 100%; }
+.hero-blocs-multiples.mode-grille {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 22px;
+}
+.hero-carte-multi {
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 14px;
+  padding: 18px; display: flex; flex-direction: column; gap: 12px;
+}
+.hero-carte-multi.position-gauche, .hero-carte-multi.position-droite { flex-direction: row; align-items: center; }
+.hero-carte-multi.position-gauche { flex-direction: row-reverse; }
+.hero-carte-multi-image {
+  flex: 0 0 auto; border-radius: 10px; overflow: hidden; background: rgba(255,255,255,0.08);
+  display: flex; align-items: center; justify-content: center; font-size: 34px;
+}
+.hero-carte-multi.position-centre .hero-carte-multi-image { width: 100%; aspect-ratio: 16/9; }
+.hero-carte-multi.position-gauche .hero-carte-multi-image, .hero-carte-multi.position-droite .hero-carte-multi-image { aspect-ratio: 1/1; }
+.hero-carte-multi.taille-petite .hero-carte-multi-image { width: 64px; height: 64px; }
+.hero-carte-multi.taille-moyenne .hero-carte-multi-image { width: 92px; height: 92px; }
+.hero-carte-multi.taille-grande .hero-carte-multi-image { width: 128px; height: 128px; }
+.hero-carte-multi.taille-grande.position-centre .hero-carte-multi-image,
+.hero-carte-multi.taille-moyenne.position-centre .hero-carte-multi-image,
+.hero-carte-multi.taille-petite.position-centre .hero-carte-multi-image { width: 100%; height: auto; }
+.hero-carte-multi-image img { width: 100%; height: 100%; object-fit: cover; }
+.hero-carte-multi h3 { margin: 0 0 6px; font-size: 19px; }
+.hero-carte-multi p { margin: 0; font-size: 14px; color: #CBD5E1; line-height: 1.5; }
+
+.hero-blocs-multiples.mode-sections { display: flex; flex-direction: column; gap: 10px; }
+.hero-section-compacte {
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
+  padding: 10px 14px; display: flex; align-items: center; gap: 12px;
+}
+.hero-section-compacte-image {
+  flex: 0 0 auto; border-radius: 8px; overflow: hidden; background: rgba(255,255,255,0.08);
+  display: flex; align-items: center; justify-content: center; font-size: 20px;
+}
+.hero-section-compacte.taille-petite .hero-section-compacte-image { width: 40px; height: 40px; }
+.hero-section-compacte.taille-moyenne .hero-section-compacte-image { width: 56px; height: 56px; }
+.hero-section-compacte.taille-grande .hero-section-compacte-image { width: 74px; height: 74px; }
+.hero-section-compacte-image img { width: 100%; height: 100%; object-fit: cover; }
+.hero-section-compacte.position-gauche { flex-direction: row-reverse; }
+.hero-section-compacte-texte { flex: 1 1 auto; min-width: 0; }
+.hero-section-compacte-texte h3 { margin: 0; font-size: 15px; }
+.hero-section-compacte-texte p {
+  margin: 2px 0 0; font-size: 12.5px; color: #CBD5E1; line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+}
+@media (max-width: 640px) {
+  .hero-carte-multi.position-gauche, .hero-carte-multi.position-droite { flex-direction: column; }
+  .hero-carte-multi.taille-petite .hero-carte-multi-image, .hero-carte-multi.taille-moyenne .hero-carte-multi-image, .hero-carte-multi.taille-grande .hero-carte-multi-image { width: 100%; height: auto; aspect-ratio: 16/9; }
+}
 
 .features { max-width: 1100px; margin: 55px auto; padding: 0 20px; text-align: center; }
 .features h2 { color: var(--noir-kekeli); font-size: 26px; margin-bottom: 8px; }

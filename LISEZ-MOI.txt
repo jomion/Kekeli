@@ -1,84 +1,89 @@
-KEKELI — Livraison du 5 septembre 2026 (5)
+KEKELI — Livraison du 5 septembre 2026 (6)
 ============================================
 
-Première brique du système Premium « Accompagnement pédagogique
-personnalisé » que vous avez demandé — conformément à votre règle absolue
-(analyser d'abord, valider le plan, puis avancer phase par phase), le plan
-complet a été analysé et validé avec vous avant tout code. Ceci est la
-Phase 2 sur 13 : « Structure des données et suivi des compétences » — la
-fondation sur laquelle s'appuieront le diagnostic, le parcours personnalisé
-et la remédiation automatique dans les phases suivantes.
+Lot de correctifs et d'améliorations demandés sur l'existant (accueil,
+listings de séances, référentiel de compétences) — ne fait pas partie des
+13 phases du système Premium « Accompagnement pédagogique personnalisé »,
+qui reprendra à la Phase 3 dès que vous le souhaitez.
 
-Ce que cette livraison met en place
-------------------------------------
-1. Un référentiel de compétences pédagogiques. Une compétence est une
-   capacité précise et évaluable (ex : « Comparer deux fractions de même
-   dénominateur »), rattachée à une matière et, si besoin, à une classe
-   (ou transversale à toutes les classes).
+1. Icône KEKELI dans les onglets du navigateur
+------------------------------------------------
+Le logo KEKELI s'affiche maintenant dans l'onglet du navigateur (et dans les
+favoris) sur les 44 pages du site — auparavant aucune icône n'était définie,
+le navigateur affichait une icône générique.
 
-2. Une nouvelle page d'administration : Admin ▸ Compétences.
-   - Créer/modifier/désactiver/supprimer une compétence.
-   - Filtrer par matière et par classe.
-   - « 🤖 Proposer avec l'IA » : vous choisissez une matière, une classe et
-     une séance déjà publiée ; l'IA lit son contenu et propose une liste de
-     compétences candidates. Rien n'est jamais enregistré automatiquement —
-     vous relisez, corrigez si besoin, cochez celles à garder, puis validez.
+2. Titre des séances de nouveau visible dans les listings
+-----------------------------------------------------------
+Depuis le 4 septembre, seule la discipline s'affichait dans les listes de
+séances (page Classes, espace élève, jeux éducatifs, gestion des séances en
+admin, page de lecture d'une séance...), ce qui rendait indiscernables deux
+séances d'une même discipline. Le titre de la séance (le repère que vous
+saisissez dans l'éditeur — "titre du contenu" — ou à défaut son titre brut)
+redevient le libellé principal partout ; la discipline reste affichée à côté,
+en petite pastille de couleur, sans avoir disparu.
 
-3. Dans l'éditeur de séance ET dans l'éditeur de devoir, chaque bloc
-   Exercice/Quiz/Évaluation/Activité affiche désormais la liste des
-   compétences de sa matière/classe, à cocher librement (aucune n'est
-   cochée par défaut). C'est ce qui permet de savoir, plus tard, quelles
-   compétences un exercice fait vraiment travailler.
+3. Bandeau d'accueil : taille/position de l'image, et 3 dispositions
+------------------------------------------------------------------------
+Trois demandes traitées ensemble, dans Admin ▸ Section d'accueil :
 
-4. Suivi automatique de la maîtrise de chaque élève, compétence par
-   compétence, recalculé en tâche de fond à chaque réponse d'exercice ou
-   rendu d'activité — invisible dans cette livraison (aucune page ne
-   l'affiche encore), il alimentera le tableau de bord élève/parent et le
-   parcours personnalisé dans les prochaines phases.
+- Taille de l'image : chaque bloc du bandeau a maintenant un réglage
+  Petite / Moyenne / Grande (Grande = 50% de la largeur disponible sur PC,
+  comme demandé — occupation automatiquement adaptée en pleine largeur sur
+  mobile, quel que soit le réglage choisi).
+- Position de l'image : Gauche / Droite / Centre (Centre empile l'image
+  au-dessus du texte, tout centré — utile pour un bloc "affiche").
+- Disposition d'ensemble (nouveau réglage global, en haut de la page
+  Admin ▸ Section d'accueil) : en plus du Carrousel actuel (un bloc affiché
+  à la fois, en rotation), deux nouvelles options affichent TOUS les blocs
+  actifs en même temps, sans défilement pour un nombre raisonnable de blocs
+  (jusqu'à 4-5 environ) — Grille (côte à côte) ou Sections compactes
+  (empilées, en lignes serrées). Au-delà de ce nombre, désactiver les blocs
+  les moins prioritaires reste le seul moyen de garantir l'absence de
+  défilement, quelle que soit la disposition choisie.
 
-Ce qui n'est PAS encore fait (volontairement, selon le plan validé)
------------------------------------------------------------------
-Le diagnostic, le parcours personnalisé de l'élève (la fonctionnalité
-prioritaire), la remédiation automatique, le tuteur IA élève et les
-tableaux de bord arrivent dans les phases suivantes (3 à 13), chacune
-livrée et vérifiée séparément avant de passer à la suivante — comme
-demandé. Pour le tuteur IA élève (Phase 6), vous avez indiqué vouloir
-utiliser l'API GPT (OpenAI) en priorité, avec les fournisseurs actuels
-(Gemini puis Groq) en secours : c'est noté dans le plan, ce sera mis en
-place au moment de construire cette phase (un nouveau secret OPENAI_API_KEY
-vous sera alors demandé).
+4. Associer une compétence à une séance dès sa création
+-----------------------------------------------------------
+Dans Admin ▸ Compétences, après avoir créé une nouvelle compétence, vous
+pouvez maintenant l'associer immédiatement à une séance déjà publiée : tous
+ses blocs Exercice/Quiz/Évaluation/Activité sont alors rattachés d'un coup à
+la compétence, sans avoir besoin de rouvrir l'éditeur de séance et de cocher
+bloc par bloc (cette dernière méthode reste bien sûr disponible, pour un
+rattachement plus précis bloc par bloc).
 
 Sécurité
 --------
-Comme pour tout le reste du site, aucune information de correction n'est
-exposée aux élèves, et le contrôle d'accès (qui peut créer/modifier une
-compétence, qui peut voir la progression de quel élève) est vérifié côté
-serveur (règles de sécurité de la base de données), jamais seulement côté
-navigateur. Une vérification de sécurité de la base de données a été
-relancée après ces changements : aucune nouvelle alerte.
+Le nouveau réglage global du bandeau (table dédiée) a la même protection que
+le reste de la section d'accueil : lecture publique, écriture réservée au
+super administrateur. Vérification de sécurité de la base de données
+relancée après ces changements : aucune nouvelle alerte (mêmes avertissements
+génériques déjà présents avant cette livraison, sur des fonctions existantes
+sans lien avec ces changements).
 
-Fichiers modifiés/ajoutés (frontend, dans ce zip)
---------------------------------------------------
-- `pages/admin/competences.html` (nouveau) — page d'administration.
-- `js/pages/admin-competences.js` (nouveau) — logique de la page ci-dessus.
-- `js/navigation-config.js` — ajout du lien "Compétences" au menu admin.
-- `js/editeur/blocs.js` — sélecteur de compétences pour les blocs
-  Exercice/Quiz/Évaluation/Activité (partagé séance + devoir).
-- `js/pages/editeur-seance.js` — chargement/sauvegarde des compétences
-  cochées sur chaque bloc d'une séance (+ copie lors d'une duplication de
-  séance, pour ne pas perdre le rattachement).
-- `js/editeur/devoir-blocs.js` — même sélecteur côté devoirs.
+Fichiers modifiés (frontend, dans ce zip)
+-------------------------------------------
+- 44 pages HTML : ajout de l'icône du site dans l'onglet (point 1).
+- `index.html` : structure du bandeau d'accueil adaptée pour les nouvelles
+  dispositions (point 3).
+- `css/style-public.css` : tailles/positions de l'image du héro, grille et
+  sections compactes.
+- `js/accueil-hero.js` : logique d'affichage des 3 dispositions et des
+  réglages taille/position par bloc.
+- `js/pages/admin-section-accueil.js` : réglage global de disposition +
+  champs taille/position dans le formulaire de bloc.
+- `js/pages/seances.js`, `js/pages/navigation.js`, `js/pages/eleve-matiere.js`,
+  `js/pages/admin-gestion-seances.js`, `js/pages/eleve-jeux-educatifs.js`,
+  `js/pages/eleve-seance.js`, `js/pages/editeur-seance.js` : affichage
+  titre + discipline dans les listings et pages de lecture (point 2).
+- `js/pages/admin-competences.js` : association compétence → séance à la
+  création (point 4).
 
 Côté base de données (déjà en ligne, hors de ce zip)
 ------------------------------------------------------
-- 3 nouvelles tables (`competences`, `blocs_competences`,
-  `progression_competences`), sécurité activée sur les trois dès leur
-  création.
-- Calcul automatique de la progression à chaque réponse d'élève (ne peut
-  jamais bloquer l'enregistrement d'une réponse, même en cas d'erreur
-  interne).
-- Nouvelle action `proposerCompetences` dans le service IA existant, pour
-  le bouton « Proposer avec l'IA » ci-dessus.
+- La fonction serveur `etat_seances_sa` (utilisée par l'espace élève) renvoie
+  maintenant aussi le titre de séance saisi dans l'éditeur.
+- 2 nouvelles colonnes sur les blocs du bandeau d'accueil (taille et position
+  de l'image) + une nouvelle table pour le réglage global de disposition
+  (RLS activée, lecture publique, écriture super admin).
 
 Comme d'habitude, aucun fichier SQL n'est conservé dans ce dépôt Git — les
 changements de base de données sont appliqués directement et documentés
