@@ -293,13 +293,8 @@ function rendreBlocTravail(b) {
 function rendreBlocLecture(b, estEnfant = false) {
   const info = infoType(b.type_bloc);
   const c = b.contenu || {};
-  // Même principe que rendreBlocTravail ci-dessus (bordure/texte theme-aware,
-  // teinte de fond sur la valeur hex).
   const couleur = c.couleurBloc || info.couleur || 'var(--bleu-kekeli)';
   const couleurFond = c.couleurBloc || info.couleur || '#0000D1';
-  // Le bloc "Contenu" (valeur interne 'titre') est masqué à l'élève par
-  // défaut — voir le même choix dans js/pages/editeur-seance.js (htmlBloc,
-  // rendreBlocApercu) et la case "Titre visible" de l'éditeur.
   const afficherTitre = typeof c.afficherTitre === 'boolean' ? c.afficherTitre : b.type_bloc !== 'titre';
   const libelle = c.libelle || info.label;
   let corps = '';
@@ -312,6 +307,7 @@ function rendreBlocLecture(b, estEnfant = false) {
   else if (b.type_bloc === 'video') corps = `<p>🎬 <a href="${echapper(c.url)}" target="_blank" rel="noopener">${echapper(c.legende) || c.url}</a></p>`;
   else if (b.type_bloc === 'ressource') corps = `<p>📎 <a href="${echapper(c.url)}" target="_blank" rel="noopener">${echapper(c.nom)}</a></p>`;
   else if (b.type_bloc === 'formule') corps = `<p style="font-family:serif;font-size:18px">${echapper(c.formule)}</p>`;
+  else if (b.type_bloc === 'html_libre') corps = c.code || ''; // volontairement NON échappé : interprété tel quel par le navigateur
   else if (b.type_bloc === 'tableau') {
     const fusions = c.fusions || [];
     const masquee = (i, j) => fusions.some(f => f.ligne === i && j > f.colonneDebut && j <= f.colonneFin);
@@ -332,9 +328,6 @@ function rendreBlocLecture(b, estEnfant = false) {
     ${corps}
     ${enfants.length ? `<div style="margin-top:10px">${enfants.filter(x => !TYPES_TRAVAIL.includes(x.type_bloc)).map(x => rendreBlocLecture(x, true)).join('')}</div>` : ''}
   `;
-  // Un bloc rattaché à une section (Titre/Consigne) n'a pas sa propre carte :
-  // il s'affiche dans le prolongement direct du contenu parent, parfaitement
-  // aligné avec lui (pas de fond, pas de bordure, pas de padding qui décale).
   if (estEnfant) return contenuInterieur;
   return `<div class="bloc-lecture" style="border-left-color:${couleur};background:${teinteClaire(couleurFond, 0.04)}">${contenuInterieur}</div>`;
 }
