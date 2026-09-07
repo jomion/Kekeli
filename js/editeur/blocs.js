@@ -27,7 +27,8 @@ const TYPES_BLOCS = [
   { valeur: 'consigne',   label: 'Consigne',    icone: '📋', usage: 'Section pouvant contenir des items', couleur: '#003366' },
   { valeur: 'item',       label: 'Item',        icone: '▫️', usage: 'Élément d\'une consigne (Item 1, Item 2...)', couleur: '#475569' },
   { valeur: 'autre',      label: 'Autre',       icone: '🧩', usage: 'Bloc personnalisé (nom libre)', couleur: '#64748B' },
-  { valeur: 'resume',     label: 'Résumé',      icone: '🗒️', usage: 'Synthèse (à la main ou générée par IA)', couleur: '#334155' }
+  { valeur: 'resume',     label: 'Résumé',      icone: '🗒️', usage: 'Synthèse (à la main ou générée par IA)', couleur: '#334155' },
+  { valeur: 'html_libre', label: 'HTML',        icone: '🌐', usage: 'Code HTML personnalisé (interprété tel quel par le navigateur)', couleur: '#7C3AED' }
 ];
 
 // Convertit une couleur hexadécimale en fond très clair (pour harmoniser
@@ -131,6 +132,10 @@ function html_editeurBloc(bloc) {
       return `<input type="text" data-champ="formule" placeholder="Ex: (a + b)² = a² + 2ab + b²" value="${echapper(c.formule)}">
         <p class="note-future">Rendu mathématique enrichi (LaTeX) prévu à une étape ultérieure.</p>`;
 
+    case 'html_libre':
+      return `<textarea data-champ="code" placeholder="&lt;div&gt;Votre code HTML ici...&lt;/div&gt;" style="min-height:180px;font-family:'Courier New',monospace;font-size:13px;white-space:pre">${echapper(c.code)}</textarea>
+        <p class="note-future">⚠️ Ce code est inséré tel quel dans la page (balises, styles, éventuellement scripts) — aussi bien dans l'aperçu élève ici que sur la vraie page élève. Ne collez que du code de confiance : n'importe quel HTML/JS saisi ici s'exécutera dans le navigateur de l'élève.</p>`;
+
     case 'tableau':
       return html_editeurTableau(bloc, c);
 
@@ -153,11 +158,6 @@ function html_editeurTexteRiche(bloc, c) {
     `<button type="button" class="pastille-couleur" data-cmd="hiliteColor" data-valeur="${col.valeur}" title="Surligner en ${col.nom}" style="background:${col.valeur}"></button>`
   ).join('');
 
-  // Une seule barre d'outils, regroupée par sections (séparées visuellement),
-  // pour qu'elle se lise comme un vrai traitement de texte plutôt que comme
-  // plusieurs blocs de boutons séparés. Les couleurs sont maintenant dans un
-  // petit menu déroulant (🎨 / 🖍️) plutôt qu'alignées en permanence dans la
-  // barre, avec une roue de couleur personnalisée en plus des 9 teintes fixes.
   return `
     <div class="barre-outils-texte">
       <div class="groupe-outils">
@@ -245,7 +245,6 @@ function html_editeurTableau(bloc, c) {
     return f ? (f.colonneFin - f.colonneDebut + 1) : 1;
   }
   function estFusionnable(i, j) {
-    // Fusionnable avec la cellule suivante si ni l'une ni l'autre n'est déjà dans une fusion
     return j < lignes[i].length - 1 && !celluleEstMasquee(i, j) && !celluleEstMasquee(i, j + 1) && colspanCellule(i, j) === 1;
   }
   function estDejaFusionnee(i, j) {
@@ -302,15 +301,6 @@ function html_selectPalier(bloc) {
   </select>`;
 }
 
-// Sélecteur de compétences travaillées par ce bloc (Phase 2 — Accompagnement
-// pédagogique personnalisé, Premium) : liste à cocher, une compétence par
-// pastille. `dispo` est fourni par l'appelant (chargé pour la classe/matière
-// de la séance ou du devoir en cours) — jamais construit ici pour éviter de
-// coupler ce fichier partagé à une source de données précise. La sélection
-// courante du bloc n'est PAS dans bloc.contenu : elle vit dans la table de
-// liaison `blocs_competences`, chargée à part et posée sur bloc.competencesIds
-// par l'appelant avant le premier rendu (voir chargerBlocs() côté éditeur de
-// séance et chargerBlocsDevoir() côté éditeur de devoir).
 function html_selectCompetencesBloc(bloc, dispo) {
   if (!Array.isArray(dispo) || !dispo.length) {
     return '<p class="note-future">Aucune compétence configurée pour cette matière/classe — gérez le référentiel dans Admin ▸ Compétences pour pouvoir suivre la progression des élèves sur ce bloc (fonctionnalité Premium).</p>';
@@ -327,14 +317,6 @@ function html_selectCompetencesBloc(bloc, dispo) {
       </div>
     </div>`;
 }
-
-// --- ÉDITEUR D'EXERCICE / QUIZ / ÉVALUATION (questions + corrigé) ----------
-// Les questions (énoncé, type, options) restent dans bloc.contenu.questions —
-// c'est ce que l'élève reçoit pour répondre. Le corrigé (bonnes réponses,
-// barème) vit à part, dans la table corriges_exercices : jamais envoyé au
-// navigateur élève. Ici, dans l'éditeur admin, on affiche les deux côte à
-// côte pour que ce soit pratique à saisir — voir attacherEcouteursQuestions
-// dans editeur-seance.js pour le chargement du corrigé et la sauvegarde.
 
 const LIBELLES_TYPE_QUESTION = {
   qcm: 'QCM (choix multiple)',
@@ -360,9 +342,6 @@ function html_editeurExercice(bloc, c) {
       </div>
       <p class="note-future">Le seuil de réussite sert à valider ce bloc pour la progression par palier et l'attribution des badges (66,7% par défaut).</p>
     </div>
-    <!-- Sans palier, cet exercice est un bloc de contenu ordinaire : ni seuil
-         ni progression à configurer, uniquement visible/masqué via data-bloc-seuil
-         ci-dessus (le champ garde sa valeur en base, juste masqué à l'écran). -->
     ${html_selectCompetencesBloc(bloc, typeof COMPETENCES_DISPONIBLES_EDITEUR !== 'undefined' ? COMPETENCES_DISPONIBLES_EDITEUR : [])}
     <div class="editeur-questions" data-questions-bloc="${bloc.id}">
       <div class="liste-questions" data-liste-questions>
@@ -379,13 +358,6 @@ function html_editeurExercice(bloc, c) {
     </div>`;
 }
 
-// Question "association" : l'admin saisit des paires {gauche, droite} bien
-// alignées (q.paires, jamais envoyé à l'élève). On en dérive ce qui EST
-// envoyé à l'élève (q.gauche, dans l'ordre de saisie, et q.droite, mélangé)
-// et, séparément, la correspondance correcte — stockée dans le corrigé
-// privé (jamais lisible par l'élève), pas dans les champs publics : sinon
-// l'ordre de q.droite révélerait directement la bonne réponse. Recalculé à
-// chaque modification d'une paire (ajout/suppression/texte).
 function recalculerAssociation(q, c) {
   const paires = Array.isArray(q.paires) ? q.paires : [];
   const n = paires.length;
@@ -399,11 +371,6 @@ function recalculerAssociation(q, c) {
   if (c) c.bonneReponse = paires.map((_, i) => permutation.indexOf(i));
 }
 
-// Question "classement" : l'admin saisit des catégories (ex: Nom, Verbe,
-// Adjectif) et des mots, chacun affecté à une catégorie (q.items[i].categorie,
-// jamais envoyé à l'élève). L'élève reçoit la liste des mots (q.motsAClasser)
-// et la liste des catégories (q.categories) — l'ordre des mots ne révèle rien
-// puisque l'affectation correcte reste uniquement dans le corrigé privé.
 function recalculerClassement(q, c) {
   const items = Array.isArray(q.items) ? q.items : [];
   q.motsAClasser = items.map(it => (it && it.mot) || '');
@@ -411,8 +378,6 @@ function recalculerClassement(q, c) {
   if (c) c.bonneReponse = items.map(it => (it && typeof it.categorieIndex === 'number') ? it.categorieIndex : null);
 }
 
-// corrige peut être `null` (corrigé pas encore chargé depuis la base — les
-// champs de correction s'affichent alors désactivés le temps du chargement).
 function html_questionEditeur(q, index, corrige) {
   const c = corrige ? (corrige[q.id] || {}) : null;
   const enAttente = corrige === null;
@@ -482,9 +447,6 @@ function html_questionEditeur(q, index, corrige) {
         <button type="button" class="btn btn-discret" data-ajouter-option style="align-self:flex-start;font-size:12px">+ Élément</button>
       </div>`;
   } else if (q.type === 'association') {
-    // Paires {gauche, droite} : l'élève doit relier chaque élément de
-    // gauche à son élément de droite (proposés mélangés côté élève) —
-    // correction automatique paire par paire.
     const paires = Array.isArray(q.paires) ? q.paires : [];
     corpsCorrige = `
       <div class="options-association">
@@ -498,10 +460,6 @@ function html_questionEditeur(q, index, corrige) {
         <button type="button" class="btn btn-discret" data-ajouter-paire style="align-self:flex-start;font-size:12px">+ Paire</button>
       </div>`;
   } else if (q.type === 'qcm_multiple') {
-    // Comme le QCM classique, mais plusieurs bonnes réponses possibles (ex:
-    // "Activité 1 — Je reconnais les mots" : entourer plusieurs mots dans une
-    // liste). Toutes les cases cochées doivent correspondre exactement aux
-    // bonnes réponses pour que la question soit comptée correcte.
     const options = Array.isArray(q.options) ? q.options : [];
     const bonnes = !enAttente && Array.isArray(c.bonneReponse) ? c.bonneReponse.map(String) : [];
     corpsCorrige = `
@@ -516,9 +474,6 @@ function html_questionEditeur(q, index, corrige) {
         <button type="button" class="btn btn-discret" data-ajouter-option style="align-self:flex-start;font-size:12px">+ Option</button>
       </div>`;
   } else if (q.type === 'classement') {
-    // Catégories (colonnes du tableau, ex: Nom / Verbe / Adjectif) + mots à
-    // classer, chacun affecté à sa bonne catégorie (menu déroulant). L'élève
-    // recevra la liste des mots et des catégories, jamais l'affectation.
     const categories = Array.isArray(q.categories) ? q.categories : [];
     const items = Array.isArray(q.items) ? q.items : [];
     corpsCorrige = `
@@ -566,9 +521,6 @@ function echapper(v) {
   return (v || '').toString().replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
 
-// Le contenu riche (data-champ-riche) est stocké en HTML depuis cette mise à jour.
-// Pour l'ancien contenu (texte brut sans formatage), on échappe et on convertit
-// les retours à la ligne en <br> pour préserver l'affichage.
 function contenuRicheInitial(texte) {
   const v = (texte || '').toString();
   if (v.includes('<')) return v; // déjà du HTML (contenu créé avec le nouvel éditeur)
