@@ -1,0 +1,216 @@
+/* Jeu "Cadran opératoire — Calcul mental" (douzième requête, 11 septembre
+   2026 ; réécrit le même jour après relecture du fichier de référence
+   "Cadran opératoire.html" fourni par le porteur du projet, qui a signalé
+   que la première version ne respectait pas son fonctionnement réel).
+
+   Ce fichier est un PORT QUASI-VERBATIM du <style> du fichier de référence :
+   mêmes couleurs, mêmes classes (renommées avec un préfixe "cadran-" pour ne
+   jamais entrer en collision avec le reste du site), même disposition. Les
+   seules différences volontaires par rapport au fichier de référence sont :
+   1) tout est préfixé/scoping sous .cadran-page pour cohabiter avec le CSS
+      du reste du site ; 2) la page garde l'en-tête fixe standard du site
+      (68px, voir body.avec-entete-fixe dans style-public.css) — la partie
+      jeu occupe donc le reste de l'écran (calc(100vh - 68px)) au lieu de
+      100vh, sans aucune barre de défilement, comme demandé ; 3) le sélecteur
+      de difficulté passe de 3 à 4 niveaux (Azɔ̀ví/Dèví/Ògán/Axɔ́sú, au lieu
+      de Facile/Moyen/Difficile) pour rejoindre le vocabulaire du reste du
+      site, en gardant EXACTEMENT le même style de bouton (un seul highlight
+      doré actif) que le fichier de référence. */
+
+.cadran-page {
+  --cadran-bg-dark: #0f172a;
+  --cadran-panel-bg: #1e293b;
+  --cadran-gold: #f59e0b;
+  --cadran-neon-blue: #06b6d4;
+  --cadran-neon-green: #10b981;
+  --cadran-neon-red: #ef4444;
+  --cadran-purple: #8b5cf6;
+
+  height: calc(100vh - 68px);
+  overflow: hidden;
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: var(--cadran-bg-dark);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cadran-page * { box-sizing: border-box; }
+/* Si une bannière du super admin est affichée (js/banniere-site.js), le corps
+   de la page gagne du padding-top supplémentaire (voir style-public.css) :
+   on réduit la hauteur du jeu d'autant pour ne jamais dépasser l'écran. */
+body.avec-banniere-site .cadran-page { height: calc(100vh - 68px - var(--hauteur-banniere-site, 0px)); }
+
+.cadran-app {
+  background: var(--cadran-panel-bg);
+  border: 3px solid #334155;
+  border-radius: 20px;
+  padding: 14px 20px;
+  box-shadow: 0 15px 30px rgba(0,0,0,0.6);
+  text-align: center;
+  width: 95vw;
+  max-width: 520px;
+  height: 95%;
+  max-height: 660px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+}
+
+.cadran-header-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.cadran-header-bar h1 { margin: 0; color: var(--cadran-gold); font-size: 1.25rem; text-shadow: 0 0 8px rgba(245,158,11,0.4); }
+.cadran-btn-lien-retour { color: #94a3b8; text-decoration: none; font-size: 1rem; font-weight: 700; }
+.cadran-btn-lien-retour:hover { color: #fff; }
+.cadran-btn-settings {
+  background: #334155; border: none; color: #fff; padding: 6px 12px; border-radius: 8px;
+  cursor: pointer; font-weight: bold; font-size: 0.9rem; transition: background 0.2s;
+}
+.cadran-btn-settings:hover { background: #475569; }
+
+.cadran-top-controls { display: flex; flex-direction: column; gap: 5px; margin: 4px 0; }
+.cadran-mode-selector, .cadran-difficulty-selector { display: flex; gap: 6px; }
+.cadran-mode-btn, .cadran-diff-btn {
+  flex: 1; padding: 5px; border-radius: 8px; border: 1px solid #475569; background: #0f172a;
+  color: #94a3b8; font-weight: bold; font-size: 0.78rem; cursor: pointer; transition: all 0.2s;
+}
+.cadran-mode-btn.active { border-color: var(--cadran-neon-blue); color: #fff; background: var(--cadran-purple); }
+.cadran-diff-btn.active {
+  border-color: var(--cadran-gold); color: #000; background: var(--cadran-gold);
+  box-shadow: 0 0 10px rgba(245,158,11,0.4);
+}
+
+.cadran-game-zone {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: relative; margin: 5px 0; min-height: 0;
+}
+
+.cadran-dial-container {
+  position: relative; width: 230px; height: 230px; border-radius: 50%;
+  background: radial-gradient(circle, #0f172a 0%, #020617 100%);
+  border: 4px solid var(--cadran-purple); box-shadow: 0 0 15px rgba(139,92,246,0.3);
+}
+.cadran-center-number {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 55px; height: 55px; background: #334155; color: #64748b; border: 3px solid #fff;
+  border-radius: 50%; font-size: 1.6rem; font-weight: bold; display: flex; align-items: center;
+  justify-content: center; transition: all 0.3s; z-index: 10;
+}
+.cadran-center-number.cadran-active {
+  background: var(--cadran-gold); color: #000; box-shadow: 0 0 20px var(--cadran-gold);
+  transform: translate(-50%, -50%) scale(1.15);
+}
+.cadran-operator { position: absolute; font-size: 1.2rem; font-weight: bold; color: #475569; transition: all 0.3s; }
+.cadran-operator.cadran-active {
+  color: var(--cadran-neon-blue); font-size: 1.6rem; text-shadow: 0 0 15px var(--cadran-neon-blue);
+  transform: scale(1.2);
+}
+.cadran-op-plus { top: 45px; left: 104px; }
+.cadran-op-minus { bottom: 45px; left: 104px; }
+.cadran-op-mult { top: 102px; right: 45px; }
+.cadran-op-div { top: 102px; left: 45px; }
+
+.cadran-outer-num {
+  position: absolute; width: 30px; height: 30px; line-height: 30px; border-radius: 50%;
+  font-size: 0.9rem; font-weight: bold; color: #64748b; transition: all 0.3s ease-in-out;
+  display: flex; align-items: center; justify-content: center;
+}
+.cadran-outer-num.cadran-active {
+  background: var(--cadran-neon-green); color: #000; transform: scale(1.3);
+  box-shadow: 0 0 20px var(--cadran-neon-green); z-index: 5;
+}
+
+.cadran-problem-display {
+  background: #0f172a; border: 2px solid var(--cadran-neon-blue); border-radius: 12px; padding: 15px;
+  width: 100%; height: 100%; max-height: 180px; display: flex; align-items: center; justify-content: center;
+  font-size: 1.15rem; font-weight: bold; color: #fff; text-align: center;
+}
+
+.cadran-timer-bar-container { width: 100%; height: 8px; background: #0f172a; border-radius: 4px; margin: 6px 0; overflow: hidden; flex-shrink: 0; }
+.cadran-timer-bar { height: 100%; background: var(--cadran-neon-red); width: 0%; transition: width 0.1s linear; }
+
+.cadran-slate-area { background: #0f172a; border: 2px dashed var(--cadran-gold); border-radius: 12px; padding: 6px; flex-shrink: 0; }
+.cadran-input-row { display: flex; justify-content: center; align-items: center; gap: 10px; }
+.cadran-app input[type="number"] {
+  font-size: 1.6rem; width: 100px; text-align: center; padding: 2px; border-radius: 8px;
+  border: 2px solid #475569; background: #1e293b; color: #fff;
+}
+.cadran-btn-validate {
+  font-size: 1rem; padding: 8px 16px; border: none; border-radius: 8px; background: var(--cadran-neon-blue);
+  color: #000; cursor: pointer; font-weight: bold;
+}
+.cadran-feedback { height: 16px; font-size: 0.8rem; font-weight: bold; margin-top: 2px; }
+
+.cadran-btn-start {
+  font-size: 1rem; padding: 7px 15px; border: none; border-radius: 10px; background: var(--cadran-neon-green);
+  color: #000; cursor: pointer; font-weight: bold; width: 100%; margin-top: 4px;
+  box-shadow: 0 4px 10px rgba(16,185,129,0.3); flex-shrink: 0;
+}
+.cadran-btn-start:disabled { opacity: .6; cursor: not-allowed; box-shadow: none; }
+
+.cadran-score-board { display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: bold; color: #94a3b8; margin-top: 2px; flex-shrink: 0; }
+
+/* Réglages / Bilan */
+.cadran-modal-overlay {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15,23,42,0.96);
+  border-radius: 20px; z-index: 100; display: none; flex-direction: column; padding: 18px;
+  text-align: left; overflow-y: auto;
+}
+.cadran-modal-overlay.active { display: flex; }
+.cadran-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.cadran-modal-header h2 { margin: 0; color: var(--cadran-gold); font-size: 1.15rem; }
+.cadran-close-btn { background: var(--cadran-neon-red); border: none; color: #fff; font-weight: bold; border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+.cadran-config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; overflow-y: auto; font-size: 0.8rem; }
+.cadran-config-group { display: flex; flex-direction: column; }
+.cadran-config-group label { color: #94a3b8; font-weight: bold; margin-bottom: 3px; }
+.cadran-app select { width: 100%; padding: 5px; border-radius: 6px; border: 1px solid #475569; background: #1e293b; color: #fff; font-weight: bold; }
+.cadran-note-masquage { grid-column: span 2; color: #94a3b8; font-size: 0.78rem; margin: 4px 0 0; }
+
+.cadran-countdown-overlay {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15,23,42,0.85);
+  border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 5rem;
+  font-weight: bold; color: var(--cadran-gold); z-index: 30; visibility: hidden;
+}
+
+.cadran-summary-overlay {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15,23,42,0.98);
+  border-radius: 20px; z-index: 90; display: none; flex-direction: column; padding: 15px; overflow-y: auto;
+}
+.cadran-summary-overlay.active { display: flex; }
+.cadran-summary-title { color: var(--cadran-gold); margin: 0; }
+.cadran-summary-message { font-size: 0.85rem; font-weight: bold; margin-bottom: 8px; }
+.cadran-success-badge { font-size: 1.6rem; font-weight: bold; margin: 4px 0; }
+
+.cadran-dancer-container { display: none; height: 65px; margin: 4px auto; }
+.cadran-dancer {
+  width: 45px; height: 45px; background: var(--cadran-gold); border-radius: 50%; margin: 0 auto;
+  position: relative; animation: cadran-dance 0.6s infinite alternate ease-in-out; box-shadow: 0 0 15px var(--cadran-gold);
+}
+.cadran-dancer::before, .cadran-dancer::after { content: ''; position: absolute; top: 12px; width: 7px; height: 7px; background: #000; border-radius: 50%; }
+.cadran-dancer::before { left: 10px; } .cadran-dancer::after { right: 10px; }
+.cadran-dancer-smile { position: absolute; bottom: 8px; left: 12px; width: 20px; height: 8px; border-bottom: 3px solid #000; border-radius: 0 0 8px 8px; }
+@keyframes cadran-dance {
+  0% { transform: translateY(0) rotate(-10deg); }
+  100% { transform: translateY(-12px) rotate(10deg); }
+}
+
+.cadran-error-section { flex: 1; overflow-y: auto; }
+.cadran-error-title { color: var(--cadran-neon-red); margin: 4px 0; }
+.cadran-error-table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 0.75rem; }
+.cadran-error-table th, .cadran-error-table td { border: 1px solid #334155; padding: 4px; text-align: center; }
+.cadran-error-table th { background: #1e293b; color: var(--cadran-gold); }
+
+/* Réglage "masquer l'opération" (Paramètres) — floute le cadran/l'énoncé une
+   fois affiché, pour entraîner la mémoire ; un bouton "Revoir" le révèle à
+   la demande. Additif : ne change rien au fonctionnement décrit ci-dessus. */
+.cadran-masque { filter: blur(8px); user-select: none; transition: filter .2s; }
+.cadran-btn-revoir {
+  position: absolute; bottom: 6px; right: 6px; background: #334155; color: #fff; border: none;
+  border-radius: 6px; padding: 4px 8px; font-size: 0.72rem; font-weight: 700; cursor: pointer; z-index: 6;
+}
+.cadran-btn-revoir:hover { background: #475569; }
+
+@media (max-width: 480px) {
+  .cadran-app { padding: 10px 12px; }
+}

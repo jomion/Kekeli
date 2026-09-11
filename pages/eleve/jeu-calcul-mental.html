@@ -7,61 +7,188 @@
 <link rel="icon" type="image/png" href="../../assets/logo/logo.png">
 <link rel="stylesheet" href="../../css/style-public.css">
 <link rel="stylesheet" href="../../css/theme-premium-eleve.css">
-<link rel="stylesheet" href="../../css/pied-de-page.css">
-<link rel="stylesheet" href="../../css/jeux-arcade.css">
+<link rel="stylesheet" href="../../css/jeu-cadran-operatoire.css">
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body>
   <header></header>
 
-  <div class="jeu-arcade-page">
-    <div class="jeu-app-container">
-      <div class="jeu-header-bar">
-        <a href="jeux-educatifs.html" class="jeu-btn-lien-retour">⬅️ Jeux</a>
-        <h1>🎯 Cadran opératoire</h1>
-        <button type="button" class="jeu-btn-settings" id="jeuBtnSettings">⚙️</button>
+  <!-- Port quasi-verbatim de "Cadran opératoire.html" (fichier de référence
+       fourni par le porteur du projet) : mêmes 2 modes (Cadran / Problèmes
+       & Calculs), même cadran animé, mêmes réglages avancés, même bilan de
+       fin de série (mascotte dansante, confettis, tableau d'erreurs). Seule
+       différence volontaire : 4 niveaux de difficulté (Azɔ̀ví/Dèví/Ògán/
+       Axɔ́sú) au lieu de 3 (Facile/Moyen/Difficile), sur le même principe
+       exact (chaque niveau règle le temps, l'intervalle des nombres et la
+       disposition du cadran). Tient sur un seul écran, sans défilement. -->
+  <div class="cadran-page">
+    <div class="cadran-app" id="cadranApp">
+      <div class="cadran-countdown-overlay" id="cadranCountdown">3</div>
+
+      <div class="cadran-header-bar">
+        <a href="jeux-educatifs.html" class="cadran-btn-lien-retour" title="Retour aux jeux">⬅️</a>
+        <h1>Calcul Mental</h1>
+        <button type="button" class="cadran-btn-settings" id="cadranBtnSettings">⚙️ Options</button>
       </div>
 
-      <div class="jeu-ecran-accueil" id="jeuAccueil">
-        <p>Calcul mental, avec un vrai cadran quand l'exercice s'y prête — sinon la question s'affiche normalement. Choisis ton niveau !</p>
-        <div class="jeu-palier-selector" id="jeuPalierSelector"></div>
-        <p id="jeuInfoAccueil">Chargement...</p>
-        <button type="button" class="jeu-btn-start" id="jeuBtnLancer" disabled>🚀 Lancer la partie</button>
-      </div>
-
-      <div id="jeuCorps" hidden style="display:flex;flex-direction:column;flex:1;min-height:0">
-        <div class="jeu-zone" id="jeuZone">
-          <div class="jeu-matiere-tag">Mathématiques</div>
-          <div id="jeuQuestionArea" class="jeu-message-accueil">Prépare-toi...</div>
-          <div class="jeu-countdown-overlay" id="jeuCountdownOverlay"></div>
+      <div class="cadran-top-controls">
+        <div class="cadran-mode-selector">
+          <button type="button" class="cadran-mode-btn active" id="cadranBtnModeDial" data-mode="dial">🎯 Cadran</button>
+          <button type="button" class="cadran-mode-btn" id="cadranBtnModeMental" data-mode="mental">💡 Problèmes &amp; Calculs</button>
         </div>
-        <div class="jeu-feedback" id="jeuFeedback"></div>
-        <div class="jeu-timer-bar-container"><div class="jeu-timer-bar" id="jeuTimerBar"></div></div>
-        <div class="jeu-score-board">
-          <span id="jeuQuestionCounter">Question : 0/0</span>
-          <span id="jeuScoreCounter">Bonnes réponses : 0</span>
+        <div class="cadran-difficulty-selector">
+          <button type="button" class="cadran-diff-btn active" data-diff="azovi">🌱 Azɔ̀ví</button>
+          <button type="button" class="cadran-diff-btn" data-diff="devi">🪘 Dèví</button>
+          <button type="button" class="cadran-diff-btn" data-diff="ogan">🦁 Ògán</button>
+          <button type="button" class="cadran-diff-btn" data-diff="axosu">👑 Axɔ́sú</button>
         </div>
       </div>
 
-      <div class="jeu-modal-overlay" id="jeuSettingsModal">
-        <div class="jeu-modal-header">
-          <h2>⚙️ Réglages</h2>
-          <button class="jeu-close-btn" id="jeuBtnCloseSettings">✕</button>
+      <div class="cadran-game-zone">
+        <div class="cadran-dial-container cadran-dial-only" id="cadranDialContainer">
+          <div class="cadran-center-number" id="cadranCenterDisplay">5</div>
+          <div class="cadran-operator cadran-op-plus" id="cadranOpPlus">+</div>
+          <div class="cadran-operator cadran-op-minus" id="cadranOpMinus">-</div>
+          <div class="cadran-operator cadran-op-mult" id="cadranOpMult">×</div>
+          <div class="cadran-operator cadran-op-div" id="cadranOpDiv">÷</div>
         </div>
-        <div class="jeu-config-grid">
-          <div class="jeu-config-group">
-            <label>Temps affiché par question (décoratif) :</label>
-            <select id="jeuTimeSelect">
-              <option value="8">8 secondes</option>
-              <option value="12" selected>12 secondes</option>
-              <option value="20">20 secondes</option>
+
+        <div class="cadran-problem-display cadran-mental-only" id="cadranProblemDisplay" style="display:none;">
+          Prêt pour le défi ?
+        </div>
+
+        <button type="button" class="cadran-btn-revoir" id="cadranBtnRevoir" hidden>👁️ Revoir</button>
+      </div>
+
+      <div class="cadran-timer-bar-container">
+        <div class="cadran-timer-bar" id="cadranTimerBar"></div>
+      </div>
+
+      <div class="cadran-slate-area">
+        <div class="cadran-input-row">
+          <input type="number" id="cadranUserAnswer" placeholder="?" disabled>
+          <button type="button" class="cadran-btn-validate" id="cadranValBtn" disabled>OK</button>
+        </div>
+        <div class="cadran-feedback" id="cadranFeedback"></div>
+      </div>
+
+      <button type="button" class="cadran-btn-start" id="cadranBtnStart">Lancer l'entraînement</button>
+
+      <div class="cadran-score-board">
+        <span id="cadranQuestionCounter">Question : 0/0</span>
+        <span id="cadranScoreDisplay">Score : 0</span>
+      </div>
+
+      <!-- Fenêtre Modale des Paramètres -->
+      <div class="cadran-modal-overlay" id="cadranSettingsModal">
+        <div class="cadran-modal-header">
+          <h2>⚙️ Réglages Avancés</h2>
+          <button type="button" class="cadran-close-btn" id="cadranBtnCloseSettings">✕</button>
+        </div>
+        <div class="cadran-config-grid">
+          <div class="cadran-config-group">
+            <label>Série de calculs :</label>
+            <select id="cadranSeriesSelect">
+              <option value="1">1 question</option>
+              <option value="5" selected>5 questions</option>
+              <option value="10">10 questions</option>
             </select>
           </div>
-          <p style="color:#94a3b8;font-size:0.78rem;margin:4px 0 0">💡 Pour masquer l'affichage de l'opération et t'entraîner à la mémoriser, va dans <strong>Paramètres</strong> (menu du haut) — le réglage s'applique à toutes tes parties.</p>
+
+          <div class="cadran-config-group">
+            <label>Temps / Réponse :</label>
+            <select id="cadranTimeSelect">
+              <option value="3">3 sec</option>
+              <option value="5">5 sec</option>
+              <option value="8" selected>8 sec</option>
+              <option value="12">12 sec</option>
+            </select>
+          </div>
+
+          <div class="cadran-config-group cadran-dial-only">
+            <label>Chiffre central :</label>
+            <select id="cadranCenterSelect">
+              <option value="2">2</option><option value="3">3</option><option value="4">4</option>
+              <option value="5" selected>5</option><option value="6">6</option><option value="7">7</option>
+              <option value="8">8</option><option value="9">9</option>
+            </select>
+          </div>
+
+          <div class="cadran-config-group cadran-dial-only">
+            <label>Opération Cadran :</label>
+            <select id="cadranOpSelect">
+              <option value="mult" selected>Multiplication (×)</option>
+              <option value="plus">Addition (+)</option>
+              <option value="minus">Soustraction (-)</option>
+              <option value="div">Division (÷)</option>
+              <option value="mix">Mixte</option>
+            </select>
+          </div>
+
+          <div class="cadran-config-group cadran-dial-only">
+            <label>Vitesse affichage :</label>
+            <select id="cadranTempoSelect">
+              <option value="200">Rapide (0.2s)</option>
+              <option value="500" selected>Normale (0.5s)</option>
+              <option value="1000">Lente (1s)</option>
+            </select>
+          </div>
+
+          <div class="cadran-config-group cadran-dial-only">
+            <label>Disposition (0 à 12) :</label>
+            <select id="cadranShuffleModeSelect">
+              <option value="ordered" selected>Croissant (0→12)</option>
+              <option value="shuffled">Mélangé</option>
+              <option value="shuffleEach">Mélanger à chaque question</option>
+            </select>
+          </div>
+
+          <div class="cadran-config-group cadran-mental-only" style="display:none; grid-column: span 2;">
+            <label>Intervalle des nombres :</label>
+            <select id="cadranRangeSelect">
+              <option value="20">0 à 20</option>
+              <option value="50" selected>0 à 50</option>
+              <option value="100">0 à 100</option>
+              <option value="500">0 à 500</option>
+            </select>
+          </div>
+
+          <div class="cadran-config-group cadran-mental-only" style="display:none; grid-column: span 2;">
+            <label>Type d'exercices :</label>
+            <select id="cadranMentalTypeSelect">
+              <option value="calcul" selected>Calculs Directs (+, -, ×)</option>
+              <option value="problem">Problèmes Contextuels</option>
+              <option value="mix">Mélange Problèmes &amp; Calculs</option>
+            </select>
+          </div>
+
+          <p class="cadran-note-masquage">💡 Le réglage "masquer l'opération" (pour t'entraîner à la mémoriser) se trouve dans <strong>Paramètres</strong>, menu du haut — il s'applique automatiquement ici.</p>
         </div>
       </div>
 
-      <div class="jeu-summary-overlay" id="jeuSummaryModal"></div>
+      <!-- Fenêtre Modale : Bilan de Fin de Partie -->
+      <div class="cadran-summary-overlay" id="cadranSummaryModal">
+        <h2 class="cadran-summary-title">📊 Bilan de la Série</h2>
+
+        <div class="cadran-dancer-container" id="cadranDancerContainer">
+          <div class="cadran-dancer"><div class="cadran-dancer-smile"></div></div>
+        </div>
+
+        <div class="cadran-success-badge" id="cadranSuccessBadge">100%</div>
+        <div id="cadranSummaryMessage" class="cadran-summary-message"></div>
+
+        <div id="cadranErrorSection" class="cadran-error-section" style="display:none;">
+          <h4 class="cadran-error-title">Historique des Erreurs :</h4>
+          <table class="cadran-error-table">
+            <thead>
+              <tr><th>Opération</th><th>Ta réponse</th><th>Bonne réponse</th></tr>
+            </thead>
+            <tbody id="cadranErrorTableBody"></tbody>
+          </table>
+        </div>
+
+        <button type="button" class="cadran-btn-start" id="cadranBtnRejouer">Rejouer</button>
+      </div>
     </div>
   </div>
 
@@ -75,13 +202,6 @@
   <script src="../../js/banniere-site.js"></script>
   <script src="../../js/entete-navigation.js"></script>
   <script src="../../js/theme-premium-eleve.js"></script>
-  <script src="../../js/sons-eleve.js"></script>
-  <script src="../../js/editeur/blocs.js"></script>
-  <script src="../../js/jeux/rendu-questions-jeu.js"></script>
-  <script src="../../js/jeux/moteur-jeu-arcade.js"></script>
-  <script src="../../js/jeux/coquille-jeu-arcade.js"></script>
   <script src="../../js/pages/eleve-jeu-calcul-mental.js"></script>
-  <footer></footer>
-  <script src="../../js/pied-de-page.js"></script>
 </body>
 </html>
