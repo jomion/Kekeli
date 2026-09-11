@@ -531,6 +531,19 @@ body.theme-premium-actif .badge-palier-seance { border-radius: 20px; }
 body.theme-premium-actif .liste-remise-en-ordre li { border-radius: 12px; border-color: var(--prem-bordure); }
 body.theme-premium-actif .fleches-ordre button { border-radius: 8px; }
 
+/* Nouveaux types de question (8e lot) : mêmes coins arrondis et couleurs
+   d'accent premium que le reste de la page séance/devoir ci-dessus. */
+body.theme-premium-actif .serie-intrus { border-radius: 12px; border-color: var(--prem-bordure); }
+body.theme-premium-actif .chip-mot-choix { border-radius: 20px; border-color: var(--prem-bordure); font-family: 'Poppins', sans-serif; }
+body.theme-premium-actif .chip-mot-choix:hover { border-color: var(--prem-bleu); }
+body.theme-premium-actif .chip-mot-choix.selectionne { background: var(--prem-bleu); border-color: var(--prem-bleu); }
+body.theme-premium-actif .chip-glisser { border-color: var(--prem-bleu); color: var(--prem-bleu); border-radius: 20px; font-family: 'Poppins', sans-serif; }
+body.theme-premium-actif .chip-glisser:hover { background: var(--prem-bleu-clair); }
+body.theme-premium-actif .chip-glisser.chip-armee { background: var(--prem-bleu); box-shadow: 0 0 0 3px var(--prem-bleu-clair); }
+body.theme-premium-actif .zone-trou-glisser { border-radius: 10px; border-color: var(--prem-bordure); color: var(--prem-bleu); }
+body.theme-premium-actif .zone-trou-glisser.trou-glisser-rempli { background: var(--prem-bleu-clair); }
+body.theme-premium-actif .zone-trou-glisser.trou-glisser-survole { border-color: var(--prem-bleu); background: var(--prem-bleu-clair); }
+
 /* ============================================================
    Devoir : même carte que bloc-lecture (rendreBlocTravailDevoir réutilise
    déjà les classes ci-dessus) — rien à ajouter de spécifique.

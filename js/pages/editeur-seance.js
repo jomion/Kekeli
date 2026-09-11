@@ -365,6 +365,12 @@ function htmlBloc(b) {
     </div>`;
 }
 
+// configurerZoneRiche (câblage barre d'outils + contentEditable, sélection
+// sauvegardée/restaurée, execCommand...) a déménagé dans js/editeur/blocs.js
+// (chargé avant ce fichier) le 5 septembre 2026 : elle est réutilisée telle
+// quelle par js/editeur/devoir-blocs.js (consigne + énoncé de question d'un
+// bloc de devoir), qui ne charge pas ce fichier-ci.
+
 function attacherEcouteursBloc(bloc) {
   const el = document.querySelector(`.bloc[data-bloc-id="${bloc.id}"]`);
   if (!el) return;
@@ -377,182 +383,17 @@ function attacherEcouteursBloc(bloc) {
     });
   });
 
-  // Éditeur de texte riche
+  // Éditeur de texte riche du bloc lui-même (champ "texte" ou "consigne" —
+  // un seul par bloc, jamais les deux : voir configurerZoneRiche pour la
+  // logique partagée avec l'énoncé riche de chaque question, câblé à part
+  // dans wirerQuestions car il peut y en avoir plusieurs par bloc).
   const zoneRiche = el.querySelector(':scope > .bloc-corps [data-champ-riche]');
   if (zoneRiche) {
-    const sauverContenuRiche = () => {
-      bloc.contenu = { ...bloc.contenu, [zoneRiche.dataset.champRiche]: zoneRiche.innerHTML };
+    const barresOutils = Array.from(el.querySelectorAll(':scope > .bloc-corps .barre-outils-texte'));
+    configurerZoneRiche(zoneRiche, barresOutils, (html) => {
+      bloc.contenu = { ...bloc.contenu, [zoneRiche.dataset.champRiche]: html };
       programmerSauvegardeBloc(bloc);
-    };
-    zoneRiche.addEventListener('input', sauverContenuRiche);
-
-    // La sélection de texte se perd dès qu'on clique un bouton hors de la
-    // zone éditable (le focus part sur le bouton) : c'est ce qui empêchait
-    // le formatage couleur (et les autres commandes) de s'appliquer.
-    // On la sauvegarde en continu et on la restaure juste avant chaque commande.
-    let selectionSauvegardee = null;
-    const sauvegarderSelection = () => {
-      const sel = window.getSelection();
-      if (sel.rangeCount > 0 && zoneRiche.contains(sel.anchorNode)) {
-        selectionSauvegardee = sel.getRangeAt(0).cloneRange();
-      }
-    };
-    zoneRiche.addEventListener('mouseup', sauvegarderSelection);
-    zoneRiche.addEventListener('keyup', sauvegarderSelection);
-    const restaurerSelectionEtFocus = () => {
-      zoneRiche.focus();
-      if (selectionSauvegardee) {
-        const sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(selectionSauvegardee);
-      }
-    };
-
-    // Bug corrigé : la barre d'outils est désormais un seul bloc (voir blocs.js),
-    // mais on utilise quand même querySelectorAll par précaution — avec l'ancien
-    // découpage en 3 barres séparées, querySelector() ne renvoyait que la
-    // première, et les boutons de couleur (texte/surlignage) des barres
-    // suivantes ne recevaient jamais leurs écouteurs : c'est pour ça qu'ils
-    // ne fonctionnaient pas.
-    const barresOutils = el.querySelectorAll(':scope > .bloc-corps .barre-outils-texte');
-    if (barresOutils.length) {
-      // queryCommandState('justifyCenter'/'justifyRight'/'justifyFull') est peu
-      // fiable dans les navigateurs (il peut répondre "vrai" par défaut sur une
-      // zone vide) — c'est ce qui donnait l'impression que le curseur était
-      // "centré par défaut". On calcule donc l'alignement réel nous-mêmes, en
-      // lisant le text-align effectivement appliqué autour du curseur.
-      const alignementActuel = () => {
-        const sel = window.getSelection();
-        let noeud = sel && sel.rangeCount && zoneRiche.contains(sel.anchorNode) ? sel.anchorNode : zoneRiche;
-        let el2 = noeud.nodeType === 3 ? noeud.parentElement : noeud;
-        while (el2 && el2 !== zoneRiche.parentElement) {
-          const align = getComputedStyle(el2).textAlign;
-          if (align && align !== 'start') return align;
-          el2 = el2.parentElement;
-        }
-        return 'left';
-      };
-      const commandesEtatSimple = ['bold', 'italic', 'underline', 'insertUnorderedList', 'insertOrderedList'];
-      const commandesAlignement = { justifyLeft: 'left', justifyCenter: 'center', justifyRight: 'right', justifyFull: 'justify' };
-      const boutonsCommande = [];
-      const mettreAJourEtatBarreOutils = () => {
-        const align = alignementActuel();
-        boutonsCommande.forEach(b => {
-          const cmd = b.dataset.cmd;
-          if (commandesEtatSimple.includes(cmd)) {
-            try { b.classList.toggle('actif', document.queryCommandState(cmd)); } catch (_e) { /* ignoré */ }
-          } else if (commandesAlignement[cmd]) {
-            b.classList.toggle('actif', commandesAlignement[cmd] === align);
-          }
-        });
-      };
-
-      barresOutils.forEach(barreOutils => {
-        barreOutils.querySelectorAll('button[data-cmd]').forEach(btn => {
-          boutonsCommande.push(btn);
-          // Empêche le bouton de voler le focus au mousedown (sinon la
-          // sélection dans la zone éditable est perdue avant même le clic).
-          btn.addEventListener('mousedown', (e) => e.preventDefault());
-          btn.addEventListener('click', () => {
-            restaurerSelectionEtFocus();
-            if (btn.dataset.cmd === 'hiliteColor') {
-              document.execCommand('styleWithCSS', false, true);
-              document.execCommand('hiliteColor', false, btn.dataset.valeur === 'transparent' ? 'transparent' : btn.dataset.valeur);
-            } else if (btn.dataset.cmd === 'foreColor') {
-              document.execCommand('styleWithCSS', false, true);
-              document.execCommand('foreColor', false, btn.dataset.valeur);
-            } else {
-              document.execCommand(btn.dataset.cmd, false, null);
-            }
-            sauvegarderSelection();
-            sauverContenuRiche();
-            mettreAJourEtatBarreOutils();
-          });
-        });
-
-        // Roues de couleur personnalisées (en plus des 9 teintes de la palette) :
-        // pas de preventDefault sur mousedown ici, sinon le sélecteur de couleur
-        // natif du navigateur ne s'ouvrirait jamais.
-        barreOutils.querySelectorAll('input[type="color"][data-cmd]').forEach(inputCouleur => {
-          inputCouleur.addEventListener('input', () => {
-            restaurerSelectionEtFocus();
-            document.execCommand('styleWithCSS', false, true);
-            document.execCommand(inputCouleur.dataset.cmd, false, inputCouleur.value);
-            sauvegarderSelection();
-            sauverContenuRiche();
-          });
-        });
-
-        // Menus déroulants de couleur (🎨 Texte / 🖍️ Surlignage) : remplacent
-        // l'ancien alignement de pastilles en permanence dans la barre.
-        barreOutils.querySelectorAll('.menu-couleur-riche').forEach(menu => {
-          const boutonMenu = menu.querySelector('[data-ouvrir-couleur-riche]');
-          const palette = menu.querySelector('[data-palette-riche]');
-          if (!boutonMenu || !palette) return;
-          boutonMenu.addEventListener('mousedown', (e) => e.preventDefault());
-          boutonMenu.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const etaitOuverte = palette.classList.contains('ouverte');
-            document.querySelectorAll('.palette-riche.ouverte, .palette-bloc.ouverte').forEach(p => p.classList.remove('ouverte'));
-            if (!etaitOuverte) palette.classList.add('ouverte');
-          });
-        });
-
-        const selectPolice = barreOutils.querySelector('[data-cmd-select="fontName"]');
-        if (selectPolice) selectPolice.addEventListener('change', () => {
-          restaurerSelectionEtFocus();
-          document.execCommand('fontName', false, selectPolice.value);
-          sauvegarderSelection();
-          sauverContenuRiche();
-        });
-
-        // Taille de texte : execCommand('fontSize') utilise une échelle héritée
-        // 1-7 censée être remplacée par un <font size="n"> — mais Chrome
-        // l'applique en fait directement en mot-clé CSS (ex: "xxx-large" pour le
-        // niveau 7), sans jamais créer de <font> à remplacer. Résultat vérifié :
-        // le texte devenait énorme quelle que soit la taille choisie, et les
-        // sélections suivantes n'avaient plus aucun effet visible. On applique
-        // donc la taille nous-mêmes, directement en pixels, sans passer par
-        // execCommand : il faut une sélection de texte (pas juste un curseur).
-        const selectTaille = barreOutils.querySelector('[data-cmd-select-taille]');
-        if (selectTaille) selectTaille.addEventListener('change', () => {
-          restaurerSelectionEtFocus();
-          const sel = window.getSelection();
-          if (!sel.rangeCount || sel.getRangeAt(0).collapsed) {
-            alert('Sélectionnez d\'abord le texte dont vous voulez changer la taille, puis choisissez une taille.');
-            return;
-          }
-          const range = sel.getRangeAt(0);
-          const span = document.createElement('span');
-          span.style.fontSize = selectTaille.value + 'px';
-          try {
-            range.surroundContents(span);
-          } catch (_e) {
-            // La sélection traverse plusieurs éléments (ex : à cheval sur un
-            // passage déjà en gras et du texte simple) — surroundContents()
-            // refuse ce cas précis ; on extrait puis on réinsère à la place.
-            const contenu = range.extractContents();
-            span.appendChild(contenu);
-            range.insertNode(span);
-          }
-          sel.removeAllRanges();
-          const nouvelle = document.createRange();
-          nouvelle.selectNodeContents(span);
-          sel.addRange(nouvelle);
-          sauvegarderSelection();
-          sauverContenuRiche();
-        });
-      });
-
-      // Les boutons Gras/Italique/Alignement/... reflètent l'état du texte sous
-      // le curseur, comme dans un vrai traitement de texte (plus intuitif : on
-      // voit tout de suite si la sélection actuelle est déjà en gras, alignée
-      // à droite, etc. — et l'alignement par défaut s'affiche bien à gauche).
-      zoneRiche.addEventListener('keyup', mettreAJourEtatBarreOutils);
-      zoneRiche.addEventListener('mouseup', mettreAJourEtatBarreOutils);
-      zoneRiche.addEventListener('focus', mettreAJourEtatBarreOutils);
-      mettreAJourEtatBarreOutils();
-    }
+    });
   }
 
   // Palier
@@ -838,26 +679,43 @@ function attacherEcouteursQuestions(el, bloc) {
           q.items = [{ mot: '', categorieIndex: null }, { mot: '', categorieIndex: null }];
           recalculerClassement(q, c);
         }
+        if (q.type === 'intrus_lexical' && !Array.isArray(q.series)) q.series = [{ mots: ['', '', ''] }];
+        if (q.type === 'texte_a_trous_glisser' && !Array.isArray(q.banqueMots)) q.banqueMots = [];
         majQuestions(questions());
         if (c) sauvegarderCorrige();
         rerender();
       });
 
-      qEl.querySelector('[data-question-champ="enonce"]').addEventListener('input', (e) => {
+      // Énoncé : soit un simple textarea texte brut (types dont le texte est
+      // analysé littéralement — texte à trous, sa variante glisser-déposer,
+      // sélection de mots), soit une zone de texte riche (tous les autres
+      // types, depuis le 5 septembre 2026, 8e lot) — voir TYPES_ENONCE_PLAT
+      // et html_questionEditeur dans blocs.js.
+      const inputEnonce = qEl.querySelector('[data-question-champ="enonce"]');
+      if (inputEnonce) inputEnonce.addEventListener('input', (e) => {
         q.enonce = e.target.value;
         majQuestions(questions());
       });
+      const zoneEnonceRiche = qEl.querySelector('[data-question-champ-riche="enonce"]');
+      if (zoneEnonceRiche) {
+        const barresOutilsQuestion = Array.from(qEl.querySelectorAll('.barre-outils-texte-question'));
+        configurerZoneRiche(zoneEnonceRiche, barresOutilsQuestion, (html) => {
+          q.enonce = html;
+          majQuestions(questions());
+        });
+      }
       const inputConsigne = qEl.querySelector('[data-question-champ="consigne"]');
       if (inputConsigne) inputConsigne.addEventListener('input', (e) => {
         q.consigne = e.target.value;
         majQuestions(questions());
       });
-      if (q.type === 'texte_a_trous') {
-        // Le nombre de champs de correction dépend du nombre de "___" dans
-        // l'énoncé : on ne peut pas le recalculer à chaque frappe (ça ferait
-        // perdre le focus du champ en cours d'édition), donc on le fait au
-        // blur (quand l'enseignant quitte le champ énoncé) plutôt qu'au input.
-        qEl.querySelector('[data-question-champ="enonce"]').addEventListener('blur', () => rerender());
+      if (['texte_a_trous', 'texte_a_trous_glisser', 'selection_mots'].includes(q.type)) {
+        // Le nombre de trous (ou la liste des mots cliquables) dépend du
+        // contenu de l'énoncé : on ne peut pas le recalculer à chaque frappe
+        // (ça ferait perdre le focus du champ en cours d'édition), donc on le
+        // fait au blur (quand l'enseignant quitte le champ énoncé) plutôt
+        // qu'au input.
+        if (inputEnonce) inputEnonce.addEventListener('blur', () => rerender());
       }
 
       const inputPoints = qEl.querySelector('[data-question-points]');
@@ -955,11 +813,117 @@ function attacherEcouteursQuestions(el, bloc) {
         });
       }
 
-      if (q.type === 'vrai_faux') {
+      if (q.type === 'vrai_faux' || q.type === 'vrai_faux_justifie') {
         qEl.querySelectorAll('[data-question-bonne-vf]').forEach(radio => {
           radio.addEventListener('change', () => {
             if (!c) return;
             c.bonneReponse = radio.dataset.questionBonneVf === 'true';
+            sauvegarderCorrige();
+          });
+        });
+      }
+
+      if (q.type === 'reponse_longue' || q.type === 'vrai_faux_justifie') {
+        const texteBaremeVfj = qEl.querySelector('[data-question-bareme]');
+        if (texteBaremeVfj) texteBaremeVfj.addEventListener('input', () => {
+          if (!c) return;
+          c.bareme = texteBaremeVfj.value;
+          sauvegarderCorrige();
+        });
+      }
+
+      if (q.type === 'reponse_numerique') {
+        const inputNumValeur = qEl.querySelector('[data-question-numerique-valeur]');
+        const inputNumTolerance = qEl.querySelector('[data-question-numerique-tolerance]');
+        const majNumerique = () => {
+          if (!c) return;
+          c.bonneReponse = {
+            valeur: inputNumValeur ? parseFloat(inputNumValeur.value) : undefined,
+            tolerance: inputNumTolerance ? (parseFloat(inputNumTolerance.value) || 0) : 0,
+          };
+          sauvegarderCorrige();
+        };
+        if (inputNumValeur) inputNumValeur.addEventListener('input', majNumerique);
+        if (inputNumTolerance) inputNumTolerance.addEventListener('input', majNumerique);
+      }
+
+      if (q.type === 'selection_mots') {
+        qEl.querySelectorAll('[data-mot-selection-index]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            if (!c) return;
+            const i = parseInt(btn.dataset.motSelectionIndex, 10);
+            const estCorrect = btn.classList.toggle('chip-mot-correct');
+            const actuel = new Set((Array.isArray(c.bonneReponse) ? c.bonneReponse : []).map(String));
+            if (estCorrect) actuel.add(String(i)); else actuel.delete(String(i));
+            c.bonneReponse = Array.from(actuel).map(Number).sort((a, b) => a - b);
+            sauvegarderCorrige();
+          });
+        });
+      }
+
+      if (q.type === 'intrus_lexical') {
+        qEl.querySelectorAll('[data-serie-intrus-mots]').forEach(input => {
+          input.addEventListener('input', () => {
+            const i = parseInt(input.dataset.serieIntrusMots, 10);
+            q.series = Array.isArray(q.series) ? [...q.series] : [];
+            const mots = input.value.split(',').map(s => s.trim());
+            q.series[i] = { ...(q.series[i] || {}), mots };
+            // Un mot supprimé peut décaler/invalider l'intrus déjà coché :
+            // on l'efface plutôt que de garder une référence hors limites.
+            if (c && Array.isArray(c.bonneReponse) && typeof c.bonneReponse[i] === 'number' && c.bonneReponse[i] >= mots.length) {
+              c.bonneReponse[i] = undefined;
+            }
+            majQuestions(questions());
+            if (c) sauvegarderCorrige();
+          });
+          // Comme pour texte à trous : le nombre de choix (radios) dépend du
+          // nombre de mots saisis, donc on ne redessine qu'au blur.
+          input.addEventListener('blur', () => rerender());
+        });
+        qEl.querySelectorAll('[data-serie-intrus-radio]').forEach(radio => {
+          radio.addEventListener('change', () => {
+            if (!c) return;
+            const i = parseInt(radio.dataset.serieIntrusRadio, 10);
+            c.bonneReponse = Array.isArray(c.bonneReponse) ? [...c.bonneReponse] : [];
+            c.bonneReponse[i] = parseInt(radio.value, 10);
+            sauvegarderCorrige();
+          });
+        });
+        const btnAjouterSerieIntrus = qEl.querySelector('[data-ajouter-serie-intrus]');
+        if (btnAjouterSerieIntrus) btnAjouterSerieIntrus.addEventListener('click', () => {
+          q.series = [...(q.series || []), { mots: ['', '', ''] }];
+          majQuestions(questions());
+          rerender();
+        });
+        qEl.querySelectorAll('[data-supprimer-serie-intrus]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const i = parseInt(btn.dataset.supprimerSerieIntrus, 10);
+            q.series.splice(i, 1);
+            if (c && Array.isArray(c.bonneReponse)) c.bonneReponse.splice(i, 1);
+            majQuestions(questions());
+            if (c) sauvegarderCorrige();
+            rerender();
+          });
+        });
+      }
+
+      if (q.type === 'texte_a_trous_glisser') {
+        const inputBanque = qEl.querySelector('[data-question-banque-mots]');
+        if (inputBanque) {
+          inputBanque.addEventListener('input', () => {
+            q.banqueMots = inputBanque.value.split(',').map(s => s.trim()).filter(Boolean);
+            majQuestions(questions());
+          });
+          // Le nombre de select "bon mot par trou" et la liste de la banque
+          // dépendent tous deux du texte saisi : recalcul au blur uniquement.
+          inputBanque.addEventListener('blur', () => rerender());
+        }
+        qEl.querySelectorAll('[data-question-trou-glisser-index]').forEach(select => {
+          select.addEventListener('change', () => {
+            if (!c) return;
+            const i = parseInt(select.dataset.questionTrouGlisserIndex, 10);
+            c.bonneReponse = Array.isArray(c.bonneReponse) ? [...c.bonneReponse] : [];
+            c.bonneReponse[i] = select.value || null;
             sauvegarderCorrige();
           });
         });
@@ -970,15 +934,6 @@ function attacherEcouteursQuestions(el, bloc) {
         if (inputRc) inputRc.addEventListener('input', () => {
           if (!c) return;
           c.bonneReponse = inputRc.value.split(',').map(s => s.trim()).filter(Boolean);
-          sauvegarderCorrige();
-        });
-      }
-
-      if (q.type === 'reponse_longue') {
-        const texteBareme = qEl.querySelector('[data-question-bareme]');
-        if (texteBareme) texteBareme.addEventListener('input', () => {
-          if (!c) return;
-          c.bareme = texteBareme.value;
           sauvegarderCorrige();
         });
       }
@@ -2163,6 +2118,14 @@ async function ouvrirApercu() {
   }
   const filArianeHtml = segmentsChemin.filter(Boolean).map(s => `<span>${echapper(s)}</span>`).join(' <span class="sep-arbo-eleve">›</span> ');
 
+  // L'énoncé est du HTML riche pour tous les types SAUF les 3 qui ont besoin
+  // de texte brut analysable (voir TYPES_ENONCE_PLAT dans blocs.js) — même
+  // logique que rendreEnonce() dans js/pages/eleve-seance.js.
+  function rendreApercuEnonce(q) {
+    if (typeof TYPES_ENONCE_PLAT !== 'undefined' && TYPES_ENONCE_PLAT.includes(q.type)) return echapper(q.enonce);
+    return contenuRicheInitial(q.enonce);
+  }
+
   function rendreApercuChampQuestion(q, i) {
     if (q.type === 'texte_a_trous') {
       let idxTrou = -1;
@@ -2174,13 +2137,40 @@ async function ouvrirApercu() {
       }).join('');
       return `<div class="question-lecture"><p class="question-enonce">${i + 1}. ${enonceAvecTrous}</p></div>`;
     }
+    if (q.type === 'texte_a_trous_glisser') {
+      let idxTrou = -1;
+      const morceaux = echapper(q.enonce).split('___');
+      const enonceAvecTrous = morceaux.map((morceau, k) => {
+        if (k === morceaux.length - 1) return morceau;
+        idxTrou++;
+        return `${morceau}<span class="zone-trou-glisser" style="display:inline-block;min-width:70px"></span>`;
+      }).join('');
+      const banque = Array.isArray(q.banqueMots) ? q.banqueMots : [];
+      return `<div class="question-lecture"><p class="question-enonce">${i + 1}. ${enonceAvecTrous}</p>
+        <div class="banque-mots-glisser">${banque.map(m => `<span class="chip-glisser">${echapper(m)}</span>`).join('')}</div></div>`;
+    }
+    if (q.type === 'selection_mots') {
+      const mots = typeof tokeniserMots === 'function' ? tokeniserMots(q.enonce || '') : (q.enonce || '').split(/\s+/);
+      return `<div class="question-lecture"><p class="question-enonce">${i + 1}. ${mots.map(m => `<button type="button" class="chip-mot" disabled>${echapper(m)}</button>`).join(' ')}</p></div>`;
+    }
+    if (q.type === 'intrus_lexical') {
+      const series = Array.isArray(q.series) ? q.series : [];
+      return `<div class="question-lecture">
+        <p class="question-enonce">${i + 1}. ${rendreApercuEnonce(q)}</p>
+        ${series.map(s => `<div class="serie-intrus">${(Array.isArray(s?.mots) ? s.mots : []).map(m => `<label class="chip-mot-choix"><input type="radio" disabled> ${echapper(m)}</label>`).join('')}</div>`).join('')}
+      </div>`;
+    }
     let champ = '';
     if (q.type === 'qcm') {
       champ = (q.options || []).map(opt => `<label><input type="radio" disabled> ${echapper(opt)}</label>`).join('');
     } else if (q.type === 'vrai_faux') {
       champ = `<div class="vf-choix"><label><input type="radio" disabled> Vrai</label><label><input type="radio" disabled> Faux</label></div>`;
+    } else if (q.type === 'vrai_faux_justifie') {
+      champ = `<div class="vf-choix"><label><input type="radio" disabled> Vrai</label><label><input type="radio" disabled> Faux</label></div><textarea disabled placeholder="Explique pourquoi..." style="margin-top:8px"></textarea>`;
     } else if (q.type === 'reponse_courte') {
       champ = `<input type="text" disabled placeholder="Réponse...">`;
+    } else if (q.type === 'reponse_numerique') {
+      champ = `<input type="number" disabled placeholder="Réponse (un nombre)...">`;
     } else if (q.type === 'remise_en_ordre') {
       champ = `<ol>${(q.options || []).map(opt => `<li>${echapper(opt)}</li>`).join('')}</ol>`;
     } else if (q.type === 'association') {
@@ -2204,7 +2194,7 @@ async function ouvrirApercu() {
     } else {
       champ = `<textarea disabled placeholder="Réponse..."></textarea>`;
     }
-    return `<div class="question-lecture"><p class="question-enonce">${i + 1}. ${echapper(q.enonce)}</p>${q.consigne ? `<p class="consigne-question" style="font-size:13px;color:var(--text-gris)">${echapper(q.consigne)}</p>` : ''}${champ}</div>`;
+    return `<div class="question-lecture"><p class="question-enonce">${i + 1}. ${rendreApercuEnonce(q)}</p>${q.consigne ? `<p class="consigne-question" style="font-size:13px;color:var(--text-gris)">${echapper(q.consigne)}</p>` : ''}${champ}</div>`;
   }
 
   function rendreApercuExercice(c) {
@@ -2245,8 +2235,6 @@ async function ouvrirApercu() {
     else if (b.type_bloc === 'video') corps = `<p>🎬 <a href="${echapper(c.url)}" target="_blank" rel="noopener">${echapper(c.legende) || c.url}</a></p>`;
     else if (b.type_bloc === 'ressource') corps = `<p>📎 <a href="${echapper(c.url)}" target="_blank" rel="noopener">${echapper(c.nom)}</a></p>`;
     else if (b.type_bloc === 'formule') corps = `<p style="font-family:serif;font-size:18px">${echapper(c.formule)}</p>`;
-    else if (b.type_bloc === 'formule') corps = `<p style="font-family:serif;font-size:18px">${echapper(c.formule)}</p>`;
-    else if (b.type_bloc === 'html_libre') corps = c.code || ''; // volontairement NON échappé : interprété tel quel par le navigateur
     else if (b.type_bloc === 'tableau') {
       const fusions = c.fusions || [];
       const masquee = (i, j) => fusions.some(f => f.ligne === i && j > f.colonneDebut && j <= f.colonneFin);

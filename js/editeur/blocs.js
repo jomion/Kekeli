@@ -27,8 +27,7 @@ const TYPES_BLOCS = [
   { valeur: 'consigne',   label: 'Consigne',    icone: '📋', usage: 'Section pouvant contenir des items', couleur: '#003366' },
   { valeur: 'item',       label: 'Item',        icone: '▫️', usage: 'Élément d\'une consigne (Item 1, Item 2...)', couleur: '#475569' },
   { valeur: 'autre',      label: 'Autre',       icone: '🧩', usage: 'Bloc personnalisé (nom libre)', couleur: '#64748B' },
-  { valeur: 'resume',     label: 'Résumé',      icone: '🗒️', usage: 'Synthèse (à la main ou générée par IA)', couleur: '#334155' },
-  { valeur: 'html_libre', label: 'HTML',        icone: '🌐', usage: 'Code HTML personnalisé (interprété tel quel par le navigateur)', couleur: '#7C3AED' }
+  { valeur: 'resume',     label: 'Résumé',      icone: '🗒️', usage: 'Synthèse (à la main ou générée par IA)', couleur: '#334155' }
 ];
 
 // Convertit une couleur hexadécimale en fond très clair (pour harmoniser
@@ -132,10 +131,6 @@ function html_editeurBloc(bloc) {
       return `<input type="text" data-champ="formule" placeholder="Ex: (a + b)² = a² + 2ab + b²" value="${echapper(c.formule)}">
         <p class="note-future">Rendu mathématique enrichi (LaTeX) prévu à une étape ultérieure.</p>`;
 
-    case 'html_libre':
-      return `<textarea data-champ="code" placeholder="&lt;div&gt;Votre code HTML ici...&lt;/div&gt;" style="min-height:180px;font-family:'Courier New',monospace;font-size:13px;white-space:pre">${echapper(c.code)}</textarea>
-        <p class="note-future">⚠️ Ce code est inséré tel quel dans la page (balises, styles, éventuellement scripts) — aussi bien dans l'aperçu élève ici que sur la vraie page élève. Ne collez que du code de confiance : n'importe quel HTML/JS saisi ici s'exécutera dans le navigateur de l'élève.</p>`;
-
     case 'tableau':
       return html_editeurTableau(bloc, c);
 
@@ -150,7 +145,18 @@ function html_editeurBloc(bloc) {
 // --- ÉDITEUR DE TEXTE RICHE ---------------------------------------------
 // Gras/Italique/Souligné/Listes + police, alignement, couleur de police,
 // couleur de fond, avec une palette de couleurs par défaut.
-function html_editeurTexteRiche(bloc, c) {
+//
+// Généralisé (5 septembre 2026, 8e lot) pour être réutilisable ailleurs
+// qu'un bloc "texte" : la consigne d'une activité/d'un exercice, et l'énoncé
+// de chaque question, utilisent maintenant la même barre d'outils — voir
+// html_zoneTexteRiche ci-dessous. `attributRiche` porte l'attribut data-*
+// que le JS de câblage (editeur-seance.js/devoir-blocs.js) utilise ensuite
+// pour savoir où stocker le HTML modifié ; `classeBarreOutils` permet de
+// donner une classe distincte à la barre d'outils d'un champ d'ÉNONCÉ (une
+// question) pour que le câblage au niveau du BLOC (un seul champ riche,
+// texte ou consigne) ne la capte pas aussi par erreur — voir
+// attacherEcouteursBloc/wirerQuestions dans editeur-seance.js.
+function html_zoneTexteRiche(attributRiche, valeurInitiale, classeBarreOutils = 'barre-outils-texte') {
   const swatchesPolice = PALETTE_COULEURS.map(col =>
     `<button type="button" class="pastille-couleur" data-cmd="foreColor" data-valeur="${col.valeur}" title="Texte ${col.nom}" style="background:${col.valeur}"></button>`
   ).join('');
@@ -158,8 +164,13 @@ function html_editeurTexteRiche(bloc, c) {
     `<button type="button" class="pastille-couleur" data-cmd="hiliteColor" data-valeur="${col.valeur}" title="Surligner en ${col.nom}" style="background:${col.valeur}"></button>`
   ).join('');
 
+  // Une seule barre d'outils, regroupée par sections (séparées visuellement),
+  // pour qu'elle se lise comme un vrai traitement de texte plutôt que comme
+  // plusieurs blocs de boutons séparés. Les couleurs sont maintenant dans un
+  // petit menu déroulant (🎨 / 🖍️) plutôt qu'alignées en permanence dans la
+  // barre, avec une roue de couleur personnalisée en plus des 9 teintes fixes.
   return `
-    <div class="barre-outils-texte">
+    <div class="${classeBarreOutils}">
       <div class="groupe-outils">
         <button type="button" data-cmd="bold" title="Gras (Ctrl+B)"><b>G</b></button>
         <button type="button" data-cmd="italic" title="Italique (Ctrl+I)"><i>I</i></button>
@@ -227,7 +238,195 @@ function html_editeurTexteRiche(bloc, c) {
         <button type="button" data-cmd="removeFormat" class="bouton-effacer-format" title="Effacer toute la mise en forme">⌫ Format</button>
       </div>
     </div>
-    <div class="editeur-riche" contenteditable="true" data-champ-riche="texte">${contenuRicheInitial(c.texte)}</div>`;
+    <div class="editeur-riche" contenteditable="true" ${attributRiche}>${contenuRicheInitial(valeurInitiale)}</div>`;
+}
+
+function html_editeurTexteRiche(bloc, c) {
+  return html_zoneTexteRiche('data-champ-riche="texte"', c.texte);
+}
+
+// Câblage JS d'UNE zone de texte riche générée par html_zoneTexteRiche
+// ci-dessus (execCommand + barre d'outils) — partagé par js/pages/editeur-seance.js
+// (blocs de séance, énoncé de question) ET js/editeur/devoir-blocs.js (consigne
+// et énoncé de question d'un bloc de devoir), pour ne jamais faire diverger
+// cette logique assez complexe (sélection, alignement, couleurs, taille) entre
+// les deux éditeurs. Vit ici plutôt que dans un des deux fichiers appelants
+// car blocs.js est chargé avant les deux (voir les balises <script> des
+// pages qui les utilisent).
+function configurerZoneRiche(zoneRiche, barresOutils, onChange) {
+  const sauverContenuRiche = () => onChange(zoneRiche.innerHTML);
+  zoneRiche.addEventListener('input', sauverContenuRiche);
+
+  // La sélection de texte se perd dès qu'on clique un bouton hors de la
+  // zone éditable (le focus part sur le bouton) : c'est ce qui empêchait
+  // le formatage couleur (et les autres commandes) de s'appliquer.
+  // On la sauvegarde en continu et on la restaure juste avant chaque commande.
+  let selectionSauvegardee = null;
+  const sauvegarderSelection = () => {
+    const sel = window.getSelection();
+    if (sel.rangeCount > 0 && zoneRiche.contains(sel.anchorNode)) {
+      selectionSauvegardee = sel.getRangeAt(0).cloneRange();
+    }
+  };
+  zoneRiche.addEventListener('mouseup', sauvegarderSelection);
+  zoneRiche.addEventListener('keyup', sauvegarderSelection);
+  const restaurerSelectionEtFocus = () => {
+    zoneRiche.focus();
+    if (selectionSauvegardee) {
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(selectionSauvegardee);
+    }
+  };
+
+  if (!barresOutils.length) return;
+
+  // queryCommandState('justifyCenter'/'justifyRight'/'justifyFull') est peu
+  // fiable dans les navigateurs (il peut répondre "vrai" par défaut sur une
+  // zone vide) — c'est ce qui donnait l'impression que le curseur était
+  // "centré par défaut". On calcule donc l'alignement réel nous-mêmes, en
+  // lisant le text-align effectivement appliqué autour du curseur.
+  const alignementActuel = () => {
+    const sel = window.getSelection();
+    let noeud = sel && sel.rangeCount && zoneRiche.contains(sel.anchorNode) ? sel.anchorNode : zoneRiche;
+    let el2 = noeud.nodeType === 3 ? noeud.parentElement : noeud;
+    while (el2 && el2 !== zoneRiche.parentElement) {
+      const align = getComputedStyle(el2).textAlign;
+      if (align && align !== 'start') return align;
+      el2 = el2.parentElement;
+    }
+    return 'left';
+  };
+  const commandesEtatSimple = ['bold', 'italic', 'underline', 'insertUnorderedList', 'insertOrderedList'];
+  const commandesAlignement = { justifyLeft: 'left', justifyCenter: 'center', justifyRight: 'right', justifyFull: 'justify' };
+  const boutonsCommande = [];
+  const mettreAJourEtatBarreOutils = () => {
+    const align = alignementActuel();
+    boutonsCommande.forEach(b => {
+      const cmd = b.dataset.cmd;
+      if (commandesEtatSimple.includes(cmd)) {
+        try { b.classList.toggle('actif', document.queryCommandState(cmd)); } catch (_e) { /* ignoré */ }
+      } else if (commandesAlignement[cmd]) {
+        b.classList.toggle('actif', commandesAlignement[cmd] === align);
+      }
+    });
+  };
+
+  barresOutils.forEach(barreOutils => {
+    barreOutils.querySelectorAll('button[data-cmd]').forEach(btn => {
+      boutonsCommande.push(btn);
+      // Empêche le bouton de voler le focus au mousedown (sinon la
+      // sélection dans la zone éditable est perdue avant même le clic).
+      btn.addEventListener('mousedown', (e) => e.preventDefault());
+      btn.addEventListener('click', () => {
+        restaurerSelectionEtFocus();
+        if (btn.dataset.cmd === 'hiliteColor') {
+          document.execCommand('styleWithCSS', false, true);
+          document.execCommand('hiliteColor', false, btn.dataset.valeur === 'transparent' ? 'transparent' : btn.dataset.valeur);
+        } else if (btn.dataset.cmd === 'foreColor') {
+          document.execCommand('styleWithCSS', false, true);
+          document.execCommand('foreColor', false, btn.dataset.valeur);
+        } else {
+          document.execCommand(btn.dataset.cmd, false, null);
+        }
+        sauvegarderSelection();
+        sauverContenuRiche();
+        mettreAJourEtatBarreOutils();
+      });
+    });
+
+    // Roues de couleur personnalisées (en plus des 9 teintes de la palette) :
+    // pas de preventDefault sur mousedown ici, sinon le sélecteur de couleur
+    // natif du navigateur ne s'ouvrirait jamais.
+    barreOutils.querySelectorAll('input[type="color"][data-cmd]').forEach(inputCouleur => {
+      inputCouleur.addEventListener('input', () => {
+        restaurerSelectionEtFocus();
+        document.execCommand('styleWithCSS', false, true);
+        document.execCommand(inputCouleur.dataset.cmd, false, inputCouleur.value);
+        sauvegarderSelection();
+        sauverContenuRiche();
+      });
+    });
+
+    // Menus déroulants de couleur (🎨 Texte / 🖍️ Surlignage) : remplacent
+    // l'ancien alignement de pastilles en permanence dans la barre.
+    barreOutils.querySelectorAll('.menu-couleur-riche').forEach(menu => {
+      const boutonMenu = menu.querySelector('[data-ouvrir-couleur-riche]');
+      const palette = menu.querySelector('[data-palette-riche]');
+      if (!boutonMenu || !palette) return;
+      boutonMenu.addEventListener('mousedown', (e) => e.preventDefault());
+      boutonMenu.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const etaitOuverte = palette.classList.contains('ouverte');
+        document.querySelectorAll('.palette-riche.ouverte, .palette-bloc.ouverte').forEach(p => p.classList.remove('ouverte'));
+        if (!etaitOuverte) palette.classList.add('ouverte');
+      });
+    });
+
+    const selectPolice = barreOutils.querySelector('[data-cmd-select="fontName"]');
+    if (selectPolice) selectPolice.addEventListener('change', () => {
+      restaurerSelectionEtFocus();
+      document.execCommand('fontName', false, selectPolice.value);
+      sauvegarderSelection();
+      sauverContenuRiche();
+    });
+
+    // Taille de texte : execCommand('fontSize') utilise une échelle héritée
+    // 1-7 censée être remplacée par un <font size="n"> — mais Chrome
+    // l'applique en fait directement en mot-clé CSS (ex: "xxx-large" pour le
+    // niveau 7), sans jamais créer de <font> à remplacer. Résultat vérifié :
+    // le texte devenait énorme quelle que soit la taille choisie, et les
+    // sélections suivantes n'avaient plus aucun effet visible. On applique
+    // donc la taille nous-mêmes, directement en pixels, sans passer par
+    // execCommand : il faut une sélection de texte (pas juste un curseur).
+    const selectTaille = barreOutils.querySelector('[data-cmd-select-taille]');
+    if (selectTaille) selectTaille.addEventListener('change', () => {
+      restaurerSelectionEtFocus();
+      const sel = window.getSelection();
+      if (!sel.rangeCount || sel.getRangeAt(0).collapsed) {
+        alert('Sélectionnez d\'abord le texte dont vous voulez changer la taille, puis choisissez une taille.');
+        return;
+      }
+      const range = sel.getRangeAt(0);
+      const span = document.createElement('span');
+      span.style.fontSize = selectTaille.value + 'px';
+      try {
+        range.surroundContents(span);
+      } catch (_e) {
+        // La sélection traverse plusieurs éléments (ex : à cheval sur un
+        // passage déjà en gras et du texte simple) — surroundContents()
+        // refuse ce cas précis ; on extrait puis on réinsère à la place.
+        const contenu = range.extractContents();
+        span.appendChild(contenu);
+        range.insertNode(span);
+      }
+      sel.removeAllRanges();
+      const nouvelle = document.createRange();
+      nouvelle.selectNodeContents(span);
+      sel.addRange(nouvelle);
+      sauvegarderSelection();
+      sauverContenuRiche();
+    });
+  });
+
+  // Les boutons Gras/Italique/Alignement/... reflètent l'état du texte sous
+  // le curseur, comme dans un vrai traitement de texte (plus intuitif : on
+  // voit tout de suite si la sélection actuelle est déjà en gras, alignée
+  // à droite, etc. — et l'alignement par défaut s'affiche bien à gauche).
+  zoneRiche.addEventListener('keyup', mettreAJourEtatBarreOutils);
+  zoneRiche.addEventListener('mouseup', mettreAJourEtatBarreOutils);
+  zoneRiche.addEventListener('focus', mettreAJourEtatBarreOutils);
+  mettreAJourEtatBarreOutils();
+}
+
+// Découpe un texte en mots (espaces = séparateurs, ponctuation gardée collée
+// au mot) pour le type de question "Sélectionner des mots dans un texte" —
+// LA MÊME fonction doit être utilisée à l'édition (admin, ici) et à la
+// lecture (élève, js/pages/eleve-seance.js et eleve-devoir-rendu.js) pour que
+// les index de mots correspondent exactement des deux côtés : c'est pour ça
+// qu'elle vit dans ce fichier partagé plutôt que dupliquée.
+function tokeniserMots(texte) {
+  return String(texte || '').trim().split(/\s+/).filter(Boolean);
 }
 
 // --- ÉDITEUR DE TABLEAU (titre, en-tête, bordure, fusion) ---------------
@@ -245,6 +444,7 @@ function html_editeurTableau(bloc, c) {
     return f ? (f.colonneFin - f.colonneDebut + 1) : 1;
   }
   function estFusionnable(i, j) {
+    // Fusionnable avec la cellule suivante si ni l'une ni l'autre n'est déjà dans une fusion
     return j < lignes[i].length - 1 && !celluleEstMasquee(i, j) && !celluleEstMasquee(i, j + 1) && colspanCellule(i, j) === 1;
   }
   function estDejaFusionnee(i, j) {
@@ -301,6 +501,15 @@ function html_selectPalier(bloc) {
   </select>`;
 }
 
+// Sélecteur de compétences travaillées par ce bloc (Phase 2 — Accompagnement
+// pédagogique personnalisé, Premium) : liste à cocher, une compétence par
+// pastille. `dispo` est fourni par l'appelant (chargé pour la classe/matière
+// de la séance ou du devoir en cours) — jamais construit ici pour éviter de
+// coupler ce fichier partagé à une source de données précise. La sélection
+// courante du bloc n'est PAS dans bloc.contenu : elle vit dans la table de
+// liaison `blocs_competences`, chargée à part et posée sur bloc.competencesIds
+// par l'appelant avant le premier rendu (voir chargerBlocs() côté éditeur de
+// séance et chargerBlocsDevoir() côté éditeur de devoir).
 function html_selectCompetencesBloc(bloc, dispo) {
   if (!Array.isArray(dispo) || !dispo.length) {
     return '<p class="note-future">Aucune compétence configurée pour cette matière/classe — gérez le référentiel dans Admin ▸ Compétences pour pouvoir suivre la progression des élèves sur ce bloc (fonctionnalité Premium).</p>';
@@ -318,6 +527,14 @@ function html_selectCompetencesBloc(bloc, dispo) {
     </div>`;
 }
 
+// --- ÉDITEUR D'EXERCICE / QUIZ / ÉVALUATION (questions + corrigé) ----------
+// Les questions (énoncé, type, options) restent dans bloc.contenu.questions —
+// c'est ce que l'élève reçoit pour répondre. Le corrigé (bonnes réponses,
+// barème) vit à part, dans la table corriges_exercices : jamais envoyé au
+// navigateur élève. Ici, dans l'éditeur admin, on affiche les deux côte à
+// côte pour que ce soit pratique à saisir — voir attacherEcouteursQuestions
+// dans editeur-seance.js pour le chargement du corrigé et la sauvegarde.
+
 const LIBELLES_TYPE_QUESTION = {
   qcm: 'QCM (choix multiple)',
   vrai_faux: 'Vrai / Faux',
@@ -327,13 +544,29 @@ const LIBELLES_TYPE_QUESTION = {
   remise_en_ordre: 'Remise en ordre',
   association: 'Association (relier des paires)',
   qcm_multiple: 'QCM à réponses multiples',
-  classement: 'Classement (trier en catégories)'
+  classement: 'Classement (trier en catégories)',
+  intrus_lexical: 'Trouve l\'intrus (plusieurs séries de mots)',
+  reponse_numerique: 'Réponse numérique / calcul',
+  selection_mots: 'Sélectionner des mots dans un texte',
+  vrai_faux_justifie: 'Vrai / Faux avec justification (IA)',
+  texte_a_trous_glisser: 'Texte à trous — glisser-déposer'
 };
+
+// Types dont l'énoncé reste en texte BRUT (pas d'éditeur riche) : leur texte
+// est analysé littéralement (détection des "___", découpage en mots) et un
+// HTML de mise en forme (gras, listes...) casserait cette analyse. Ajouté le
+// 5 septembre 2026 (8e lot) en même temps que le passage de l'énoncé des
+// AUTRES types en éditeur riche — voir html_questionEditeur ci-dessous et
+// rendreEnonce()/tokeniserMots() côté rendu élève.
+const TYPES_ENONCE_PLAT = ['texte_a_trous', 'texte_a_trous_glisser', 'selection_mots'];
 
 function html_editeurExercice(bloc, c) {
   const questions = Array.isArray(c.questions) ? c.questions : [];
   return `
-    <textarea data-champ="consigne" placeholder="Consigne générale (ex: Réponds aux questions suivantes)">${echapper(c.consigne)}</textarea>
+    <div class="champ-consigne-riche">
+      <label class="etiquette-outils">Consigne générale (ex : Réponds aux questions suivantes)</label>
+      ${html_zoneTexteRiche('data-champ-riche="consigne"', c.consigne)}
+    </div>
     <div class="champ-ligne"><label>Palier</label>${html_selectPalier(bloc)}</div>
     <div data-bloc-seuil style="display:${bloc.palier ? 'block' : 'none'}">
       <div class="champ-ligne">
@@ -342,6 +575,9 @@ function html_editeurExercice(bloc, c) {
       </div>
       <p class="note-future">Le seuil de réussite sert à valider ce bloc pour la progression par palier et l'attribution des badges (66,7% par défaut).</p>
     </div>
+    <!-- Sans palier, cet exercice est un bloc de contenu ordinaire : ni seuil
+         ni progression à configurer, uniquement visible/masqué via data-bloc-seuil
+         ci-dessus (le champ garde sa valeur en base, juste masqué à l'écran). -->
     ${html_selectCompetencesBloc(bloc, typeof COMPETENCES_DISPONIBLES_EDITEUR !== 'undefined' ? COMPETENCES_DISPONIBLES_EDITEUR : [])}
     <div class="editeur-questions" data-questions-bloc="${bloc.id}">
       <div class="liste-questions" data-liste-questions>
@@ -358,6 +594,13 @@ function html_editeurExercice(bloc, c) {
     </div>`;
 }
 
+// Question "association" : l'admin saisit des paires {gauche, droite} bien
+// alignées (q.paires, jamais envoyé à l'élève). On en dérive ce qui EST
+// envoyé à l'élève (q.gauche, dans l'ordre de saisie, et q.droite, mélangé)
+// et, séparément, la correspondance correcte — stockée dans le corrigé
+// privé (jamais lisible par l'élève), pas dans les champs publics : sinon
+// l'ordre de q.droite révélerait directement la bonne réponse. Recalculé à
+// chaque modification d'une paire (ajout/suppression/texte).
 function recalculerAssociation(q, c) {
   const paires = Array.isArray(q.paires) ? q.paires : [];
   const n = paires.length;
@@ -371,6 +614,11 @@ function recalculerAssociation(q, c) {
   if (c) c.bonneReponse = paires.map((_, i) => permutation.indexOf(i));
 }
 
+// Question "classement" : l'admin saisit des catégories (ex: Nom, Verbe,
+// Adjectif) et des mots, chacun affecté à une catégorie (q.items[i].categorie,
+// jamais envoyé à l'élève). L'élève reçoit la liste des mots (q.motsAClasser)
+// et la liste des catégories (q.categories) — l'ordre des mots ne révèle rien
+// puisque l'affectation correcte reste uniquement dans le corrigé privé.
 function recalculerClassement(q, c) {
   const items = Array.isArray(q.items) ? q.items : [];
   q.motsAClasser = items.map(it => (it && it.mot) || '');
@@ -378,6 +626,8 @@ function recalculerClassement(q, c) {
   if (c) c.bonneReponse = items.map(it => (it && typeof it.categorieIndex === 'number') ? it.categorieIndex : null);
 }
 
+// corrige peut être `null` (corrigé pas encore chargé depuis la base — les
+// champs de correction s'affichent alors désactivés le temps du chargement).
 function html_questionEditeur(q, index, corrige) {
   const c = corrige ? (corrige[q.id] || {}) : null;
   const enAttente = corrige === null;
@@ -447,6 +697,9 @@ function html_questionEditeur(q, index, corrige) {
         <button type="button" class="btn btn-discret" data-ajouter-option style="align-self:flex-start;font-size:12px">+ Élément</button>
       </div>`;
   } else if (q.type === 'association') {
+    // Paires {gauche, droite} : l'élève doit relier chaque élément de
+    // gauche à son élément de droite (proposés mélangés côté élève) —
+    // correction automatique paire par paire.
     const paires = Array.isArray(q.paires) ? q.paires : [];
     corpsCorrige = `
       <div class="options-association">
@@ -460,6 +713,10 @@ function html_questionEditeur(q, index, corrige) {
         <button type="button" class="btn btn-discret" data-ajouter-paire style="align-self:flex-start;font-size:12px">+ Paire</button>
       </div>`;
   } else if (q.type === 'qcm_multiple') {
+    // Comme le QCM classique, mais plusieurs bonnes réponses possibles (ex:
+    // "Activité 1 — Je reconnais les mots" : entourer plusieurs mots dans une
+    // liste). Toutes les cases cochées doivent correspondre exactement aux
+    // bonnes réponses pour que la question soit comptée correcte.
     const options = Array.isArray(q.options) ? q.options : [];
     const bonnes = !enAttente && Array.isArray(c.bonneReponse) ? c.bonneReponse.map(String) : [];
     corpsCorrige = `
@@ -474,6 +731,9 @@ function html_questionEditeur(q, index, corrige) {
         <button type="button" class="btn btn-discret" data-ajouter-option style="align-self:flex-start;font-size:12px">+ Option</button>
       </div>`;
   } else if (q.type === 'classement') {
+    // Catégories (colonnes du tableau, ex: Nom / Verbe / Adjectif) + mots à
+    // classer, chacun affecté à sa bonne catégorie (menu déroulant). L'élève
+    // recevra la liste des mots et des catégories, jamais l'affectation.
     const categories = Array.isArray(q.categories) ? q.categories : [];
     const items = Array.isArray(q.items) ? q.items : [];
     corpsCorrige = `
@@ -499,7 +759,100 @@ function html_questionEditeur(q, index, corrige) {
           </div>`).join('')}
         <button type="button" class="btn btn-discret" data-ajouter-item-classement style="align-self:flex-start;font-size:12px">+ Mot</button>
       </div>`;
+  } else if (q.type === 'intrus_lexical') {
+    // Plusieurs séries de mots ; dans chaque série, l'élève doit trouver
+    // l'intrus. q.series (public, envoyé à l'élève) ne contient QUE les
+    // listes de mots — jamais lequel est l'intrus, qui reste uniquement
+    // dans le corrigé privé (c.bonneReponse, un index par série, aligné sur
+    // l'ordre de q.series), pour ne rien laisser deviner côté navigateur.
+    const series = Array.isArray(q.series) ? q.series : [];
+    const intrusAttendus = !enAttente && Array.isArray(c.bonneReponse) ? c.bonneReponse : [];
+    corpsCorrige = `
+      <div class="series-intrus" data-series-intrus>
+        <p class="note-future">Une série par ligne : saisis les mots séparés par une virgule, puis coche celui qui est l'intrus.</p>
+        ${series.map((s, si) => {
+          const mots = Array.isArray(s?.mots) ? s.mots : [];
+          return `
+          <div class="serie-intrus-ligne" data-serie-intrus-index="${si}">
+            <input type="text" data-serie-intrus-mots="${si}" value="${echapper(mots.join(', '))}" placeholder="mot1, mot2, mot3, mot4" ${enAttente ? 'disabled' : ''}>
+            <div class="serie-intrus-choix">
+              ${mots.length
+                ? mots.map((m, mi) => `<label><input type="radio" name="intrus-${q.id}-${si}" data-serie-intrus-radio="${si}" value="${mi}" ${intrusAttendus[si] === mi ? 'checked' : ''} ${enAttente ? 'disabled' : ''}> ${echapper(m) || '(vide)'}</label>`).join('')
+                : '<span class="note-future">Saisis d\'abord les mots ci-dessus.</span>'}
+            </div>
+            <button type="button" data-supprimer-serie-intrus="${si}" title="Supprimer cette série">🗑️</button>
+          </div>`;
+        }).join('')}
+        <button type="button" class="btn btn-discret" data-ajouter-serie-intrus style="align-self:flex-start;font-size:12px">+ Série</button>
+      </div>`;
+  } else if (q.type === 'reponse_numerique') {
+    const attendu = !enAttente && c.bonneReponse ? c.bonneReponse : {};
+    corpsCorrige = `
+      <div class="champ-ligne">
+        <label>Réponse exacte</label>
+        <input type="number" step="any" data-question-numerique-valeur value="${attendu.valeur ?? ''}" ${enAttente ? 'disabled' : ''}>
+        <label>Tolérance (+/-)</label>
+        <input type="number" step="any" min="0" data-question-numerique-tolerance value="${attendu.tolerance ?? 0}" style="width:80px" ${enAttente ? 'disabled' : ''}>
+      </div>
+      <p class="note-future">L'élève tape un nombre ; sa réponse est comptée correcte si l'écart avec la réponse exacte ne dépasse pas la tolérance (0 = réponse exacte attendue).</p>`;
+  } else if (q.type === 'selection_mots') {
+    // L'énoncé de ce type reste en texte BRUT (voir TYPES_ENONCE_PLAT) : il
+    // est découpé en mots cliquables, à l'édition comme à la lecture, avec
+    // exactement la même fonction (tokeniserMots) pour que les index
+    // correspondent des deux côtés. Le corrigé (quels mots sont corrects)
+    // reste privé (c.bonneReponse), jamais visible dans l'énoncé public.
+    const mots = tokeniserMots(q.enonce || '');
+    const correctsAttendus = !enAttente && Array.isArray(c.bonneReponse) ? c.bonneReponse.map(String) : [];
+    corpsCorrige = `
+      <div class="mots-selectionnables-editeur">
+        <p class="note-future">Clique sur le ou les mots corrects ci-dessous (déduits de l'énoncé saisi plus haut — ${mots.length} mot${mots.length > 1 ? 's' : ''} détecté${mots.length > 1 ? 's' : ''}).</p>
+        <div class="mots-selectionnables">
+          ${mots.length
+            ? mots.map((m, mi) => `<button type="button" class="chip-mot ${correctsAttendus.includes(String(mi)) ? 'chip-mot-correct' : ''}" data-mot-selection-index="${mi}" ${enAttente ? 'disabled' : ''}>${echapper(m)}</button>`).join('')
+            : '<span class="note-future">Saisis d\'abord l\'énoncé ci-dessus, puis quitte le champ pour voir apparaître les mots.</span>'}
+        </div>
+      </div>`;
+  } else if (q.type === 'vrai_faux_justifie') {
+    const val = !enAttente ? (c.bonneReponse === true || c.bonneReponse === 'true') : null;
+    const bareme = !enAttente ? (c.bareme || '') : '';
+    corpsCorrige = `
+      <div class="vrai-faux-choix">
+        <label><input type="radio" name="vf-${q.id}" data-question-bonne-vf="true" ${val === true ? 'checked' : ''} ${enAttente ? 'disabled' : ''}> Vrai</label>
+        <label><input type="radio" name="vf-${q.id}" data-question-bonne-vf="false" ${val === false ? 'checked' : ''} ${enAttente ? 'disabled' : ''}> Faux</label>
+      </div>
+      <div class="bareme-champ">
+        <label>Éléments de correction attendus pour la justification (barème indicatif pour l'IA)</label>
+        <textarea data-question-bareme placeholder="Ex : l'élève doit expliquer que..." ${enAttente ? 'disabled' : ''}>${echapper(bareme)}</textarea>
+      </div>
+      <p class="note-future">🤖 Le Vrai/Faux est corrigé automatiquement ; la justification est notée par IA (note + commentaire), comme une réponse longue.</p>`;
+  } else if (q.type === 'texte_a_trous_glisser') {
+    // Même principe que "Texte à trous" (des "___" dans l'énoncé, resté en
+    // texte brut — voir TYPES_ENONCE_PLAT), mais l'élève glisse un mot
+    // depuis une banque proposée au lieu de taper une réponse libre. Le bon
+    // mot par trou (c.bonneReponse) est une chaîne piochée dans la banque
+    // (q.banqueMots, publique — peut contenir des intrus en plus des bonnes
+    // réponses).
+    const nbTrous = (String(q.enonce || '').match(/___/g) || []).length;
+    const banque = Array.isArray(q.banqueMots) ? q.banqueMots : [];
+    const reponsesTrous = !enAttente && Array.isArray(c.bonneReponse) ? c.bonneReponse : [];
+    corpsCorrige = `
+      <div class="trous-glisser-champ">
+        <p class="note-future">Utilise <code>___</code> (3 tirets bas) dans l'énoncé ci-dessus pour chaque trou. ${nbTrous} trou${nbTrous > 1 ? 's' : ''} détecté${nbTrous > 1 ? 's' : ''} pour l'instant.</p>
+        <label>Mots proposés dans la banque (séparés par une virgule — inclus les bonnes réponses, et si tu veux des intrus en plus)
+          <input type="text" data-question-banque-mots value="${echapper(banque.join(', '))}" placeholder="Ex: chat, chien, souris" ${enAttente ? 'disabled' : ''}>
+        </label>
+        ${Array.from({ length: nbTrous }).map((_, i) => `
+          <div class="champ-ligne">
+            <label>Trou ${i + 1} — bon mot (parmi la banque)</label>
+            <select data-question-trou-glisser-index="${i}" ${enAttente ? 'disabled' : ''}>
+              <option value="">— choisir —</option>
+              ${banque.map((m) => `<option value="${echapper(m)}" ${reponsesTrous[i] === m ? 'selected' : ''}>${echapper(m)}</option>`).join('')}
+            </select>
+          </div>`).join('')}
+      </div>`;
   }
+
+  const enonceRiche = !TYPES_ENONCE_PLAT.includes(q.type);
 
   return `
     <div class="question-editeur" data-question-id="${q.id}">
@@ -511,7 +864,9 @@ function html_questionEditeur(q, index, corrige) {
         <label>Points <input type="number" min="0" step="0.5" data-question-points value="${points}" ${enAttente ? 'disabled' : ''}></label>
         <button type="button" class="bouton-supprimer-question" data-supprimer-question title="Supprimer cette question">🗑️</button>
       </div>
-      <textarea data-question-champ="enonce" placeholder="Énoncé de la question...">${echapper(q.enonce)}</textarea>
+      ${enonceRiche
+        ? html_zoneTexteRiche(`data-question-champ-riche="enonce" data-question-riche-id="${q.id}"`, q.enonce, 'barre-outils-texte-question')
+        : `<textarea data-question-champ="enonce" placeholder="Énoncé de la question...">${echapper(q.enonce)}</textarea>`}
       <input type="text" data-question-champ="consigne" placeholder="Consigne pour l'élève (optionnel — ex : « Complète les mots manquants »)" value="${echapper(q.consigne)}">
       ${corpsCorrige}
     </div>`;
@@ -521,6 +876,9 @@ function echapper(v) {
   return (v || '').toString().replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
 
+// Le contenu riche (data-champ-riche) est stocké en HTML depuis cette mise à jour.
+// Pour l'ancien contenu (texte brut sans formatage), on échappe et on convertit
+// les retours à la ligne en <br> pour préserver l'affichage.
 function contenuRicheInitial(texte) {
   const v = (texte || '').toString();
   if (v.includes('<')) return v; // déjà du HTML (contenu créé avec le nouvel éditeur)

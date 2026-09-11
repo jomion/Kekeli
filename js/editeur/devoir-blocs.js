@@ -98,7 +98,10 @@ function html_corpsBlocDevoir(bloc, competencesDisponibles) {
   const c = bloc.contenu || {};
   const questions = Array.isArray(c.questions) ? c.questions : [];
   return `
-    <textarea data-champ-devoir="consigne" placeholder="Consigne générale (ex : Réponds aux questions suivantes)">${echapper(c.consigne)}</textarea>
+    <div class="champ-consigne-riche">
+      <label class="etiquette-outils">Consigne générale (ex : Réponds aux questions suivantes)</label>
+      ${html_zoneTexteRiche('data-champ-devoir-riche="consigne"', c.consigne)}
+    </div>
     ${html_selectCompetencesBloc(bloc, competencesDisponibles || [])}
     <div class="editeur-questions" data-questions-bloc-devoir="1">
       <div class="liste-questions" data-liste-questions>
@@ -129,11 +132,17 @@ function attacherEcouteursBlocsDevoir(devoirId) {
     const el = conteneurEl.querySelector(`[data-bloc-devoir-id="${bloc.id}"]`);
     if (!el) return;
 
-    const zoneConsigne = el.querySelector('[data-champ-devoir="consigne"]');
-    if (zoneConsigne) zoneConsigne.addEventListener('input', () => {
-      bloc.contenu = { ...bloc.contenu, consigne: zoneConsigne.value };
-      sauvegarderBlocDevoir(devoirId, bloc);
-    });
+    // Consigne générale du bloc : zone de texte riche depuis le 5 septembre
+    // 2026 (même formatage — gras/italique/listes/couleurs — que côté éditeur
+    // de séance, voir html_zoneTexteRiche/configurerZoneRiche dans blocs.js).
+    const zoneConsigneRiche = el.querySelector('[data-champ-devoir-riche="consigne"]');
+    if (zoneConsigneRiche) {
+      const barresOutilsConsigne = Array.from(el.querySelectorAll(':scope > .bloc-corps .barre-outils-texte'));
+      configurerZoneRiche(zoneConsigneRiche, barresOutilsConsigne, (html) => {
+        bloc.contenu = { ...bloc.contenu, consigne: html };
+        sauvegarderBlocDevoir(devoirId, bloc);
+      });
+    }
 
     el.querySelectorAll('[data-action-bloc-devoir]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -229,25 +238,43 @@ function attacherEcouteursQuestionsDevoir(devoirId, el, bloc) {
           q.items = [{ mot: '', categorieIndex: null }, { mot: '', categorieIndex: null }];
           recalculerClassement(q, c);
         }
+        if (q.type === 'intrus_lexical' && !Array.isArray(q.series)) q.series = [{ mots: ['', '', ''] }];
+        if (q.type === 'texte_a_trous_glisser' && !Array.isArray(q.banqueMots)) q.banqueMots = [];
         majQuestions(questions());
         if (c) sauvegarderCorrige();
         rerender();
       });
 
-      qEl.querySelector('[data-question-champ="enonce"]').addEventListener('input', (e) => {
+      // Énoncé : soit un simple textarea texte brut (types dont le texte est
+      // analysé littéralement — texte à trous, sa variante glisser-déposer,
+      // sélection de mots), soit une zone de texte riche (tous les autres
+      // types) — voir TYPES_ENONCE_PLAT et html_questionEditeur dans blocs.js.
+      // Les deux ne coexistent jamais pour une même question : garder les
+      // deux blocs sous garde (if) plutôt qu'un querySelector non vérifié,
+      // qui plantait ici pour tout type autre que texte_a_trous.
+      const inputEnonce = qEl.querySelector('[data-question-champ="enonce"]');
+      if (inputEnonce) inputEnonce.addEventListener('input', (e) => {
         q.enonce = e.target.value;
         majQuestions(questions());
       });
+      const zoneEnonceRiche = qEl.querySelector('[data-question-champ-riche="enonce"]');
+      if (zoneEnonceRiche) {
+        const barresOutilsQuestion = Array.from(qEl.querySelectorAll('.barre-outils-texte-question'));
+        configurerZoneRiche(zoneEnonceRiche, barresOutilsQuestion, (html) => {
+          q.enonce = html;
+          majQuestions(questions());
+        });
+      }
       const inputConsigne = qEl.querySelector('[data-question-champ="consigne"]');
       if (inputConsigne) inputConsigne.addEventListener('input', (e) => {
         q.consigne = e.target.value;
         majQuestions(questions());
       });
-      if (q.type === 'texte_a_trous') {
-        // Nombre de trous recalculé au blur seulement (pas au input), sinon
-        // le champ énoncé perdrait le focus à chaque frappe (voir la même
-        // logique dans js/pages/editeur-seance.js).
-        qEl.querySelector('[data-question-champ="enonce"]').addEventListener('blur', () => rerender());
+      if (['texte_a_trous', 'texte_a_trous_glisser', 'selection_mots'].includes(q.type)) {
+        // Nombre de trous (ou liste de mots cliquables) recalculé au blur
+        // seulement (pas au input), sinon le champ énoncé perdrait le focus
+        // à chaque frappe (même logique dans js/pages/editeur-seance.js).
+        if (inputEnonce) inputEnonce.addEventListener('blur', () => rerender());
       }
 
       const inputPoints = qEl.querySelector('[data-question-points]');
@@ -342,7 +369,7 @@ function attacherEcouteursQuestionsDevoir(devoirId, el, bloc) {
         });
       }
 
-      if (q.type === 'vrai_faux') {
+      if (q.type === 'vrai_faux' || q.type === 'vrai_faux_justifie') {
         qEl.querySelectorAll('[data-question-bonne-vf]').forEach(radio => {
           radio.addEventListener('change', () => {
             if (!c) return;
@@ -361,12 +388,103 @@ function attacherEcouteursQuestionsDevoir(devoirId, el, bloc) {
         });
       }
 
-      if (q.type === 'reponse_longue') {
+      if (q.type === 'reponse_longue' || q.type === 'vrai_faux_justifie') {
         const texteBareme = qEl.querySelector('[data-question-bareme]');
         if (texteBareme) texteBareme.addEventListener('input', () => {
           if (!c) return;
           c.bareme = texteBareme.value;
           sauvegarderCorrige();
+        });
+      }
+
+      if (q.type === 'reponse_numerique') {
+        const inputNumValeur = qEl.querySelector('[data-question-numerique-valeur]');
+        const inputNumTolerance = qEl.querySelector('[data-question-numerique-tolerance]');
+        const majNumerique = () => {
+          if (!c) return;
+          c.bonneReponse = {
+            valeur: inputNumValeur ? parseFloat(inputNumValeur.value) : undefined,
+            tolerance: inputNumTolerance ? (parseFloat(inputNumTolerance.value) || 0) : 0,
+          };
+          sauvegarderCorrige();
+        };
+        if (inputNumValeur) inputNumValeur.addEventListener('input', majNumerique);
+        if (inputNumTolerance) inputNumTolerance.addEventListener('input', majNumerique);
+      }
+
+      if (q.type === 'selection_mots') {
+        qEl.querySelectorAll('[data-mot-selection-index]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            if (!c) return;
+            const i = parseInt(btn.dataset.motSelectionIndex, 10);
+            const estCorrect = btn.classList.toggle('chip-mot-correct');
+            const actuel = new Set((Array.isArray(c.bonneReponse) ? c.bonneReponse : []).map(String));
+            if (estCorrect) actuel.add(String(i)); else actuel.delete(String(i));
+            c.bonneReponse = Array.from(actuel).map(Number).sort((a, b) => a - b);
+            sauvegarderCorrige();
+          });
+        });
+      }
+
+      if (q.type === 'intrus_lexical') {
+        qEl.querySelectorAll('[data-serie-intrus-mots]').forEach(input => {
+          input.addEventListener('input', () => {
+            const i = parseInt(input.dataset.serieIntrusMots, 10);
+            q.series = Array.isArray(q.series) ? [...q.series] : [];
+            const mots = input.value.split(',').map(s => s.trim());
+            q.series[i] = { ...(q.series[i] || {}), mots };
+            if (c && Array.isArray(c.bonneReponse) && typeof c.bonneReponse[i] === 'number' && c.bonneReponse[i] >= mots.length) {
+              c.bonneReponse[i] = undefined;
+            }
+            majQuestions(questions());
+            if (c) sauvegarderCorrige();
+          });
+          input.addEventListener('blur', () => rerender());
+        });
+        qEl.querySelectorAll('[data-serie-intrus-radio]').forEach(radio => {
+          radio.addEventListener('change', () => {
+            if (!c) return;
+            const i = parseInt(radio.dataset.serieIntrusRadio, 10);
+            c.bonneReponse = Array.isArray(c.bonneReponse) ? [...c.bonneReponse] : [];
+            c.bonneReponse[i] = parseInt(radio.value, 10);
+            sauvegarderCorrige();
+          });
+        });
+        const btnAjouterSerieIntrus = qEl.querySelector('[data-ajouter-serie-intrus]');
+        if (btnAjouterSerieIntrus) btnAjouterSerieIntrus.addEventListener('click', () => {
+          q.series = [...(q.series || []), { mots: ['', '', ''] }];
+          majQuestions(questions());
+          rerender();
+        });
+        qEl.querySelectorAll('[data-supprimer-serie-intrus]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const i = parseInt(btn.dataset.supprimerSerieIntrus, 10);
+            q.series.splice(i, 1);
+            if (c && Array.isArray(c.bonneReponse)) c.bonneReponse.splice(i, 1);
+            majQuestions(questions());
+            if (c) sauvegarderCorrige();
+            rerender();
+          });
+        });
+      }
+
+      if (q.type === 'texte_a_trous_glisser') {
+        const inputBanque = qEl.querySelector('[data-question-banque-mots]');
+        if (inputBanque) {
+          inputBanque.addEventListener('input', () => {
+            q.banqueMots = inputBanque.value.split(',').map(s => s.trim()).filter(Boolean);
+            majQuestions(questions());
+          });
+          inputBanque.addEventListener('blur', () => rerender());
+        }
+        qEl.querySelectorAll('[data-question-trou-glisser-index]').forEach(select => {
+          select.addEventListener('change', () => {
+            if (!c) return;
+            const i = parseInt(select.dataset.questionTrouGlisserIndex, 10);
+            c.bonneReponse = Array.isArray(c.bonneReponse) ? [...c.bonneReponse] : [];
+            c.bonneReponse[i] = select.value || null;
+            sauvegarderCorrige();
+          });
         });
       }
 

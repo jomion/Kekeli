@@ -443,25 +443,31 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .ligne-arbo.type-sa .libelle-arbo { font-style: italic; }
 
 /* ===== Barre d'outils de formatage riche (blocs texte) ===== */
-.barre-outils-texte {
+/* .barre-outils-texte-question : même barre, réutilisée pour l'énoncé riche
+   de CHAQUE question (5 septembre 2026, 8e lot) — classe distincte de
+   .barre-outils-texte exprès, pour que le sélecteur de câblage du bloc
+   (:scope > .bloc-corps .barre-outils-texte) ne capture jamais aussi les
+   barres d'outils imbriquées dans .editeur-questions (voir wirerQuestions
+   dans js/pages/editeur-seance.js et js/editeur/devoir-blocs.js). */
+.barre-outils-texte, .barre-outils-texte-question {
   display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap;
   background: #F8FAFC; border: 1px solid var(--bordure); border-radius: 8px; padding: 6px 8px;
 }
-.barre-outils-texte .groupe-outils { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-.barre-outils-texte .separateur-outils { width: 1px; align-self: stretch; min-height: 20px; background: var(--bordure); }
-.barre-outils-texte button {
+.barre-outils-texte .groupe-outils, .barre-outils-texte-question .groupe-outils { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.barre-outils-texte .separateur-outils, .barre-outils-texte-question .separateur-outils { width: 1px; align-self: stretch; min-height: 20px; background: var(--bordure); }
+.barre-outils-texte button, .barre-outils-texte-question button {
   border: 1px solid var(--bordure); background: white; border-radius: 6px; padding: 5px 10px;
   cursor: pointer; font-size: 13px; color: var(--texte-fonce); min-width: 30px;
 }
-.barre-outils-texte button:hover { background: var(--bleu-clair); border-color: var(--bleu-principal); }
-.barre-outils-texte button.actif { background: var(--bleu-principal); border-color: var(--bleu-principal); color: white; }
-.barre-outils-texte .bouton-effacer-format { font-size: 12px; color: var(--texte-gris); }
-.barre-outils-texte select {
+.barre-outils-texte button:hover, .barre-outils-texte-question button:hover { background: var(--bleu-clair); border-color: var(--bleu-principal); }
+.barre-outils-texte button.actif, .barre-outils-texte-question button.actif { background: var(--bleu-principal); border-color: var(--bleu-principal); color: white; }
+.barre-outils-texte .bouton-effacer-format, .barre-outils-texte-question .bouton-effacer-format { font-size: 12px; color: var(--texte-gris); }
+.barre-outils-texte select, .barre-outils-texte-question select {
   border: 1px solid var(--bordure); border-radius: 6px; padding: 4px 6px; font-size: 12px; background: white; color: var(--texte-fonce);
 }
-.barre-outils-texte .groupe-couleurs { gap: 5px; }
-.barre-outils-texte .pastille-couleur { align-self: center; }
-.barre-outils-texte .etiquette-outils { font-size: 11px; color: var(--texte-gris); margin-right: 2px; white-space: nowrap; }
+.barre-outils-texte .groupe-couleurs, .barre-outils-texte-question .groupe-couleurs { gap: 5px; }
+.barre-outils-texte .pastille-couleur, .barre-outils-texte-question .pastille-couleur { align-self: center; }
+.barre-outils-texte .etiquette-outils, .barre-outils-texte-question .etiquette-outils { font-size: 11px; color: var(--texte-gris); margin-right: 2px; white-space: nowrap; }
 .editeur-riche {
   border: 1px solid var(--bordure); border-radius: 6px; padding: 10px; min-height: 70px;
   font-size: 14px; font-family: inherit; line-height: 1.5; color: var(--texte-fonce);
@@ -472,6 +478,35 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 }
 .editeur-riche:focus { outline: none; border-color: var(--bleu-principal); }
 .editeur-riche ul, .editeur-riche ol { margin: 6px 0 6px 20px; }
+
+/* ===== Formatage riche appliqué aux blocs d'exercice/activité (8e lot) ===== */
+/* Consigne générale du bloc (exercice/quiz/évaluation/activité) et énoncé de
+   chaque question passent tous deux par html_zoneTexteRiche (blocs.js) :
+   .champ-consigne-riche est juste le wrapper label+zone pour la consigne,
+   la zone riche elle-même reprend .editeur-riche + la barre ci-dessus. */
+.champ-consigne-riche { margin-bottom: 10px; }
+.champ-consigne-riche .etiquette-outils { display: block; margin-bottom: 4px; }
+
+/* Intrus lexical : une ligne par série (mots + choix de l'intrus). */
+.series-intrus { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.serie-intrus-ligne { border: 1px solid var(--bordure); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.serie-intrus-choix { display: flex; flex-wrap: wrap; gap: 10px; font-size: 13px; }
+.serie-intrus-choix label { display: flex; align-items: center; gap: 4px; }
+
+/* Sélection de mots dans un texte : mots de l'énoncé affichés en chips
+   cliquables, celui cliqué (bonne réponse) mis en évidence en vert. */
+.mots-selectionnables-editeur, .mots-selectionnables { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chip-mot {
+  border: 1px solid var(--bordure); background: white; border-radius: 999px; padding: 4px 12px;
+  cursor: pointer; font-size: 13px; color: var(--texte-fonce);
+}
+.chip-mot:hover { border-color: var(--bleu-principal); }
+.chip-mot-correct { background: #DCFCE7; border-color: #16A34A; color: #15803D; font-weight: 700; }
+
+/* Glisser-déposer les mots dans le texte : configuration de la banque de
+   mots proposée + un select "bon mot" par trou détecté dans l'énoncé. */
+.trous-glisser-champ { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.trous-glisser-champ .champ-ligne select { flex: 1; }
 
 /* ===== En-tête de page (ex: "Champs de Formation (CM2)") ===== */
 .titre-page { font-size: 24px; font-weight: 800; color: var(--bleu-principal); margin-bottom: 4px; }

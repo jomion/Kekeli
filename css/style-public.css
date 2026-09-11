@@ -567,6 +567,42 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .question-lecture textarea { min-height: 80px; resize: vertical; }
 .vf-choix { display: flex; gap: 20px; }
 .champ-trou { border: 2px solid var(--bordure); border-radius: 6px; padding: 4px 8px; font-size: 14px; font-family: inherit; text-align: center; }
+
+/* ===== Nouveaux types de question (8e lot, 5 septembre 2026) ===== */
+/* Intrus lexical : une série de mots par ligne, un radio par mot. */
+.series-intrus-lecture { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+.serie-intrus { display: flex; flex-wrap: wrap; gap: 14px; background: #F8FAFC; border: 1px solid var(--bordure); border-radius: 8px; padding: 10px 12px; }
+.chip-mot-choix-radio { display: flex; align-items: center; gap: 5px; margin-bottom: 0; font-size: 14px; cursor: pointer; }
+
+/* Sélection de mots dans un texte : chaque mot est un bouton cliquable,
+   celui sélectionné se met en évidence (couleur Kekeli). */
+.mots-selectionnables-lecture { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.chip-mot-choix {
+  border: 2px solid var(--bordure); background: white; border-radius: 999px; padding: 5px 14px;
+  cursor: pointer; font-size: 14px; font-family: inherit; color: var(--texte-fonce, #1E293B);
+}
+.chip-mot-choix:hover { border-color: var(--bleu-kekeli); }
+.chip-mot-choix.selectionne { background: var(--bleu-kekeli); border-color: var(--bleu-kekeli); color: white; font-weight: 700; }
+
+/* Glisser-déposer les mots dans le texte : banque de mots à glisser (ou
+   toucher, en repli tactile) vers les trous intégrés à l'énoncé. */
+.banque-mots-glisser { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.chip-glisser {
+  border: 2px solid var(--bleu-kekeli); background: white; color: var(--bleu-kekeli); border-radius: 999px;
+  padding: 6px 14px; font-size: 14px; font-family: inherit; cursor: grab; font-weight: 700;
+}
+.chip-glisser:hover { background: #EEF2FF; }
+.chip-glisser.chip-armee { background: var(--bleu-kekeli); color: white; box-shadow: 0 0 0 3px rgba(0,0,209,0.25); }
+.chip-glisser[hidden] { display: none; }
+.zone-trou-glisser {
+  display: inline-block; min-width: 90px; min-height: 1.4em; margin: 0 4px; padding: 2px 10px;
+  border: 2px dashed var(--bordure); border-radius: 8px; background: #F8FAFC; vertical-align: middle;
+  text-align: center; font-weight: 700; color: var(--bleu-kekeli); cursor: pointer;
+}
+.zone-trou-glisser.trou-glisser-rempli { border-style: solid; background: #EEF2FF; }
+.zone-trou-glisser.trou-glisser-survole { border-color: var(--bleu-kekeli); background: #E0E7FF; }
+.note-aide-glisser { font-size: 12px; color: var(--text-gris); margin: 4px 0 0; }
+
 .liste-remise-en-ordre { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .liste-remise-en-ordre li { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: white; border: 2px solid var(--bordure); border-radius: 8px; padding: 8px 10px; }
 .fleches-ordre { display: flex; gap: 4px; flex-shrink: 0; }

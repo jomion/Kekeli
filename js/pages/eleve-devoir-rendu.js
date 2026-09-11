@@ -150,14 +150,14 @@ function rendreExerciceDevoir(b, c) {
   const dernier = essais[essais.length - 1];
 
   if (!questions.length) {
-    return `${c.consigne ? `<p>${echapper(c.consigne)}</p>` : ''}<p style="color:var(--text-gris);font-style:italic">Aucune question pour l'instant — reviens plus tard.</p>`;
+    return `${c.consigne ? `<div class="contenu-riche-lecture">${contenuRicheInitial(c.consigne)}</div>` : ''}<p style="color:var(--text-gris);font-style:italic">Aucune question pour l'instant — reviens plus tard.</p>`;
   }
 
   if (dernier && !formulairesReouvertsDevoir.has(b.id)) return rendreResultatExerciceDevoir(b, c, questions, dernier);
 
   if (!etatAccesCorrectionIADevoir.autorise) {
     return `
-      ${c.consigne ? `<p>${echapper(c.consigne)}</p>` : ''}
+      ${c.consigne ? `<div class="contenu-riche-lecture">${contenuRicheInitial(c.consigne)}</div>` : ''}
       <div class="acces-suspendu-exercice">
         🔒 La correction automatique des exercices est un service premium. Tu as utilisé tous tes essais gratuits — demande à un adulte de contacter l'administration pour souscrire (abonnement ou forfait).
       </div>
@@ -169,7 +169,7 @@ function rendreExerciceDevoir(b, c) {
     : '';
 
   return `
-    ${c.consigne ? `<p>${echapper(c.consigne)}</p>` : ''}
+    ${c.consigne ? `<div class="contenu-riche-lecture">${contenuRicheInitial(c.consigne)}</div>` : ''}
     ${noteEssai}
     ${essais.length ? `<p style="font-size:12px;color:var(--text-gris)">Nouvel essai (n°${essais.length + 1})</p>` : ''}
     <form data-form-exercice-devoir="${b.id}">
@@ -190,7 +190,7 @@ function rendreActiviteDevoir(b, c) {
   if (dernier && !formulairesReouvertsDevoir.has(b.id)) {
     if (dernier.corrige_le) {
       return `
-        ${c.consigne ? `<p>${echapper(c.consigne)}</p>` : ''}
+        ${c.consigne ? `<div class="contenu-riche-lecture">${contenuRicheInitial(c.consigne)}</div>` : ''}
         <p style="font-size:13px;background:#F9F9F9;padding:8px;border-radius:6px">${echapper(dernier.reponse_texte || '')}</p>
         <div class="carte-note-activite">
           ✅ Corrigé${dernier.note != null ? ` — <strong>${dernier.note}/${dernier.bareme}</strong>` : ''}
@@ -200,13 +200,13 @@ function rendreActiviteDevoir(b, c) {
         <button type="button" class="btn btn-discret" data-refaire-devoir="${b.id}" data-type-refaire-devoir="activite" style="margin-top:10px">🔄 Refaire cette activité</button>`;
     }
     return `
-      ${c.consigne ? `<p>${echapper(c.consigne)}</p>` : ''}
+      ${c.consigne ? `<div class="contenu-riche-lecture">${contenuRicheInitial(c.consigne)}</div>` : ''}
       <p style="font-size:13px;background:#F9F9F9;padding:8px;border-radius:6px">${echapper(dernier.reponse_texte || '')}</p>
       <p style="font-size:12px;color:var(--text-gris);margin-top:8px">⏳ En attente de correction.</p>`;
   }
 
   return `
-    ${c.consigne ? `<p>${echapper(c.consigne)}</p>` : ''}
+    ${c.consigne ? `<div class="contenu-riche-lecture">${contenuRicheInitial(c.consigne)}</div>` : ''}
     ${essais.length ? `<p style="font-size:12px;color:var(--text-gris)">Nouvel essai (n°${essais.length + 1})</p>` : ''}
     <form data-form-activite-devoir="${b.id}" class="activite-lecture">
       <textarea name="reponse" required placeholder="Écris ta réponse ici..."></textarea>
@@ -214,6 +214,13 @@ function rendreActiviteDevoir(b, c) {
       <button type="submit" class="btn btn-filled bouton-valider-exercice">📤 Rendre mon travail</button>
     </form>
   `;
+}
+
+// Voir rendreEnonce dans js/pages/eleve-seance.js pour l'explication complète
+// (types "plats" en texte brut vs énoncé riche pour tous les autres).
+function rendreEnonceDevoir(q) {
+  if (TYPES_ENONCE_PLAT.includes(q.type)) return echapper(q.enonce);
+  return contenuRicheInitial(q.enonce);
 }
 
 function rendreChampQuestionDevoir(q, i) {
@@ -227,11 +234,55 @@ function rendreChampQuestionDevoir(q, i) {
     }).join('');
     return `<div class="question-lecture" data-question-trous="${echapper(q.id)}"><p class="question-enonce">${i + 1}. ${enonceAvecTrous}</p>${q.consigne ? `<p class="consigne-question" style="font-size:13px;color:var(--text-gris)">${echapper(q.consigne)}</p>` : ''}</div>`;
   }
+  if (q.type === 'texte_a_trous_glisser') {
+    let idxTrou = -1;
+    const morceaux = echapper(q.enonce).split('___');
+    const enonceAvecTrous = morceaux.map((morceau, k) => {
+      if (k === morceaux.length - 1) return morceau;
+      idxTrou++;
+      return `${morceau}<span class="zone-trou-glisser" data-trou-glisser-index="${idxTrou}"></span>`;
+    }).join('');
+    const banque = Array.isArray(q.banqueMots) ? q.banqueMots : [];
+    const banqueMelangee = banque.map((m, idx) => ({ m, idx })).sort(() => Math.random() - 0.5);
+    return `<div class="question-lecture" data-question-trous-glisser="${echapper(q.id)}">
+      <p class="question-enonce">${i + 1}. ${enonceAvecTrous}</p>
+      ${q.consigne ? `<p class="consigne-question" style="font-size:13px;color:var(--text-gris)">${echapper(q.consigne)}</p>` : ''}
+      <div class="banque-mots-glisser">
+        ${banqueMelangee.map(({ m }) => `<button type="button" class="chip-glisser" draggable="true" data-mot-glisser="${echapper(m)}">${echapper(m)}</button>`).join('')}
+      </div>
+      <p class="note-aide-glisser">Glisse chaque mot dans le trou qui convient (ou touche un mot puis touche un trou).</p>
+    </div>`;
+  }
+  if (q.type === 'selection_mots') {
+    const mots = tokeniserMots(q.enonce || '');
+    return `<div class="question-lecture" data-question-selection-mots="${echapper(q.id)}">
+      <p class="question-enonce">${i + 1}. Clique sur le ou les mots corrects.</p>
+      ${q.consigne ? `<p class="consigne-question" style="font-size:13px;color:var(--text-gris)">${echapper(q.consigne)}</p>` : ''}
+      <div class="mots-selectionnables-lecture">
+        ${mots.map((m, mi) => `<button type="button" class="chip-mot-choix" data-mot-choix-index="${mi}">${echapper(m)}</button>`).join('')}
+      </div>
+    </div>`;
+  }
+  if (q.type === 'intrus_lexical') {
+    const series = Array.isArray(q.series) ? q.series : [];
+    return `<div class="question-lecture">
+      <p class="question-enonce">${i + 1}. ${rendreEnonceDevoir(q)}</p>
+      ${q.consigne ? `<p class="consigne-question" style="font-size:13px;color:var(--text-gris)">${echapper(q.consigne)}</p>` : ''}
+      <div class="series-intrus-lecture" data-intrus-question="${echapper(q.id)}">
+        ${series.map((s, si) => {
+          const mots = Array.isArray(s?.mots) ? s.mots : [];
+          return `<div class="serie-intrus" data-serie-intrus-index="${si}">
+            ${mots.map((m, mi) => `<label class="chip-mot-choix-radio"><input type="radio" name="intrus_${echapper(q.id)}_${si}" data-intrus-radio-index="${mi}" required> ${echapper(m)}</label>`).join('')}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
   if (q.type === 'remise_en_ordre') {
     const options = Array.isArray(q.options) ? q.options : [];
     const ordreMele = options.map((opt, idx) => ({ opt, idx })).sort(() => Math.random() - 0.5);
     return `<div class="question-lecture">
-      <p class="question-enonce">${i + 1}. ${echapper(q.enonce)}</p>
+      <p class="question-enonce">${i + 1}. ${rendreEnonceDevoir(q)}</p>
       ${q.consigne ? `<p class="consigne-question" style="font-size:13px;color:var(--text-gris)">${echapper(q.consigne)}</p>` : ''}
       <ol class="liste-remise-en-ordre" data-ordre-question="${echapper(q.id)}">
         ${ordreMele.map(({ opt, idx }) => `<li data-index-original="${idx}"><span>${echapper(opt)}</span><span class="fleches-ordre"><button type="button" data-monter title="Monter">▲</button><button type="button" data-descendre title="Descendre">▼</button></span></li>`).join('')}
@@ -242,7 +293,7 @@ function rendreChampQuestionDevoir(q, i) {
     const gauche = Array.isArray(q.gauche) ? q.gauche : [];
     const droite = Array.isArray(q.droite) ? q.droite : [];
     return `<div class="question-lecture">
-      <p class="question-enonce">${i + 1}. ${echapper(q.enonce)}</p>
+      <p class="question-enonce">${i + 1}. ${rendreEnonceDevoir(q)}</p>
       ${q.consigne ? `<p class="consigne-question" style="font-size:13px;color:var(--text-gris)">${echapper(q.consigne)}</p>` : ''}
       <div class="lignes-association" data-association-question="${echapper(q.id)}">
         ${gauche.map((g, idx) => `
@@ -259,7 +310,7 @@ function rendreChampQuestionDevoir(q, i) {
   if (q.type === 'qcm_multiple') {
     const options = Array.isArray(q.options) ? q.options : [];
     return `<div class="question-lecture">
-      <p class="question-enonce">${i + 1}. ${echapper(q.enonce)}</p>
+      <p class="question-enonce">${i + 1}. ${rendreEnonceDevoir(q)}</p>
       ${q.consigne ? `<p class="consigne-question" style="font-size:13px;color:var(--text-gris)">${echapper(q.consigne)}</p>` : ''}
       <div data-qcm-multiple-question="${echapper(q.id)}">
         ${options.map((opt, idx) => `<label style="display:block;margin-top:4px"><input type="checkbox" data-qcm-multiple-choix-index="${idx}"> ${echapper(opt)}</label>`).join('')}
@@ -270,7 +321,7 @@ function rendreChampQuestionDevoir(q, i) {
     const motsAClasser = Array.isArray(q.motsAClasser) ? q.motsAClasser : [];
     const categories = Array.isArray(q.categories) ? q.categories : [];
     return `<div class="question-lecture">
-      <p class="question-enonce">${i + 1}. ${echapper(q.enonce)}</p>
+      <p class="question-enonce">${i + 1}. ${rendreEnonceDevoir(q)}</p>
       ${q.consigne ? `<p class="consigne-question" style="font-size:13px;color:var(--text-gris)">${echapper(q.consigne)}</p>` : ''}
       <div class="lignes-classement" data-classement-question="${echapper(q.id)}">
         ${motsAClasser.map((mot, idx) => `
@@ -294,10 +345,18 @@ function rendreChampQuestionDevoir(q, i) {
     </div>`;
   } else if (q.type === 'reponse_courte') {
     champ = `<input type="text" name="q_${echapper(q.id)}" required placeholder="Ta réponse...">`;
+  } else if (q.type === 'reponse_numerique') {
+    champ = `<input type="number" step="any" name="q_${echapper(q.id)}" required placeholder="Ta réponse...">`;
+  } else if (q.type === 'vrai_faux_justifie') {
+    champ = `<div class="vf-choix">
+      <label><input type="radio" name="q_${echapper(q.id)}" value="true" required> Vrai</label>
+      <label><input type="radio" name="q_${echapper(q.id)}" value="false" required> Faux</label>
+    </div>
+    <textarea name="q_${echapper(q.id)}_justification" required placeholder="Justifie ta réponse..." style="margin-top:8px"></textarea>`;
   } else {
     champ = `<textarea name="q_${echapper(q.id)}" required placeholder="Ta réponse..."></textarea>`;
   }
-  return `<div class="question-lecture"><p class="question-enonce">${i + 1}. ${echapper(q.enonce)}</p>${q.consigne ? `<p class="consigne-question" style="font-size:13px;color:var(--text-gris)">${echapper(q.consigne)}</p>` : ''}${champ}</div>`;
+  return `<div class="question-lecture"><p class="question-enonce">${i + 1}. ${rendreEnonceDevoir(q)}</p>${q.consigne ? `<p class="consigne-question" style="font-size:13px;color:var(--text-gris)">${echapper(q.consigne)}</p>` : ''}${champ}</div>`;
 }
 
 function attacherEcouteursListesOrdreDevoir(racine = document) {
@@ -319,6 +378,75 @@ function attacherEcouteursListesOrdreDevoir(racine = document) {
   });
 }
 
+// Voir attacherEcouteursSelectionMots/attacherEcouteursTrousGlisser dans
+// js/pages/eleve-seance.js pour l'explication complète (dupliquées ici, ces
+// deux pages ne partageant pas de module commun).
+function attacherEcouteursSelectionMotsDevoir(racine = document) {
+  racine.querySelectorAll('.mots-selectionnables-lecture .chip-mot-choix').forEach(btn => {
+    btn.addEventListener('click', () => btn.classList.toggle('selectionne'));
+  });
+}
+
+function attacherEcouteursTrousGlisserDevoir(racine = document) {
+  racine.querySelectorAll('[data-question-trous-glisser]').forEach(zoneQuestion => {
+    const chips = Array.from(zoneQuestion.querySelectorAll('.chip-glisser'));
+    let motArme = null;
+
+    function armerMot(chip) {
+      chips.forEach(c => c.classList.remove('chip-armee'));
+      if (motArme === chip) { motArme = null; return; }
+      motArme = chip;
+      chip.classList.add('chip-armee');
+    }
+
+    function placerMot(trou, chip) {
+      if (trou.dataset.motPlace) {
+        const ancien = chips.find(c => c.hidden && c.dataset.motGlisser === trou.dataset.motPlace);
+        if (ancien) ancien.hidden = false;
+      }
+      trou.textContent = chip.dataset.motGlisser;
+      trou.dataset.motPlace = chip.dataset.motGlisser;
+      trou.classList.add('trou-glisser-rempli');
+      chip.hidden = true;
+      chip.classList.remove('chip-armee');
+      motArme = null;
+    }
+
+    function retirerMot(trou) {
+      if (!trou.dataset.motPlace) return;
+      const chip = chips.find(c => c.hidden && c.dataset.motGlisser === trou.dataset.motPlace);
+      if (chip) chip.hidden = false;
+      trou.textContent = '';
+      delete trou.dataset.motPlace;
+      trou.classList.remove('trou-glisser-rempli');
+    }
+
+    chips.forEach(chip => {
+      chip.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', chip.dataset.motGlisser);
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      chip.addEventListener('click', () => armerMot(chip));
+    });
+
+    zoneQuestion.querySelectorAll('.zone-trou-glisser').forEach(trou => {
+      trou.addEventListener('dragover', (e) => { e.preventDefault(); trou.classList.add('trou-glisser-survole'); });
+      trou.addEventListener('dragleave', () => trou.classList.remove('trou-glisser-survole'));
+      trou.addEventListener('drop', (e) => {
+        e.preventDefault();
+        trou.classList.remove('trou-glisser-survole');
+        const motTexte = e.dataTransfer.getData('text/plain');
+        const chip = chips.find(c => !c.hidden && c.dataset.motGlisser === motTexte);
+        if (chip) placerMot(trou, chip);
+      });
+      trou.addEventListener('click', () => {
+        if (motArme) { placerMot(trou, motArme); return; }
+        retirerMot(trou);
+      });
+    });
+  });
+}
+
 // Note/20 d'UNE activité, calculée à partir du pourcentage obtenu (score /
 // score_max) — voir la même fonction et la même explication dans
 // js/pages/eleve-seance.js (dupliquée ici, comme libelleMedaille/
@@ -335,7 +463,7 @@ function rendreResultatExerciceDevoir(b, c, questions, reponse) {
   const note20 = enAttente ? null : noteSur20DepuisScoreDevoir(reponse.score, reponse.score_max);
 
   return `
-    ${c.consigne ? `<p>${echapper(c.consigne)}</p>` : ''}
+    ${c.consigne ? `<div class="contenu-riche-lecture">${contenuRicheInitial(c.consigne)}</div>` : ''}
     <div class="recap-score">${enAttente ? '⏳ En cours de correction par un enseignant' : `📊 Score : ${reponse.score} / ${reponse.score_max}${note20 !== null ? ` (${note20}/20)` : ''}`}${libelleMedailleDevoir(reponse.medaille, reponse.numero_essai)}</div>
     ${questions.map((q, i) => {
       const d = details[q.id] || {};
@@ -355,9 +483,26 @@ function rendreResultatExerciceDevoir(b, c, questions, reponse) {
       else if (q.type === 'classement') texteReponse = Array.isArray(donnee) && donnee.length
         ? donnee.map((k, idx) => `${(q.motsAClasser || [])[idx] ?? ''} → ${k != null ? ((q.categories || [])[k] ?? '?') : '(sans réponse)'}`).join(' ; ')
         : texteReponse;
+      else if (q.type === 'reponse_numerique') texteReponse = (donnee !== undefined && donnee !== null && donnee !== '') ? String(donnee) : texteReponse;
+      else if (q.type === 'selection_mots') {
+        const mots = tokeniserMots(q.enonce || '');
+        texteReponse = Array.isArray(donnee) && donnee.length ? donnee.map(idx => mots[Number(idx)]).filter(Boolean).join(', ') : texteReponse;
+      }
+      else if (q.type === 'intrus_lexical') {
+        const series = Array.isArray(q.series) ? q.series : [];
+        texteReponse = Array.isArray(donnee) && donnee.length
+          ? donnee.map((mi, si) => mi != null ? ((series[si]?.mots || [])[mi] ?? '?') : '(sans réponse)').join(' ; ')
+          : texteReponse;
+      }
+      else if (q.type === 'texte_a_trous_glisser') texteReponse = Array.isArray(donnee) && donnee.length
+        ? donnee.map(m => m || '(vide)').join(' / ')
+        : texteReponse;
+      else if (q.type === 'vrai_faux_justifie') texteReponse = (donnee && typeof donnee === 'object')
+        ? `${donnee.reponse === true ? 'Vrai' : donnee.reponse === false ? 'Faux' : '(sans réponse)'} — ${donnee.justification || '(pas de justification)'}`
+        : texteReponse;
       else if (donnee) texteReponse = donnee;
       return `<div class="question-lecture">
-        <p class="question-enonce">${i + 1}. ${echapper(q.enonce)}</p>
+        <p class="question-enonce">${i + 1}. ${rendreEnonceDevoir(q)}</p>
         <p>Ta réponse : <strong>${echapper(texteReponse)}</strong></p>
         <div class="resultat-question ${classeResultat}">
           ${d.correct === true ? '✅ Correct' : d.correct === false ? '❌ Incorrect' : '⏳ En attente de correction'}
@@ -381,6 +526,8 @@ function attacherEcouteursRefaireDevoir() {
 
 function attacherEcouteursExercicesDevoir() {
   attacherEcouteursListesOrdreDevoir();
+  attacherEcouteursSelectionMotsDevoir();
+  attacherEcouteursTrousGlisserDevoir();
   document.querySelectorAll('[data-form-exercice-devoir]').forEach(form => {
     form.addEventListener('submit', async (ev) => {
       ev.preventDefault();
@@ -420,8 +567,37 @@ function attacherEcouteursExercicesDevoir() {
           reponses[q.id] = selects.map(sel => sel.value === '' ? null : parseInt(sel.value, 10));
           return;
         }
+        if (q.type === 'intrus_lexical') {
+          const zone = form.querySelector(`[data-intrus-question="${CSS.escape(String(q.id))}"]`);
+          const series = zone ? Array.from(zone.querySelectorAll('[data-serie-intrus-index]')) : [];
+          series.sort((a, b) => parseInt(a.dataset.serieIntrusIndex, 10) - parseInt(b.dataset.serieIntrusIndex, 10));
+          reponses[q.id] = series.map(s => {
+            const coche = s.querySelector('input[data-intrus-radio-index]:checked');
+            return coche ? parseInt(coche.dataset.intrusRadioIndex, 10) : null;
+          });
+          return;
+        }
+        if (q.type === 'selection_mots') {
+          const zone = form.querySelector(`[data-question-selection-mots="${CSS.escape(String(q.id))}"]`);
+          const chips = zone ? Array.from(zone.querySelectorAll('.chip-mot-choix')) : [];
+          reponses[q.id] = chips.filter(c => c.classList.contains('selectionne')).map(c => c.dataset.motChoixIndex);
+          return;
+        }
+        if (q.type === 'texte_a_trous_glisser') {
+          const zone = form.querySelector(`[data-question-trous-glisser="${CSS.escape(String(q.id))}"]`);
+          const trous = zone ? Array.from(zone.querySelectorAll('.zone-trou-glisser')) : [];
+          trous.sort((a, b) => parseInt(a.dataset.trouGlisserIndex, 10) - parseInt(b.dataset.trouGlisserIndex, 10));
+          reponses[q.id] = trous.map(t => t.dataset.motPlace || null);
+          return;
+        }
+        if (q.type === 'vrai_faux_justifie') {
+          const coche = form.querySelector(`[name="q_${CSS.escape(String(q.id))}"]:checked`);
+          const justif = form.querySelector(`[name="q_${CSS.escape(String(q.id))}_justification"]`);
+          reponses[q.id] = { reponse: coche ? coche.value === 'true' : null, justification: justif ? justif.value : '' };
+          return;
+        }
         const champCoche = form.querySelector(`[name="q_${CSS.escape(String(q.id))}"]:checked`);
-        const champSimple = form.querySelector(`input[type=text][name="q_${CSS.escape(String(q.id))}"], textarea[name="q_${CSS.escape(String(q.id))}"]`);
+        const champSimple = form.querySelector(`input[type=text][name="q_${CSS.escape(String(q.id))}"], input[type=number][name="q_${CSS.escape(String(q.id))}"], textarea[name="q_${CSS.escape(String(q.id))}"]`);
         const champ = champCoche || champSimple;
         if (!champ) return;
         reponses[q.id] = (q.type === 'vrai_faux') ? (champ.value === 'true') : champ.value;
