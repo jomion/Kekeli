@@ -2247,6 +2247,7 @@ async function ouvrirApercu() {
       }).join('');
       corps = `${c.titre ? `<p style="font-weight:700;margin-bottom:6px">${echapper(c.titre)}</p>` : ''}<table>${lignesHtml}</table>`;
     }
+    else if (b.type_bloc === 'html_libre') corps = html_blocHtmlLibre(c.code, libelle);
     else corps = `<p>${echapper(c.consigne || c.texte || '')}</p>`;
 
     const enfants = blocs.filter(x => x.parent_bloc_id === b.id).sort((a, b2) => a.ordre - b2.ordre);

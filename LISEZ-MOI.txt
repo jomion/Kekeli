@@ -1,81 +1,59 @@
-KEKELI — Livraison : formatage riche des blocs d'activité + 5 nouveaux types de question
-==========================================================================================
+KEKELI — Correctif : bloc « HTML libre » manquant
+====================================================
 Date : 11 septembre 2026
 
-CE QUI CHANGE
---------------
+CE QUI S'ÉTAIT PASSÉ
+----------------------
+Vous aviez signalé ne plus voir le bloc permettant d'entrer du HTML personnalisé
+dans certains cas. Vérification faite directement dans la base de données :
+3 blocs de ce type existent bel et bien (dans les séances « Tableau de
+numération décimale », une division posée, et les symboles de circuit
+électrique), avec leur contenu HTML intact — rien n'a été perdu côté données.
 
-1) FORMATAGE DE TEXTE ENRICHI (gras, italique, souligné, listes, couleurs, alignement,
-   police, taille) désormais disponible à deux endroits dans les blocs d'exercice/quiz/
-   évaluation/activité :
-   - la « Consigne générale » du bloc (comme demandé) ;
-   - l'énoncé de CHAQUE question (comme demandé : « le formatage est valable pour la
-     consigne et pour le contenu de l'activité »).
+En revanche, le code qui gère ce type de bloc (« html_libre ») n'existait
+dans aucun des fichiers déjà livrés sur ce projet : ni dans l'éditeur, ni
+dans l'affichage élève, ni dans l'aperçu admin. Résultat concret : dans
+l'éditeur, ces 3 blocs s'affichaient comme « Type de bloc non reconnu » (plus
+moyen de les modifier), et côté élève leur contenu n'apparaissait tout
+simplement plus (bloc vide).
 
-   Exception volontaire : les 3 types de question où l'énoncé contient directement le
-   texte à trous ou les mots à manipuler (texte à trous classique, texte à trous à
-   glisser-déposer, sélection de mots dans un texte) gardent un énoncé en texte simple,
-   car le formatage riche casserait le repérage automatique des mots/trous. Pour ces
-   3 types, la consigne générale du bloc reste, elle, en formatage riche.
+CE QUI EST CORRIGÉ
+--------------------
+Le bloc « 🌐 HTML libre » est de retour dans la liste des types de bloc de
+l'éditeur, avec une grande zone de texte pour coller un document HTML complet
+(avec ses propres balises <style>, tableaux, SVG...).
 
-   Attention : si un texte a été mis en forme (gras, couleur...) puis que le type de
-   question est ensuite changé vers un des 3 types « texte simple » ci-dessus, les
-   balises de mise en forme ne seront plus interprétées et pourraient apparaître telles
-   quelles. Il est recommandé de choisir le type de question avant de rédiger un énoncé
-   très formaté.
+Affichage : ce code s'affiche désormais à l'élève (et dans l'aperçu élève de
+l'éditeur, et dans l'aperçu compact des listes admin/enseignant) dans un
+cadre bien isolé du reste de la page — c'était nécessaire techniquement,
+car le code que vous collez contient souvent ses propres réglages de mise en
+page (par exemple une couleur de fond appliquée à « body ») qui, sans cette
+isolation, s'appliqueraient à TOUTE la page du site au lieu de rester
+confinés au bloc. Ce cadre peut être agrandi à la main (poignée en bas à
+droite) si le contenu est plus grand que prévu.
 
-2) NOUVEAU TYPE : « Intrus » (choix parmi plusieurs mots proposés)
-   Une ou plusieurs séries de mots ; l'élève doit repérer, dans chaque série, le mot qui
-   n'appartient pas au thème commun. Exemple (celui que vous avez donné) :
-   « fièvre — douleur — médicament — ballon » (l'intrus est « ballon »).
-   Plusieurs séries peuvent être ajoutées dans une seule question.
+Sécurité : par précaution, aucun script ne peut s'exécuter à l'intérieur de
+ce cadre — seuls le texte, les couleurs, les tableaux, le SVG etc. s'affichent
+normalement. Ce bloc reste donc adapté à des schémas/tableaux personnalisés
+statiques, pas à du contenu qui nécessiterait d'exécuter du code.
 
-3) NOUVEAU TYPE : « Réponse numérique / calcul »
-   L'élève saisit un nombre ; vous définissez la bonne valeur et une tolérance
-   (utile pour les résultats avec décimales ou approximations acceptées).
-
-4) NOUVEAU TYPE : « Sélectionner des mots dans un texte »
-   Le texte de l'énoncé est découpé automatiquement en mots cliquables ; l'élève clique
-   sur les mots qu'il juge corrects (ex : repérer les verbes d'une phrase).
-
-5) NOUVEAU TYPE : « Vrai / Faux avec justification »
-   En plus de Vrai/Faux, l'élève doit rédiger une justification. La note est calculée
-   pour moitié automatiquement (bonne/mauvaise réponse) et pour moitié par l'IA qui
-   évalue la qualité de la justification (comme pour les réponses longues).
-
-6) NOUVEAU TYPE : « Glisser-déposer les mots dans le texte »
-   Comme le texte à trous, mais l'élève doit faire glisser les bons mots depuis une
-   banque de mots proposée (qui peut contenir des mots pièges) vers les trous du texte,
-   au lieu de les taper au clavier. Fonctionne aussi au clic (tablette/tactile) pour les
-   classes qui n'ont pas de souris.
-
-CE QUI NE CHANGE PAS
----------------------
-- Les 9 types de question existants (QCM, QCM multiple, Vrai/Faux, réponse courte,
-  réponse longue, texte à trous, remise en ordre, association, classement) fonctionnent
-  exactement comme avant.
-- Les corrigés restent invisibles côté élève dans tous les cas (sécurité inchangée).
-- Aucune donnée existante n'est modifiée par cette livraison ; tout ancien contenu
-  continue de s'afficher normalement.
+Vos 3 blocs existants sont réapparus tels quels, sans que vous ayez besoin de
+les recréer.
 
 FICHIERS MODIFIÉS DANS CE LOT
 -------------------------------
 - js/editeur/blocs.js
 - js/pages/editeur-seance.js
-- js/editeur/devoir-blocs.js
 - js/pages/eleve-seance.js
-- js/pages/eleve-devoir-rendu.js
+- js/apercu-blocs-seance.js
 - css/style.css
-- css/style-public.css
-- css/theme-premium-eleve.css
 
-Ce zip ne contient QUE les fichiers modifiés ou ajoutés depuis la dernière livraison :
-copiez-les par-dessus les fichiers correspondants de votre site.
-
-CÔTÉ SERVEUR (déjà en ligne, rien à faire de votre part)
-----------------------------------------------------------
-La fonction de correction automatique (Edge Function « corriger-exercice ») a été mise à
-jour et déployée pour corriger automatiquement les 4 nouveaux types auto-corrigeables
-(Intrus, Réponse numérique, Sélection de mots, Glisser-déposer) et pour noter le type
-« Vrai/Faux avec justification » (moitié automatique, moitié IA). Aucune action requise :
-c'est déjà actif.
+À NOTER
+--------
+Comme ce code n'avait jamais été livré via une de nos zips (il avait dû être
+ajouté d'une autre façon), il a fallu le reconstruire à partir du contenu
+réel déjà enregistré en base plutôt que de simplement le restaurer à
+l'identique — le fonctionnement (zone de texte + cadre isolé) est cohérent
+avec le reste du site, mais si le bloc fonctionnait un peu différemment avant
+(par exemple une hauteur de cadre calculée automatiquement), dites-le-moi et
+j'ajusterai.

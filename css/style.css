@@ -487,6 +487,20 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .champ-consigne-riche { margin-bottom: 10px; }
 .champ-consigne-riche .etiquette-outils { display: block; margin-bottom: 4px; }
 
+/* ===== Bloc "HTML libre" (11 septembre 2026, reconstruit) ===== */
+.champ-code-html {
+  width: 100%; font-family: 'Courier New', Consolas, monospace; font-size: 12.5px;
+  line-height: 1.5; white-space: pre; overflow-x: auto; min-height: 220px;
+}
+/* Cadre isolé (iframe srcdoc) affichant le document HTML complet collé par
+   l'admin — hauteur généreuse par défaut, redimensionnable à la main par
+   qui la consulte (aucun moyen de connaître à l'avance la hauteur idéale
+   d'un contenu HTML arbitraire). */
+.cadre-html-libre {
+  width: 100%; min-height: 420px; height: 480px; border: 1px solid var(--bordure);
+  border-radius: 8px; resize: vertical; overflow: auto; display: block; background: #fff;
+}
+
 /* Intrus lexical : une ligne par série (mots + choix de l'intrus). */
 .series-intrus { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
 .serie-intrus-ligne { border: 1px solid var(--bordure); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }

@@ -39,6 +39,10 @@ function extraitTexteApercuBloc(type, c) {
   if (type === 'video' || type === 'ressource') return c.nom || c.legende || '';
   if (type === 'formule') return c.formule || '';
   if (type === 'autre') return [c.nom, c.texte].filter(Boolean).join(' — ');
+  // Bloc "HTML libre" (11 septembre 2026) : pas de texte à extraire (le
+  // contenu vit dans c.code, un document HTML complet) — un mot-clé plutôt
+  // que "(vide)", pour ne pas laisser croire que le bloc est réellement vide.
+  if (type === 'html_libre') return c.code ? '(bloc HTML personnalisé)' : '';
   return c.texte || '';
 }
 

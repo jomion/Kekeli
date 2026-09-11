@@ -27,7 +27,17 @@ const TYPES_BLOCS = [
   { valeur: 'consigne',   label: 'Consigne',    icone: '📋', usage: 'Section pouvant contenir des items', couleur: '#003366' },
   { valeur: 'item',       label: 'Item',        icone: '▫️', usage: 'Élément d\'une consigne (Item 1, Item 2...)', couleur: '#475569' },
   { valeur: 'autre',      label: 'Autre',       icone: '🧩', usage: 'Bloc personnalisé (nom libre)', couleur: '#64748B' },
-  { valeur: 'resume',     label: 'Résumé',      icone: '🗒️', usage: 'Synthèse (à la main ou générée par IA)', couleur: '#334155' }
+  { valeur: 'resume',     label: 'Résumé',      icone: '🗒️', usage: 'Synthèse (à la main ou générée par IA)', couleur: '#334155' },
+  // Bloc "HTML libre" (11 septembre 2026) : restauré après avoir été repéré
+  // manquant côté admin ET côté élève alors que 3 blocs de ce type existaient
+  // déjà en base (créés entre le 7 et le 10 septembre 2026, séances 40/45/147)
+  // — le code de ce type de bloc n'avait jamais été livré dans une zip de ce
+  // projet et n'était donc présent dans aucune version de ce fichier suivie
+  // ici ; il a fallu le reconstruire à partir du contenu réel déjà en base
+  // (voir contenuHtmlLibreVersIframe ci-dessous) plutôt que de le retrouver
+  // tel quel. Permet de coller un document HTML complet (avec ses propres
+  // balises <style>, SVG, tableaux...) affiché isolé du reste de la page.
+  { valeur: 'html_libre', label: 'HTML libre',  icone: '🌐', usage: 'Code HTML/CSS/SVG personnalisé (avancé)', couleur: '#0F172A' }
 ];
 
 // Convertit une couleur hexadécimale en fond très clair (pour harmoniser
@@ -136,6 +146,11 @@ function html_editeurBloc(bloc) {
 
     case 'activite': case 'exercice': case 'quiz': case 'evaluation':
       return html_editeurExercice(bloc, c);
+
+    case 'html_libre':
+      return `
+        <p class="note-future">⚠️ Colle ici un document HTML complet (avec ses propres balises &lt;style&gt;, tableaux, SVG...). Une fois enregistré, il s'affiche à l'élève dans un cadre isolé du reste de la page (pas de conflit avec les styles du site) — aucun script n'y est exécuté, par sécurité. Réservé à un usage avancé.</p>
+        <textarea data-champ="code" class="champ-code-html" placeholder="Colle ici ton code HTML..." spellcheck="false" rows="14">${echapper(c.code)}</textarea>`;
 
     default:
       return `<p class="note-future">Type de bloc non reconnu.</p>`;
@@ -883,4 +898,23 @@ function contenuRicheInitial(texte) {
   const v = (texte || '').toString();
   if (v.includes('<')) return v; // déjà du HTML (contenu créé avec le nouvel éditeur)
   return echapper(v).replace(/\n/g, '<br>');
+}
+
+// Rend un bloc "HTML libre" (11 septembre 2026 — reconstruit, voir la note
+// dans TYPES_BLOCS ci-dessus). c.code est un document HTML COMPLET, avec ses
+// propres balises <style>/<svg>/<table>... : l'injecter directement dans la
+// page comme les autres blocs de texte (via innerHTML) ferait fuiter ses
+// styles sur tout le site (ex: une règle "body{...}" du code collé
+// s'appliquerait à la vraie page). On l'isole donc dans un <iframe srcdoc>,
+// qui lui donne son propre document/head/body. `sandbox=""` (toutes les
+// restrictions activées, aucune levée) : le CSS/SVG/tableaux s'affichent
+// normalement — seul le chargement des ressources est concerné, jamais les
+// scripts — mais aucun <script> ne peut s'y exécuter, aucune redirection de
+// la page, aucun accès aux cookies/au stockage du site. Ce bloc est réservé
+// à du contenu statique (schémas, tableaux personnalisés...), jamais à du
+// HTML interactif. Fonction partagée (comme contenuRicheInitial ci-dessus)
+// entre la vraie page élève (js/pages/eleve-seance.js) et l'aperçu élève de
+// l'éditeur (js/pages/editeur-seance.js), pour qu'ils restent identiques.
+function html_blocHtmlLibre(code, titre) {
+  return `<iframe class="cadre-html-libre" srcdoc="${echapper(code)}" sandbox="" loading="lazy" title="${echapper(titre || 'Contenu personnalisé')}"></iframe>`;
 }
