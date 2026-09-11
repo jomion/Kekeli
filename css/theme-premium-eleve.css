@@ -376,7 +376,7 @@ body.theme-premium-actif .fil-ariane-eleve a { color: var(--prem-bleu); }
 .prem-onglet-unite.actif .prem-onglet-unite-sous { color: #E1E7FF; }
 /* Pierres rouges (tâche #155, 11 septembre 2026) : voir le même badge côté
    thème gratuit dans css/style-public.css. */
-.prem-onglet-unite-titre .pastille-pierres-rouges-mat { margin-left: 4px; }
+.prem-onglet-unite-titre .pastille-pierres-diamant-mat { margin-left: 4px; }
 
 /* --- Ligne de filtres --- */
 .prem-barre-filtres { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }

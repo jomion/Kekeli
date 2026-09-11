@@ -1,83 +1,104 @@
-KEKELI — Livraison : nettoyage du système de badges (11 septembre 2026)
+KEKELI — Livraison : corrections des médailles/badges/trophées (11 septembre 2026)
 ================================================================
 
 Ce zip est une LIVRAISON DIFFÉRENTIELLE : il ne contient que les fichiers
-créés ou modifiés depuis la dernière livraison (kekeli-resultats-formatage-
-devoir-2026-09-11.zip). Aucun fichier inchangé n'est inclus — pour
-installer, décompressez ce zip par-dessus votre copie actuelle du site, en
-conservant l'arborescence des dossiers.
+créés ou modifiés depuis la dernière livraison (kekeli-livraison-badges-
+2026-09-11.zip). Aucun fichier inchangé n'est inclus — pour installer,
+décompressez ce zip par-dessus votre copie actuelle du site, en conservant
+l'arborescence des dossiers.
 
-IMPORTANT — changement en base de données déjà appliqué
-------------------------------------------------------------------
-Comme convenu, les changements de base de données sont mis en ligne
-immédiatement (pas d'étape de déploiement séparée) : l'ancien catalogue de
-badges (tables "badges" et "badges_eleves", avec ses 12 badges — 6 actifs,
-6 déjà désactivés — et ses règles automatiques génériques) a été
-définitivement supprimé, ainsi que les 6 déclencheurs et fonctions qui
-l'alimentaient. Le nouveau système de badges de paliers (étoiles, logos,
-médailles, trophées), lui, n'a pas été touché et continue de fonctionner à
-l'identique.
+AUCUN changement de base de données pour cette livraison : la table
+compteurs_badges_paliers stockait déjà le palier et le type de récompense
+séparément, ce qui suffisait à la précision demandée ci-dessous — seuls des
+fichiers du site (images + code) ont été modifiés.
 
-Ce zip contient uniquement les fichiers du site qui devaient être adaptés
-en conséquence.
-
-1) Un seul système de badges désormais, côté élève
+1) Les bonnes images pour chaque médaille/badge/trophée
    ------------------------------------------------------------------
-   Fichiers : js/pages/eleve-badges.js, pages/eleve/badges.html,
+   Comme demandé ("tu as mal placé les médaille et trophé... utilise les
+   noms pour ne plus mélanger"), les 13 images que vous avez fournies ont
+   été installées une par une, chacune associée au nom exact qui
+   l'accompagnait dans vos recommandations :
+     - Médailles de palier (une par question réussie) : la pousse
+       (Azɔ̀ví/medaille_azovi), le djembé (Dèví/medaille_devi), la tête de
+       lion (Ògán/medaille_ogan), la couronne (Axɔ́sú/medaille_axosu).
+     - Badges spéciaux (palier validé à ≥ 66,7 %) : les 4 icônes carrées —
+       badge_bronze, badge_argent, badge_or, badge_diamant.
+     - Trophées d'excellence (palier validé à ≥ 90 % dès le 1er essai) : les
+       4 vraies coupes — trophee_bronze, trophee_argent, trophee_or,
+       trophee_diamant. Comme pour les images précédentes, le socle en bois
+       et la plaque en anglais ("GOLD", "SILVER", "BLUE DIAMOND") ont été
+       recadrés : seule la coupe elle-même est utilisée.
+     - Pierre diamant (nouvelle photo de gemme rouge) : remplace l'ancienne
+       gemme bleue teintée en rouge (l'ancienne photo de gemme rouge portait
+       un filigrane de banque d'images, celle-ci a été vérifiée sans
+       filigrane visible).
+   Un cas particulier : l'icône dorée prévue pour badge_or portait le mot
+   anglais "GROWTH" gravé directement dans le métal (pas une base séparée
+   qu'on pouvait recadrer comme pour les coupes). Elle a été retouchée pour
+   ne garder que l'icône (flèche/graphique), sans aucun texte.
+
+   Les règles d'attribution n'ont PAS changé (seuls les noms/images
+   affichés) :
+     - Badge standard (médaille de palier) : 2 par question réussie au 1er
+       essai, 1 si réussie seulement au 2e essai, rien au 3e essai.
+     - Badges spéciaux : 2 si le palier est validé dès le 1er essai (à
+       partir de 66,7 %), 1 si validé seulement au 2e essai.
+     - Badge d'excellence (trophée) : exactement 1, uniquement si le palier
+       est validé dès le 1er essai avec au moins 90 % (jamais au 2e essai).
+     - Pierre diamant : 5 pierres sur la carte de la matière quand tous ses
+       paliers sont validés à au moins 66,7 %.
+   Comme demandé, les étoiles n'ont pas été touchées.
+
+   Fichiers : assets/badges/ (13 images), js/pages/eleve-badges.js,
    js/pages/eleve-matiere.js, js/pages/eleve-tableau-de-bord.js,
-   css/theme-premium-eleve.css
-   Comme demandé ("trop de badge devient ennuyeux"), la page "Mes badges"
-   de l'élève n'affiche plus que le système de badges liés aux paliers de
-   séance (étoiles, logos, médailles, trophées) — la section "Autres
-   badges" (ancien catalogue) a été retirée. Les autres endroits du site
-   qui affichaient encore l'ancien catalogue ont été mis à jour pour
-   afficher les totaux du nouveau système à la place :
-     - le panneau "Mes badges" de la page matière (thème premium),
-     - le tableau de bord de l'élève (compteur "Récompenses obtenues",
-       panneau "Mes badges" du thème premium, et l'aperçu au survol de la
-       carte "Mes badges").
-   Rien ne change dans la façon dont ces badges sont gagnés — voir le
-   point 2 ci-dessous pour le détail exact des règles.
+   js/pages/eleve-seance.js, js/pages/admin-badges.js.
 
-2) Page admin "Badges des élèves" entièrement repensée
+2) Nouveau : agrandir un badge/trophée en cliquant dessus
    ------------------------------------------------------------------
-   Fichiers : js/pages/admin-badges.js, pages/admin/badges.html,
-   js/pages/admin-tableau-de-bord.js, js/pages/admin-roles.js
-   Comme demandé ("je veux voir tous les badges fonctionnels et les
-   conditions"), cette page affiche maintenant, en lecture seule, la liste
-   exacte des badges réellement actifs sur le site (le système de paliers
-   ci-dessus) et leurs conditions d'obtention précises :
-     - Étoile : par tâche réussie (2 étoiles si réussie au 1er essai,
-       1 si seulement au 2e essai).
-     - Logo de palier : par bloc noté entièrement réussi (2 logos au 1er
-       essai, 1 au 2e essai).
-     - Médaille spéciale : quand un palier entier est validé (taux de
-       réussite ≥ 66,7 % sur tous ses blocs notés) — 2 médailles au 1er
-       essai, 1 au 2e essai ; la couleur dépend du palier (Azɔ̀ví→Bronze,
-       Dèví→Argent, Ògán→Or, Axɔ́sú→Diamant).
-     - Trophée d'excellence : en plus de la médaille, quand un palier est
-       validé dès le 1er essai avec un taux de réussite ≥ 90 %.
-   L'ancienne interface (créer un badge, l'activer/désactiver, l'attribuer
-   ou le retirer à la main à un élève) a été retirée : ce système n'existe
-   plus, tout est désormais automatique. La description de la carte
-   "Badges des élèves" sur le tableau de bord admin, ainsi que le libellé
-   du droit ponctuel correspondant (page "Rôles administrateur"), ont été
-   mis à jour pour refléter que la page est maintenant consultative.
+   Comme demandé ("si on appuie sur une bage ou trophé il doit se présenter
+   en son entièreté et en grand plan avec le nombre collecté en bas"),
+   chaque miniature de médaille/badge/trophée/pierre diamant (page "Mes
+   badges" de l'élève, panneau "Mes badges" de la page matière et du tableau
+   de bord premium, page admin de référence) s'agrandit maintenant au clic
+   (ou au clavier avec Entrée/Espace), avec le nombre collecté en bas de la
+   fenêtre. Se ferme en cliquant à côté, sur la croix, ou avec Échap.
+
+   Fichiers : js/loupe-badge.js (nouveau), css/style-public.css, css/style.css,
+   pages/eleve/badges.html, pages/eleve/matiere.html,
+   pages/eleve/tableau-de-bord.html, pages/admin/badges.html.
+
+3) Page admin "Badges des élèves" : le détail précis par catégorie
+   ------------------------------------------------------------------
+   La page a été mise à jour pour distinguer les 3 niveaux (badge standard,
+   badges spéciaux, badge d'excellence) avec, pour chacun, la bonne image et
+   les conditions exactes reprises ci-dessus, plus une nouvelle carte pour
+   la pierre diamant.
+
+   Fichiers : js/pages/admin-badges.js.
 
 Vérifications effectuées
 -------------------------
-- node --check sur les 6 fichiers JS modifiés : aucune erreur de syntaxe.
-- Vérification de l'équilibre des accolades sur le fichier CSS modifié.
-- Recherche exhaustive de toute référence restante à l'ancien catalogue
-  (tables "badges"/"badges_eleves") dans l'ensemble du site : plus aucune,
-  hormis des commentaires explicatifs dans le code.
-- Vérification en base que les 6 déclencheurs supprimés ne faisaient
-  qu'appeler la fonction d'évaluation de l'ancien catalogue (aucune autre
-  logique perdue), et qu'aucune vue ni fonction du nouveau système de
-  paliers n'en dépendait.
-- Contrôle de sécurité de la base de données après la migration (aucune
-  nouvelle alerte liée à ce changement).
+- node --check sur les 6 fichiers JS modifiés/créés : aucune erreur de
+  syntaxe.
+- Vérification de l'équilibre des accolades sur les 3 fichiers CSS modifiés.
+- Recherche exhaustive de toute référence restante aux anciens noms de
+  fichiers/anciennes variables (logo-standard.jpg, medaille-bronze.jpg,
+  trophee-excellence.jpg, pierre-rouge.jpg, pierres rouges...) dans
+  l'ensemble du site : plus aucune.
+- Vérification que les 13 nouveaux fichiers d'image référencés dans le code
+  existent bien tous dans assets/badges/.
+- Contrôle visuel individuel de chaque image fournie (zoom, recadrage) avant
+  utilisation, pour écarter tout filigrane de banque d'images ou texte en
+  anglais.
 
 Comme convenu, ce zip ne contient que les fichiers créés ou modifiés depuis
 la dernière livraison (livraison différentielle) — aucun fichier inchangé
 n'est inclus.
+
+Fichiers devenus inutiles (à supprimer de votre copie, optionnel)
+-------------------------------------------------------------------
+Les anciennes images remplacées par les 13 nouvelles ci-dessus ne sont plus
+utilisées nulle part sur le site et peuvent être supprimées sans risque de
+votre dossier assets/badges/ : logo-standard.jpg, medaille-bronze.jpg,
+medaille-argent.jpg, medaille-or.jpg, medaille-diamant.jpg, pierre-rouge.jpg,
+trophee-excellence.jpg.

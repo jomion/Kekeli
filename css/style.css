@@ -403,6 +403,17 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .item-notif .msg-notif { font-size: 12px; color: var(--texte-gris); margin-top: 2px; }
 .item-notif .date-notif { font-size: 11px; color: var(--texte-gris); margin-top: 4px; }
 
+/* ===== Loupe badges/médailles/trophées (js/loupe-badge.js, 11 sept. 2026) ===== */
+.loupe-badge-overlay { position: fixed; inset: 0; background: rgba(0,26,51,0.6); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.loupe-badge-boite { position: relative; background: white; border-radius: 16px; padding: 30px 26px 24px; width: 100%; max-width: 320px; box-shadow: 0 16px 40px rgba(0,0,0,0.3); text-align: center; }
+.loupe-badge-fermer { position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; border: none; border-radius: 50%; background: #EEF2F6; color: var(--texte-gris); font-size: 15px; cursor: pointer; }
+.loupe-badge-titre { font-size: 16px; font-weight: 800; color: var(--bleu-principal); margin-bottom: 14px; }
+.loupe-badge-image { display: block; width: 190px; height: 190px; max-width: 100%; object-fit: contain; margin: 0 auto; }
+.loupe-badge-compteur { margin-top: 16px; font-size: 15px; color: var(--texte-fonce); }
+.loupe-badge-compteur strong { color: var(--bleu-principal); font-size: 20px; }
+[data-loupe-badge] { transition: transform .12s; border-radius: 4px; }
+[data-loupe-badge]:hover, [data-loupe-badge]:focus-visible { transform: scale(1.12); outline: 2px solid var(--bleu-principal); outline-offset: 1px; }
+
 /* ===== Modales (formulaires dynamiques) ===== */
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(0,26,51,0.5); z-index: 1000;
@@ -418,6 +429,10 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 }
 .champ-modal textarea { min-height: 60px; resize: vertical; }
 .champ-modal-checkboxes-titre { display: block; margin-bottom: 6px; }
+/* Champ 'richtext' d'une modale dynamique (js/modal.js) — même barre d'outils
+   que l'éditeur de bloc (.barre-outils-texte/.editeur-riche), juste un peu
+   d'espace sous le libellé du champ pour ne pas coller à la barre d'outils. */
+.champ-modal-richtext .barre-outils-texte { margin-top: 6px; }
 .liste-checkboxes-modal { max-height: 190px; overflow-y: auto; border: 1px solid var(--bordure); border-radius: 7px; padding: 4px 8px; background: #FAFBFF; }
 .checkbox-modal { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--texte-fonce); padding: 6px 2px; text-transform: none; }
 .checkbox-modal input { width: auto; margin: 0; }
@@ -531,9 +546,26 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 /* Tableau de résolution (éditeur) : une ligne par étape, solution à gauche,
    opération posée à droite — même disposition en lecture/formulaire élève. */
 .lignes-probleme, .lignes-probleme-eleve { display: flex; flex-direction: column; gap: 12px; margin: 10px 0; }
-.ligne-probleme, .ligne-probleme-eleve { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; border: 1px solid var(--bordure); border-radius: 10px; padding: 12px; background: white; }
+.ligne-probleme, .ligne-probleme-eleve { display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 14px; border: 1px solid var(--bordure); border-radius: 10px; padding: 12px; background: white; }
 .colonne-solution-probleme, .colonne-solution-probleme-eleve { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .colonne-operation-probleme, .colonne-operation-probleme-eleve { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; overflow-x: auto; }
+/* Colonne "Résultats" (tâche du 11 septembre 2026 : "ça manque la colonne de
+   résultat") — 3ᵉ colonne du modèle de référence, entre Solution/Équation et
+   Opérations posées. Voir problemeResultatBoiteHtml dans js/editeur/blocs.js. */
+.colonne-resultat-probleme, .colonne-resultat-probleme-eleve {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-width: 0;
+}
+.etiquette-colonne-probleme-eleve { font-size: 11px; color: var(--texte-gris); font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
+.boite-resultat-probleme {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 10px 8px; background: #F8FAFC; border: 1px solid var(--bordure); border-radius: 8px;
+}
+.case-calcul-probleme.case-resultat-final-probleme { width: 74px; height: 36px; font-size: 16px; }
+.case-unite-probleme {
+  width: 74px; height: 26px; text-align: center; font-size: 12px;
+  border: 1px solid var(--bordure); border-radius: 6px; padding: 0;
+}
+.case-unite-probleme[readonly] { background: #F1F5F9; color: var(--texte-gris); }
 .champ-description-probleme { border: 1px solid var(--bordure); border-radius: 6px; padding: 6px 8px; font-size: 13px; min-height: 20px; background: #FAFAFA; }
 .champ-description-probleme:focus { outline: 2px solid var(--bleu-principal); background: white; }
 .champ-equation-probleme { font-family: 'Courier New', Consolas, monospace; }
@@ -561,8 +593,9 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .enonce-probleme { margin-bottom: 10px; }
 .tableau-probleme-lecture-v2 { width: 100%; border-collapse: collapse; margin-top: 8px; }
 .tableau-probleme-lecture-v2 td { border: 1px solid var(--bordure); padding: 10px; vertical-align: top; }
-.cellule-solution-probleme-lecture { width: 46%; font-size: 13px; }
-.cellule-operation-probleme-lecture { text-align: center; }
+.cellule-solution-probleme-lecture { width: 38%; font-size: 13px; }
+.cellule-resultat-probleme-lecture { width: 18%; text-align: center; vertical-align: middle; }
+.cellule-operation-probleme-lecture { width: 44%; text-align: center; }
 .equation-lecture-probleme { font-family: 'Courier New', Consolas, monospace; color: var(--texte-gris); margin: 4px 0 0; font-size: 13px; }
 .explication-lecture-probleme { margin-top: 6px; font-size: 12.5px; background: #FFF9E6; border-radius: 6px; padding: 6px 8px; }
 .explications-dessous-probleme { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
@@ -570,7 +603,7 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 /* Correction détaillée (js/pages/activites-correction.js, js/devoirs-notes-rendu.js) :
    grille de relecture + 3 notes libres par étape, sommées en direct. */
 .lignes-correction-probleme { display: flex; flex-direction: column; gap: 14px; margin: 10px 0; }
-.ligne-correction-probleme { display: grid; grid-template-columns: 1fr 1fr auto; gap: 14px; align-items: start; border: 1px solid var(--bordure); border-radius: 10px; padding: 12px; }
+.ligne-correction-probleme { display: grid; grid-template-columns: 2fr 1fr 2fr auto; gap: 14px; align-items: start; border: 1px solid var(--bordure); border-radius: 10px; padding: 12px; }
 .notes-correction-probleme { display: flex; flex-direction: column; gap: 8px; min-width: 120px; }
 .champ-note-probleme { display: flex; flex-direction: column; gap: 3px; font-size: 11px; font-weight: 700; color: var(--texte-gris); }
 .champ-note-probleme input { width: 90px; padding: 5px 6px; border: 1px solid var(--bordure); border-radius: 6px; font-size: 13px; }

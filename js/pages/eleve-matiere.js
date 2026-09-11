@@ -223,11 +223,12 @@ async function afficherNiveau() {
     sas = data || [];
   }
 
-  // Pierres rouges : uniquement au niveau racine (parentId null) — une
-  // "racine de matière" au sens de racine_a_pierres_rouges est toujours un
+  // Pierres diamant : uniquement au niveau racine (parentId null) — une
+  // "racine de matière" au sens de racine_a_pierres_rouges (fonction serveur
+  // inchangée, voir chargerPierresDiamantMat ci-dessous) est toujours un
   // noeud sans parent ; ne rien calculer plus bas dans l'arborescence.
-  const pierresRougesMat = (!parentId && noeuds && noeuds.length)
-    ? await chargerPierresRougesMat(noeuds.map(n => n.id)) : {};
+  const pierresDiamantMat = (!parentId && noeuds && noeuds.length)
+    ? await chargerPierresDiamantMat(noeuds.map(n => n.id)) : {};
 
   conteneur.innerHTML = `
     ${filArianeMat(segments)}
@@ -236,7 +237,7 @@ async function afficherNiveau() {
       <div class="carte-champ-eleve" data-noeud-id="${n.id}">
         <div class="icone-champ-eleve">📂</div>
         <strong>${echapper(n.titre)}</strong>
-        ${pastillePierresRougesMat(pierresRougesMat[n.id], true)}
+        ${pastillePierresDiamantMat(pierresDiamantMat[n.id], true)}
       </div>`).join('')}</div>` : ''}
     ${(sas && sas.length) ? `<div class="grille-sa-eleve" id="grilleSaMat" style="margin-top:16px">${sas.map(s => `
       <div class="carte-sa-eleve" data-sa-id="${s.id}">
@@ -446,7 +447,7 @@ async function afficherMatierePremium() {
   etatMat.cheminNoeuds = [{ id: ongletActif.id, titre: ongletActif.titre }];
   synchroniserUrlMat();
 
-  // Pierres rouges sur les onglets premium : la "racine" au sens de
+  // Pierres diamant sur les onglets premium : la "racine" au sens de
   // racine_a_pierres_rouges est toujours le noeud SANS parent — pour une
   // structure à plusieurs niveaux (français : Thème → Unité), l'onglet
   // affiché est l'Unité, donc la racine réelle est son parent (le Thème) ;
@@ -456,7 +457,7 @@ async function afficherMatierePremium() {
   // le comportement attendu (la maîtrise se juge au niveau du Thème entier).
   const structurePremMat = STRUCTURES_IMPOSEES_ELEVE[etatMat.champ.code];
   const racineOngletMat = o => (structurePremMat && structurePremMat.length > 1) ? (o.parent_id ?? o.id) : o.id;
-  const pierresRougesOngletsMat = await chargerPierresRougesMat(onglets.map(racineOngletMat));
+  const pierresDiamantOngletsMat = await chargerPierresDiamantMat(onglets.map(racineOngletMat));
 
   const entreesSa = await collecterSaDescendantesMat(ongletActif.id, []);
   const listesParSa = await Promise.all(entreesSa.map(({ sa }) =>
@@ -493,7 +494,10 @@ async function afficherMatierePremium() {
   // Totaux "toutes matières confondues" du système de badges de paliers —
   // remplace depuis le 11 septembre 2026 l'ancien catalogue de badges
   // (tables badges/badges_eleves, retiré : "trop de badge devient
-  // ennuyeux"), voir js/pages/eleve-badges.js pour le détail par palier.
+  // ennuyeux"), voir js/pages/eleve-badges.js pour le détail par palier et
+  // la correspondance type_badge → nomenclature affichée (medaille_<palier>/
+  // badge_<couleur>/trophee_<couleur>) — ici, vue toutes matières confondues,
+  // le détail par palier n'a pas de sens : on garde les icônes génériques.
   const totauxRecompensesMat = { logo_standard: 0, medaille_speciale: 0, trophee_excellence: 0 };
   (compteursBadgesMat || []).forEach(c => { totauxRecompensesMat[c.type_badge] = (totauxRecompensesMat[c.type_badge] || 0) + c.total; });
   const totalEtoilesMat = etoilesMat?.total || 0;
@@ -515,7 +519,7 @@ async function afficherMatierePremium() {
         ${onglets.map((o, i) => `<button type="button" class="prem-onglet-unite${o.id === ongletActif.id ? ' actif' : ''}" data-onglet-noeud="${o.id}">
           <span class="prem-onglet-unite-icone">${iconePrem(ICONES_ONGLET_UNITE_MAT[i % ICONES_ONGLET_UNITE_MAT.length], 15)}</span>
           <span>
-            <div class="prem-onglet-unite-titre">${echapper(libelleOrdinalOngletMat(o.type_noeud, i + 1))}${pastillePierresRougesMat(pierresRougesOngletsMat[racineOngletMat(o)], false)}</div>
+            <div class="prem-onglet-unite-titre">${echapper(libelleOrdinalOngletMat(o.type_noeud, i + 1))}${pastillePierresDiamantMat(pierresDiamantOngletsMat[racineOngletMat(o)], false)}</div>
             <div class="prem-onglet-unite-sous">${echapper(o.titre)}</div>
           </span>
         </button>`).join('')}
@@ -559,9 +563,9 @@ async function afficherMatierePremium() {
           <h3>Mes badges</h3>
           <div class="prem-badges-mini">
             <div class="prem-mini-recompense" title="Étoiles"><span class="prem-badge-mini">⭐</span><div class="prem-mini-recompense-total">${totalEtoilesMat}</div></div>
-            <div class="prem-mini-recompense" title="Logos de palier"><span class="prem-badge-mini"><img src="${RACINE_SITE}assets/badges/logo-standard.jpg" alt="" width="22" height="22" style="border-radius:4px;object-fit:contain"></span><div class="prem-mini-recompense-total">${totauxRecompensesMat.logo_standard}</div></div>
-            <div class="prem-mini-recompense" title="Médailles spéciales"><span class="prem-badge-mini">🎖️</span><div class="prem-mini-recompense-total">${totauxRecompensesMat.medaille_speciale}</div></div>
-            <div class="prem-mini-recompense" title="Trophées d'excellence"><span class="prem-badge-mini"><img src="${RACINE_SITE}assets/badges/trophee-excellence.jpg" alt="" width="22" height="22" style="border-radius:4px;object-fit:contain"></span><div class="prem-mini-recompense-total">${totauxRecompensesMat.trophee_excellence}</div></div>
+            <div class="prem-mini-recompense" title="Médailles de palier"><span class="prem-badge-mini">🎖️</span><div class="prem-mini-recompense-total">${totauxRecompensesMat.logo_standard}</div></div>
+            <div class="prem-mini-recompense" title="Badges spéciaux"><span class="prem-badge-mini">🏅</span><div class="prem-mini-recompense-total">${totauxRecompensesMat.medaille_speciale}</div></div>
+            <div class="prem-mini-recompense" title="Trophées d'excellence"><span class="prem-badge-mini">🏆</span><div class="prem-mini-recompense-total">${totauxRecompensesMat.trophee_excellence}</div></div>
           </div>
           <a class="prem-btn-contour" href="badges.html">Voir tous mes badges</a>
         </div>
@@ -727,15 +731,18 @@ function echapper(v) {
   return d.innerHTML;
 }
 
-// ===== Pierres rouges (reste de la tâche #155, livré le 11 septembre 2026)
-// Récompense visuelle affichée devant le nom d'une racine de matière (un
-// noeud SANS parent : Thème pour le français, Dossier pour les
+// ===== Pierre diamant (reste de la tâche #155, renommée le 11 septembre
+// 2026 — cahier des charges : "Après une réussite à partir de 66,7% de tous
+// les paliers d'une matière, affichée 5 pierre_diamant sur la carte de la
+// matière"). Récompense visuelle affichée devant le nom d'une racine de
+// matière (un noeud SANS parent : Thème pour le français, Dossier pour les
 // mathématiques) quand TOUS les paliers qui en dépendent — toute la
-// descendance : Unité/Semaine/SA/séances — sont validés. La fonction
-// serveur racine_a_pierres_rouges (déjà en place, lecture seule) fait tout
-// le calcul ; ce module se contente de l'appeler et d'afficher le résultat.
-// Aucune nouvelle migration, aucune nouvelle table.
-async function chargerPierresRougesMat(racineIds) {
+// descendance : Unité/Semaine/SA/séances — sont validés à au moins 66,7 %.
+// La fonction serveur (déjà en place, lecture seule, nom conservé tel quel
+// côté base : racine_a_pierres_rouges — seul l'affichage change, aucune
+// migration nécessaire) fait tout le calcul ; ce module se contente de
+// l'appeler et d'afficher le résultat.
+async function chargerPierresDiamantMat(racineIds) {
   const uniques = [...new Set((racineIds || []).filter(id => id != null))];
   if (!uniques.length) return {};
   const resultats = await Promise.all(uniques.map(id =>
@@ -748,13 +755,13 @@ async function chargerPierresRougesMat(racineIds) {
 
 // `enBloc` : true = affichée sous le titre (cartes du thème gratuit),
 // false = affichée en ligne à côté du titre (pilule d'onglet premium).
-// Depuis le 11 septembre 2026 : la vraie photo de gemme fournie par le
-// porteur du projet (recadrée puis teintée en rouge à partir de la gemme
-// bleue déjà utilisée pour le trophée d'excellence — la photo de gemme
-// rouge d'origine portait un filigrane de banque d'images et n'a donc pas
-// été utilisée, voir assets/badges/pierre-rouge.jpg), à la place de l'emoji.
-function pastillePierresRougesMat(reussie, enBloc) {
+// Depuis le 11 septembre 2026 : nouvelle photo de gemme rouge fournie par le
+// porteur du projet (assets/badges/pierre-diamant.jpg), vérifiée sans
+// filigrane visible — remplace l'ancien contournement (gemme bleue du
+// trophée d'excellence recadrée puis teintée en rouge, la première photo de
+// gemme rouge fournie portant un filigrane de banque d'images).
+function pastillePierresDiamantMat(reussie, enBloc) {
   if (!reussie) return '';
-  const gemme = `<img src="${RACINE_SITE}assets/badges/pierre-rouge.jpg" alt="Pierre rouge" width="14" height="14" style="display:inline-block;vertical-align:middle;object-fit:contain;border-radius:3px;margin-right:1px">`;
-  return `<span class="pastille-pierres-rouges-mat${enBloc ? ' en-bloc' : ''}" title="Racine entièrement maîtrisée : 5 pierres rouges !">${gemme.repeat(5)}</span>`;
+  const gemme = `<img src="${RACINE_SITE}assets/badges/pierre-diamant.jpg" alt="Pierre diamant" width="14" height="14" data-loupe-badge="pierre-diamant.jpg" data-loupe-titre="Pierre diamant" data-loupe-nombre="5" style="display:inline-block;vertical-align:middle;object-fit:contain;border-radius:3px;margin-right:1px;cursor:pointer">`;
+  return `<span class="pastille-pierres-diamant-mat${enBloc ? ' en-bloc' : ''}" title="Racine entièrement maîtrisée : 5 pierres diamant !">${gemme.repeat(5)}</span>`;
 }

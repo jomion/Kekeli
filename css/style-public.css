@@ -422,6 +422,17 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .carte-action-tb p { margin: 0; font-size: 13px; color: var(--text-gris); line-height: 1.4; }
 .carte-action-tb button.btn-filled { margin-top: 12px; width: 100%; }
 
+/* ===== Loupe badges/médailles/trophées (js/loupe-badge.js, 11 sept. 2026) ===== */
+.loupe-badge-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.loupe-badge-boite { position: relative; background: white; border-radius: 16px; padding: 30px 26px 24px; width: 100%; max-width: 320px; box-shadow: 0 16px 40px rgba(0,0,0,0.3); text-align: center; }
+.loupe-badge-fermer { position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; border: none; border-radius: 50%; background: var(--fond-app,#F1F5F9); color: var(--text-gris); font-size: 15px; cursor: pointer; }
+.loupe-badge-titre { font-size: 16px; font-weight: 800; color: var(--noir-kekeli); margin-bottom: 14px; }
+.loupe-badge-image { display: block; width: 190px; height: 190px; max-width: 100%; object-fit: contain; margin: 0 auto; }
+.loupe-badge-compteur { margin-top: 16px; font-size: 15px; color: var(--text-dark); }
+.loupe-badge-compteur strong { color: var(--bleu-kekeli); font-size: 20px; }
+[data-loupe-badge] { transition: transform .12s; border-radius: 4px; }
+[data-loupe-badge]:hover, [data-loupe-badge]:focus-visible { transform: scale(1.12); outline: 2px solid var(--bleu-kekeli); outline-offset: 1px; }
+
 /* ===== Modales (formulaires dynamiques) — mêmes classes que js/modal.js ===== */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
 .modal-boite { background: white; border-radius: 12px; padding: 24px; width: 100%; max-width: 420px; box-shadow: 0 12px 32px rgba(0,0,0,0.3); }
@@ -522,11 +533,12 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .carte-champ-eleve { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); cursor: pointer; transition: transform .15s; border: 2px solid transparent; }
 .carte-champ-eleve:hover { transform: translateY(-3px); border-color: var(--bleu-kekeli); }
 .icone-champ-eleve { font-size: 30px; margin-bottom: 8px; }
-/* Pierres rouges (tâche #155, 11 septembre 2026) : récompense affichée sous
-   le titre d'une racine de matière entièrement maîtrisée — voir
-   pastillePierresRougesMat/chargerPierresRougesMat dans eleve-matiere.js. */
-.pastille-pierres-rouges-mat { display: inline-flex; align-items: center; }
-.pastille-pierres-rouges-mat.en-bloc { display: flex; margin-top: 4px; }
+/* Pierre diamant (tâche #155, renommée le 11 septembre 2026) : récompense
+   affichée sous le titre d'une racine de matière entièrement maîtrisée —
+   voir pastillePierresDiamantMat/chargerPierresDiamantMat dans
+   eleve-matiere.js. */
+.pastille-pierres-diamant-mat { display: inline-flex; align-items: center; }
+.pastille-pierres-diamant-mat.en-bloc { display: flex; margin-top: 4px; }
 .grille-sa-eleve { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
 .carte-sa-eleve { background: white; border-radius: 12px; padding: 16px 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .carte-sa-eleve:hover { border-left: 5px solid var(--bleu-kekeli); }
@@ -579,8 +591,9 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 /* Tableau de résolution en lecture/corrigé (2 colonnes, une ligne par étape). */
 .tableau-probleme-lecture-v2 { width: 100%; border-collapse: collapse; margin-top: 8px; }
 .tableau-probleme-lecture-v2 td { border: 1px solid var(--bordure); padding: 10px; vertical-align: top; }
-.cellule-solution-probleme-lecture { width: 46%; font-size: 13px; }
-.cellule-operation-probleme-lecture { text-align: center; }
+.cellule-solution-probleme-lecture { width: 38%; font-size: 13px; }
+.cellule-resultat-probleme-lecture { width: 18%; text-align: center; vertical-align: middle; }
+.cellule-operation-probleme-lecture { width: 44%; text-align: center; }
 .equation-lecture-probleme { font-family: 'Courier New', Consolas, monospace; color: var(--text-gris); margin: 4px 0 0; font-size: 13px; }
 .explication-lecture-probleme { margin-top: 6px; font-size: 12.5px; background: #FFF9E6; border-radius: 6px; padding: 6px 8px; }
 .explications-dessous-probleme { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
@@ -589,9 +602,26 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
    mais éditable) et sa relecture après soumission (lecture seule, montrant
    ce que l'élève a réellement écrit — voir html_relectureProbleme). */
 .lignes-probleme-eleve { display: flex; flex-direction: column; gap: 12px; margin: 10px 0; }
-.ligne-probleme-eleve { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; border: 1px solid var(--bordure); border-radius: 10px; padding: 12px; background: white; }
+.ligne-probleme-eleve { display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 14px; border: 1px solid var(--bordure); border-radius: 10px; padding: 12px; background: white; }
 .colonne-solution-probleme-eleve { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .colonne-operation-probleme-eleve { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; overflow-x: auto; }
+/* Colonne "Résultats" (tâche du 11 septembre 2026 : "ça manque la colonne de
+   résultat") — 3ᵉ colonne du modèle de référence, entre Solution/Équation et
+   Opérations posées. Voir problemeResultatBoiteHtml dans js/editeur/blocs.js. */
+.colonne-resultat-probleme, .colonne-resultat-probleme-eleve {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-width: 0;
+}
+.etiquette-colonne-probleme-eleve { font-size: 11px; color: var(--text-gris); font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
+.boite-resultat-probleme {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 10px 8px; background: #F8FAFC; border: 1px solid var(--bordure); border-radius: 8px;
+}
+.case-calcul-probleme.case-resultat-final-probleme { width: 74px; height: 36px; font-size: 16px; }
+.case-unite-probleme {
+  width: 74px; height: 26px; text-align: center; font-size: 12px;
+  border: 1px solid var(--bordure); border-radius: 6px; padding: 0;
+}
+.case-unite-probleme[readonly] { background: #F1F5F9; color: var(--text-gris); }
 .lignes-probleme-relecture .ligne-probleme-eleve { background: #F9FAFB; }
 
 /* Grille de calcul posé — identique en apparence dans tous les contextes
@@ -628,7 +658,7 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .liste-auto-probleme { margin: 0; padding-left: 18px; font-size: 13px; }
 .liste-auto-probleme li { margin-bottom: 3px; }
 .lignes-probleme { display: flex; flex-direction: column; gap: 12px; margin: 10px 0; }
-.ligne-probleme { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; border: 1px solid var(--bordure); border-radius: 10px; padding: 12px; background: white; }
+.ligne-probleme { display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 14px; border: 1px solid var(--bordure); border-radius: 10px; padding: 12px; background: white; }
 .colonne-solution-probleme { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .colonne-operation-probleme { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; overflow-x: auto; }
 .champ-description-probleme { border: 1px solid var(--bordure); border-radius: 6px; padding: 6px 8px; font-size: 13px; min-height: 20px; background: #FAFAFA; }
@@ -641,7 +671,7 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
    ouvrirCorrectionProblemeDevoir) : grille de relecture + 3 notes libres par
    étape, sommées en direct — même règle que côté séance (css/style.css). */
 .lignes-correction-probleme { display: flex; flex-direction: column; gap: 14px; margin: 10px 0; }
-.ligne-correction-probleme { display: grid; grid-template-columns: 1fr 1fr auto; gap: 14px; align-items: start; border: 1px solid var(--bordure); border-radius: 10px; padding: 12px; }
+.ligne-correction-probleme { display: grid; grid-template-columns: 2fr 1fr 2fr auto; gap: 14px; align-items: start; border: 1px solid var(--bordure); border-radius: 10px; padding: 12px; }
 .notes-correction-probleme { display: flex; flex-direction: column; gap: 8px; min-width: 120px; }
 .champ-note-probleme { display: flex; flex-direction: column; gap: 3px; font-size: 11px; font-weight: 700; color: var(--text-gris); }
 .champ-note-probleme input { width: 90px; padding: 5px 6px; border: 1px solid var(--bordure); border-radius: 6px; font-size: 13px; }
@@ -746,8 +776,28 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .zone-travail-seance { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
 .colonne-lecture-seance, .colonne-exercice-seance { min-width: 0; }
 .activite-lecture { padding-top: 8px; }
-.activite-lecture textarea { width: 100%; border: 2px solid var(--bordure); border-radius: 8px; padding: 8px; font-size: 14px; font-family: inherit; min-height: 90px; resize: vertical; }
-.activite-lecture input[type=url] { width: 100%; border: 2px solid var(--bordure); border-radius: 8px; padding: 8px; font-size: 14px; margin-top: 8px; }
+/* Zone de réponse libre d'un bloc "exercice" (11 septembre 2026 : signalée
+   "presque invisible" — l'ancien bordure très pâle (var(--bordure)) se
+   fondait dans le fond blanc). Bordure plus marquée, fond légèrement teinté
+   pour bien délimiter la zone de saisie, halo net au focus. */
+.activite-lecture textarea {
+  width: 100%; border: 2px solid #94A3B8; border-radius: 8px; padding: 10px 12px;
+  font-size: 14px; font-family: inherit; min-height: 110px; resize: vertical;
+  background: #F8FAFC; transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.activite-lecture textarea::placeholder { color: #94A3B8; }
+.activite-lecture textarea:focus {
+  outline: none; border-color: var(--bleu-kekeli); background: white;
+  box-shadow: 0 0 0 3px rgba(0,0,209,0.12);
+}
+.activite-lecture input[type=url] {
+  width: 100%; border: 2px solid #CBD5E1; border-radius: 8px; padding: 8px 12px;
+  font-size: 14px; margin-top: 10px; background: #F8FAFC; transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.activite-lecture input[type=url]:focus {
+  outline: none; border-color: var(--bleu-kekeli); background: white;
+  box-shadow: 0 0 0 3px rgba(0,0,209,0.12);
+}
 .carte-note-activite { background: #F1F5F9; border-radius: 8px; padding: 10px 12px; margin-top: 8px; font-size: 13px; }
 .bouton-marquer-termine { margin-top: 10px; }
 @media (max-width: 860px) { .zone-travail-seance { grid-template-columns: 1fr; } }

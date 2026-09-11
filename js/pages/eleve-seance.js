@@ -77,12 +77,16 @@ const LIBELLES_PALIER_ELEVE = { azovi: '🌱 Azɔ̀ví', devi: '🪘 Dèví', og
 // éducatifs, ce que le porteur du projet sait — cf. LISEZ-MOI).
 const COULEURS_PALIER_ELEVE = { azovi: '#15803D', devi: '#1D4ED8', ogan: '#9A3412', axosu: '#B91C1C' };
 const LIBELLES_MEDAILLE = { bronze: '🥉 Bronze', argent: '🥈 Argent', or: '🥇 Or', diamant: '💎 Diamant' };
-// Vraies photos de coupes (fournies le 11 septembre 2026) affichées dans la
-// pastille de médaille du récapitulatif d'exercice — voir libelleMedaille
-// ci-dessous et assets/badges/. Même correspondance que côté page badges
-// (js/pages/eleve-badges.js#IMAGE_MEDAILLE_PAR_PALIER), indexée ici par
-// nom de médaille plutôt que par palier (mêmes valeurs, deux clés).
-const IMAGE_MEDAILLE = { bronze: 'medaille-bronze.jpg', argent: 'medaille-argent.jpg', or: 'medaille-or.jpg', diamant: 'medaille-diamant.jpg' };
+// Cette pastille est un simple repère de note (couleur calculée par
+// calculer_medaille() côté base à partir du score du bloc, indépendamment de
+// la validation du palier) — ce n'est PAS le "badge spécial" décerné à la
+// validation d'un palier entier (≥ 66,7 %, voir js/pages/eleve-badges.js).
+// On utilise donc ici les icônes carrées plates "badge_<couleur>" (assets/
+// badges/badge-*.jpg, nomenclature du 11 septembre 2026) et JAMAIS les
+// vraies coupes "trophee_<couleur>", réservées exclusivement au trophée
+// d'excellence (≥ 90 %, 1er essai) pour ne pas laisser croire qu'une simple
+// note de bloc vaut un trophée.
+const IMAGE_MEDAILLE = { bronze: 'badge-bronze.jpg', argent: 'badge-argent.jpg', or: 'badge-or.jpg', diamant: 'badge-diamant.jpg' };
 
 (async function () {
   profilEleveSeance = await requireRole('eleve');

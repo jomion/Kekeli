@@ -80,8 +80,8 @@ const LIBELLES_PALIER_TB = {
     // type de récompense plutôt qu'une liste "des derniers" badges.
     apercuBadgesTb = [
       totalEtoilesTb > 0 ? `⭐ ${totalEtoilesTb} étoile${totalEtoilesTb > 1 ? 's' : ''}` : null,
-      totauxRecompensesTb.logo_standard > 0 ? `🎖️ ${totauxRecompensesTb.logo_standard} logo${totauxRecompensesTb.logo_standard > 1 ? 's' : ''} de palier` : null,
-      totauxRecompensesTb.medaille_speciale > 0 ? `🏅 ${totauxRecompensesTb.medaille_speciale} médaille${totauxRecompensesTb.medaille_speciale > 1 ? 's' : ''} spéciale${totauxRecompensesTb.medaille_speciale > 1 ? 's' : ''}` : null,
+      totauxRecompensesTb.logo_standard > 0 ? `🎖️ ${totauxRecompensesTb.logo_standard} médaille${totauxRecompensesTb.logo_standard > 1 ? 's' : ''} de palier` : null,
+      totauxRecompensesTb.medaille_speciale > 0 ? `🏅 ${totauxRecompensesTb.medaille_speciale} badge${totauxRecompensesTb.medaille_speciale > 1 ? 's' : ''} spécia${totauxRecompensesTb.medaille_speciale > 1 ? 'ux' : 'l'}` : null,
       totauxRecompensesTb.trophee_excellence > 0 ? `🏆 ${totauxRecompensesTb.trophee_excellence} trophée${totauxRecompensesTb.trophee_excellence > 1 ? 's' : ''} d'excellence` : null
     ].filter(Boolean);
     apercuDevoirsTb = (devoirsAVenirTb || []).map(d => `${d.titre} — ${new Date(d.date_limite).toLocaleDateString('fr-FR')}`);
@@ -165,9 +165,9 @@ const LIBELLES_PALIER_TB = {
           <h3>🏅 Mes badges</h3>
           <div class="prem-badges-mini">
             <div class="prem-mini-recompense" title="Étoiles"><span class="prem-badge-mini">⭐</span><div class="prem-mini-recompense-total">${totalEtoilesTb}</div></div>
-            <div class="prem-mini-recompense" title="Logos de palier"><span class="prem-badge-mini"><img src="${RACINE_SITE}assets/badges/logo-standard.jpg" alt="" width="22" height="22" style="border-radius:4px;object-fit:contain"></span><div class="prem-mini-recompense-total">${totauxRecompensesTb.logo_standard}</div></div>
-            <div class="prem-mini-recompense" title="Médailles spéciales"><span class="prem-badge-mini">🎖️</span><div class="prem-mini-recompense-total">${totauxRecompensesTb.medaille_speciale}</div></div>
-            <div class="prem-mini-recompense" title="Trophées d'excellence"><span class="prem-badge-mini"><img src="${RACINE_SITE}assets/badges/trophee-excellence.jpg" alt="" width="22" height="22" style="border-radius:4px;object-fit:contain"></span><div class="prem-mini-recompense-total">${totauxRecompensesTb.trophee_excellence}</div></div>
+            <div class="prem-mini-recompense" title="Médailles de palier"><span class="prem-badge-mini">🎖️</span><div class="prem-mini-recompense-total">${totauxRecompensesTb.logo_standard}</div></div>
+            <div class="prem-mini-recompense" title="Badges spéciaux"><span class="prem-badge-mini">🏅</span><div class="prem-mini-recompense-total">${totauxRecompensesTb.medaille_speciale}</div></div>
+            <div class="prem-mini-recompense" title="Trophées d'excellence"><span class="prem-badge-mini">🏆</span><div class="prem-mini-recompense-total">${totauxRecompensesTb.trophee_excellence}</div></div>
           </div>
         </div>
         <div class="prem-carte-panneau prem-carte-serie">
