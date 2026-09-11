@@ -702,9 +702,26 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .resultat-question.correct { background: #E8F8EF; border-left: 4px solid #22A559; }
 .resultat-question.incorrect { background: #FCEBEB; border-left: 4px solid var(--rouge); }
 .resultat-question.attente { background: #FFF8E1; border-left: 4px solid #FFC93C; }
+/* Question à plusieurs tâches (texte à trous, association...) partiellement
+   réussie — lot "Activité et Paliers", 11 septembre 2026 : une tâche ratée
+   ne doit jamais se confondre visuellement avec une question entièrement
+   ratée, ni avec une entièrement réussie. */
+.resultat-question.partiel { background: #FFF8E1; border-left: 4px solid #EAB308; }
 .recap-score { font-size: 20px; font-weight: 800; color: var(--bleu-kekeli); margin-bottom: 10px; }
 .acces-suspendu-exercice { background: #FFF3E0; border-left: 4px solid #FF9800; border-radius: 8px; padding: 12px 14px; font-size: 14px; color: #7A4A00; }
 .note-essai-gratuit { font-size: 12px; color: #B8860B; background: #FFF8E1; border-radius: 6px; padding: 6px 10px; display: inline-block; margin-bottom: 8px; }
+/* Message de félicitations/encouragement affiché juste après une soumission
+   d'exercice (voir soumettreExercice dans js/pages/eleve-seance.js). */
+.message-apres-essai { font-size: 15px; font-weight: 700; background: #EFF6FF; color: #1D4ED8; border-radius: 8px; padding: 8px 12px; margin: 0 0 10px; }
+/* Feedback de la validation EN DIRECT d'une question, mode progressif des
+   paliers (voir rendreExerciceProgressif) — ok/partiel/echec, distinct du
+   récapitulatif final .resultat-question pour rester léger pendant que
+   l'élève avance question par question. */
+.feedback-tache-progressive { margin-top: 10px; padding: 8px 12px; border-radius: 8px; font-weight: 700; font-size: 14px; }
+.feedback-tache-progressive.feedback-ok { background: #E8F8EF; color: #15803D; }
+.feedback-tache-progressive.feedback-partiel { background: #FFF8E1; color: #92620A; }
+.feedback-tache-progressive.feedback-echec { background: #FCEBEB; color: #B91C1C; }
+.bonne-reponse-corrigee { color: #1D4ED8; font-weight: 600; }
 .entete-seance-eleve { background: white; border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); border-left: 5px solid var(--bleu-kekeli); }
 /* Fil d'ariane miniature (arborescence complète : classe > matière >
    thème/unité/semaine/dossier... > SA > séance), suivi du titre de la séance

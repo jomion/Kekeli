@@ -25,8 +25,42 @@ let reponsesExistantes = {}; // bloc_id -> [lignes reponses_exercices] triées p
 let rendusActivitesExistants = {}; // bloc_id -> [lignes rendus_activites] triées par numero_essai
 let etatAccesCorrectionIA = { autorise: false }; // service premium "correction_ia" (cf. consommer_usage_service en base)
 let seanceDejaTerminee = false;
-let etatPaliersSeance = []; // [{palier, nb_total, nb_reussies, deverrouille}] — vide si la séance n'utilise pas les paliers
+// [{palier, nb_taches_total, nb_taches_reussies, taux, tainted, reussi, deverrouille}]
+// — vide si la séance n'utilise pas les paliers. Vient de etat_paliers_seance_v2
+// (lot "Activité et Paliers", 11 septembre 2026) : raisonne en TÂCHES, pas en
+// nombre de blocs — voir js/pages/eleve-seance.js#rendre / html_sectionPaliers.
+let etatPaliersSeance = [];
 let formulairesReouverts = new Set(); // bloc_id pour lesquels l'élève a cliqué "Refaire" (affiche un formulaire vierge malgré un essai existant)
+// Masquage des activités (lot "Activité et Paliers") : par défaut, tous les
+// blocs "à faire" (TYPES_TRAVAIL + sections Paliers) restent masqués tant que
+// l'élève n'a pas cliqué sur "Passer aux activités" — sauf s'il a déjà
+// commencé (au moins une réponse/rendu existant), auquel cas on ne re-masque
+// jamais un travail déjà entamé. Remis à false à chaque chargement de séance
+// (voir charger()) : le masquage est une mise en scène "on lit le cours
+// d'abord", pas une préférence à mémoriser dans le temps.
+let activitesDeverrouilleesManuel = false;
+// État "consultation de correction" en cours par bloc (bloc_id -> {corrige, taintee})
+// — rempli après un appel réussi à consulter_correction_exercice(), pour
+// afficher la vraie bonne réponse (voir rendreResultatExercice) sans la
+// re-demander en boucle au serveur.
+let correctionsConsultees = {};
+// Petit message de félicitations/encouragement affiché juste après une
+// soumission (voir soumettreExercice) — bloc_id -> texte, effacé au
+// prochain chargement de séance pour ne pas s'afficher indéfiniment.
+let messagesApresEssai = {};
+// Déverrouillage PROGRESSIF des questions, réservé aux blocs tagués d'un
+// palier (le cahier des charges du 11 septembre 2026 ne demande la
+// progression question par question QUE "pour chaque palier" — les
+// exercices/quiz/évaluations hors palier gardent le formulaire classique
+// à soumission unique). bloc_id -> { index, reponses } — `index` est la
+// question actuellement affichée (validée en direct via l'action
+// 'valider_tache', sans consommer d'essai ni de quota) ; une fois
+// index >= nb questions, toutes les réponses collectées dans `reponses`
+// sont soumises ensemble via soumettreExercice (essai réel, notation
+// serveur qui recalcule tout — la validation en direct n'est qu'un guide
+// pour l'élève, jamais la source de vérité). Remis à zéro à chaque
+// chargement de séance et après chaque soumission réelle.
+let progressionPalier = {};
 
 // 11 septembre 2026 : 'exercice' retiré de la liste des blocs "travail" —
 // c'est désormais un bloc de texte libre (lecture), voir rendreBlocLecture
@@ -127,6 +161,10 @@ async function charger() {
   reponsesExistantes = {};
   rendusActivitesExistants = {};
   formulairesReouverts.clear();
+  activitesDeverrouilleesManuel = false;
+  correctionsConsultees = {};
+  messagesApresEssai = {};
+  progressionPalier = {};
 
   if (idsExercices.length) {
     const { data: reponses } = await supabaseClient
@@ -146,7 +184,7 @@ async function charger() {
 
   const aDesPaliers = blocsCourants.some(b => b.palier);
   etatPaliersSeance = aDesPaliers
-    ? (await supabaseClient.rpc('etat_paliers_seance', { p_eleve_id: profilEleveSeance.id, p_seance_id: seanceId })).data || []
+    ? (await supabaseClient.rpc('etat_paliers_seance_v2', { p_eleve_id: profilEleveSeance.id, p_seance_id: seanceId })).data || []
     : [];
 
   rendre();
@@ -164,6 +202,14 @@ async function rafraichirAccesCorrectionIA() {
   etatAccesCorrectionIA = etatAcces || { autorise: false };
 }
 
+// Un bloc "à faire" est déjà entamé s'il a au moins une réponse/rendu
+// enregistré — dans ce cas on ne le remasque JAMAIS (le masquage sert à ne
+// pas montrer le travail avant que l'élève ait choisi de commencer, pas à
+// cacher un travail déjà en cours).
+function blocDejaEntame(b) {
+  return (reponsesExistantes[b.id] || []).length > 0 || (rendusActivitesExistants[b.id] || []).length > 0;
+}
+
 function rendre() {
   const tousBlocsTop = blocsCourants.filter(b => !b.parent_bloc_id).sort((a, b) => a.ordre - b.ordre);
   const blocsGeneraux = tousBlocsTop.filter(b => !b.palier);
@@ -172,7 +218,14 @@ function rendre() {
 
   const blocsParPalier = {};
   tousBlocsTop.filter(b => b.palier).forEach(b => { (blocsParPalier[b.palier] ??= []).push(b); });
-  const aDesPaliers = etatPaliersSeance.some(p => p.nb_total > 0);
+  const aDesPaliers = etatPaliersSeance.some(p => p.nb_taches_total > 0);
+
+  // Masquage "Passer aux activités" (lot Activité et Paliers, 11 septembre
+  // 2026) : par défaut, tous les blocs à faire (généraux + paliers) restent
+  // verrouillés/masqués tant que l'élève n'a pas cliqué sur le bouton dédié,
+  // sauf s'il a déjà commencé au moins l'un d'entre eux (voir blocDejaEntame).
+  const blocsATravaillerTous = [...blocsTravail, ...tousBlocsTop.filter(b => b.palier)];
+  const activitesVisibles = activitesDeverrouilleesManuel || blocsATravaillerTous.length === 0 || blocsATravaillerTous.some(blocDejaEntame);
 
   // Arborescence complète dans la miniature (fil d'ariane), suivie du
   // badge de discipline puis du titre de la séance en grand (titre_contenu
@@ -209,7 +262,19 @@ function rendre() {
   // rétrécit la colonne de lecture par rapport à la section "Paliers" plus
   // bas (qui, elle, prend toute la largeur). On repasse alors sur une seule
   // colonne pleine largeur pour que tout s'aligne au même niveau.
-  const colonneExerciceVide = blocsTravail.length === 0 && aDesPaliers;
+  const colonneExerciceVide = blocsTravail.length === 0 && (aDesPaliers || !activitesVisibles);
+
+  // Bouton "Passer aux activités" (masquage par défaut) : tant qu'il n'a pas
+  // été cliqué (et qu'au moins un bloc à faire existe), on n'affiche ni la
+  // colonne exercices ni la section Paliers — juste ce bouton, sous la
+  // lecture. Une fois cliqué, activitesDeverrouilleesManuel reste vrai pour
+  // le reste de la visite (jusqu'au prochain chargement de la page).
+  const htmlColonneExercice = !activitesVisibles
+    ? `<div class="bloc-lecture" style="border-left-color:#94A3B8;text-align:center">
+        <p style="color:var(--text-gris);margin:0 0 10px">Les exercices et activités de cette séance sont prêts.</p>
+        <button type="button" class="btn btn-filled" id="btnPasserAuxActivites">▶️ Passer aux activités</button>
+      </div>`
+    : (blocsTravail.length ? blocsTravail.map(rendreBlocTravail).join('') : '<div class="bloc-lecture" style="border-left-color:#94A3B8"><p style="color:var(--text-gris);margin:0">Aucun exercice ni activité pour cette séance — profite bien de la lecture !</p></div>');
 
   document.getElementById('contenu').innerHTML = `
     <div class="fil-ariane-eleve"><a href="matiere.html">← Retour à mes matières</a></div>
@@ -224,13 +289,15 @@ function rendre() {
         ${blocsLecture.length ? blocsLecture.map(b => rendreBlocLecture(b)).join('') : '<p style="color:var(--text-gris)">Aucun support de cours pour cette séance.</p>'}
         ${boutonMarquerTermine}
       </div>
-      ${colonneExerciceVide ? '' : `<div class="colonne-exercice-seance">
-        ${blocsTravail.length ? blocsTravail.map(rendreBlocTravail).join('') : '<div class="bloc-lecture" style="border-left-color:#94A3B8"><p style="color:var(--text-gris);margin:0">Aucun exercice ni activité pour cette séance — profite bien de la lecture !</p></div>'}
-      </div>`}
+      ${(blocsTravail.length === 0 && !activitesVisibles && aDesPaliers) ? '' : `<div class="colonne-exercice-seance">${htmlColonneExercice}</div>`}
     </div>
 
-    ${aDesPaliers ? html_sectionPaliers(blocsParPalier) : ''}
+    ${(!activitesVisibles && blocsTravail.length === 0 && aDesPaliers) ? `<div style="margin-top:24px">${htmlColonneExercice}</div>` : ''}
+    ${(aDesPaliers && activitesVisibles) ? html_sectionPaliers(blocsParPalier) : ''}
   `;
+
+  const btnPasser = document.getElementById('btnPasserAuxActivites');
+  if (btnPasser) btnPasser.addEventListener('click', () => { activitesDeverrouilleesManuel = true; rendre(); });
 
   attacherEcouteursExercices();
   attacherEcouteursActivites();
@@ -250,16 +317,24 @@ function rendre() {
 function html_sectionPaliers(blocsParPalier) {
   return `
     <div class="section-title-eleve" style="margin-top:24px">🎯 Paliers de cette séance</div>
-    ${etatPaliersSeance.filter(p => p.nb_total > 0).map(p => {
+    ${etatPaliersSeance.filter(p => p.nb_taches_total > 0).map(p => {
       const libelle = LIBELLES_PALIER_ELEVE[p.palier] || p.palier;
       const blocs = (blocsParPalier[p.palier] || []).sort((a, b) => a.ordre - b.ordre);
       if (!p.deverrouille) {
         return `<div class="bloc-lecture" style="border-left-color:#94A3B8;opacity:.7;margin-top:14px">
-          <div class="bloc-lecture-titre">🔒 ${libelle}</div>
-          <p style="margin:0;color:var(--text-gris);font-size:13px">Termine d'abord le palier précédent (toutes les activités réussies, sauf une au maximum) pour débloquer celui-ci.</p>
+          <div class="bloc-lecture-titre">🔒 ${libelle} — ${p.nb_taches_total} tâche${p.nb_taches_total > 1 ? 's' : ''}</div>
+          <p style="margin:0;color:var(--text-gris);font-size:13px">Termine d'abord le palier précédent (au moins 66,7% des tâches réussies) pour débloquer celui-ci.</p>
         </div>`;
       }
       const couleurPalier = COULEURS_PALIER_ELEVE[p.palier] || 'var(--bleu-kekeli)';
+      // Chaque palier affiche, EN HAUT de sa section, le nombre total de
+      // tâches à mener (demande explicite du cahier des charges) suivi du
+      // taux déjà obtenu — pas le nombre de blocs/questions, qui n'est plus
+      // l'unité de calcul depuis ce lot (voir etat_paliers_seance_v2 côté
+      // base : une question peut valoir plusieurs tâches).
+      const etatTexte = p.reussi
+        ? `✅ Réussi — ${p.nb_taches_reussies}/${p.nb_taches_total} tâche${p.nb_taches_total > 1 ? 's' : ''} (${p.taux}%)`
+        : `${p.nb_taches_reussies}/${p.nb_taches_total} tâche${p.nb_taches_total > 1 ? 's' : ''} réussie${p.nb_taches_reussies > 1 ? 's' : ''}${p.taux != null ? ` (${p.taux}%)` : ''}`;
       // La couleur du palier ne colore QUE la section (bordure + titre), pas
       // un fond plein — retour du 5 septembre 2026 (7e lot), sur demande
       // explicite : "Pour les palier la couleur doit être uniquement pour
@@ -267,7 +342,8 @@ function html_sectionPaliers(blocsParPalier) {
       // sa propre background". Chaque activité à l'intérieur garde donc son
       // propre encadré/fond (rendreBlocTravail/rendreBlocLecture, inchangés).
       return `<div class="bloc-lecture carte-palier-eleve" style="border-left-color:${couleurPalier};background:${teinteClaire(couleurPalier, 0.04)};margin-top:14px">
-        <div class="bloc-lecture-titre" style="color:${couleurPalier}">${libelle} — ${p.nb_reussies}/${p.nb_total} réussi${p.nb_reussies > 1 ? 's' : ''}</div>
+        <div class="bloc-lecture-titre" style="color:${couleurPalier}">${libelle} — ${etatTexte}</div>
+        ${p.tainted ? `<p style="margin:0 0 10px;color:#92620A;font-size:13px">⚠️ La correction a été consultée avant une réussite à 100% — ce palier ne peut plus être validé, mais tu peux continuer à t'entraîner.</p>` : ''}
         ${blocs.map(b => TYPES_TRAVAIL.includes(b.type_bloc) ? rendreBlocTravail(b) : rendreBlocLecture(b)).join('')}
       </div>`;
     }).join('')}
@@ -397,6 +473,12 @@ function rendreExercice(b, c) {
     ? `<p class="note-essai-gratuit">🎁 Essai gratuit — il te reste ${etatAccesCorrectionIA.essais_restants} correction${etatAccesCorrectionIA.essais_restants > 1 ? 's' : ''} offerte${etatAccesCorrectionIA.essais_restants > 1 ? 's' : ''} après celle-ci.</p>`
     : '';
 
+  // Progression question par question — réservée aux blocs tagués d'un
+  // palier (cahier des charges du 11 septembre 2026 : "Pour chaque palier
+  // les question seront abordées progressivement"). Les exercices/quiz/
+  // évaluations SANS palier gardent le formulaire classique ci-dessous.
+  if (b.palier) return rendreExerciceProgressif(b, c, questions, essais.length, noteEssai);
+
   return `
     ${c.consigne ? `<div class="contenu-riche-lecture">${contenuRicheInitial(c.consigne)}</div>` : ''}
     ${noteEssai}
@@ -405,6 +487,46 @@ function rendreExercice(b, c) {
       ${questions.map((q, i) => rendreChampQuestion(q, i)).join('')}
       <button type="submit" class="btn btn-filled bouton-valider-exercice">✅ Valider mes réponses</button>
     </form>
+  `;
+}
+
+// Formulaire "progressif" d'un palier : une seule question affichée à la
+// fois. Chaque question est vérifiée en direct (action 'valider_tache' de
+// l'Edge Function corriger-exercice — aucun essai consommé, aucun quota
+// Premium débité, aucune écriture en base) : un son + un petit message
+// accompagne systématiquement la validation ou le rejet (cahier des
+// charges : "chaque validation ou rejet doit être accompagné d'un son"),
+// et la question suivante ne se déverrouille qu'une fois la précédente
+// validée ("tant que la précédente n'est pas validée, la suivante n'est
+// pas activée"). Une fois toutes les questions travaillées, un dernier
+// bouton soumet l'ensemble des réponses collectées à la VRAIE correction
+// (soumettreExercice ci-dessous) — c'est cette soumission-là, jamais la
+// validation en direct, qui consomme un essai et déclenche paliers/badges.
+function rendreExerciceProgressif(b, c, questions, nbEssaisPrecedents, noteEssai) {
+  const etat = (progressionPalier[b.id] ??= { index: 0, reponses: {} });
+  const toutesValidees = etat.index >= questions.length;
+  const enTete = `<p style="font-size:12px;color:var(--text-gris)">${nbEssaisPrecedents ? `Nouvel essai (n°${nbEssaisPrecedents + 1})` : ''}${(!toutesValidees && nbEssaisPrecedents) ? ' — ' : ''}${!toutesValidees ? `Question ${etat.index + 1}/${questions.length}` : ''}</p>`;
+
+  if (toutesValidees) {
+    return `
+      ${c.consigne ? `<div class="contenu-riche-lecture">${contenuRicheInitial(c.consigne)}</div>` : ''}
+      ${noteEssai}
+      ${enTete}
+      <p style="color:#22A559;font-weight:700;margin:0 0 10px">✅ Toutes les questions ont été travaillées !</p>
+      <button type="button" class="btn btn-filled bouton-valider-exercice" data-soumettre-palier="${b.id}">📤 Valider tout le palier</button>
+    `;
+  }
+
+  const q = questions[etat.index];
+  return `
+    ${c.consigne ? `<div class="contenu-riche-lecture">${contenuRicheInitial(c.consigne)}</div>` : ''}
+    ${noteEssai}
+    ${enTete}
+    <div data-progression-question="${b.id}">
+      ${rendreChampQuestion(q, etat.index)}
+      <div data-feedback-tache="${b.id}" class="feedback-tache-progressive" hidden></div>
+      <button type="button" class="btn btn-filled bouton-valider-exercice" data-valider-tache="${b.id}">✅ Valider cette réponse</button>
+    </div>
   `;
 }
 
@@ -754,18 +876,68 @@ function noteSur20DepuisScore(score, scoreMax) {
   return Math.round((score / scoreMax) * 20 * 10) / 10;
 }
 
+// Bonne réponse "lisible" d'une question, pour l'affichage de la correction
+// (consulter_correction_exercice — voir attacherEcouteursCorrections) une
+// fois celle-ci autorisée (3e essai, ou 100% dès le 1er/2e essai). Miroir
+// de la lecture de la réponse ÉLÈVE ci-dessous, mais à partir du corrigé
+// (c.bonneReponse) plutôt que de reponsesDonnees.
+function texteBonneReponse(q, cq) {
+  if (!cq) return '';
+  const br = cq.bonneReponse;
+  if (q.type === 'qcm') return (q.options || [])[Number(br)] ?? String(br ?? '');
+  if (q.type === 'vrai_faux') return (br === true || br === 'true') ? 'Vrai' : 'Faux';
+  if (q.type === 'reponse_courte') return Array.isArray(br) ? br.join(' / ') : String(br ?? '');
+  if (q.type === 'reponse_numerique') {
+    const attendu = (br && typeof br === 'object') ? br : {};
+    return `${attendu.valeur ?? ''}${attendu.tolerance ? ` (± ${attendu.tolerance})` : ''}`;
+  }
+  if (q.type === 'texte_a_trous' || q.type === 'texte_a_trous_glisser') {
+    return Array.isArray(br) ? br.map(v => Array.isArray(v) ? v[0] : v).join(' / ') : '';
+  }
+  if (q.type === 'remise_en_ordre') return Array.isArray(br) ? br.map(v => (q.options || [])[v] ?? v).join(' → ') : '';
+  if (q.type === 'association') return Array.isArray(br) ? br.map((v, i) => `${(q.gauche || [])[i] ?? ''} → ${(q.droite || [])[v] ?? v}`).join(' ; ') : '';
+  if (q.type === 'classement') return Array.isArray(br) ? br.map((v, i) => `${(q.motsAClasser || [])[i] ?? ''} → ${(q.categories || [])[v] ?? v}`).join(' ; ') : '';
+  if (q.type === 'intrus_lexical') return Array.isArray(br) ? br.map((v, i) => (q.series?.[i]?.mots || [])[v] ?? v).join(' ; ') : '';
+  if (q.type === 'qcm_multiple') return Array.isArray(br) ? br.map(v => (q.options || [])[v] ?? v).join(', ') : '';
+  if (q.type === 'selection_mots') {
+    const mots = tokeniserMots(q.enonce || '');
+    return Array.isArray(br) ? br.map(v => mots[Number(v)]).filter(Boolean).join(', ') : '';
+  }
+  return cq.bareme ? `Barème : ${cq.bareme}` : '';
+}
+
 function rendreResultatExercice(b, c, questions, reponse) {
-  const details = reponse.details || {};
+  const details = reponse.details_taches || reponse.details || {};
   const reponsesDonnees = reponse.reponses || {};
   const enAttente = reponse.statut === 'en_attente_ia';
-  const note20 = enAttente ? null : noteSur20DepuisScore(reponse.score, reponse.score_max);
+  const nbTaches = reponse.nb_taches ?? reponse.score_max;
+  const nbTachesReussies = reponse.nb_taches_reussies ?? reponse.score;
+  // La note/20 reste réservée au 1er essai (cahier des charges : "La note
+  // sur 20 sera octroyée automatiquement ... seulement au premier essai") —
+  // aux essais suivants, seul le badge "réussi ✅" compte, jamais de note.
+  const note20 = (enAttente || reponse.numero_essai !== 1) ? null : noteSur20DepuisScore(nbTachesReussies, nbTaches);
+  const message = messagesApresEssai[b.id];
+  const correctionInfo = correctionsConsultees[b.id];
+  // Correction consultable : au 3e essai (dernier essai possible), ou plus
+  // tôt si l'élève a déjà tout réussi (cahier des charges : "Les réponses
+  // ne seront accessibles qu'au 3e essai à moins pour celui qui a validé à
+  // 100% et veut consulter avant de progresser").
+  const peutVoirCorrection = !enAttente && (reponse.numero_essai >= 3 || (nbTaches > 0 && nbTachesReussies === nbTaches));
 
   return `
     ${c.consigne ? `<div class="contenu-riche-lecture">${contenuRicheInitial(c.consigne)}</div>` : ''}
-    <div class="recap-score">${enAttente ? '⏳ En cours de correction par un enseignant' : `📊 Score : ${reponse.score} / ${reponse.score_max}${note20 !== null ? ` (${note20}/20)` : ''}`}${libelleMedaille(reponse.medaille, reponse.numero_essai)}</div>
+    ${message ? `<p class="message-apres-essai">${echapper(message)}</p>` : ''}
+    <div class="recap-score">${enAttente ? '⏳ En cours de correction par un enseignant' : `📊 ${nbTachesReussies}/${nbTaches} tâche${nbTaches > 1 ? 's' : ''} réussie${nbTachesReussies > 1 ? 's' : ''}${note20 !== null ? ` — note : ${note20}/20` : ''}`}${libelleMedaille(reponse.medaille, reponse.numero_essai)}</div>
     ${questions.map((q, i) => {
       const d = details[q.id] || {};
-      const classeResultat = d.correct === true ? 'correct' : d.correct === false ? 'incorrect' : 'attente';
+      // Une question peut valoir plusieurs TÂCHES (texte à trous, association,
+      // classement...) — voir evaluerTaches côté Edge Function : on affiche
+      // alors le nombre de tâches réussies SUR cette question précise, sans
+      // jamais annuler toute la question si une partie seulement est ratée
+      // (règle explicite du cahier des charges).
+      const tachesTotalQ = typeof d.tachesTotal === 'number' ? d.tachesTotal : 1;
+      const tachesReussiesQ = typeof d.tachesReussies === 'number' ? d.tachesReussies : (d.correct ? 1 : 0);
+      const classeResultat = d.corrigePar === 'en_attente' ? 'attente' : (tachesReussiesQ === tachesTotalQ ? 'correct' : tachesReussiesQ > 0 ? 'partiel' : 'incorrect');
       const donnee = reponsesDonnees[q.id];
       let texteReponse = '(sans réponse)';
       if (q.type === 'qcm') texteReponse = (q.options || [])[Number(donnee)] ?? texteReponse;
@@ -799,17 +971,27 @@ function rendreResultatExercice(b, c, questions, reponse) {
         ? `${donnee.reponse === true ? 'Vrai' : donnee.reponse === false ? 'Faux' : '(sans réponse)'} — ${donnee.justification || '(pas de justification)'}`
         : texteReponse;
       else if (donnee) texteReponse = donnee;
+      const libelleTache = d.corrigePar === 'en_attente'
+        ? '⏳ En attente de correction'
+        : (tachesTotalQ > 1
+          ? `${tachesReussiesQ === tachesTotalQ ? '✅' : tachesReussiesQ > 0 ? '🟡' : '❌'} ${tachesReussiesQ}/${tachesTotalQ} tâche${tachesTotalQ > 1 ? 's' : ''} réussie${tachesReussiesQ > 1 ? 's' : ''}`
+          : (tachesReussiesQ >= 1 ? '✅ Correct' : '❌ Incorrect'));
+      const correctionQuestion = (correctionInfo?.autorise && correctionInfo.corrige) ? correctionInfo.corrige[q.id] : null;
       return `<div class="question-lecture">
         <p class="question-enonce">${i + 1}. ${rendreEnonce(q)}</p>
         <p>Ta réponse : <strong>${echapper(texteReponse)}</strong></p>
         <div class="resultat-question ${classeResultat}">
-          ${d.correct === true ? '✅ Correct' : d.correct === false ? '❌ Incorrect' : '⏳ En attente de correction'}
-          ${typeof d.note === 'number' ? ` — ${d.note}/${d.pointsMax} point(s)` : (d.pointsMax ? ` (sur ${d.pointsMax} point(s))` : '')}
+          ${libelleTache}
           ${d.commentaire ? `<p style="margin:6px 0 0">${echapper(d.commentaire)}</p>` : ''}
+          ${correctionQuestion ? `<p class="bonne-reponse-corrigee" style="margin:6px 0 0">🔓 Bonne réponse : <strong>${echapper(texteBonneReponse(q, correctionQuestion))}</strong>${correctionQuestion.commentaire ? ` — ${echapper(correctionQuestion.commentaire)}` : ''}</p>` : ''}
         </div>
       </div>`;
     }).join('')}
-    ${!enAttente ? `<button type="button" class="btn btn-discret" data-refaire="${b.id}" data-type-refaire="exercice" style="margin-top:10px">🔄 Refaire cet exercice</button>` : ''}
+    ${!enAttente ? `<div class="actions-resultat-exercice" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:10px">
+      <button type="button" class="btn btn-discret" data-refaire="${b.id}" data-type-refaire="exercice">🔄 Refaire cet exercice</button>
+      ${(peutVoirCorrection && !correctionInfo) ? `<button type="button" class="btn btn-discret" data-voir-correction="${b.id}">🔓 Voir la correction</button>` : ''}
+      ${(correctionInfo && !correctionInfo.autorise) ? `<span style="font-size:12px;color:var(--text-gris)">${echapper(correctionInfo.erreur || '')}</span>` : ''}
+    </div>` : ''}
   `;
 }
 
@@ -834,122 +1016,294 @@ function attacherEcouteursCorrections() {
       btn.textContent = estMasquee ? '🔼 Masquer la correction' : '🔓 Voir la correction';
     });
   });
+
+  // "Voir la correction" d'un exercice/quiz/évaluation à correction auto
+  // (bouton affiché uniquement au 3e essai, ou avant en cas de réussite à
+  // 100% — cf. peutVoirCorrection dans rendreResultatExercice). Passe par
+  // la fonction RPC consulter_correction_exercice, qui pose elle-même la
+  // marque "correction consultée" utilisée pour geler le palier tant que
+  // le taux réel n'atteint pas 100% (voir bloc_etat_taches côté base).
+  document.querySelectorAll('[data-voir-correction]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const blocId = parseInt(btn.dataset.voirCorrection, 10);
+      btn.disabled = true;
+      btn.textContent = 'Chargement...';
+      try {
+        const { data, error } = await supabaseClient.rpc('consulter_correction_exercice', { p_bloc_id: blocId });
+        if (error) throw new Error(error.message || "Impossible d'afficher la correction pour l'instant.");
+        if (data?.erreur && data.autorise !== true) {
+          correctionsConsultees[blocId] = { autorise: false, erreur: data.erreur };
+        } else {
+          correctionsConsultees[blocId] = data;
+          // La consultation peut "geler" le palier (correction vue avant
+          // 100%) — on rafraîchit donc aussi l'état des paliers affiché.
+          const bloc = blocsCourants.find(x => x.id === blocId);
+          if (bloc?.palier) {
+            etatPaliersSeance = (await supabaseClient.rpc('etat_paliers_seance_v2', { p_eleve_id: profilEleveSeance.id, p_seance_id: seanceCourante.id })).data || [];
+          }
+        }
+        rendre();
+      } catch (e) {
+        alert(e.message || "Une erreur est survenue.");
+        btn.disabled = false;
+        btn.textContent = '🔓 Voir la correction';
+      }
+    });
+  });
+}
+
+// Lit la réponse donnée par l'élève pour UNE question, quel que soit son
+// type — extrait le 11 septembre 2026 de l'ancien gestionnaire de
+// soumission (qui dupliquait ce switch) pour être partagé par le
+// formulaire classique ET par la validation en direct question par
+// question (voir rendreExerciceProgressif / [data-valider-tache]
+// ci-dessous). `racine` est le conteneur dans lequel chercher les champs —
+// un <form> pour le formulaire classique, ou le <div data-progression-
+// question> pour le mode progressif (les deux portent les mêmes attributs
+// data-*/name sur leurs champs).
+function lireReponseQuestion(racine, q) {
+  if (q.type === 'texte_a_trous') {
+    const champsTrou = racine.querySelectorAll(`[data-question-trous="${CSS.escape(String(q.id))}"] .champ-trou`);
+    return Array.from(champsTrou).map(inp => inp.value);
+  }
+  if (q.type === 'remise_en_ordre') {
+    const liste = racine.querySelector(`[data-ordre-question="${CSS.escape(String(q.id))}"]`);
+    return liste ? Array.from(liste.children).map(li => parseInt(li.dataset.indexOriginal, 10)) : [];
+  }
+  if (q.type === 'association') {
+    const zone = racine.querySelector(`[data-association-question="${CSS.escape(String(q.id))}"]`);
+    const selects = zone ? Array.from(zone.querySelectorAll('[data-association-choix-index]')) : [];
+    selects.sort((a, b) => parseInt(a.dataset.associationChoixIndex, 10) - parseInt(b.dataset.associationChoixIndex, 10));
+    return selects.map(sel => sel.value === '' ? null : parseInt(sel.value, 10));
+  }
+  if (q.type === 'qcm_multiple') {
+    const zone = racine.querySelector(`[data-qcm-multiple-question="${CSS.escape(String(q.id))}"]`);
+    const cases = zone ? Array.from(zone.querySelectorAll('[data-qcm-multiple-choix-index]')) : [];
+    return cases.filter(cb => cb.checked).map(cb => parseInt(cb.dataset.qcmMultipleChoixIndex, 10));
+  }
+  if (q.type === 'classement') {
+    const zone = racine.querySelector(`[data-classement-question="${CSS.escape(String(q.id))}"]`);
+    const selects = zone ? Array.from(zone.querySelectorAll('[data-classement-choix-index]')) : [];
+    selects.sort((a, b) => parseInt(a.dataset.classementChoixIndex, 10) - parseInt(b.dataset.classementChoixIndex, 10));
+    return selects.map(sel => sel.value === '' ? null : parseInt(sel.value, 10));
+  }
+  if (q.type === 'intrus_lexical') {
+    const zone = racine.querySelector(`[data-intrus-question="${CSS.escape(String(q.id))}"]`);
+    const series = zone ? Array.from(zone.querySelectorAll('[data-serie-intrus-index]')) : [];
+    series.sort((a, b) => parseInt(a.dataset.serieIntrusIndex, 10) - parseInt(b.dataset.serieIntrusIndex, 10));
+    return series.map(s => {
+      const coche = s.querySelector('input[data-intrus-radio-index]:checked');
+      return coche ? parseInt(coche.dataset.intrusRadioIndex, 10) : null;
+    });
+  }
+  if (q.type === 'selection_mots') {
+    const zone = racine.querySelector(`[data-question-selection-mots="${CSS.escape(String(q.id))}"]`);
+    const chips = zone ? Array.from(zone.querySelectorAll('.chip-mot-choix')) : [];
+    return chips.filter(c => c.classList.contains('selectionne')).map(c => c.dataset.motChoixIndex);
+  }
+  if (q.type === 'texte_a_trous_glisser') {
+    const zone = racine.querySelector(`[data-question-trous-glisser="${CSS.escape(String(q.id))}"]`);
+    const trous = zone ? Array.from(zone.querySelectorAll('.zone-trou-glisser')) : [];
+    trous.sort((a, b) => parseInt(a.dataset.trouGlisserIndex, 10) - parseInt(b.dataset.trouGlisserIndex, 10));
+    return trous.map(t => t.dataset.motPlace || null);
+  }
+  if (q.type === 'vrai_faux_justifie') {
+    const coche = racine.querySelector(`[name="q_${CSS.escape(String(q.id))}"]:checked`);
+    const justif = racine.querySelector(`[name="q_${CSS.escape(String(q.id))}_justification"]`);
+    return { reponse: coche ? coche.value === 'true' : null, justification: justif ? justif.value : '' };
+  }
+  const champCoche = racine.querySelector(`[name="q_${CSS.escape(String(q.id))}"]:checked`);
+  const champSimple = racine.querySelector(`input[type=text][name="q_${CSS.escape(String(q.id))}"], input[type=number][name="q_${CSS.escape(String(q.id))}"], textarea[name="q_${CSS.escape(String(q.id))}"]`);
+  const champ = champCoche || champSimple;
+  if (!champ) return undefined;
+  return (q.type === 'vrai_faux') ? (champ.value === 'true') : champ.value;
+}
+
+// Soumission RÉELLE d'un exercice/quiz/évaluation (consomme un essai et le
+// quota Premium, recalcule paliers/badges/note côté serveur) — partagée
+// par le formulaire classique (blocs sans palier) et par le bouton final
+// "Valider tout le palier" du mode progressif (blocs avec palier). C'est
+// la SEULE fonction qui écrit une réponse en base : la validation en
+// direct question par question (valider_tache) n'est qu'un guide, jamais
+// la source de vérité.
+async function soumettreExercice(blocId, reponses, boutonUi) {
+  const bloc = blocsCourants.find(x => x.id === blocId);
+  const numeroEssai = (reponsesExistantes[blocId] || []).length + 1;
+  if (boutonUi) { boutonUi.disabled = true; boutonUi.textContent = 'Correction en cours...'; }
+
+  try {
+    const { data, error } = await supabaseClient.functions.invoke('corriger-exercice', { body: { blocId, reponses, numeroEssai } });
+    if (error) {
+      let message = error.message || "Le service de correction n'a pas répondu.";
+      try {
+        const corps = await error.context?.json?.();
+        if (corps?.error) message = corps.error;
+      } catch (_ignore) { /* on garde le message par défaut */ }
+      throw new Error(message);
+    }
+    if (data?.error) throw new Error(data.error);
+
+    (reponsesExistantes[blocId] ??= []).push({
+      bloc_id: blocId, eleve_id: profilEleveSeance.id, reponses,
+      score: data.score, score_max: data.score_max, details: data.details, statut: data.statut,
+      numero_essai: numeroEssai, medaille: data.medaille ?? null,
+      nb_taches: data.nbTaches, nb_taches_reussies: data.nbTachesReussies, details_taches: data.detailsTaches,
+    });
+    formulairesReouverts.delete(blocId);
+    delete progressionPalier[blocId];
+    await rafraichirAccesCorrectionIA();
+
+    // Son + message de résultat (cahier des charges : "chaque validation ou
+    // rejet doit être accompagné d'un son ... et d'un message de
+    // félicitation ... ou d'un message d'encouragement selon le cas").
+    const totalTaches = data.nbTaches;
+    const reussiesTaches = data.nbTachesReussies;
+    const reussiteTotale = data.statut !== 'en_attente_ia' && typeof totalTaches === 'number' && totalTaches > 0 && reussiesTaches === totalTaches;
+    let message;
+    if (data.statut === 'en_attente_ia') {
+      message = '⏳ Ta réponse est en cours de correction par un enseignant.';
+    } else if (reussiteTotale) {
+      jouerSonReussite();
+      message = numeroEssai === 1 ? '🎉 Parfait, toutes les tâches réussies du premier coup !' : '🎉 Bravo, toutes les tâches sont réussies !';
+    } else if (reussiesTaches > 0) {
+      jouerSonReussite();
+      message = '🙂 Bien joué, continue comme ça !';
+    } else {
+      jouerSonEchec();
+      message = numeroEssai >= 3
+        ? '📖 Tu as utilisé tes 3 essais — regarde la correction pour comprendre tes erreurs.'
+        : '💪 Ne lâche rien, tu vas y arriver au prochain essai !';
+    }
+
+    // Si ce bloc appartient à un palier, on rafraîchit son état (taux,
+    // déverrouillage du palier suivant) et on ajoute le son/message propre
+    // à une RÉUSSITE DE PALIER (distincte de la réussite de CET exercice —
+    // un palier peut compter plusieurs blocs).
+    if (bloc?.palier) {
+      const reussiAvant = !!etatPaliersSeance.find(p => p.palier === bloc.palier)?.reussi;
+      etatPaliersSeance = (await supabaseClient.rpc('etat_paliers_seance_v2', { p_eleve_id: profilEleveSeance.id, p_seance_id: seanceCourante.id })).data || [];
+      const etatApres = etatPaliersSeance.find(p => p.palier === bloc.palier);
+      if (etatApres?.reussi && !reussiAvant) {
+        jouerSonPalier();
+        message += ` 🏆 Palier ${LIBELLES_PALIER_ELEVE[bloc.palier] || bloc.palier} débloqué${numeroEssai === 1 ? ' — badges obtenus au 1er essai !' : ' !'}`;
+      }
+    }
+
+    messagesApresEssai[blocId] = message;
+    rendre();
+  } catch (e) {
+    alert(e.message || "Une erreur est survenue pendant la correction.");
+    if (boutonUi) { boutonUi.disabled = false; boutonUi.textContent = boutonUi.dataset.soumettrePalier ? '📤 Valider tout le palier' : '✅ Valider mes réponses'; }
+  }
 }
 
 function attacherEcouteursExercices() {
   attacherEcouteursListesOrdre();
   attacherEcouteursSelectionMots();
   attacherEcouteursTrousGlisser();
+
+  // Formulaire classique (blocs SANS palier) : toutes les questions sont
+  // déjà affichées, un seul bouton soumet tout d'un coup.
   document.querySelectorAll('[data-form-exercice]').forEach(form => {
-    form.addEventListener('submit', async (ev) => {
+    form.addEventListener('submit', (ev) => {
       ev.preventDefault();
       const blocId = parseInt(form.dataset.formExercice, 10);
       const bloc = blocsCourants.find(x => x.id === blocId);
       const questions = Array.isArray(bloc?.contenu?.questions) ? bloc.contenu.questions : [];
-
       const reponses = {};
       questions.forEach(q => {
-        if (q.type === 'texte_a_trous') {
-          const champsTrou = form.querySelectorAll(`[data-question-trous="${CSS.escape(String(q.id))}"] .champ-trou`);
-          reponses[q.id] = Array.from(champsTrou).map(inp => inp.value);
-          return;
-        }
-        if (q.type === 'remise_en_ordre') {
-          const liste = form.querySelector(`[data-ordre-question="${CSS.escape(String(q.id))}"]`);
-          reponses[q.id] = liste ? Array.from(liste.children).map(li => parseInt(li.dataset.indexOriginal, 10)) : [];
-          return;
-        }
-        if (q.type === 'association') {
-          const zone = form.querySelector(`[data-association-question="${CSS.escape(String(q.id))}"]`);
-          const selects = zone ? Array.from(zone.querySelectorAll('[data-association-choix-index]')) : [];
-          selects.sort((a, b) => parseInt(a.dataset.associationChoixIndex, 10) - parseInt(b.dataset.associationChoixIndex, 10));
-          reponses[q.id] = selects.map(sel => sel.value === '' ? null : parseInt(sel.value, 10));
-          return;
-        }
-        if (q.type === 'qcm_multiple') {
-          const zone = form.querySelector(`[data-qcm-multiple-question="${CSS.escape(String(q.id))}"]`);
-          const cases = zone ? Array.from(zone.querySelectorAll('[data-qcm-multiple-choix-index]')) : [];
-          reponses[q.id] = cases.filter(cb => cb.checked).map(cb => parseInt(cb.dataset.qcmMultipleChoixIndex, 10));
-          return;
-        }
-        if (q.type === 'classement') {
-          const zone = form.querySelector(`[data-classement-question="${CSS.escape(String(q.id))}"]`);
-          const selects = zone ? Array.from(zone.querySelectorAll('[data-classement-choix-index]')) : [];
-          selects.sort((a, b) => parseInt(a.dataset.classementChoixIndex, 10) - parseInt(b.dataset.classementChoixIndex, 10));
-          reponses[q.id] = selects.map(sel => sel.value === '' ? null : parseInt(sel.value, 10));
-          return;
-        }
-        if (q.type === 'intrus_lexical') {
-          const zone = form.querySelector(`[data-intrus-question="${CSS.escape(String(q.id))}"]`);
-          const series = zone ? Array.from(zone.querySelectorAll('[data-serie-intrus-index]')) : [];
-          series.sort((a, b) => parseInt(a.dataset.serieIntrusIndex, 10) - parseInt(b.dataset.serieIntrusIndex, 10));
-          reponses[q.id] = series.map(s => {
-            const coche = s.querySelector('input[data-intrus-radio-index]:checked');
-            return coche ? parseInt(coche.dataset.intrusRadioIndex, 10) : null;
-          });
-          return;
-        }
-        if (q.type === 'selection_mots') {
-          const zone = form.querySelector(`[data-question-selection-mots="${CSS.escape(String(q.id))}"]`);
-          const chips = zone ? Array.from(zone.querySelectorAll('.chip-mot-choix')) : [];
-          reponses[q.id] = chips.filter(c => c.classList.contains('selectionne')).map(c => c.dataset.motChoixIndex);
-          return;
-        }
-        if (q.type === 'texte_a_trous_glisser') {
-          const zone = form.querySelector(`[data-question-trous-glisser="${CSS.escape(String(q.id))}"]`);
-          const trous = zone ? Array.from(zone.querySelectorAll('.zone-trou-glisser')) : [];
-          trous.sort((a, b) => parseInt(a.dataset.trouGlisserIndex, 10) - parseInt(b.dataset.trouGlisserIndex, 10));
-          reponses[q.id] = trous.map(t => t.dataset.motPlace || null);
-          return;
-        }
-        if (q.type === 'vrai_faux_justifie') {
-          const coche = form.querySelector(`[name="q_${CSS.escape(String(q.id))}"]:checked`);
-          const justif = form.querySelector(`[name="q_${CSS.escape(String(q.id))}_justification"]`);
-          reponses[q.id] = { reponse: coche ? coche.value === 'true' : null, justification: justif ? justif.value : '' };
-          return;
-        }
-        const champCoche = form.querySelector(`[name="q_${CSS.escape(String(q.id))}"]:checked`);
-        const champSimple = form.querySelector(`input[type=text][name="q_${CSS.escape(String(q.id))}"], input[type=number][name="q_${CSS.escape(String(q.id))}"], textarea[name="q_${CSS.escape(String(q.id))}"]`);
-        const champ = champCoche || champSimple;
-        if (!champ) return;
-        reponses[q.id] = (q.type === 'vrai_faux') ? (champ.value === 'true') : champ.value;
+        const valeur = lireReponseQuestion(form, q);
+        if (valeur !== undefined) reponses[q.id] = valeur;
       });
+      soumettreExercice(blocId, reponses, form.querySelector('button[type=submit]'));
+    });
+  });
 
-      const boutonValider = form.querySelector('button[type=submit]');
-      boutonValider.disabled = true;
-      boutonValider.textContent = 'Correction en cours...';
+  // Validation EN DIRECT d'une question (mode progressif, blocs avec
+  // palier) — action 'valider_tache' : aucun essai consommé, aucune
+  // écriture, juste un aperçu pour guider l'élève. Voir
+  // rendreExerciceProgressif ci-dessus pour le HTML produit.
+  document.querySelectorAll('[data-valider-tache]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const blocId = parseInt(btn.dataset.validerTache, 10);
+      const bloc = blocsCourants.find(x => x.id === blocId);
+      const questions = Array.isArray(bloc?.contenu?.questions) ? bloc.contenu.questions : [];
+      const etat = (progressionPalier[blocId] ??= { index: 0, reponses: {} });
+      const q = questions[etat.index];
+      if (!q) return;
+      const racine = btn.closest(`[data-progression-question="${blocId}"]`);
+      const reponse = lireReponseQuestion(racine, q);
+      const zoneFeedback = racine.querySelector(`[data-feedback-tache="${blocId}"]`);
+      const texteOriginal = btn.textContent;
 
-      const numeroEssai = (reponsesExistantes[blocId] || []).length + 1;
-
+      btn.disabled = true;
+      btn.textContent = 'Vérification...';
       try {
-        const { data, error } = await supabaseClient.functions.invoke('corriger-exercice', { body: { blocId, reponses, numeroEssai } });
-        if (error) {
-          let message = error.message || "Le service de correction n'a pas répondu.";
-          try {
-            const corps = await error.context?.json?.();
-            if (corps?.error) message = corps.error;
-          } catch (_ignore) { /* on garde le message par défaut */ }
-          throw new Error(message);
-        }
+        const { data, error } = await supabaseClient.functions.invoke('corriger-exercice', {
+          body: { blocId, action: 'valider_tache', questionId: q.id, reponse },
+        });
+        if (error) throw new Error(error.message || "Impossible de vérifier ta réponse pour l'instant.");
         if (data?.error) throw new Error(data.error);
 
-        (reponsesExistantes[blocId] ??= []).push({
-          bloc_id: blocId, eleve_id: profilEleveSeance.id, reponses,
-          score: data.score, score_max: data.score_max, details: data.details, statut: data.statut,
-          numero_essai: numeroEssai, medaille: data.medaille ?? null,
-        });
-        formulairesReouverts.delete(blocId);
-        await rafraichirAccesCorrectionIA();
-        const aDesPaliers = blocsCourants.some(x => x.palier);
-        if (aDesPaliers) {
-          etatPaliersSeance = (await supabaseClient.rpc('etat_paliers_seance', { p_eleve_id: profilEleveSeance.id, p_seance_id: seanceCourante.id })).data || [];
+        etat.reponses[q.id] = reponse;
+        zoneFeedback.hidden = false;
+
+        // Types corrigés par IA (reponse_longue, vrai_faux_justifie) : pas de
+        // notation en direct (coût), on avance dès qu'une réponse est fournie
+        // (la vraie note sera calculée à la soumission finale du palier).
+        if (typeof data.rempli === 'boolean') {
+          if (data.rempli) {
+            jouerSonReussite();
+            zoneFeedback.className = 'feedback-tache-progressive feedback-ok';
+            zoneFeedback.textContent = '📝 Réponse enregistrée — elle sera corrigée à la validation finale du palier.';
+            etat.index++;
+            setTimeout(rendre, 700);
+          } else {
+            jouerSonEchec();
+            zoneFeedback.className = 'feedback-tache-progressive feedback-echec';
+            zoneFeedback.textContent = '✏️ Écris une réponse avant de continuer.';
+            btn.disabled = false;
+            btn.textContent = texteOriginal;
+          }
+          return;
         }
-        rendre();
+
+        const tachesTotal = data.tachesTotal ?? 1;
+        const tachesReussies = data.tachesReussies ?? 0;
+        if (tachesReussies === tachesTotal) {
+          jouerSonReussite();
+          zoneFeedback.className = 'feedback-tache-progressive feedback-ok';
+          zoneFeedback.textContent = tachesTotal > 1 ? `✅ Bravo — ${tachesReussies}/${tachesTotal} réussies !` : '✅ Bonne réponse !';
+          etat.index++;
+          setTimeout(rendre, 700);
+        } else if (tachesReussies > 0) {
+          jouerSonReussite();
+          zoneFeedback.className = 'feedback-tache-progressive feedback-partiel';
+          zoneFeedback.textContent = `🙂 ${tachesReussies}/${tachesTotal} réussies — bien joué, on continue !`;
+          etat.index++;
+          setTimeout(rendre, 900);
+        } else {
+          jouerSonEchec();
+          zoneFeedback.className = 'feedback-tache-progressive feedback-echec';
+          zoneFeedback.textContent = "❌ Ce n'est pas encore ça — réessaie !";
+          btn.disabled = false;
+          btn.textContent = texteOriginal;
+        }
       } catch (e) {
-        alert(e.message || "Une erreur est survenue pendant la correction.");
-        boutonValider.disabled = false;
-        boutonValider.textContent = '✅ Valider mes réponses';
+        alert(e.message || "Une erreur est survenue.");
+        btn.disabled = false;
+        btn.textContent = texteOriginal;
       }
+    });
+  });
+
+  // Bouton final du mode progressif : soumet à la VRAIE correction toutes
+  // les réponses déjà collectées question par question.
+  document.querySelectorAll('[data-soumettre-palier]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const blocId = parseInt(btn.dataset.soumettrePalier, 10);
+      const etat = progressionPalier[blocId] || { reponses: {} };
+      soumettreExercice(blocId, etat.reponses, btn);
     });
   });
 }

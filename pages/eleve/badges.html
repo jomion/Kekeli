@@ -14,6 +14,16 @@
   .carte-mon-badge h4 { margin: 8px 0 2px; font-size: 13px; color: var(--noir-kekeli); }
   .carte-mon-badge p { margin: 0; font-size: 11px; color: var(--text-gris); }
   .carte-mon-badge .date-mon-badge { margin-top: 6px; font-size: 10px; color: var(--text-gris); font-style: italic; }
+  /* Badges de paliers (lot "Activité et Paliers / Badges", 11 septembre 2026) :
+     étoiles/logos/médailles/trophées, "toute matière confondue" par défaut,
+     avec filtre par palier — voir js/pages/eleve-badges.js. */
+  .grille-totaux-badges-paliers { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-top: 10px; }
+  .carte-total-badge-palier { background: white; border-radius: 12px; padding: 16px 10px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); font-size: 26px; }
+  .carte-total-badge-palier .valeur-total-badge-palier { font-size: 22px; font-weight: 800; color: var(--bleu-kekeli); margin: 4px 0 2px; }
+  .carte-total-badge-palier div:last-child { font-size: 12px; color: var(--text-gris); font-weight: 600; }
+  .filtres-palier-badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .bouton-filtre-palier-badges { font-size: 13px; padding: 7px 14px; }
+  .carte-detail-palier-badges { background: white; border-radius: 10px; border-left: 5px solid var(--bleu-kekeli); padding: 14px 16px; margin-top: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
 </style>
 <link rel="stylesheet" href="../../css/pied-de-page.css">
 </head>

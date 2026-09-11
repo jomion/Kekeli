@@ -20,10 +20,12 @@
 //
 // Éléments affichés mais SANS fonctionnalité réelle pour l'instant (choix
 // explicite de l'utilisateur : "visuels seulement, pour l'instant") :
-// "📈 Mes progrès", "❤️ Favoris", le compteur d'étoiles et la barre de
-// recherche de la topbar — présentés avec une pastille "Bientôt" ou un
-// state désactivé plutôt que comme des liens/actions morts, pour rester
-// honnête avec l'élève. "🎮 Jeux éducatifs" est en revanche un VRAI lien
+// "📈 Mes progrès", "❤️ Favoris" et la barre de recherche de la topbar —
+// présentés avec une pastille "Bientôt" ou un state désactivé plutôt que
+// comme des liens/actions morts, pour rester honnête avec l'élève. Le
+// compteur d'étoiles de la topbar, lui, est câblé depuis le lot "Activité
+// et Paliers / Badges" (11 septembre 2026) — voir etoiles_eleve plus bas.
+// "🎮 Jeux éducatifs" est en revanche un VRAI lien
 // (demande explicite de l'utilisateur : "jeux éducatif va représenter les
 // différentes activités avec paliers") : il ouvre
 // pages/eleve/jeux-educatifs.html, qui liste les séances de la classe
@@ -253,7 +255,7 @@ async function construireShellPremiumEleve(config, liensVisibles) {
       ${iconePrem('recherche', 16)} <input type="search" placeholder="Rechercher une leçon, une notion..." readonly title="Bientôt disponible">
     </label>
     <div class="prem-topbar-actions">
-      <span class="prem-topbar-etoiles" title="Bientôt disponible">${iconePrem('etoilePleine', 15)} —</span>
+      <span class="prem-topbar-etoiles" id="premTopbarEtoiles" title="Étoiles gagnées (toutes matières confondues)">${iconePrem('etoilePleine', 15)} <span id="premTopbarEtoilesValeur">…</span></span>
       <div id="zoneClochePremium"></div>
       <span class="prem-topbar-profil">
         <span class="prem-topbar-avatar">🟢</span>
@@ -269,6 +271,20 @@ async function construireShellPremiumEleve(config, liensVisibles) {
   document.body.insertBefore(overlaySidebar, document.body.firstChild);
   document.body.insertBefore(sidebar, document.body.firstChild);
   if (sidebarRepliee) document.body.classList.add('prem-sidebar-repliee');
+
+  // Compteur d'étoiles de la topbar (lot "Activité et Paliers / Badges", 11
+  // septembre 2026) : toutes matières confondues, alimenté par
+  // etoiles_eleve.total (2 étoiles/tâche réussie au 1er essai, 1 au 2e —
+  // voir attribuer_badges_taches côté base). Non bloquant : un échec réseau
+  // laisse juste "—" plutôt que de casser l'affichage de la topbar.
+  (async () => {
+    const zoneValeur = document.getElementById('premTopbarEtoilesValeur');
+    if (!zoneValeur) return;
+    try {
+      const { data } = await supabaseClient.from('etoiles_eleve').select('total').eq('eleve_id', config.utilisateurId).maybeSingle();
+      zoneValeur.textContent = String(data?.total || 0);
+    } catch (_e) { zoneValeur.textContent = '—'; }
+  })();
 
   // --- Nav mobile basse (5 raccourcis fixes, comme le modèle fourni — le
   // 3e, "Jeux éducatifs", flotte en bouton rond au-dessus de la barre). ---
