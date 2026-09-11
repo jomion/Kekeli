@@ -25,19 +25,25 @@ const LIBELLES_PALIER_TB = {
     nomClasse = classe?.nom || '';
   }
 
-  const [{ data: abonnements }, { data: niveauActuel }, { count: nbBadges }, { data: derniere }, { data: toutesDates }, { data: badgesRecentsIconesTb }] = await Promise.all([
+  const [{ data: abonnements }, { data: niveauActuel }, { data: compteursBadgesTb }, { data: etoilesTb }, { data: derniere }, { data: toutesDates }] = await Promise.all([
     supabaseClient.from('abonnements_enseignant_eleve').select('*, enseignants(profils(prenom, nom))').eq('eleve_id', profil.id).eq('statut', 'accepte'),
     supabaseClient.rpc('niveau_agilite_actuel', { p_eleve_id: profil.id }),
-    supabaseClient.from('badges_eleves').select('id', { count: 'exact', head: true }).eq('eleve_id', profil.id),
+    // Système de badges de paliers (remplace depuis le 11 septembre 2026
+    // l'ancien catalogue badges/badges_eleves, retiré — "trop de badge
+    // devient ennuyeux") : étoiles/logos/médailles/trophées, voir
+    // js/pages/eleve-badges.js pour le détail par palier.
+    supabaseClient.from('compteurs_badges_paliers').select('type_badge, total').eq('eleve_id', profil.id),
+    supabaseClient.from('etoiles_eleve').select('total').eq('eleve_id', profil.id).maybeSingle(),
     supabaseClient.from('seances_terminees').select('seance_id, seances(titre)').eq('eleve_id', profil.id).order('termine_le', { ascending: false }).limit(1).maybeSingle(),
-    supabaseClient.from('seances_terminees').select('termine_le').eq('eleve_id', profil.id),
-    // Uniquement pour le panneau "Mes badges récents" du look premium (voir
-    // rendreContenuPremiumTB) — évite d'alourdir apercuBadgesTb (bulle au
-    // survol) qui n'a besoin que du nom.
-    supabaseClient.from('badges_eleves').select('badges(nom, icone)').eq('eleve_id', profil.id).order('attribue_le', { ascending: false }).limit(4)
+    supabaseClient.from('seances_terminees').select('termine_le').eq('eleve_id', profil.id)
   ]);
   const enseignantsSuivis = abonnements || [];
   const serie = calculerSerieJoursTB((toutesDates || []).map(d => d.termine_le));
+
+  const totauxRecompensesTb = { logo_standard: 0, medaille_speciale: 0, trophee_excellence: 0 };
+  (compteursBadgesTb || []).forEach(c => { totauxRecompensesTb[c.type_badge] = (totauxRecompensesTb[c.type_badge] || 0) + c.total; });
+  const totalEtoilesTb = etoilesTb?.total || 0;
+  const totalRecompensesTb = totalEtoilesTb + totauxRecompensesTb.logo_standard + totauxRecompensesTb.medaille_speciale + totauxRecompensesTb.trophee_excellence;
 
   // Avancement dans le programme (indicatif) : séances terminées / séances
   // publiées accessibles à la classe de l'élève. Distinct des paliers
@@ -64,13 +70,20 @@ const LIBELLES_PALIER_TB = {
   let apercuDevoirsTb = [];
   if (fiche?.classe_id) {
     const aujourdhui = new Date().toISOString().slice(0, 10);
-    const [{ data: champsClasseTb }, { data: badgesRecentsTb }, { data: devoirsAVenirTb }] = await Promise.all([
+    const [{ data: champsClasseTb }, { data: devoirsAVenirTb }] = await Promise.all([
       supabaseClient.from('classes_champs_formation').select('champs_formation(nom)').eq('classe_id', fiche.classe_id),
-      supabaseClient.from('badges_eleves').select('badges(nom)').eq('eleve_id', profil.id).order('attribue_le', { ascending: false }).limit(6),
       supabaseClient.from('devoirs').select('titre, date_limite').eq('classe_id', fiche.classe_id).eq('statut', 'publie').gte('date_limite', aujourdhui).order('date_limite').limit(6)
     ]);
     apercuMatieresTb = (champsClasseTb || []).map(c => c.champs_formation?.nom).filter(Boolean);
-    apercuBadgesTb = (badgesRecentsTb || []).map(b => b.badges?.nom).filter(Boolean);
+    // Le système de badges de paliers n'a pas de journal daté par
+    // attribution (juste des totaux) : la bulle résume donc les totaux par
+    // type de récompense plutôt qu'une liste "des derniers" badges.
+    apercuBadgesTb = [
+      totalEtoilesTb > 0 ? `⭐ ${totalEtoilesTb} étoile${totalEtoilesTb > 1 ? 's' : ''}` : null,
+      totauxRecompensesTb.logo_standard > 0 ? `🎖️ ${totauxRecompensesTb.logo_standard} logo${totauxRecompensesTb.logo_standard > 1 ? 's' : ''} de palier` : null,
+      totauxRecompensesTb.medaille_speciale > 0 ? `🏅 ${totauxRecompensesTb.medaille_speciale} médaille${totauxRecompensesTb.medaille_speciale > 1 ? 's' : ''} spéciale${totauxRecompensesTb.medaille_speciale > 1 ? 's' : ''}` : null,
+      totauxRecompensesTb.trophee_excellence > 0 ? `🏆 ${totauxRecompensesTb.trophee_excellence} trophée${totauxRecompensesTb.trophee_excellence > 1 ? 's' : ''} d'excellence` : null
+    ].filter(Boolean);
     apercuDevoirsTb = (devoirsAVenirTb || []).map(d => `${d.titre} — ${new Date(d.date_limite).toLocaleDateString('fr-FR')}`);
   }
 
@@ -124,7 +137,6 @@ const LIBELLES_PALIER_TB = {
   // aucune requête supplémentaire. Le formatage gratuit garde exactement
   // sa mise en page d'origine (dashboard-grid-eleve + widget-eleve).
   const estPremiumTb = document.body.classList.contains('theme-premium-actif');
-  const badgesRecentsTb = (badgesRecentsIconesTb || []).filter(b => b.badges);
 
   document.getElementById('contenu').innerHTML = estPremiumTb ? `
     ${contenuCommunHaut}
@@ -146,13 +158,16 @@ const LIBELLES_PALIER_TB = {
           </div>
           <div class="prem-legende-progres">
             <div class="prem-legende-ligne"><span class="prem-legende-puce" style="background:var(--prem-bleu)"></span><strong>${niveauActuel ? LIBELLES_PALIER_TB[niveauActuel].nom : 'Azɔ̀ví'}</strong> Niveau d'agilité</div>
-            <div class="prem-legende-ligne"><span class="prem-legende-puce" style="background:var(--prem-orange)"></span><strong>${nbBadges || 0}</strong> Badges obtenus</div>
+            <div class="prem-legende-ligne"><span class="prem-legende-puce" style="background:var(--prem-orange)"></span><strong>${totalRecompensesTb || 0}</strong> Récompenses obtenues</div>
           </div>
         </div>
         <div class="prem-carte-panneau">
-          <h3>🏅 Mes badges récents</h3>
+          <h3>🏅 Mes badges</h3>
           <div class="prem-badges-mini">
-            ${badgesRecentsTb.length ? badgesRecentsTb.map(b => `<span class="prem-badge-mini" title="${echapperTb(b.badges.nom)}">${echapperTb(b.badges.icone) || '🏅'}</span>`).join('') : '<p style="font-size:12px;color:var(--text-gris);margin:0">Pas encore de badge — continue tes efforts !</p>'}
+            <div class="prem-mini-recompense" title="Étoiles"><span class="prem-badge-mini">⭐</span><div class="prem-mini-recompense-total">${totalEtoilesTb}</div></div>
+            <div class="prem-mini-recompense" title="Logos de palier"><span class="prem-badge-mini"><img src="${RACINE_SITE}assets/badges/logo-standard.jpg" alt="" width="22" height="22" style="border-radius:4px;object-fit:contain"></span><div class="prem-mini-recompense-total">${totauxRecompensesTb.logo_standard}</div></div>
+            <div class="prem-mini-recompense" title="Médailles spéciales"><span class="prem-badge-mini">🎖️</span><div class="prem-mini-recompense-total">${totauxRecompensesTb.medaille_speciale}</div></div>
+            <div class="prem-mini-recompense" title="Trophées d'excellence"><span class="prem-badge-mini"><img src="${RACINE_SITE}assets/badges/trophee-excellence.jpg" alt="" width="22" height="22" style="border-radius:4px;object-fit:contain"></span><div class="prem-mini-recompense-total">${totauxRecompensesTb.trophee_excellence}</div></div>
           </div>
         </div>
         <div class="prem-carte-panneau prem-carte-serie">
@@ -184,7 +199,7 @@ const LIBELLES_PALIER_TB = {
         <div class="widget-eleve">
           <div class="section-title-eleve">🏆 Mes récompenses</div>
           <div class="stat-item-eleve"><span>Série d'étude</span><strong>${serie > 0 ? `🔥 ${serie} jour${serie > 1 ? 's' : ''}` : '—'}</strong></div>
-          <div class="stat-item-eleve"><span>Badges obtenus</span><strong>${nbBadges || 0}</strong></div>
+          <div class="stat-item-eleve"><span>Récompenses obtenues</span><strong>${totalRecompensesTb || 0}</strong></div>
           <div class="stat-item-eleve"><span>Niveau d'agilité</span><strong>${niveauActuel ? LIBELLES_PALIER_TB[niveauActuel].nom : 'Azɔ̀ví (débutant)'}</strong></div>
         </div>
         <div class="widget-eleve">

@@ -25,7 +25,7 @@ const DROITS_ROLES = [
   { cle: 'peut_gerer_devoirs', label: 'Gérer les devoirs', brancle: false },
   { cle: 'peut_gerer_paiements', label: 'Gérer les paiements des frais', brancle: false },
   { cle: 'peut_gerer_abonnements', label: 'Gérer les abonnements & services premium', brancle: false },
-  { cle: 'peut_gerer_badges', label: 'Gérer les badges', brancle: false },
+  { cle: 'peut_gerer_badges', label: 'Voir les badges', brancle: false },
   { cle: 'peut_gerer_messagerie', label: 'Gérer la messagerie', brancle: false },
   { cle: 'peut_gerer_enseignants_classes', label: 'Valider les demandes de classe des enseignants', brancle: false }
 ];

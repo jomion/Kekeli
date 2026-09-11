@@ -1,67 +1,82 @@
-KEKELI — Livraison : pierres rouges, vraies photos pour les badges/
-trophées, séances déverrouillées temporairement (11 septembre 2026)
+KEKELI — Livraison : nettoyage du système de badges (11 septembre 2026)
 ================================================================
 
 Ce zip est une LIVRAISON DIFFÉRENTIELLE : il ne contient que les fichiers
-créés ou modifiés depuis la dernière livraison (kekeli-paliers-badges-
-progressifs-2026-09-11.zip). Aucun fichier inchangé n'est inclus — pour
+créés ou modifiés depuis la dernière livraison (kekeli-resultats-formatage-
+devoir-2026-09-11.zip). Aucun fichier inchangé n'est inclus — pour
 installer, décompressez ce zip par-dessus votre copie actuelle du site, en
 conservant l'arborescence des dossiers.
 
-1) Pierres rouges (dernier point du chantier "Activité et Paliers")
-   ------------------------------------------------------------------
-   Fichier : js/pages/eleve-matiere.js
-   Les "5 pierres rouges" s'affichent maintenant devant le nom d'une racine
-   de matière (un Thème en français, un Dossier en mathématiques) quand
-   TOUS les paliers qui en dépendent sont validés — aussi bien dans le
-   thème gratuit (sur la carte du Thème/Dossier) que dans le thème premium
-   (sur la pastille d'onglet). Le calcul est entièrement fait côté base de
-   données (fonction déjà existante racine_a_pierres_rouges, en lecture
-   seule) : aucune nouvelle table, aucune nouvelle fonction.
+IMPORTANT — changement en base de données déjà appliqué
+------------------------------------------------------------------
+Comme convenu, les changements de base de données sont mis en ligne
+immédiatement (pas d'étape de déploiement séparée) : l'ancien catalogue de
+badges (tables "badges" et "badges_eleves", avec ses 12 badges — 6 actifs,
+6 déjà désactivés — et ses règles automatiques génériques) a été
+définitivement supprimé, ainsi que les 6 déclencheurs et fonctions qui
+l'alimentaient. Le nouveau système de badges de paliers (étoiles, logos,
+médailles, trophées), lui, n'a pas été touché et continue de fonctionner à
+l'identique.
 
-2) Vraies photos à la place des emoji pour les badges et trophées
-   ------------------------------------------------------------------
-   Fichiers : assets/badges/ (nouveau dossier, 7 images), js/pages/
-   eleve-badges.js, js/pages/eleve-seance.js, js/pages/eleve-matiere.js,
-   css/style-public.css, css/theme-premium-eleve.css, pages/eleve/badges.html
-   À partir des photos que vous avez transmises, les médailles de palier
-   (coupe bronze/argent/or/diamant), le trophée d'excellence et le logo de
-   palier utilisent maintenant de vraies images à la place des emoji, à la
-   fois sur la page "Mes badges" et dans le petit encart affiché juste
-   après un exercice réussi. Les photos de coupes ont été recadrées pour
-   retirer le socle en bois (qui portait un texte en anglais, "GOLD" /
-   "SILVER" / "BLUE DIAMOND", peu adapté à une appli en français pour des
-   enfants) : seule la coupe elle-même est conservée.
-   Point d'attention : la photo de gemme rouge que vous avez fournie pour
-   les pierres rouges portait un filigrane visible de banque d'images (elle
-   n'est donc probablement pas libre de droits) — elle n'a PAS été utilisée.
-   À la place, la gemme bleue (propre, sans filigrane) a été teintée en
-   rouge pour obtenir un visuel cohérent avec les autres images. Si vous
-   avez une version sans filigrane de la gemme rouge, elle pourra la
-   remplacer facilement (un seul fichier : assets/badges/pierre-rouge.jpg).
+Ce zip contient uniquement les fichiers du site qui devaient être adaptés
+en conséquence.
 
-3) Séances temporairement déverrouillées (demande explicite)
+1) Un seul système de badges désormais, côté élève
    ------------------------------------------------------------------
-   Fait directement en base de données (fonction etat_seances_sa).
-   Comme demandé, TOUTES les séances d'une SA apparaissent désormais
-   déverrouillées, même si les séances précédentes n'ont pas été terminées
-   — pratique pour parcourir/tester le contenu librement. La règle normale
-   (une séance ne se débloque qu'une fois la précédente terminée) a été
-   conservée en commentaire dans la fonction et sera restaurée à l'identique
-   sur simple demande ("on verrouille après").
+   Fichiers : js/pages/eleve-badges.js, pages/eleve/badges.html,
+   js/pages/eleve-matiere.js, js/pages/eleve-tableau-de-bord.js,
+   css/theme-premium-eleve.css
+   Comme demandé ("trop de badge devient ennuyeux"), la page "Mes badges"
+   de l'élève n'affiche plus que le système de badges liés aux paliers de
+   séance (étoiles, logos, médailles, trophées) — la section "Autres
+   badges" (ancien catalogue) a été retirée. Les autres endroits du site
+   qui affichaient encore l'ancien catalogue ont été mis à jour pour
+   afficher les totaux du nouveau système à la place :
+     - le panneau "Mes badges" de la page matière (thème premium),
+     - le tableau de bord de l'élève (compteur "Récompenses obtenues",
+       panneau "Mes badges" du thème premium, et l'aperçu au survol de la
+       carte "Mes badges").
+   Rien ne change dans la façon dont ces badges sont gagnés — voir le
+   point 2 ci-dessous pour le détail exact des règles.
+
+2) Page admin "Badges des élèves" entièrement repensée
+   ------------------------------------------------------------------
+   Fichiers : js/pages/admin-badges.js, pages/admin/badges.html,
+   js/pages/admin-tableau-de-bord.js, js/pages/admin-roles.js
+   Comme demandé ("je veux voir tous les badges fonctionnels et les
+   conditions"), cette page affiche maintenant, en lecture seule, la liste
+   exacte des badges réellement actifs sur le site (le système de paliers
+   ci-dessus) et leurs conditions d'obtention précises :
+     - Étoile : par tâche réussie (2 étoiles si réussie au 1er essai,
+       1 si seulement au 2e essai).
+     - Logo de palier : par bloc noté entièrement réussi (2 logos au 1er
+       essai, 1 au 2e essai).
+     - Médaille spéciale : quand un palier entier est validé (taux de
+       réussite ≥ 66,7 % sur tous ses blocs notés) — 2 médailles au 1er
+       essai, 1 au 2e essai ; la couleur dépend du palier (Azɔ̀ví→Bronze,
+       Dèví→Argent, Ògán→Or, Axɔ́sú→Diamant).
+     - Trophée d'excellence : en plus de la médaille, quand un palier est
+       validé dès le 1er essai avec un taux de réussite ≥ 90 %.
+   L'ancienne interface (créer un badge, l'activer/désactiver, l'attribuer
+   ou le retirer à la main à un élève) a été retirée : ce système n'existe
+   plus, tout est désormais automatique. La description de la carte
+   "Badges des élèves" sur le tableau de bord admin, ainsi que le libellé
+   du droit ponctuel correspondant (page "Rôles administrateur"), ont été
+   mis à jour pour refléter que la page est maintenant consultative.
 
 Vérifications effectuées
 -------------------------
-- node --check sur les 3 fichiers JS modifiés : aucune erreur de syntaxe.
-- Vérification de l'équilibre des accolades sur les 2 fichiers CSS modifiés
-  et sur le bloc <style> de pages/eleve/badges.html.
-- Contrôle de sécurité Supabase (get_advisors) après la modification de
-  fonction : aucune nouvelle alerte, racine_a_pierres_rouges et
-  etat_seances_sa restent dans le même profil d'accès que les autres
-  fonctions de lecture déjà en place (aucune fonction d'écriture rendue
-  accessible).
-- Inspection visuelle de chaque photo retouchée (recadrage, mise au carré,
-  vérification qu'aucun texte anglais ne reste visible) avant intégration.
+- node --check sur les 6 fichiers JS modifiés : aucune erreur de syntaxe.
+- Vérification de l'équilibre des accolades sur le fichier CSS modifié.
+- Recherche exhaustive de toute référence restante à l'ancien catalogue
+  (tables "badges"/"badges_eleves") dans l'ensemble du site : plus aucune,
+  hormis des commentaires explicatifs dans le code.
+- Vérification en base que les 6 déclencheurs supprimés ne faisaient
+  qu'appeler la fonction d'évaluation de l'ancien catalogue (aucune autre
+  logique perdue), et qu'aucune vue ni fonction du nouveau système de
+  paliers n'en dépendait.
+- Contrôle de sécurité de la base de données après la migration (aucune
+  nouvelle alerte liée à ce changement).
 
 Comme convenu, ce zip ne contient que les fichiers créés ou modifiés depuis
 la dernière livraison (livraison différentielle) — aucun fichier inchangé

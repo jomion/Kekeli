@@ -137,7 +137,7 @@ function afficherActions() {
     `<a href="badges.html" class="carte-action-tb disponible">
       <div class="icone-action-tb">🎯</div>
       <h3>Badges des élèves</h3>
-      <p>Créer des badges et en attribuer manuellement aux élèves.</p>
+      <p>Voir les badges affichés aux élèves et leurs conditions d'obtention.</p>
     </a>`,
     `<a href="activites.html" class="carte-action-tb disponible">
       <div class="icone-action-tb">📝</div>

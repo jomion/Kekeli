@@ -1,13 +1,17 @@
 // Page pages/eleve/badges.html
-// Affiche les badges obtenus par l'élève : l'ancien catalogue (badges_eleves/
-// badges, attribution automatique via evaluer_badges_auto ou manuelle par un
-// enseignant/admin), PLUS — depuis le lot "Activité et Paliers / Badges" du
-// 11 septembre 2026 — les nouveaux badges liés aux paliers de séance :
-// logos standard (par question réussie), médailles spéciales et trophées
-// d'excellence (par palier réussi), alimentés par compteurs_badges_paliers
-// (voir attribuer_badges_taches/recalculer_paliers_seance côté base) et les
-// étoiles (etoiles_eleve, par tâche réussie — même compteur que la pastille
-// de la barre du haut, voir js/theme-premium-eleve.js).
+// Affiche les badges obtenus par l'élève via le système de paliers de
+// séance : logos standard (par question réussie), médailles spéciales et
+// trophées d'excellence (par palier réussi), alimentés par
+// compteurs_badges_paliers (voir attribuer_badges_taches/
+// recalculer_paliers_seance côté base) et les étoiles (etoiles_eleve, par
+// tâche réussie — même compteur que la pastille de la barre du haut, voir
+// js/theme-premium-eleve.js).
+//
+// L'ancien catalogue de badges (tables badges/badges_eleves, création et
+// attribution manuelles ou règles automatiques génériques) a été retiré le
+// 11 septembre 2026 à la demande du porteur du projet ("trop de badge
+// devient ennuyeux") : un seul système de récompenses reste visible côté
+// élève, celui des paliers ci-dessus.
 
 const LIBELLES_PALIER_BADGES = { azovi: '🌱 Azɔ̀ví', devi: '🪘 Dèví', ogan: '🦁 Ògán', axosu: '👑 Axɔ́sú' };
 const COULEURS_PALIER_BADGES = { azovi: '#15803D', devi: '#1D4ED8', ogan: '#9A3412', axosu: '#B91C1C' };
@@ -30,7 +34,6 @@ function iconeBadgeImgMat(fichier, taille, alt) {
 let filtrePalierBadges = 'tous';
 let compteursBadgesParPalier = {}; // palier -> { logo_standard, medaille_speciale, trophee_excellence }
 let totalEtoilesBadges = 0;
-let listeBadgesCatalogue = [];
 
 (async function () {
   const profil = await requireRole('eleve');
@@ -40,12 +43,10 @@ let listeBadgesCatalogue = [];
     liens: liensAvecPrefixe('eleve', '')
   });
 
-  const [{ data: attributions }, { data: compteurs }, { data: etoiles }] = await Promise.all([
-    supabaseClient.from('badges_eleves').select('*, badges(*)').eq('eleve_id', profil.id).order('attribue_le', { ascending: false }),
+  const [{ data: compteurs }, { data: etoiles }] = await Promise.all([
     supabaseClient.from('compteurs_badges_paliers').select('palier, type_badge, total').eq('eleve_id', profil.id),
     supabaseClient.from('etoiles_eleve').select('total').eq('eleve_id', profil.id).maybeSingle(),
   ]);
-  listeBadgesCatalogue = (attributions || []).filter(a => a.badges);
   totalEtoilesBadges = etoiles?.total || 0;
   (compteurs || []).forEach(c => {
     (compteursBadgesParPalier[c.palier] ??= { logo_standard: 0, medaille_speciale: 0, trophee_excellence: 0 })[c.type_badge] = c.total;
@@ -101,10 +102,12 @@ function rendreBadges() {
     </div>`;
   })() : '';
 
+  const totalToutesRecompenses = totalEtoilesBadges + totalLogos + totalMedailles + totalTrophees;
+
   document.getElementById('contenu').innerHTML = `
     <div class="carte-bienvenue">
       <h1>🎯 Mes badges</h1>
-      <p>${listeBadgesCatalogue.length ? `Tu as obtenu ${listeBadgesCatalogue.length} badge${listeBadgesCatalogue.length > 1 ? 's' : ''} — continue comme ça !` : "Continue tes efforts, tes badges arrivent vite !"}</p>
+      <p>${totalToutesRecompenses > 0 ? `Tu as déjà récolté ${totalToutesRecompenses} récompense${totalToutesRecompenses > 1 ? 's' : ''} — continue comme ça !` : "Continue tes efforts, tes badges arrivent vite !"}</p>
     </div>
 
     <div class="section-title-eleve">🎯 Badges des paliers</div>
@@ -116,17 +119,6 @@ function rendreBadges() {
     </div>
     <div class="filtres-palier-badges">${boutonsFiltre}</div>
     ${detailParPalier}
-
-    <div class="section-title-eleve" style="margin-top:26px">🏅 Autres badges</div>
-    ${listeBadgesCatalogue.length ? `<div class="grille-mes-badges">
-      ${listeBadgesCatalogue.map(a => `
-        <div class="carte-mon-badge">
-          <div class="icone-mon-badge">${echapperBadgesEleve(a.badges.icone)}</div>
-          <h4>${echapperBadgesEleve(a.badges.nom)}</h4>
-          <p>${echapperBadgesEleve(a.badges.description)}</p>
-          <div class="date-mon-badge">Obtenu le ${new Date(a.attribue_le).toLocaleDateString('fr-FR')}</div>
-        </div>`).join('')}
-    </div>` : '<p style="color:var(--text-gris)">Pas encore de badge dans cette catégorie.</p>'}
   `;
 
   document.querySelectorAll('[data-filtre-palier-badges]').forEach(btn => {

@@ -460,6 +460,12 @@ body.theme-premium-actif .fil-ariane-eleve a { color: var(--prem-bleu); }
 .prem-legende-ligne strong { color: var(--prem-texte); font-size: 14px; font-family: 'Poppins', sans-serif; margin-right: 2px; }
 .prem-badges-mini { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
 .prem-badge-mini { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(140deg, var(--prem-orange) 0%, #FFD36B 100%); display: flex; align-items: center; justify-content: center; font-size: 21px; box-shadow: 0 6px 14px rgba(245,158,11,.28); }
+/* Mini-totaux du système de badges de paliers (11 septembre 2026) — une
+   icône + un total, utilisés dans le panneau "Mes badges" de la page
+   matière, voir js/pages/eleve-matiere.js. */
+.prem-mini-recompense { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.prem-mini-recompense .prem-badge-mini { width: 40px; height: 40px; font-size: 17px; }
+.prem-mini-recompense-total { font-size: 12px; font-weight: 800; color: var(--prem-texte); font-family: 'Poppins', sans-serif; }
 .prem-carte-serie { background: var(--prem-bleu-clair); text-align: center; position: relative; overflow: hidden; }
 .prem-carte-serie-emoji { font-size: 38px; margin-bottom: 8px; }
 .prem-carte-serie-titre { font-weight: 800; font-family: 'Poppins', sans-serif; font-size: 15px; color: var(--prem-texte); margin-bottom: 4px; }
@@ -513,11 +519,19 @@ body.theme-premium-actif .bloc-lecture {
 body.theme-premium-actif .bloc-lecture-titre { color: var(--prem-bleu) !important; font-family: 'Poppins', sans-serif; letter-spacing: 0; }
 body.theme-premium-actif .question-lecture { border-top-color: var(--prem-bordure); }
 body.theme-premium-actif .question-lecture input[type=text], body.theme-premium-actif .question-lecture textarea,
-body.theme-premium-actif .champ-trou, body.theme-premium-actif .activite-lecture textarea, body.theme-premium-actif .activite-lecture input {
+body.theme-premium-actif .champ-trou {
   border-radius: 12px; border-color: var(--prem-bordure);
 }
-body.theme-premium-actif .question-lecture input[type=text]:focus, body.theme-premium-actif .question-lecture textarea:focus {
-  outline: none; border-color: var(--prem-bleu); box-shadow: 0 0 0 3px var(--prem-bleu-clair);
+/* Zone de réponse libre "exercice" (11 septembre 2026, même correctif que le
+   thème gratuit — signalée "presque invisible") : bordure nettement plus
+   marquée que --prem-bordure (trop pâle pour cette zone de saisie mise en
+   avant), fond légèrement teinté, halo net au focus. */
+body.theme-premium-actif .activite-lecture textarea, body.theme-premium-actif .activite-lecture input {
+  border-radius: 12px; border-color: #B9C2E0; background: var(--prem-fond, #F5F7FF);
+}
+body.theme-premium-actif .question-lecture input[type=text]:focus, body.theme-premium-actif .question-lecture textarea:focus,
+body.theme-premium-actif .activite-lecture textarea:focus, body.theme-premium-actif .activite-lecture input:focus {
+  outline: none; border-color: var(--prem-bleu); box-shadow: 0 0 0 3px var(--prem-bleu-clair); background: var(--prem-carte);
 }
 body.theme-premium-actif .btn.btn-filled, body.theme-premium-actif .bouton-valider-exercice {
   background: var(--prem-bleu); border-radius: 24px; font-family: 'Poppins', sans-serif;

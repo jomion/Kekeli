@@ -484,12 +484,19 @@ async function afficherMatierePremium() {
   const semainesDispo = [...new Set(seances.map(s => s.semaine).filter(Boolean))];
   const typesDispo = [...new Set(seances.map(s => s.discipline).filter(Boolean))];
 
-  const [{ data: badgesRecents }, { data: datesTerminees }] = await Promise.all([
-    supabaseClient.from('badges_eleves').select('badges(nom, icone)').eq('eleve_id', profilEleveMat.id).order('attribue_le', { ascending: false }).limit(3),
+  const [{ data: compteursBadgesMat }, { data: etoilesMat }, { data: datesTerminees }] = await Promise.all([
+    supabaseClient.from('compteurs_badges_paliers').select('type_badge, total').eq('eleve_id', profilEleveMat.id),
+    supabaseClient.from('etoiles_eleve').select('total').eq('eleve_id', profilEleveMat.id).maybeSingle(),
     supabaseClient.from('seances_terminees').select('termine_le').eq('eleve_id', profilEleveMat.id)
   ]);
   const serieMat = calculerSerieJoursMat((datesTerminees || []).map(d => d.termine_le));
-  const badgesRecentsMat = (badgesRecents || []).filter(b => b.badges);
+  // Totaux "toutes matières confondues" du système de badges de paliers —
+  // remplace depuis le 11 septembre 2026 l'ancien catalogue de badges
+  // (tables badges/badges_eleves, retiré : "trop de badge devient
+  // ennuyeux"), voir js/pages/eleve-badges.js pour le détail par palier.
+  const totauxRecompensesMat = { logo_standard: 0, medaille_speciale: 0, trophee_excellence: 0 };
+  (compteursBadgesMat || []).forEach(c => { totauxRecompensesMat[c.type_badge] = (totauxRecompensesMat[c.type_badge] || 0) + c.total; });
+  const totalEtoilesMat = etoilesMat?.total || 0;
 
   conteneur.innerHTML = `
     ${filArianeMat(segmentsArianeMat())}
@@ -549,9 +556,12 @@ async function afficherMatierePremium() {
           <button type="button" class="prem-btn-plein bientot" title="Bientôt disponible" onclick="return false">${iconePrem('progres', 15)} Voir mes progrès</button>
         </div>
         <div class="prem-carte-panneau">
-          <h3>Mes badges récents</h3>
+          <h3>Mes badges</h3>
           <div class="prem-badges-mini">
-            ${badgesRecentsMat.length ? badgesRecentsMat.map(b => `<span class="prem-badge-mini" title="${echapper(b.badges.nom)}">${echapper(b.badges.icone) || '🏅'}</span>`).join('') : '<p style="font-size:12px;color:var(--prem-texte-gris);margin:0">Pas encore de badge.</p>'}
+            <div class="prem-mini-recompense" title="Étoiles"><span class="prem-badge-mini">⭐</span><div class="prem-mini-recompense-total">${totalEtoilesMat}</div></div>
+            <div class="prem-mini-recompense" title="Logos de palier"><span class="prem-badge-mini"><img src="${RACINE_SITE}assets/badges/logo-standard.jpg" alt="" width="22" height="22" style="border-radius:4px;object-fit:contain"></span><div class="prem-mini-recompense-total">${totauxRecompensesMat.logo_standard}</div></div>
+            <div class="prem-mini-recompense" title="Médailles spéciales"><span class="prem-badge-mini">🎖️</span><div class="prem-mini-recompense-total">${totauxRecompensesMat.medaille_speciale}</div></div>
+            <div class="prem-mini-recompense" title="Trophées d'excellence"><span class="prem-badge-mini"><img src="${RACINE_SITE}assets/badges/trophee-excellence.jpg" alt="" width="22" height="22" style="border-radius:4px;object-fit:contain"></span><div class="prem-mini-recompense-total">${totauxRecompensesMat.trophee_excellence}</div></div>
           </div>
           <a class="prem-btn-contour" href="badges.html">Voir tous mes badges</a>
         </div>
