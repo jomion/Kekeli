@@ -1,0 +1,200 @@
+/* Lot "Jeux éducatifs interactifs" (11 septembre 2026, douzième requête).
+   Thème visuel commun aux 3 jeux d'arcade (pages/eleve/jeu-*.html), repris
+   fidèlement de la palette/chrome des 2 fichiers de référence fournis
+   ("L'Atelier du Français", "Cadran opératoire") : fond sombre, accents néon,
+   zone de jeu unique façon "console", barre de temps, modales Réglages/Bilan,
+   décompte superposé. Adapté pour accueillir les 13 types de question du
+   site (voir js/jeux/rendu-questions-jeu.js) et la vraie notation/les vrais
+   badges (au lieu d'une banque de questions statique). */
+
+.jeu-arcade-page {
+  --bg-dark: #0f172a;
+  --panel-bg: #1e293b;
+  --gold: #f59e0b;
+  --neon-blue: #06b6d4;
+  --neon-green: #10b981;
+  --neon-red: #ef4444;
+  --purple: #8b5cf6;
+  --pink: #ec4899;
+  background: var(--bg-dark);
+  color: #fff;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 20px 12px 40px;
+  box-sizing: border-box;
+  border-radius: 18px;
+}
+.jeu-arcade-page * { box-sizing: border-box; }
+
+.jeu-app-container {
+  background: var(--panel-bg);
+  border: 3px solid #334155;
+  border-radius: 20px;
+  padding: 16px 20px;
+  box-shadow: 0 15px 30px rgba(0,0,0,0.6);
+  text-align: center;
+  width: 100%;
+  max-width: 620px;
+  min-height: 640px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  gap: 6px;
+}
+
+.jeu-header-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.jeu-header-bar h1 { margin: 0; color: var(--gold); font-size: 1.15rem; text-shadow: 0 0 8px rgba(245,158,11,0.4); }
+.jeu-btn-lien-retour { color: #94a3b8; text-decoration: none; font-size: 0.85rem; font-weight: 700; }
+.jeu-btn-lien-retour:hover { color: #fff; }
+.jeu-btn-settings {
+  background: #334155; border: none; color: #fff; padding: 6px 10px; border-radius: 8px;
+  cursor: pointer; font-weight: 700; font-size: 0.85rem; transition: background .2s;
+}
+.jeu-btn-settings:hover { background: #475569; }
+
+/* Sélecteur de palier (4 niveaux du site, façon difficulty-selector) */
+.jeu-palier-selector { display: flex; gap: 6px; margin: 4px 0; flex-wrap: wrap; }
+.jeu-palier-btn {
+  flex: 1 1 21%; padding: 6px 4px; border-radius: 8px; border: 2px solid #475569;
+  background: #0f172a; color: #94a3b8; font-weight: 700; font-size: 0.72rem; cursor: pointer;
+  transition: all .2s; line-height: 1.3;
+}
+.jeu-palier-btn .jeu-palier-icone { display: block; font-size: 1.1rem; }
+.jeu-palier-btn.active { color: #000; border-color: #fff; }
+.jeu-palier-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+.jeu-matiere-tag {
+  position: absolute; top: 8px; left: 12px; font-size: 0.68rem; background: var(--purple);
+  padding: 2px 7px; border-radius: 4px; font-weight: 700; color: #fff; text-transform: uppercase;
+}
+
+/* Zone de jeu centrale */
+.jeu-zone {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: relative; margin: 4px 0; background: #0f172a; border: 2px solid var(--neon-blue);
+  border-radius: 12px; padding: 16px 14px; min-height: 260px; overflow-y: auto;
+}
+.jeu-zone .question-lecture { width: 100%; text-align: left; }
+.jeu-zone .question-enonce { font-size: 1.05rem; font-weight: 700; color: #fff; margin: 4px 0 12px; text-align: center; }
+.jeu-zone .consigne-question { font-size: 0.8rem; color: #94a3b8; text-align: center; margin: -6px 0 10px; }
+
+.jeu-message-accueil { color: #64748b; font-size: 0.9rem; }
+
+/* Options cliquables (QCM / Vrai-Faux) — remplace les <label><input radio>
+   discrets par de vrais boutons, comme .option-btn du fichier de référence */
+.options-grid-jeu { display: grid; grid-template-columns: 1fr; gap: 8px; width: 100%; margin-top: 6px; }
+.option-jeu-arcade {
+  display: block; background: #1e293b; border: 2px solid #475569; border-radius: 8px; padding: 10px;
+  color: #fff; font-size: 0.92rem; font-weight: 700; cursor: pointer; transition: all .2s; text-align: center;
+}
+.option-jeu-arcade:hover { background: #334155; border-color: var(--neon-blue); }
+.option-jeu-selectionnee { background: var(--neon-blue) !important; color: #000 !important; border-color: #fff !important; }
+.option-jeu-arcade.correct { background: var(--neon-green) !important; color: #000 !important; border-color: #fff !important; }
+.option-jeu-arcade.incorrect { background: var(--neon-red) !important; color: #fff !important; border-color: #fff !important; }
+
+.input-answer-area-jeu { display: flex; flex-direction: column; gap: 8px; width: 100%; align-items: center; margin-top: 6px; }
+.input-answer-area-jeu input[type="text"], .input-answer-area-jeu input[type="number"], .input-answer-area-jeu textarea {
+  font-size: 1.02rem; width: 100%; max-width: 320px; text-align: center; padding: 9px; border-radius: 8px;
+  border: 2px solid #475569; background: #1e293b; color: #fff; font-family: inherit;
+}
+.input-answer-area-jeu textarea { min-height: 70px; text-align: left; }
+
+.jeu-arcade-page .liste-remise-en-ordre,
+.jeu-arcade-page .banque-mots-glisser,
+.jeu-arcade-page .mots-selectionnables-lecture,
+.jeu-arcade-page .lignes-association,
+.jeu-arcade-page .lignes-classement,
+.jeu-arcade-page .series-intrus-lecture { width: 100%; }
+.jeu-arcade-page .chip-mot-choix, .jeu-arcade-page .chip-glisser, .jeu-arcade-page .chip-mot-choix-radio {
+  background: #1e293b; border: 2px solid #475569; color: #fff;
+}
+.jeu-arcade-page .chip-mot-choix.selectionne, .jeu-arcade-page .chip-armee { border-color: var(--neon-blue); background: var(--purple); }
+.jeu-arcade-page select { width: 100%; padding: 7px; border-radius: 6px; border: 1px solid #475569; background: #1e293b; color: #fff; font-weight: 700; }
+
+.jeu-btn-valider {
+  font-size: 0.95rem; padding: 10px 16px; border: none; border-radius: 8px; background: var(--neon-blue);
+  color: #000; cursor: pointer; font-weight: 700; width: 100%; margin-top: 10px;
+}
+.jeu-btn-valider:disabled { opacity: .6; cursor: wait; }
+
+.jeu-feedback { min-height: 20px; font-size: 0.88rem; font-weight: 700; margin-top: 8px; }
+.jeu-feedback.feedback-ok, .jeu-feedback.feedback-partiel { color: var(--neon-green); }
+.jeu-feedback.feedback-echec { color: var(--neon-red); }
+
+/* Barre de temps */
+.jeu-timer-bar-container { width: 100%; height: 6px; background: #0f172a; border-radius: 3px; margin: 4px 0; overflow: hidden; }
+.jeu-timer-bar { height: 100%; background: var(--neon-red); width: 0%; transition: width .1s linear; }
+
+.jeu-btn-start {
+  font-size: 0.95rem; padding: 10px 15px; border: none; border-radius: 10px; background: var(--neon-green);
+  color: #000; cursor: pointer; font-weight: 700; width: 100%; margin-top: 4px; box-shadow: 0 4px 10px rgba(16,185,129,0.3);
+}
+.jeu-btn-start:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }
+
+.jeu-score-board { display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 700; color: #94a3b8; margin-top: 2px; }
+
+/* Modales Réglages / Bilan */
+.jeu-modal-overlay {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15,23,42,0.96);
+  border-radius: 20px; z-index: 100; display: none; flex-direction: column; padding: 20px; text-align: left; overflow-y: auto;
+}
+.jeu-modal-overlay.active { display: flex; }
+.jeu-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.jeu-modal-header h2 { margin: 0; color: var(--gold); font-size: 1.1rem; }
+.jeu-close-btn { background: var(--neon-red); border: none; color: #fff; font-weight: 700; border-radius: 6px; padding: 4px 9px; cursor: pointer; }
+.jeu-config-grid { display: grid; grid-template-columns: 1fr; gap: 12px; font-size: 0.82rem; }
+.jeu-config-group { display: flex; flex-direction: column; }
+.jeu-config-group label { color: #94a3b8; font-weight: 700; margin-bottom: 4px; }
+
+/* Décompte superposé */
+.jeu-countdown-overlay {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15,23,42,0.85);
+  border-radius: 20px; z-index: 90; display: flex; align-items: center; justify-content: center;
+  font-size: 4rem; font-weight: 800; color: var(--gold); visibility: hidden;
+}
+
+/* Bilan de fin de ronde */
+.jeu-summary-overlay {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--panel-bg); border-radius: 20px;
+  z-index: 110; display: none; flex-direction: column; align-items: center; padding: 20px; text-align: center; overflow-y: auto;
+}
+.jeu-summary-overlay.active { display: flex; }
+.jeu-success-badge { font-size: 2.4rem; font-weight: 800; margin: 8px 0; }
+.jeu-error-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin-top: 6px; }
+.jeu-error-table th, .jeu-error-table td { border-bottom: 1px solid #334155; padding: 5px; text-align: left; }
+
+/* Écran de sélection matière/palier (avant le lancement) */
+.jeu-ecran-accueil { display: flex; flex-direction: column; gap: 12px; align-items: center; width: 100%; }
+.jeu-ecran-accueil p { color: #94a3b8; font-size: 0.85rem; margin: 0; }
+.jeu-verrou-premium {
+  background: #1e293b; border: 2px dashed var(--gold); border-radius: 10px; padding: 12px; font-size: 0.82rem; color: #fbbf24;
+}
+
+/* --- Cadran opératoire (jeu Calcul mental) --- */
+.jeu-dial-wrap { position: relative; width: 210px; height: 210px; margin: 6px auto; }
+.jeu-dial-center {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 62px; height: 62px;
+  border-radius: 50%; background: #1e293b; border: 3px solid #475569; display: flex; align-items: center;
+  justify-content: center; font-size: 1.5rem; font-weight: 800; transition: all .2s;
+}
+.jeu-dial-center.jeu-dial-actif { border-color: var(--neon-green); box-shadow: 0 0 20px var(--neon-green); color: var(--neon-green); }
+.jeu-dial-op {
+  position: absolute; width: 34px; height: 34px; border-radius: 50%; background: #1e293b;
+  border: 2px solid #475569; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+  font-weight: 800; transform: translateX(-50%);
+}
+.jeu-dial-op.jeu-dial-actif { background: var(--neon-blue); color: #000; border-color: #fff; }
+.jeu-dial-outer-num {
+  position: absolute; width: 30px; height: 30px; border-radius: 50%; background: #1e293b; border: 2px solid #475569;
+  display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; transform: translate(-50%,-50%);
+}
+.jeu-dial-outer-num.jeu-dial-actif { background: var(--neon-red); color: #fff; border-color: #fff; }
+.jeu-dial-masque { filter: blur(7px); user-select: none; transition: filter .2s; }
+
+@media (max-width: 480px) {
+  .jeu-app-container { padding: 12px 14px; min-height: 560px; }
+  .jeu-dial-wrap { width: 180px; height: 180px; }
+}

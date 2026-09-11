@@ -1,104 +1,103 @@
-KEKELI — Livraison : corrections des médailles/badges/trophées (11 septembre 2026)
+KEKELI — Livraison : 3 nouveaux jeux éducatifs en arcade (11 septembre 2026)
 ================================================================
 
 Ce zip est une LIVRAISON DIFFÉRENTIELLE : il ne contient que les fichiers
 créés ou modifiés depuis la dernière livraison (kekeli-livraison-badges-
-2026-09-11.zip). Aucun fichier inchangé n'est inclus — pour installer,
-décompressez ce zip par-dessus votre copie actuelle du site, en conservant
-l'arborescence des dossiers.
+corrections-2026-09-11.zip). Aucun fichier inchangé n'est inclus — pour
+installer, décompressez ce zip par-dessus votre copie actuelle du site, en
+conservant l'arborescence des dossiers.
 
-AUCUN changement de base de données pour cette livraison : la table
-compteurs_badges_paliers stockait déjà le palier et le type de récompense
-séparément, ce qui suffisait à la précision demandée ci-dessous — seuls des
-fichiers du site (images + code) ont été modifiés.
+UNE seule migration de base de données pour cette livraison (déjà appliquée
+en direct sur votre projet Supabase, comme toujours pour ce projet) : une
+nouvelle colonne pour le réglage "masquer l'opération" — voir point 4.
 
-1) Les bonnes images pour chaque médaille/badge/trophée
+1) Trois nouveaux jeux, à partir de vos deux fichiers de référence
    ------------------------------------------------------------------
-   Comme demandé ("tu as mal placé les médaille et trophé... utilise les
-   noms pour ne plus mélanger"), les 13 images que vous avez fournies ont
-   été installées une par une, chacune associée au nom exact qui
-   l'accompagnait dans vos recommandations :
-     - Médailles de palier (une par question réussie) : la pousse
-       (Azɔ̀ví/medaille_azovi), le djembé (Dèví/medaille_devi), la tête de
-       lion (Ògán/medaille_ogan), la couronne (Axɔ́sú/medaille_axosu).
-     - Badges spéciaux (palier validé à ≥ 66,7 %) : les 4 icônes carrées —
-       badge_bronze, badge_argent, badge_or, badge_diamant.
-     - Trophées d'excellence (palier validé à ≥ 90 % dès le 1er essai) : les
-       4 vraies coupes — trophee_bronze, trophee_argent, trophee_or,
-       trophee_diamant. Comme pour les images précédentes, le socle en bois
-       et la plaque en anglais ("GOLD", "SILVER", "BLUE DIAMOND") ont été
-       recadrés : seule la coupe elle-même est utilisée.
-     - Pierre diamant (nouvelle photo de gemme rouge) : remplace l'ancienne
-       gemme bleue teintée en rouge (l'ancienne photo de gemme rouge portait
-       un filigrane de banque d'images, celle-ci a été vérifiée sans
-       filigrane visible).
-   Un cas particulier : l'icône dorée prévue pour badge_or portait le mot
-   anglais "GROWTH" gravé directement dans le métal (pas une base séparée
-   qu'on pouvait recadrer comme pour les coupes). Elle a été retouchée pour
-   ne garder que l'icône (flèche/graphique), sans aucun texte.
+   Comme demandé, vos deux jeux de référence (l'Atelier du Français et le
+   Cadran opératoire) sont maintenant intégrés au site, avec un troisième
+   jeu nouveau qui réunit Éducation Sociale et Éducation Scientifique et
+   Technologique (EST + ES), sur le même principe que l'Atelier du Français
+   (plusieurs types d'exercice) :
+     - "L'Atelier du Français" — conjugaison, grammaire, orthographe,
+       vocabulaire, expression.
+     - "Cadran opératoire — Calcul mental" — avec le cadran animé de votre
+       fichier de référence.
+     - "Défi ES & EST" — Éducation Sociale + Éducation Scientifique et
+       Technologique réunies, à plusieurs types de questions.
+   Le bouton "Jeux éducatifs" ouvre maintenant une page qui présente ces 3
+   jeux ; chaque jeu propose ensuite son propre choix de niveau.
 
-   Les règles d'attribution n'ont PAS changé (seuls les noms/images
-   affichés) :
-     - Badge standard (médaille de palier) : 2 par question réussie au 1er
-       essai, 1 si réussie seulement au 2e essai, rien au 3e essai.
-     - Badges spéciaux : 2 si le palier est validé dès le 1er essai (à
-       partir de 66,7 %), 1 si validé seulement au 2e essai.
-     - Badge d'excellence (trophée) : exactement 1, uniquement si le palier
-       est validé dès le 1er essai avec au moins 90 % (jamais au 2e essai).
-     - Pierre diamant : 5 pierres sur la carte de la matière quand tous ses
-       paliers sont validés à au moins 66,7 %.
-   Comme demandé, les étoiles n'ont pas été touchées.
+   Fichiers : pages/eleve/jeu-atelier-francais.html,
+   pages/eleve/jeu-calcul-mental.html, pages/eleve/jeu-es-est.html,
+   js/pages/eleve-jeu-atelier-francais.js, js/pages/eleve-jeu-calcul-mental.js,
+   js/pages/eleve-jeu-es-est.js, js/pages/eleve-jeux-educatifs.js (page de
+   lancement), js/jeux/ (moteur commun aux 3 jeux, voir point 2),
+   css/jeux-arcade.css.
 
-   Fichiers : assets/badges/ (13 images), js/pages/eleve-badges.js,
-   js/pages/eleve-matiere.js, js/pages/eleve-tableau-de-bord.js,
-   js/pages/eleve-seance.js, js/pages/admin-badges.js.
-
-2) Nouveau : agrandir un badge/trophée en cliquant dessus
+2) Les jeux piochent dans vos vraies séances, jamais des questions inventées
    ------------------------------------------------------------------
-   Comme demandé ("si on appuie sur une bage ou trophé il doit se présenter
-   en son entièreté et en grand plan avec le nombre collecté en bas"),
-   chaque miniature de médaille/badge/trophée/pierre diamant (page "Mes
-   badges" de l'élève, panneau "Mes badges" de la page matière et du tableau
-   de bord premium, page admin de référence) s'agrandit maintenant au clic
-   (ou au clavier avec Entrée/Espace), avec le nombre collecté en bas de la
-   fenêtre. Se ferme en cliquant à côté, sur la croix, ou avec Échap.
+   Comme demandé ("les lié aux séquences disponibles"), aucun jeu n'a de
+   banque de questions séparée : chaque partie choisit une vraie séance déjà
+   publiée dans la matière (ou les 2 matières pour "Défi ES & EST") et le
+   niveau que l'élève a choisi. Si aucun contenu n'existe encore pour un
+   niveau donné, le jeu l'indique simplement — c'est notamment le cas
+   aujourd'hui pour certains niveaux en Éducation Sociale et en Éducation
+   Scientifique et Technologique, faute de séances publiées sur ces niveaux
+   pour l'instant (voir la fin de ce document).
 
-   Fichiers : js/loupe-badge.js (nouveau), css/style-public.css, css/style.css,
-   pages/eleve/badges.html, pages/eleve/matiere.html,
-   pages/eleve/tableau-de-bord.html, pages/admin/badges.html.
-
-3) Page admin "Badges des élèves" : le détail précis par catégorie
+3) Les 4 niveaux de difficulté et les vraies récompenses (badges, paliers)
    ------------------------------------------------------------------
-   La page a été mise à jour pour distinguer les 3 niveaux (badge standard,
-   badges spéciaux, badge d'excellence) avec, pour chacun, la bonne image et
-   les conditions exactes reprises ci-dessus, plus une nouvelle carte pour
-   la pierre diamant.
+   Comme demandé, les 4 niveaux habituels (Azɔ̀ví, Dèví, Ògán, Axɔ́sú) sont
+   proposés comme choix de niveau dans les 3 jeux. Et comme demandé pour la
+   collecte de badges : aucune nouvelle règle n'a été inventée. Une partie
+   gagnée dans un jeu déclenche EXACTEMENT le même mécanisme que réussir un
+   exercice depuis une séance normale — mêmes 3 essais maximum, mêmes
+   étoiles, mêmes médailles, mêmes badges spéciaux, mêmes trophées
+   d'excellence. Ce n'est pas une imitation : c'est littéralement le même
+   système qui s'exécute.
 
-   Fichiers : js/pages/admin-badges.js.
+4) Nouveau réglage "masquer l'opération" (page Paramètres)
+   ------------------------------------------------------------------
+   Comme demandé ("masque l'affichage de l'opération pour entrainer la
+   mémoire"), une nouvelle carte "🎮 Jeux éducatifs" est apparue dans les
+   Paramètres de l'élève. Activée, elle floute le calcul affiché pendant le
+   jeu "Cadran opératoire", le temps que l'élève réfléchisse ; un bouton
+   "Revoir" permet de le faire réapparaître à tout moment. Ce réglage n'a
+   pas d'effet sur les deux autres jeux, qui n'affichent pas de calcul.
+
+   Fichiers : js/pages/parametres.js (+ migration de base de données pour la
+   nouvelle colonne de préférence).
+
+5) Fonctionnalités ajoutées de notre propre initiative
+   ------------------------------------------------------------------
+   Comme demandé ("Ajoute des fonctionalités que tu trouve nécessaire") :
+     - Un minuteur par question, avec une barre de progression visuelle.
+     - Des confettis et une fanfare quand un niveau est réussi.
+     - Un écran de bilan à la fin de la partie (score, temps).
 
 Vérifications effectuées
 -------------------------
-- node --check sur les 6 fichiers JS modifiés/créés : aucune erreur de
+- node --check sur les 8 fichiers JS créés/modifiés : aucune erreur de
   syntaxe.
-- Vérification de l'équilibre des accolades sur les 3 fichiers CSS modifiés.
-- Recherche exhaustive de toute référence restante aux anciens noms de
-  fichiers/anciennes variables (logo-standard.jpg, medaille-bronze.jpg,
-  trophee-excellence.jpg, pierre-rouge.jpg, pierres rouges...) dans
-  l'ensemble du site : plus aucune.
-- Vérification que les 13 nouveaux fichiers d'image référencés dans le code
-  existent bien tous dans assets/badges/.
-- Contrôle visuel individuel de chaque image fournie (zoom, recadrage) avant
-  utilisation, pour écarter tout filigrane de banque d'images ou texte en
-  anglais.
+- Vérification de l'équilibre des accolades sur le nouveau fichier CSS.
+- Vérification en base de données que du contenu réel existe déjà pour les 4
+  niveaux en Français et en Mathématiques, avant de considérer que les jeux
+  auraient réellement du contenu à proposer aux élèves.
+- Relecture complète, ligne par ligne, du moteur des 3 jeux avant cette
+  livraison (aucun serveur de test réel disponible dans notre environnement
+  actuel) : deux erreurs de logique et plusieurs petits défauts visuels ont
+  été trouvés et corrigés avant de vous envoyer ce zip, notamment un bug qui
+  aurait empêché de détecter la réussite fraîche d'un niveau, et un flou
+  insuffisamment lisible sur le calcul masqué (corrigé en un vrai flou).
 
-Comme convenu, ce zip ne contient que les fichiers créés ou modifiés depuis
-la dernière livraison (livraison différentielle) — aucun fichier inchangé
-n'est inclus.
-
-Fichiers devenus inutiles (à supprimer de votre copie, optionnel)
--------------------------------------------------------------------
-Les anciennes images remplacées par les 13 nouvelles ci-dessus ne sont plus
-utilisées nulle part sur le site et peuvent être supprimées sans risque de
-votre dossier assets/badges/ : logo-standard.jpg, medaille-bronze.jpg,
-medaille-argent.jpg, medaille-or.jpg, medaille-diamant.jpg, pierre-rouge.jpg,
-trophee-excellence.jpg.
+À savoir pour la suite
+-------------------------
+- Le jeu "Défi ES & EST" affichera "aucun contenu disponible" sur les
+  niveaux où aucune séance n'est encore publiée en Éducation Sociale ou en
+  Éducation Scientifique et Technologique (par exemple le niveau Axɔ́sú en
+  Éducation Sociale, ou les niveaux Azɔ̀ví/Ògán/Axɔ́sú en Éducation
+  Scientifique et Technologique). Ce n'est pas un bug : dès que vous publiez
+  du contenu sur ces niveaux, le jeu le proposera automatiquement.
+- Comme convenu, ce zip ne contient que les fichiers créés ou modifiés
+  depuis la dernière livraison (livraison différentielle) — aucun fichier
+  inchangé n'est inclus.

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KEKELI - L'Atelier du Français</title>
+<link rel="icon" type="image/png" href="../../assets/logo/logo.png">
+<link rel="stylesheet" href="../../css/style-public.css">
+<link rel="stylesheet" href="../../css/theme-premium-eleve.css">
+<link rel="stylesheet" href="../../css/pied-de-page.css">
+<link rel="stylesheet" href="../../css/jeux-arcade.css">
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+</head>
+<body>
+  <header></header>
+
+  <div class="jeu-arcade-page">
+    <div class="jeu-app-container">
+      <div class="jeu-header-bar">
+        <a href="jeux-educatifs.html" class="jeu-btn-lien-retour">⬅️ Jeux</a>
+        <h1>📚 L'Atelier du Français</h1>
+        <button type="button" class="jeu-btn-settings" id="jeuBtnSettings">⚙️</button>
+      </div>
+
+      <!-- Écran d'accueil : choix du niveau (palier) -->
+      <div class="jeu-ecran-accueil" id="jeuAccueil">
+        <p>Conjugaison, grammaire, orthographe, vocabulaire, expression — révise ta matière préférée en t'amusant, avec les vraies activités de tes séances !</p>
+        <div class="jeu-palier-selector" id="jeuPalierSelector"></div>
+        <p id="jeuInfoAccueil">Chargement...</p>
+        <button type="button" class="jeu-btn-start" id="jeuBtnLancer" disabled>🚀 Lancer la partie</button>
+      </div>
+
+      <!-- Corps du jeu (masqué tant que la partie n'est pas lancée) -->
+      <div id="jeuCorps" hidden style="display:flex;flex-direction:column;flex:1;min-height:0">
+        <div class="jeu-zone" id="jeuZone">
+          <div class="jeu-matiere-tag">Français</div>
+          <div id="jeuQuestionArea" class="jeu-message-accueil">Prépare-toi...</div>
+          <div class="jeu-countdown-overlay" id="jeuCountdownOverlay"></div>
+        </div>
+        <div class="jeu-feedback" id="jeuFeedback"></div>
+        <div class="jeu-timer-bar-container"><div class="jeu-timer-bar" id="jeuTimerBar"></div></div>
+        <div class="jeu-score-board">
+          <span id="jeuQuestionCounter">Question : 0/0</span>
+          <span id="jeuScoreCounter">Bonnes réponses : 0</span>
+        </div>
+      </div>
+
+      <!-- Modale Réglages -->
+      <div class="jeu-modal-overlay" id="jeuSettingsModal">
+        <div class="jeu-modal-header">
+          <h2>⚙️ Réglages</h2>
+          <button class="jeu-close-btn" id="jeuBtnCloseSettings">✕</button>
+        </div>
+        <div class="jeu-config-grid">
+          <div class="jeu-config-group">
+            <label>Temps affiché par question (décoratif) :</label>
+            <select id="jeuTimeSelect">
+              <option value="10">10 secondes</option>
+              <option value="15" selected>15 secondes</option>
+              <option value="25">25 secondes</option>
+            </select>
+          </div>
+          <p style="color:#94a3b8;font-size:0.78rem;margin:0">Ce minuteur t'aide à garder le rythme mais ne t'empêche jamais de répondre — prends le temps qu'il te faut.</p>
+        </div>
+      </div>
+
+      <!-- Modale Bilan -->
+      <div class="jeu-summary-overlay" id="jeuSummaryModal"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/supabaseClient.js"></script>
+  <script>const RACINE_SITE = "../../";</script>
+  <script src="../../js/auth-utilisateur.js"></script>
+  <script src="../../js/notifications.js"></script>
+  <script src="../../js/navigation-config.js"></script>
+  <script src="../../js/banniere-site.js"></script>
+  <script src="../../js/entete-navigation.js"></script>
+  <script src="../../js/theme-premium-eleve.js"></script>
+  <script src="../../js/sons-eleve.js"></script>
+  <script src="../../js/editeur/blocs.js"></script>
+  <script src="../../js/jeux/rendu-questions-jeu.js"></script>
+  <script src="../../js/jeux/moteur-jeu-arcade.js"></script>
+  <script src="../../js/jeux/coquille-jeu-arcade.js"></script>
+  <script src="../../js/pages/eleve-jeu-atelier-francais.js"></script>
+  <footer></footer>
+  <script src="../../js/pied-de-page.js"></script>
+</body>
+</html>

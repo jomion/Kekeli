@@ -17,6 +17,7 @@ let raccourcisActuelsParam = [];
 let themePremiumActuel = false; // aperçu du formatage premium (élève uniquement) — preferences_navigation.theme_premium
 let accesPremiumEleveParam = false; // a_acces_premium_eleve(id) — un abonnement Premium actif débloque ce thème (et la messagerie instantanée, voir pages/eleve/messagerie.html)
 let themePremiumImposeATous = false; // parametres_premium.theme_premium_par_defaut_tous (11 septembre 2026, réglage global réversible)
+let masquerOperationJeuxActuel = false; // preferences_navigation.masquer_operation_jeux — jeu Calcul mental/Cadran opératoire (lot "Jeux éducatifs interactifs", 11 septembre 2026), aucun lien avec Premium
 
 (async function () {
   const { data: { session } } = await supabaseClient.auth.getSession();
@@ -54,10 +55,11 @@ let themePremiumImposeATous = false; // parametres_premium.theme_premium_par_def
     liens: liensAvecPrefixe(roleParametres, roleParametres + '/', { superAdmin: estSuperAdminParam })
   });
 
-  const { data: prefs } = await supabaseClient.from('preferences_navigation').select('liens_masques, raccourcis, theme_premium').eq('utilisateur_id', profilParametres.id).maybeSingle();
+  const { data: prefs } = await supabaseClient.from('preferences_navigation').select('liens_masques, raccourcis, theme_premium, masquer_operation_jeux').eq('utilisateur_id', profilParametres.id).maybeSingle();
   liensMasquesActuels = prefs?.liens_masques || [];
   raccourcisActuelsParam = prefs?.raccourcis || [];
   themePremiumActuel = !!prefs?.theme_premium;
+  masquerOperationJeuxActuel = !!prefs?.masquer_operation_jeux;
 
   if (roleParametres === 'eleve') {
     const [{ data: acces }, { data: parametresPremium }] = await Promise.all([
@@ -102,6 +104,19 @@ function afficherPageParametres() {
       `}
     </div>` : ''}
 
+    ${roleParametres === 'eleve' ? `
+    <div class="carte-param">
+      <h2>🎮 Jeux éducatifs</h2>
+      <p class="desc-param">Dans le jeu <strong>Cadran opératoire / Calcul mental</strong>, tu peux cacher le calcul affiché pendant la partie — tu dois alors t'en souvenir de mémoire au lieu de le relire (un bouton « 👁️ Revoir » reste toujours disponible si tu as un trou).</p>
+      <div class="ligne-lien-param">
+        <label>
+          <input type="checkbox" id="caseMasquerOperationJeux" ${masquerOperationJeuxActuel ? 'checked' : ''}>
+          🙈 Masquer l'affichage de l'opération pour entraîner ma mémoire
+        </label>
+      </div>
+      <p class="message-param-succes" id="messageSuccesMasquerOperationJeux" style="display:none">✅ Préférence enregistrée.</p>
+    </div>` : ''}
+
     <div class="carte-param">
       <h2>Liens de mon en-tête (${LIBELLES_ROLE[roleParametres] || roleParametres})</h2>
       <p class="desc-param">Cochez un lien pour le masquer — vous pourrez toujours le décocher ici plus tard.</p>
@@ -144,6 +159,9 @@ function afficherPageParametres() {
   const caseThemePremium = document.getElementById('caseThemePremium');
   if (caseThemePremium) caseThemePremium.addEventListener('change', enregistrerThemePremium);
 
+  const caseMasquerOperationJeux = document.getElementById('caseMasquerOperationJeux');
+  if (caseMasquerOperationJeux) caseMasquerOperationJeux.addEventListener('change', enregistrerMasquerOperationJeux);
+
   const form = document.getElementById('formParametresNav');
   if (form) form.addEventListener('submit', enregistrerParametresNav);
 
@@ -169,6 +187,21 @@ async function enregistrerThemePremium(e) {
   themePremiumActuel = actif;
   if (messageSucces) messageSucces.style.display = 'block';
   window.location.reload();
+}
+
+// Réglage "masquer l'affichage de l'opération pour entraîner la mémoire"
+// (jeu Cadran opératoire / Calcul mental, lot "Jeux éducatifs interactifs" du
+// 11 septembre 2026) — même colonne/pattern d'upsert que theme_premium
+// ci-dessus, mais sans lien avec Premium ni rechargement de page (rien dans
+// l'en-tête ne dépend de ce réglage).
+async function enregistrerMasquerOperationJeux(e) {
+  const actif = e.target.checked;
+  const messageSucces = document.getElementById('messageSuccesMasquerOperationJeux');
+  const { error } = await supabaseClient.from('preferences_navigation')
+    .upsert({ utilisateur_id: profilParametres.id, masquer_operation_jeux: actif, maj_le: new Date().toISOString() });
+  if (error) { alert(error.message); e.target.checked = !actif; return; }
+  masquerOperationJeuxActuel = actif;
+  if (messageSucces) { messageSucces.style.display = 'block'; setTimeout(() => { messageSucces.style.display = 'none'; }, 2500); }
 }
 
 async function enregistrerRaccourcisParam(raccourcis) {
