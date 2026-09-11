@@ -284,6 +284,15 @@ function attacherEcouteursQuestionsDevoir(devoirId, el, bloc) {
         sauvegarderCorrige();
       });
 
+      // Commentaire enseignant (11 septembre 2026) — voir html_commentaireQuestion
+      // dans blocs.js ; absent du DOM pour reponse_longue/vrai_faux_justifie.
+      const texteCommentaire = qEl.querySelector('[data-question-commentaire]');
+      if (texteCommentaire) texteCommentaire.addEventListener('input', () => {
+        if (!c) return;
+        c.commentaire = texteCommentaire.value;
+        sauvegarderCorrige();
+      });
+
       qEl.querySelector('[data-supprimer-question]').addEventListener('click', () => {
         majQuestions(questions().filter(x => x.id !== qId));
         if (corrigeActuel) { delete corrigeActuel[qId]; sauvegarderCorrige(); }

@@ -61,6 +61,11 @@ async function afficher() {
     ? { ...d, resumeBlocs: resumesParDevoir[d.id] || null }
     : { ...d, rendu: rendusParDevoir[d.id] || null });
 
+  // Cartes de suivi (11 septembre 2026, demande explicite : "du côté des
+  // parent fais pareil") — même logique que côté élève, pour l'enfant
+  // actuellement sélectionné.
+  const compteStatutsParent = compterStatutsDevoirs(devoirsAvecStatut);
+
   document.getElementById('contenu').innerHTML = `
     <div class="carte-bienvenue">
       <h1>Suivi devoirs et notes</h1>
@@ -71,6 +76,7 @@ async function afficher() {
       ${enfantsDN.map(e => `<button class="${e.id === enfantSelectionneId ? 'actif' : ''}" data-enfant="${e.id}">${e.prenom} ${e.nom}</button>`).join('')}
     </div>` : `<p style="font-weight:700;color:var(--noir-kekeli)">${enfant.prenom} ${enfant.nom}</p>`}
 
+    ${html_cartesStatutsDevoirs(compteStatutsParent, { libelleEnCours: 'En cours' })}
     <div class="titre-section-pub">📚 Devoirs</div>
     <div id="zoneDevoirsParent">${html_listeDevoirs(devoirsAvecStatut, { interactif: false })}</div>
     <div class="titre-section-pub">📊 Notes</div>

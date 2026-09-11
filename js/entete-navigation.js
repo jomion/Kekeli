@@ -164,7 +164,16 @@ async function initEnteteNavigation(config) {
       // Formatage premium (aperçu) — voir js/theme-premium-eleve.js. Ne
       // s'applique qu'à l'espace élève ; les autres rôles gardent toujours
       // l'en-tête classique, quoi qu'il arrive.
-      themePremiumActif = config.role === 'eleve' && !!data?.theme_premium;
+      if (config.role === 'eleve') {
+        // 11 septembre 2026 : réglage global réversible (voir
+        // pages/admin/abonnements.html) — tant qu'il est actif, TOUS les
+        // élèves ont le thème premium, quelle que soit leur préférence
+        // enregistrée (elle reste stockée telle quelle et reprend effet dès
+        // que ce réglage est désactivé). table publique en lecture, un seul
+        // aller-retour léger (une ligne).
+        const { data: parametresPremium } = await supabaseClient.from('parametres_premium').select('theme_premium_par_defaut_tous').eq('id', 1).maybeSingle();
+        themePremiumActif = !!parametresPremium?.theme_premium_par_defaut_tous || !!data?.theme_premium;
+      }
       // Les raccourcis personnels (voir pages/parametres.html) sont stockés
       // avec un chemin relatif à la RACINE DU SITE (comme les liens
       // `racine: true` de js/navigation-config.js) : on les préfixe ici avec

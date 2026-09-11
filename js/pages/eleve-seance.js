@@ -28,7 +28,10 @@ let seanceDejaTerminee = false;
 let etatPaliersSeance = []; // [{palier, nb_total, nb_reussies, deverrouille}] — vide si la séance n'utilise pas les paliers
 let formulairesReouverts = new Set(); // bloc_id pour lesquels l'élève a cliqué "Refaire" (affiche un formulaire vierge malgré un essai existant)
 
-const TYPES_TRAVAIL = ['exercice', 'quiz', 'evaluation', 'activite'];
+// 11 septembre 2026 : 'exercice' retiré de la liste des blocs "travail" —
+// c'est désormais un bloc de texte libre (lecture), voir rendreBlocLecture
+// et le nouveau bloc 'correction' (masqué, révélé par un bouton) juste après.
+const TYPES_TRAVAIL = ['quiz', 'evaluation', 'activite'];
 const LIBELLES_PALIER_ELEVE = { azovi: '🌱 Azɔ̀ví', devi: '🪘 Dèví', ogan: '🦁 Ògán', axosu: '👑 Axɔ́sú' };
 // Couleurs "pleines" (fond dense) des sections Paliers, demandées le 5
 // septembre 2026 pour remplacer le bandeau bleu unique — l'axosu est ici
@@ -113,7 +116,7 @@ async function charger() {
   // dans reponses_exercices. idsActivites (rendus_activites) reste nécessaire
   // en parallèle pour l'historique des anciennes activités (texte libre
   // corrigé à la main) créées avant cette refonte — voir rendreBlocTravail.
-  const idsExercices = blocsCourants.filter(b => ['exercice', 'quiz', 'evaluation', 'activite'].includes(b.type_bloc)).map(b => b.id);
+  const idsExercices = blocsCourants.filter(b => ['quiz', 'evaluation', 'activite'].includes(b.type_bloc)).map(b => b.id);
   const idsActivites = blocsCourants.filter(b => b.type_bloc === 'activite').map(b => b.id);
   reponsesExistantes = {};
   rendusActivitesExistants = {};
@@ -226,6 +229,7 @@ function rendre() {
   attacherEcouteursExercices();
   attacherEcouteursActivites();
   attacherEcouteursRefaire();
+  attacherEcouteursCorrections();
   const btnMarquerTermine = document.getElementById('btnMarquerTermine');
   if (btnMarquerTermine) btnMarquerTermine.addEventListener('click', async () => {
     btnMarquerTermine.disabled = true;
@@ -304,7 +308,18 @@ function rendreBlocLecture(b, estEnfant = false) {
   const libelle = c.libelle || info.label;
   let corps = '';
 
-  if (TYPES_TEXTE_LIBRE.includes(b.type_bloc)) corps = `<div class="contenu-riche-lecture">${contenuRicheInitial(c.texte)}</div>`;
+  // Bloc "Correction" (11 septembre 2026) : pensé pour suivre un bloc
+  // Exercice libre — contenu masqué par défaut, révélé par l'élève via un
+  // bouton (décision prise avec le porteur du projet), sur le même principe
+  // que "👁️ Voir le contenu" déjà utilisé ailleurs sur le site (ex.
+  // js/pages/seances.js) : simple bascule de l'attribut `hidden`, pas de
+  // rechargement réseau puisque le contenu est déjà dans le bloc.
+  if (b.type_bloc === 'correction') {
+    corps = `
+      <button type="button" class="btn btn-discret" data-bouton-correction="${b.id}">🔓 Voir la correction</button>
+      <div class="contenu-riche-lecture" data-zone-correction="${b.id}" hidden>${contenuRicheInitial(c.texte)}</div>`;
+  }
+  else if (TYPES_TEXTE_LIBRE.includes(b.type_bloc)) corps = `<div class="contenu-riche-lecture">${contenuRicheInitial(c.texte)}</div>`;
   else if (b.type_bloc === 'titre') corps = `<h3 style="margin:0">${echapper(c.texte)}</h3>`;
   else if (b.type_bloc === 'consigne') corps = `<p>${echapper(c.texte)}</p>`;
   else if (b.type_bloc === 'autre') corps = `${c.nom ? `<p style="font-weight:700">${echapper(c.nom)}</p>` : ''}<p>${echapper(c.texte)}</p>`;
@@ -751,6 +766,20 @@ function attacherEcouteursRefaire() {
     btn.addEventListener('click', () => {
       formulairesReouverts.add(parseInt(btn.dataset.refaire, 10));
       rendre();
+    });
+  });
+}
+
+// Bloc "Correction" : bascule simple d'affichage, rien à recharger (le
+// contenu est déjà dans le HTML, juste masqué par l'attribut `hidden`).
+function attacherEcouteursCorrections() {
+  document.querySelectorAll('[data-bouton-correction]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const zone = document.querySelector(`[data-zone-correction="${btn.dataset.boutonCorrection}"]`);
+      if (!zone) return;
+      const estMasquee = zone.hidden;
+      zone.hidden = !estMasquee;
+      btn.textContent = estMasquee ? '🔼 Masquer la correction' : '🔓 Voir la correction';
     });
   });
 }

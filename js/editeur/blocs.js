@@ -20,7 +20,19 @@ const TYPES_BLOCS = [
   { valeur: 'tableau',    label: 'Tableau',     icone: '📊', usage: 'Données',             couleur: '#0F766E' },
   { valeur: 'formule',    label: 'Formule',     icone: '🧮', usage: 'Mathématiques',       couleur: '#6D28D9' },
   { valeur: 'activite',   label: 'Activité',    icone: '🙋', usage: 'Activité pédagogique', couleur: '#15803D' },
-  { valeur: 'exercice',   label: 'Exercice',    icone: '✏️', usage: 'Entraînement interactif', couleur: '#1D4ED8' },
+  // 11 septembre 2026 : "Exercice" n'est plus un bloc à questions structurées
+  // (ce modèle reste réservé à Activité/Quiz/Évaluation) — c'est désormais un
+  // bloc de texte libre, au même titre que "Texte", pour permettre à
+  // l'enseignant de proposer un exercice indépendant rédigé à la main (dans
+  // un manuel, à recopier, etc.). Voir TYPES_TEXTE_LIBRE ci-dessous et le
+  // nouveau bloc "Correction" juste après, pensé pour le suivre.
+  { valeur: 'exercice',   label: 'Exercice',    icone: '✏️', usage: 'Exercice libre (texte), à faire suivre d\'un bloc Correction', couleur: '#1D4ED8' },
+  // Bloc "Correction" (11 septembre 2026) : corrigé d'un bloc Exercice libre.
+  // Contenu masqué par défaut côté élève, révélé via un bouton "Voir la
+  // correction" (cf. rendreBlocLecture dans js/pages/eleve-seance.js) — pas
+  // de lien de dépendance strict en base avec le bloc Exercice qui précède,
+  // l'enseignant l'ajoute simplement juste après quand il le souhaite.
+  { valeur: 'correction', label: 'Correction',  icone: '✅', usage: 'Corrigé d\'un exercice libre (masqué, révélé par l\'élève)', couleur: '#065F46' },
   { valeur: 'quiz',       label: 'Quiz',        icone: '❓', usage: 'Questions',           couleur: '#C2410C' },
   { valeur: 'evaluation', label: 'Évaluation',  icone: '🧾', usage: 'Évaluation / épreuve', couleur: '#B91C1C' },
   { valeur: 'ressource',  label: 'Ressource',   icone: '📎', usage: 'Document ou média',   couleur: '#64748B' },
@@ -71,12 +83,15 @@ function infoType(valeur) {
   return TYPES_BLOCS.find(t => t.valeur === valeur) || { label: valeur, icone: '❔' };
 }
 
-const TYPES_TEXTE_LIBRE = ['texte', 'a_retenir', 'definition', 'exemple', 'attention', 'astuce', 'item', 'resume'];
+// 'exercice' et 'correction' ajoutés le 11 septembre 2026 : bloc Exercice
+// remodelé en texte libre (voir TYPES_BLOCS ci-dessus), bloc Correction
+// nouvellement créé sur le même modèle (texte libre masqué côté élève).
+const TYPES_TEXTE_LIBRE = ['texte', 'a_retenir', 'definition', 'exemple', 'attention', 'astuce', 'item', 'resume', 'exercice', 'correction'];
 
 // Types dont le contenu textuel peut être assisté par l'IA (bouton "Générer"/"Améliorer"
 // dans l'entête du bloc). On indique, par type, quel champ de `contenu` contient le texte.
 const TYPES_IA_CHAMP_TEXTE = [...TYPES_TEXTE_LIBRE, 'titre', 'consigne', 'autre'];
-const TYPES_IA_CHAMP_CONSIGNE = ['activite', 'exercice', 'quiz', 'evaluation'];
+const TYPES_IA_CHAMP_CONSIGNE = ['activite', 'quiz', 'evaluation'];
 function champIA(typeBloc) {
   if (TYPES_IA_CHAMP_TEXTE.includes(typeBloc)) return 'texte';
   if (TYPES_IA_CHAMP_CONSIGNE.includes(typeBloc)) return 'consigne';
@@ -125,6 +140,7 @@ function html_editeurBloc(bloc) {
         <textarea data-champ="texte" placeholder="Contenu...">${echapper(c.texte)}</textarea>`;
 
     case 'texte': case 'a_retenir': case 'definition': case 'exemple': case 'attention': case 'astuce': case 'item': case 'resume':
+    case 'exercice': case 'correction':
       return html_editeurTexteRiche(bloc, c);
 
     case 'image': case 'video':
@@ -144,7 +160,7 @@ function html_editeurBloc(bloc) {
     case 'tableau':
       return html_editeurTableau(bloc, c);
 
-    case 'activite': case 'exercice': case 'quiz': case 'evaluation':
+    case 'activite': case 'quiz': case 'evaluation':
       return html_editeurExercice(bloc, c);
 
     case 'html_libre':
@@ -884,6 +900,25 @@ function html_questionEditeur(q, index, corrige) {
         : `<textarea data-question-champ="enonce" placeholder="Énoncé de la question...">${echapper(q.enonce)}</textarea>`}
       <input type="text" data-question-champ="consigne" placeholder="Consigne pour l'élève (optionnel — ex : « Complète les mots manquants »)" value="${echapper(q.consigne)}">
       ${corpsCorrige}
+      ${html_commentaireQuestion(q, c, enAttente)}
+    </div>`;
+}
+
+// Commentaire enseignant (11 septembre 2026), pour toutes les questions à
+// correction AUTOMATIQUE (pas reponse_longue/vrai_faux_justifie, qui ont déjà
+// un champ de commentaire équivalent — le barème indicatif lu par l'IA, qui
+// génère elle-même sa propre explication). Stocké dans le corrigé privé
+// (c.commentaire, comme c.bareme) — jamais envoyé à l'élève tant qu'il n'a
+// pas répondu — puis rendu après sa correction (voir corriger-exercice et
+// rendreResultatExercice/rendreResultatExerciceDevoir côté élève).
+const TYPES_QUESTION_SANS_COMMENTAIRE_DEDIE = ['reponse_longue', 'vrai_faux_justifie'];
+function html_commentaireQuestion(q, c, enAttente) {
+  if (TYPES_QUESTION_SANS_COMMENTAIRE_DEDIE.includes(q.type)) return '';
+  const commentaire = c ? (c.commentaire || '') : '';
+  return `
+    <div class="commentaire-question-champ">
+      <label>💬 Commentaire pour l'élève (optionnel — affiché après sa réponse, pour expliquer la correction si besoin)</label>
+      <textarea data-question-commentaire placeholder="Ex : Attention, on n'accorde pas l'adjectif avec le nom complément..." ${enAttente ? 'disabled' : ''}>${echapper(commentaire)}</textarea>
     </div>`;
 }
 

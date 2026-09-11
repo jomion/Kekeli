@@ -12,6 +12,7 @@ let parentsAbo = [];
 let classeSelectionneeAbo = null;
 let elevesClasseAbo = [];
 let souscriptionsParBeneficiaire = {}; // eleve_id OU parent_id -> [souscriptions]
+let parametresPremiumAbo = { acces_premium_ouvert_a_tous: false, theme_premium_par_defaut_tous: false }; // réglage global réversible, 11 septembre 2026 — voir migration ajoute_deblocage_premium_global
 
 const LIBELLES_SERVICE = {
   '': 'Premium global (tous les services)',
@@ -42,22 +43,37 @@ async function init() {
     liens: liensAvecPrefixe('admin', '', { superAdmin: profilAdminAbo.est_super_admin })
   });
 
-  const [{ data: plans }, { data: essais }, { data: classes }, { data: parents }] = await Promise.all([
+  const [{ data: plans }, { data: essais }, { data: classes }, { data: parents }, { data: parametresPremium }] = await Promise.all([
     supabaseClient.from('plans_tarifaires').select('*').order('cree_le'),
     supabaseClient.from('essais_gratuits_services').select('*'),
     supabaseClient.from('classes').select('*').order('ordre'),
-    supabaseClient.from('profils').select('id, prenom, nom, email').eq('role', 'parent').order('nom')
+    supabaseClient.from('profils').select('id, prenom, nom, email').eq('role', 'parent').order('nom'),
+    supabaseClient.from('parametres_premium').select('*').eq('id', 1).maybeSingle()
   ]);
   plansTarifaires = plans || [];
   essaisGratuits = essais || [];
   classesAbo = classes || [];
   parentsAbo = parents || [];
+  if (parametresPremium) parametresPremiumAbo = parametresPremium;
 
   rendrePage();
 }
 
 function rendrePage() {
   document.getElementById('contenu').innerHTML = `
+    <div class="carte-plan" style="margin-bottom:20px;border:1px solid ${parametresPremiumAbo.acces_premium_ouvert_a_tous ? '#F59E0B' : 'var(--bordure)'};background:${parametresPremiumAbo.acces_premium_ouvert_a_tous ? '#FFFBEB' : '#fff'}">
+      <h4>🔓 Déblocage Premium global (temporaire)</h4>
+      <p style="margin:4px 0 10px">Réglage ajouté le 11 septembre 2026 à ta demande : tant qu'il est actif, tout le monde a accès à toutes les fonctionnalités premium (correction IA, messagerie instantanée...) et/ou au nouveau look premium, SANS toucher aux formules/souscriptions ci-dessous — tu pourras désactiver ce réglage plus tard pour revenir exactement à la configuration Premium normale.</p>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <input type="checkbox" id="caseDeblocagePremium" ${parametresPremiumAbo.acces_premium_ouvert_a_tous ? 'checked' : ''}>
+        Débloquer toutes les fonctionnalités premium pour tout le monde
+      </label>
+      <label style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="caseThemePremiumTous" ${parametresPremiumAbo.theme_premium_par_defaut_tous ? 'checked' : ''}>
+        Afficher le nouveau look premium à tous les élèves par défaut
+      </label>
+      <p class="message-param-succes" id="messageSuccesPremiumGlobal" style="display:none;margin-top:8px">✅ Réglage enregistré.</p>
+    </div>
     <div class="titre-cycle" style="margin-top:0">Formules tarifaires</div>
     <button class="btn btn-accent" id="btnNouveauPlan" style="margin-bottom:16px">+ Nouvelle formule</button>
     <div class="grille-plans">
@@ -105,6 +121,9 @@ function rendrePage() {
     </div>
     <div id="zoneParentAbo"></div>
   `;
+
+  document.getElementById('caseDeblocagePremium').addEventListener('change', (e) => basculerParametrePremium('acces_premium_ouvert_a_tous', e.target.checked));
+  document.getElementById('caseThemePremiumTous').addEventListener('change', (e) => basculerParametrePremium('theme_premium_par_defaut_tous', e.target.checked));
 
   document.getElementById('btnNouveauPlan').addEventListener('click', ouvrirNouveauPlan);
   document.querySelectorAll('[data-basculer-plan]').forEach(btn => {
@@ -298,6 +317,19 @@ function annulerSouscription(id, rafraichir) {
     if (error) return alert(error.message);
     rafraichir();
   });
+}
+
+// Réglage global réversible (11 septembre 2026) — voir la carte "🔓 Déblocage
+// Premium global" en haut de rendrePage() et la migration
+// ajoute_deblocage_premium_global. Ne touche à aucune souscription/essai.
+async function basculerParametrePremium(colonne, valeur) {
+  parametresPremiumAbo[colonne] = valeur;
+  const { error } = await supabaseClient.from('parametres_premium')
+    .update({ [colonne]: valeur, modifie_le: new Date().toISOString(), modifie_par: profilAdminAbo.id })
+    .eq('id', 1);
+  const message = document.getElementById('messageSuccesPremiumGlobal');
+  if (error) { alert(error.message); return; }
+  if (message) { message.style.display = 'block'; setTimeout(() => { message.style.display = 'none'; }, 2500); }
 }
 
 function echapperAbo(v) {

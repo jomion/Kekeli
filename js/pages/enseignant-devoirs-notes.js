@@ -104,7 +104,36 @@ async function afficherGestionEns() {
     }
   }
 
+  // Cartes de suivi enseignant (11 septembre 2026, demande explicite : "cré
+  // aussi pour l'enseignant selon ses besoin pour faciliter l'affichage et le
+  // suivi"). Contrairement à côté élève/parent, cette page ne calcule pas de
+  // statut par devoir (à_faire/rendu/en_retard/corrigé — ça exigerait de
+  // recharger tous les blocs/réponses de chaque devoir "à blocs" pour TOUS
+  // les élèves suivis, coûteux) : on reste sur des compteurs simples, déjà
+  // déductibles des données chargées ci-dessus (statut de publication,
+  // échéance, réponses reçues pour les devoirs "texte libre").
+  const maintenantEns = new Date();
+  const devoirsListe = devoirs || [];
+  const estPublieEns = (d) => !d.seance_id || d.statut === 'publie';
+  const nbPublies = devoirsListe.filter(estPublieEns).length;
+  const nbBrouillons = devoirsListe.length - nbPublies;
+  const nbEnRetard = devoirsListe.filter(d => estPublieEns(d) && d.date_limite && new Date(d.date_limite) < maintenantEns).length;
+  const nbReponsesRecues = devoirsListe.filter(d => !d.seance_id).reduce((total, d) => total + (rendusParDevoir[d.id] || 0), 0);
+  const cartesEns = [
+    { chiffre: nbPublies, libelle: '📋 Devoirs publiés' },
+    { chiffre: nbBrouillons, libelle: '📝 Brouillons (non visibles des élèves)', alerte: nbBrouillons > 0 },
+    { chiffre: nbEnRetard, libelle: '⏰ Échéance dépassée', alerte: nbEnRetard > 0 },
+    { chiffre: nbReponsesRecues, libelle: '📨 Réponses reçues (devoirs texte libre)' }
+  ];
+
   zone.innerHTML = `
+    <div class="grille-taches-admin" style="margin-bottom:20px">
+      ${cartesEns.map(c => `
+        <div class="pastille-tache-admin ${c.alerte ? 'a-traiter' : ''}">
+          <span class="chiffre-tache">${c.chiffre}</span>
+          <span class="libelle-tache">${c.libelle}</span>
+        </div>`).join('')}
+    </div>
     <button class="btn btn-filled" id="btnNouveauDevoirEns" style="margin-bottom:20px">+ Nouveau devoir</button>
 
     <div class="titre-section-pub">Devoirs</div>
@@ -187,14 +216,21 @@ async function afficherGestionEns() {
   }
 }
 
-async function ouvrirNouveauDevoirEns(eleves) {
+function ouvrirNouveauDevoirEns(eleves) {
+  ouvrirChoixModeNouveauDevoir((mode) => {
+    if (mode === 'texte_libre') ouvrirNouveauDevoirTexteLibreEns(eleves);
+    else ouvrirNouveauDevoirBlocsEns(eleves);
+  });
+}
+
+async function ouvrirNouveauDevoirBlocsEns(eleves) {
   const seances = await chargerSeancesPourMatiere(classeSelectionneeEns, champSelectionneEns);
   if (!seances.length) {
-    alert("Aucune séance publiée n'existe pour cette matière dans cette classe. Créez (ou faites créer par un admin) une séance dans le parcours avant de donner un devoir.");
+    alert("Aucune séance publiée n'existe pour cette matière dans cette classe. Créez (ou faites créer par un admin) une séance dans le parcours avant de donner un devoir à blocs — ou choisissez le mode texte libre.");
     return;
   }
   ouvrirModal({
-    titre: 'Nouveau devoir',
+    titre: 'Nouveau devoir à blocs',
     champs: [
       { nom: 'titre', label: 'Titre' },
       { nom: 'seance_id', label: 'Séance à évaluer', type: 'select', options: seances.map(s => ({ valeur: s.id, label: s.label })) },
@@ -213,6 +249,45 @@ async function ouvrirNouveauDevoirEns(eleves) {
       const { data, error } = await supabaseClient.from('devoirs').insert({
         classe_id: classeSelectionneeEns, champ_formation_id: champSelectionneEns, titre, consigne: consigne || null,
         seance_id: parseInt(seance_id, 10), statut: 'brouillon',
+        date_limite: new Date(date_limite).toISOString(), cree_par: profilEnseignant.id
+      }).select().single();
+      if (error) return alert(error.message);
+      if (destinataires.length < eleves.length) {
+        const { error: erreurDest } = await supabaseClient.from('devoirs_destinataires')
+          .insert(destinataires.map(eleveId => ({ devoir_id: data.id, eleve_id: eleveId })));
+        if (erreurDest) alert("Devoir créé, mais erreur lors de l'enregistrement des destinataires : " + erreurDest.message);
+      }
+      devoirOuvertEns = data.id;
+      afficherGestionEns();
+    }
+  });
+}
+
+// Ancien mode restauré (lot 3, partie 3, volet 2) : réponse texte libre (+
+// pièce jointe côté élève) corrigée à la main — table devoirs_rendus,
+// jamais soumis au système d'abonnements premium. Publié immédiatement (pas
+// d'étape de construction de blocs à attendre, contrairement au mode à
+// blocs qui reste créé en brouillon).
+function ouvrirNouveauDevoirTexteLibreEns(eleves) {
+  ouvrirModal({
+    titre: 'Nouveau devoir (texte libre)',
+    champs: [
+      { nom: 'titre', label: 'Titre' },
+      { nom: 'consigne', label: 'Consigne', type: 'textarea' },
+      { nom: 'date_limite', label: 'À rendre pour le', type: 'date' },
+      {
+        nom: 'destinataires', label: 'Destinataires', type: 'checkboxes',
+        toutCocherLabel: 'Tous les élèves de la classe',
+        options: eleves.map(e => ({ valeur: e.id, label: `${e.profils?.prenom || ''} ${e.profils?.nom || ''}`.trim() || '(sans nom)' })),
+        valeur: eleves.map(e => e.id)
+      }
+    ],
+    texteValider: 'Créer',
+    onValider: async ({ titre, consigne, date_limite, destinataires }) => {
+      if (!destinataires.length) { alert('Sélectionnez au moins un élève, ou cochez "Tous les élèves de la classe".'); return; }
+      const { data, error } = await supabaseClient.from('devoirs').insert({
+        classe_id: classeSelectionneeEns, champ_formation_id: champSelectionneEns, titre, consigne: consigne || null,
+        seance_id: null, statut: 'publie',
         date_limite: new Date(date_limite).toISOString(), cree_par: profilEnseignant.id
       }).select().single();
       if (error) return alert(error.message);

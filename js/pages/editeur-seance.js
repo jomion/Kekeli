@@ -316,7 +316,9 @@ function htmlBloc(b) {
   // peuvent désormais être générées par l'IA (voir "🧠 Générer des questions
   // (IA)", js/editeur/blocs.js) et doivent rester masquées aux élèves tant
   // que l'admin ne les a pas relues et explicitement publiées.
-  const estExerciceType = ['exercice', 'quiz', 'evaluation', 'activite'].includes(b.type_bloc);
+  // 11 septembre 2026 : 'exercice' retiré de cette liste, devenu un bloc de
+  // texte libre (jamais de questions générées par IA à relire/publier).
+  const estExerciceType = ['quiz', 'evaluation', 'activite'].includes(b.type_bloc);
   const estBrouillonable = estResume || estExerciceType;
   const resumeBrouillon = estBrouillonable && b.statut_bloc !== 'publie';
   // Verrou IA : exclut ce bloc de la génération groupée "🧠 Générer avec
@@ -523,7 +525,10 @@ function attacherEcouteursBloc(bloc) {
 // à items (consigne, item), qui gardent leur propre logique de correction
 // indépendante. La section "Consigne" (l'autre section existante) n'est pas
 // concernée par cette restriction : elle continue d'accepter tout type.
-const TYPES_INTERDITS_DANS_CONTENU = ['exercice', 'quiz', 'evaluation', 'activite', 'consigne', 'item'];
+// 11 septembre 2026 : 'exercice' retiré — c'est désormais un bloc de texte
+// libre comme les autres, autorisé dans une section "Contenu" ('correction'
+// aussi, par cohérence : même famille de blocs).
+const TYPES_INTERDITS_DANS_CONTENU = ['quiz', 'evaluation', 'activite', 'consigne', 'item'];
 
 function typesAutorisesPourParent(parentBlocId) {
   if (!parentBlocId) return TYPES_BLOCS;
@@ -722,6 +727,16 @@ function attacherEcouteursQuestions(el, bloc) {
       if (inputPoints) inputPoints.addEventListener('input', () => {
         if (!c) return;
         c.points = parseFloat(inputPoints.value) || 0;
+        sauvegarderCorrige();
+      });
+
+      // Commentaire enseignant (11 septembre 2026) — voir html_commentaireQuestion
+      // dans blocs.js ; absent du DOM pour reponse_longue/vrai_faux_justifie
+      // (querySelector renvoie alors null, rien à faire).
+      const texteCommentaire = qEl.querySelector('[data-question-commentaire]');
+      if (texteCommentaire) texteCommentaire.addEventListener('input', () => {
+        if (!c) return;
+        c.commentaire = texteCommentaire.value;
         sauvegarderCorrige();
       });
 
@@ -1644,7 +1659,7 @@ function texteBlocPourResume(bloc) {
   if (TYPES_TEXTE_LIBRE.includes(bloc.type_bloc)) return texteBrutDepuisHtml(c.texte);
   if (bloc.type_bloc === 'titre') return c.texte ? `— ${c.texte} —` : '';
   if (bloc.type_bloc === 'consigne' || bloc.type_bloc === 'autre') return [c.nom, c.texte].filter(Boolean).join(' : ');
-  if (['exercice', 'quiz', 'evaluation', 'activite'].includes(bloc.type_bloc)) {
+  if (['quiz', 'evaluation', 'activite'].includes(bloc.type_bloc)) {
     const questions = Array.isArray(c.questions) ? c.questions : [];
     return [c.consigne, ...questions.map(q => q.enonce)].filter(Boolean).join('\n');
   }
@@ -1891,7 +1906,7 @@ async function lancerGenerationSeanceIA(idsCibles, instructionsPersonnalisees) {
 async function ajouterBloc(type, parentBlocId) {
   document.getElementById('listeTypes').classList.remove('ouvert');
   if (parentBlocId && !typesAutorisesPourParent(parentBlocId).some(t => t.valeur === type)) {
-    return alert("Ce type de bloc n'est pas autorisé à l'intérieur d'une section « Contenu » (réservée aux blocs de contenu pédagogique — pas d'exercice, quiz, évaluation, activité, consigne ou item).");
+    return alert("Ce type de bloc n'est pas autorisé à l'intérieur d'une section « Contenu » (réservée aux blocs de contenu pédagogique — pas de quiz, évaluation, activité, consigne ou item).");
   }
   const fratrie = blocs.filter(b => (b.parent_bloc_id || null) === (parentBlocId || null));
   const ordreMax = fratrie.length ? Math.max(...fratrie.map(b => b.ordre)) : -1;
@@ -1918,7 +1933,7 @@ async function dupliquerBloc(bloc) {
   // Pour un exercice/quiz/évaluation/activité, le corrigé vit dans une table
   // séparée (corriges_exercices) : il faut le copier explicitement vers le
   // nouveau bloc, sinon la copie garderait des questions sans aucune bonne réponse.
-  if (['exercice', 'quiz', 'evaluation', 'activite'].includes(bloc.type_bloc)) {
+  if (['quiz', 'evaluation', 'activite'].includes(bloc.type_bloc)) {
     const { data: corrigeSource } = await supabaseClient
       .from('corriges_exercices').select('corrige').eq('bloc_id', bloc.id).maybeSingle();
     if (corrigeSource) {
@@ -2047,7 +2062,7 @@ function dupliquerSeance() {
     // Corrigés des exercices/quiz/évaluations/activités : table séparée, à
     // copier à part (sinon la séance dupliquée aurait des questions sans
     // aucune bonne réponse).
-    const blocsNotables = blocs.filter(b => ['exercice', 'quiz', 'evaluation', 'activite'].includes(b.type_bloc));
+    const blocsNotables = blocs.filter(b => ['quiz', 'evaluation', 'activite'].includes(b.type_bloc));
     for (const b of blocsNotables) {
       if (!correspondance[b.id]) continue;
       const { data: corrigeSource } = await supabaseClient
@@ -2086,7 +2101,9 @@ function dupliquerSeance() {
 // de js/pages/eleve-seance.js (aucun module partagé entre les deux pages,
 // même convention que le reste du code) : toute évolution du rendu public
 // doit être reportée ici pour que l'aperçu ne redevienne pas obsolète.
-const TYPES_TRAVAIL_APERCU = ['exercice', 'quiz', 'evaluation', 'activite'];
+// 11 septembre 2026 : 'exercice' retiré — traité comme un bloc de lecture
+// (texte libre) dans cet aperçu, plus comme un bloc de travail noté.
+const TYPES_TRAVAIL_APERCU = ['quiz', 'evaluation', 'activite'];
 const LIBELLES_PALIER_APERCU = { azovi: '🌱 Azɔ̀ví', devi: '🪘 Dèví', ogan: '🦁 Ògán', axosu: '👑 Axɔ́sú' };
 // Couleurs "pleines" (fond dense) des sections Paliers — reporté ici depuis
 // js/pages/eleve-seance.js (5 septembre 2026) pour que l'aperçu élève reste

@@ -99,20 +99,63 @@ function html_listeDevoirs(devoirs, options = {}) {
   `).join('');
 }
 
-function html_ligneDevoirTableau(d, options) {
+// Calcule le statut d'UN devoir (parmi LIBELLES_STATUT_DEVOIR) — extrait de
+// html_ligneDevoirTableau le 11 septembre 2026 pour être réutilisable par
+// compterStatutsDevoirs() (cartes de suivi élève/parent) sans dupliquer la
+// logique. d : un élément de la liste "devoirsAvecStatut" déjà construite
+// par les pages appelantes (voir js/pages/eleve-devoirs-notes.js et
+// js/pages/parent-devoirs-notes.js) — d.resumeBlocs pour un devoir "à
+// blocs", d.rendu pour un devoir "texte libre" (jamais les deux à la fois).
+function calculerStatutDevoir(d) {
   const maintenant = new Date();
   const resume = d.resumeBlocs;
-  let statut, note;
-
   if (resume) {
     const enRetard = resume.nbRepondus < resume.nbBlocs && new Date(d.date_limite) < maintenant;
-    statut = resume.nbRepondus === 0 ? (enRetard ? 'en_retard' : 'a_faire') : (resume.toutCorrige ? 'corrige' : 'rendu');
-    note = resume.toutCorrige && resume.noteSur20 != null ? `${resume.noteSur20}/20` : '—';
-  } else {
-    const enRetard = !d.rendu && new Date(d.date_limite) < maintenant;
-    statut = d.rendu ? d.rendu.statut : (enRetard ? 'en_retard' : 'a_faire');
-    note = d.rendu?.note != null ? `${d.rendu.note}/20` : '—';
+    return resume.nbRepondus === 0 ? (enRetard ? 'en_retard' : 'a_faire') : (resume.toutCorrige ? 'corrige' : 'rendu');
   }
+  const enRetard = !d.rendu && new Date(d.date_limite) < maintenant;
+  return d.rendu ? d.rendu.statut : (enRetard ? 'en_retard' : 'a_faire');
+}
+
+// Cartes de suivi (11 septembre 2026, demande explicite : "cré des cartes
+// pour devoir rendu, en cours, en retard") — compte, pour une liste de
+// devoirs déjà enrichie (même forme que celle passée à html_listeDevoirs),
+// combien sont dans chaque statut. Toujours les 4 clés de LIBELLES_STATUT_DEVOIR,
+// même à 0, pour un affichage de cartes stable.
+function compterStatutsDevoirs(devoirs) {
+  const compte = { a_faire: 0, rendu: 0, en_retard: 0, corrige: 0 };
+  (devoirs || []).forEach(d => { compte[calculerStatutDevoir(d)]++; });
+  return compte;
+}
+
+// Cartes HTML (voir .grille-taches-admin/.pastille-tache-admin, css/style.css
+// et css/style-public.css) à partir du résultat de compterStatutsDevoirs().
+// titreCarte : libellé affiché à la place de "À faire" pour ce statut, quand
+// on veut le mot "En cours" plutôt que "À faire" côté élève/parent (même
+// donnée, juste un intitulé plus parlant pour ce contexte précis).
+function html_cartesStatutsDevoirs(compte, options = {}) {
+  const libelleAFaire = options.libelleEnCours || LIBELLES_STATUT_DEVOIR.a_faire;
+  const cartes = [
+    { cle: 'a_faire', libelle: `📌 ${libelleAFaire}` },
+    { cle: 'rendu', libelle: '📤 Rendus' },
+    { cle: 'en_retard', libelle: '⏰ En retard', alerte: compte.en_retard > 0 },
+    { cle: 'corrige', libelle: '✅ Corrigés' }
+  ];
+  return `<div class="grille-taches-admin" style="margin-bottom:18px">
+    ${cartes.map(c => `
+      <div class="pastille-tache-admin ${c.alerte ? 'a-traiter' : ''}">
+        <span class="chiffre-tache">${compte[c.cle] || 0}</span>
+        <span class="libelle-tache">${c.libelle}</span>
+      </div>`).join('')}
+  </div>`;
+}
+
+function html_ligneDevoirTableau(d, options) {
+  const resume = d.resumeBlocs;
+  const statut = calculerStatutDevoir(d);
+  const note = resume
+    ? (resume.toutCorrige && resume.noteSur20 != null ? `${resume.noteSur20}/20` : '—')
+    : (d.rendu?.note != null ? `${d.rendu.note}/20` : '—');
 
   const idDetail = `detail-devoir-${d.id}`;
   let actionCell;
@@ -401,6 +444,53 @@ async function ouvrirSelectionDestinatairesDevoir(devoirId, eleves, onValide) {
       }
       onValide();
     }
+  });
+}
+
+// Avant de créer un devoir, l'enseignant/admin choisit son mode — l'ancien
+// mode "texte libre" a été restauré (lot 3, partie 3, volet 2) à côté du
+// mode "à blocs" :
+// - texte_libre : l'élève écrit sa réponse (et peut joindre un fichier) via
+//   devoirs_rendus, corrigée à la main par l'enseignant — gratuit, jamais
+//   soumis au système d'abonnements.
+// - blocs : exercices/quiz/évaluation/activité avec correction automatique
+//   (js/editeur/devoir-blocs.js), réservé aux élèves/familles abonnées ou en
+//   essai gratuit — la vérification se fait au moment même où l'élève valide
+//   chaque bloc (etat_acces_service / consommer_usage_service côté
+//   corriger-exercice), exactement comme pour les exercices d'une séance :
+//   aucune vérification supplémentaire n'est nécessaire à la création.
+// onChoisi(mode) est appelé avec 'texte_libre' ou 'blocs'.
+function ouvrirChoixModeNouveauDevoir(onChoisi) {
+  const grisRepli = 'var(--text-gris,var(--texte-gris,#64748B))';
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-boite">
+      <h3>Nouveau devoir</h3>
+      <p style="font-size:13px;color:${grisRepli};margin-top:-8px">Choisissez le mode de ce devoir.</p>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px">
+        <button type="button" class="btn" data-mode-devoir="texte_libre" style="text-align:left;padding:14px;border:1px solid var(--bordure,#E2E8F0);border-radius:10px;background:white;cursor:pointer">
+          <div style="font-weight:800;font-size:14px">📝 Mode simple (texte libre)</div>
+          <div style="font-size:12px;color:${grisRepli};margin-top:2px">L'élève écrit sa réponse (et peut joindre un fichier) ; vous la corrigez vous-même. Gratuit, aucun abonnement requis.</div>
+        </button>
+        <button type="button" class="btn" data-mode-devoir="blocs" style="text-align:left;padding:14px;border:1px solid var(--bordure,#E2E8F0);border-radius:10px;background:white;cursor:pointer">
+          <div style="font-weight:800;font-size:14px">🧩 Mode à blocs (exercices, quiz, évaluation, activité)</div>
+          <div style="font-size:12px;color:${grisRepli};margin-top:2px">Correction automatique dès que l'élève valide. Réservé aux élèves/familles abonnées (ou en essai gratuit) — vérifié au moment de la correction, comme pour les exercices d'une séance.</div>
+        </button>
+      </div>
+      <div class="modal-actions" style="margin-top:14px">
+        <button type="button" class="btn btn-discret" data-fermer-modal>Annuler</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const fermer = () => overlay.remove();
+  overlay.querySelector('[data-fermer-modal]').addEventListener('click', fermer);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) fermer(); });
+  document.addEventListener('keydown', function echap(e) { if (e.key === 'Escape') { fermer(); document.removeEventListener('keydown', echap); } });
+
+  overlay.querySelectorAll('[data-mode-devoir]').forEach(btn => {
+    btn.addEventListener('click', () => { fermer(); onChoisi(btn.dataset.modeDevoir); });
   });
 }
 

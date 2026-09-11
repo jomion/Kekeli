@@ -1,59 +1,133 @@
-KEKELI — Correctif : bloc « HTML libre » manquant
-====================================================
+KEKELI — Déblocage Premium global, refonte du bloc Exercice, commentaires
+de correction et cartes de suivi des devoirs
+==========================================================================
 Date : 11 septembre 2026
 
-CE QUI S'ÉTAIT PASSÉ
-----------------------
-Vous aviez signalé ne plus voir le bloc permettant d'entrer du HTML personnalisé
-dans certains cas. Vérification faite directement dans la base de données :
-3 blocs de ce type existent bel et bien (dans les séances « Tableau de
-numération décimale », une division posée, et les symboles de circuit
-électrique), avec leur contenu HTML intact — rien n'a été perdu côté données.
+Ce lot répond à votre message du 11 septembre regroupant plusieurs demandes.
+Comme il y en avait beaucoup et que certaines touchaient à des choses
+sensibles (revenus, progression des élèves), je vous ai posé deux questions
+avant de commencer (le bouton "Voir la correction" caché par défaut, et
+l'interrupteur global réversible pour le déblocage Premium) — le reste des
+choix ci-dessous sont les miens, expliqués au fur et à mesure : dites-moi si
+l'un d'eux ne convient pas, c'est facile à ajuster.
 
-En revanche, le code qui gère ce type de bloc (« html_libre ») n'existait
-dans aucun des fichiers déjà livrés sur ce projet : ni dans l'éditeur, ni
-dans l'affichage élève, ni dans l'aperçu admin. Résultat concret : dans
-l'éditeur, ces 3 blocs s'affichaient comme « Type de bloc non reconnu » (plus
-moyen de les modifier), et côté élève leur contenu n'apparaissait tout
-simplement plus (bloc vide).
+1) DÉBLOCAGE PREMIUM POUR TOUT LE MONDE (réversible)
+------------------------------------------------------
+Vous m'avez demandé de supprimer l'affichage gratuit et d'accorder l'accès
+Premium à tout le monde, "on configurera après" — j'ai donc ajouté un
+interrupteur global (et non supprimé le système d'abonnement) :
 
-CE QUI EST CORRIGÉ
---------------------
-Le bloc « 🌐 HTML libre » est de retour dans la liste des types de bloc de
-l'éditeur, avec une grande zone de texte pour coller un document HTML complet
-(avec ses propres balises <style>, tableaux, SVG...).
+- Un nouveau réglage, accessible depuis votre panneau "Abonnements"
+  (espace admin), avec deux cases à cocher :
+  • "Débloquer toutes les fonctionnalités premium pour tout le monde"
+  • "Afficher le nouveau look premium à tous les élèves par défaut"
+- Les deux sont ACTIVÉES dès maintenant, comme demandé.
+- Rien n'a été supprimé : les formules, abonnements, essais gratuits et
+  compteurs d'usage existants restent intacts et inchangés en base — ce
+  réglage les court-circuite simplement, le temps que vous le souhaitez.
+  Pour revenir en arrière : décochez les deux cases, tout redevient comme
+  avant (chaque élève retrouve exactement l'accès que son abonnement réel
+  lui donne).
+- Le thème visuel "premium" (nouveau look) de chaque élève reste enregistré
+  tel quel dans son propre réglage — juste temporairement "forcé" à activé
+  pour tout le monde, sans écraser sa préférence personnelle.
 
-Affichage : ce code s'affiche désormais à l'élève (et dans l'aperçu élève de
-l'éditeur, et dans l'aperçu compact des listes admin/enseignant) dans un
-cadre bien isolé du reste de la page — c'était nécessaire techniquement,
-car le code que vous collez contient souvent ses propres réglages de mise en
-page (par exemple une couleur de fond appliquée à « body ») qui, sans cette
-isolation, s'appliqueraient à TOUTE la page du site au lieu de rester
-confinés au bloc. Ce cadre peut être agrandi à la main (poignée en bas à
-droite) si le contenu est plus grand que prévu.
+2) BLOC "EXERCICE" — DEVIENT UN EXERCICE LIBRE (texte), suivi d'un bloc
+   "CORRECTION"
+-------------------------------------------------------------------------
+Dans l'éditeur de SÉANCE (celui de votre capture d'écran), le bloc
+"Exercice" n'utilise plus le modèle des Activités/Quiz (questions,
+correction automatique, seuil de réussite) : c'est maintenant un simple
+bloc de texte libre, comme "Texte" — vous y rédigez un exercice à la main
+(par exemple à recopier d'un manuel), sans plus jamais de question
+structurée à saisir dessus.
 
-Sécurité : par précaution, aucun script ne peut s'exécuter à l'intérieur de
-ce cadre — seuls le texte, les couleurs, les tableaux, le SVG etc. s'affichent
-normalement. Ce bloc reste donc adapté à des schémas/tableaux personnalisés
-statiques, pas à du contenu qui nécessiterait d'exécuter du code.
+Nouveau bloc "✅ Correction" à ajouter juste après, pour la correction :
+- Le corrigé que vous rédigez reste MASQUÉ par défaut à l'élève.
+- Un bouton "🔓 Voir la correction" le révèle à la demande (comme vous
+  l'avez choisi) — aucun rechargement, c'est instantané.
+- Aucun lien technique obligatoire entre les deux blocs : vous ajoutez le
+  bloc Correction juste après l'Exercice quand vous le souhaitez, sans
+  contrainte de l'éditeur.
 
-Vos 3 blocs existants sont réapparus tels quels, sans que vous ayez besoin de
-les recréer.
+Important — ce changement concerne uniquement l'éditeur de SÉANCE. Dans
+l'éditeur de DEVOIR, "Exercice" garde son fonctionnement actuel (questions
++ correction automatique), car votre demande portait sur le bloc visible
+dans votre capture (l'éditeur de séance) et je n'ai pas voulu changer le
+comportement des devoirs sans confirmation. Dites-moi si vous voulez le
+même changement côté devoirs.
+
+Détail technique pour votre information : un seul bloc "Exercice" existait
+déjà en base dans ce nouveau contexte (séance "Tableau de numération
+décimale", vide, sans question ni réponse d'élève) — aucune perte de
+contenu. Comme ce type de bloc pouvait auparavant compter dans un "palier"
+de progression, j'ai ajusté le calcul des paliers pour qu'un bloc Exercice
+(désormais non noté) ne bloque plus jamais un palier — vérifié qu'aucune
+régression n'apparaît sur les paliers existants.
+
+3) COMMENTAIRE ENSEIGNANT SUR LES QUESTIONS À CORRECTION AUTOMATIQUE
+----------------------------------------------------------------------
+Pour chaque question à correction automatique (QCM, Vrai/Faux, réponse
+courte, texte à trous, remise en ordre, association, classement, etc.),
+un nouveau champ "💬 Commentaire pour l'élève" est disponible dans
+l'éditeur, à côté du corrigé — optionnel, à remplir seulement si vous
+voulez expliquer une réponse. Il s'affiche à l'élève juste après sa
+correction, comme le commentaire déjà existant pour les réponses longues.
+
+(Les questions "Réponse longue" et "Vrai/Faux avec justification" avaient
+déjà un champ équivalent — le barème lu par l'IA, qui génère elle-même son
+propre commentaire — donc pas de champ redondant ajouté pour ces deux-là.)
+
+4) CARTES DE SUIVI DES DEVOIRS (élève, parent, enseignant)
+--------------------------------------------------------------
+Élève et parent : 4 cartes en haut de la page "Devoirs & notes" — "En
+cours", "Rendus", "En retard", "Corrigés" — avec le nombre de devoirs dans
+chaque situation. Vous aviez demandé "rendu, en cours, en retard" ; j'ai
+ajouté une 4e carte "Corrigés" (distincte de "Rendus", pour voir d'un coup
+d'œil ce qui est rendu mais pas encore corrigé) — dites-moi si vous
+préférez la retirer.
+
+Enseignant : n'ayant pas les mêmes données déjà chargées (le statut
+"rendu/en retard" par élève demanderait de recharger le détail de tous les
+devoirs pour tous les élèves suivis), j'ai choisi 4 cartes différentes,
+utiles à la vue d'ensemble sans requête supplémentaire : "Devoirs publiés",
+"Brouillons (non visibles des élèves)", "Échéance dépassée", "Réponses
+reçues (devoirs texte libre)". Si vous préférez un suivi par élève plus
+détaillé pour l'enseignant, dites-le-moi, c'est un chantier à part.
 
 FICHIERS MODIFIÉS DANS CE LOT
--------------------------------
+--------------------------------
+Déblocage Premium global :
+- js/entete-navigation.js
+- js/pages/parametres.js
+- js/pages/admin-abonnements.js
+
+Bloc Exercice / Correction :
 - js/editeur/blocs.js
 - js/pages/editeur-seance.js
 - js/pages/eleve-seance.js
 - js/apercu-blocs-seance.js
-- css/style.css
 
-À NOTER
---------
-Comme ce code n'avait jamais été livré via une de nos zips (il avait dû être
-ajouté d'une autre façon), il a fallu le reconstruire à partir du contenu
-réel déjà enregistré en base plutôt que de simplement le restaurer à
-l'identique — le fonctionnement (zone de texte + cadre isolé) est cohérent
-avec le reste du site, mais si le bloc fonctionnait un peu différemment avant
-(par exemple une hauteur de cadre calculée automatiquement), dites-le-moi et
-j'ajusterai.
+Commentaire enseignant sur les questions :
+- js/editeur/blocs.js (partagé avec le point ci-dessus)
+- js/pages/editeur-seance.js (partagé)
+- js/editeur/devoir-blocs.js
+- (Edge Function Supabase "corriger-exercice" mise à jour directement en
+  ligne — pas de fichier local dans cette zip)
+
+Cartes de suivi des devoirs :
+- js/devoirs-notes-rendu.js
+- js/pages/eleve-devoirs-notes.js
+- js/pages/parent-devoirs-notes.js
+- js/pages/enseignant-devoirs-notes.js
+- css/style-public.css
+
+CÔTÉ BASE DE DONNÉES (déjà en ligne, rien à faire de votre part)
+--------------------------------------------------------------------
+- Nouvelle table "parametres_premium" (le réglage global du point 1).
+- Fonctions etat_acces_service / consommer_usage_service / a_acces_premium_eleve
+  mises à jour pour respecter ce réglage.
+- Fonction etat_paliers_seance ajustée (point 2, paliers).
+- Edge Function "corriger-exercice" mise à jour (point 3, commentaire).
+- Vérification de sécurité effectuée après chaque changement : aucune
+  nouvelle alerte.

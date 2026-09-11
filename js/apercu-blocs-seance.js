@@ -25,7 +25,9 @@ const LIBELLES_PALIER_APERCU_BLOCS = { azovi: '🌱 Azɔ̀ví', devi: '🪘 Dèv
 // js/pages/eleve-seance.js (5 septembre 2026) pour que cet aperçu compact
 // (listings admin/enseignant) reste visuellement cohérent avec la vraie page.
 const COULEURS_PALIER_APERCU_BLOCS = { azovi: '#15803D', devi: '#1D4ED8', ogan: '#9A3412', axosu: '#B91C1C' };
-const TYPES_TRAVAIL_APERCU_BLOCS = ['exercice', 'quiz', 'evaluation', 'activite'];
+// 11 septembre 2026 : 'exercice' retiré — bloc de texte libre désormais,
+// prévisualisé comme les autres blocs de texte (voir extraitTexteApercuBloc).
+const TYPES_TRAVAIL_APERCU_BLOCS = ['quiz', 'evaluation', 'activite'];
 const TYPES_MASQUES_APERCU_BLOCS = ['titre', 'consigne']; // sections : seul leur contenu compte, comme le compteur "● N blocs" déjà en place
 
 function echapperApercuBlocs(v) {

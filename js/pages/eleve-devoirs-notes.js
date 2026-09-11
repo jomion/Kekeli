@@ -44,11 +44,18 @@ async function charger() {
     ? { ...d, resumeBlocs: resumesParDevoir[d.id] || null }
     : { ...d, rendu: rendusParDevoir[d.id] || null });
 
+  // Cartes de suivi (11 septembre 2026, demande explicite) : "rendu / en
+  // cours / en retard" — voir compterStatutsDevoirs() / html_cartesStatutsDevoirs()
+  // dans js/devoirs-notes-rendu.js. "En cours" reprend le statut "à faire"
+  // (l'intitulé neutre par défaut ne parle pas bien à un élève).
+  const compteStatutsEleve = compterStatutsDevoirs(devoirsAvecStatut);
+
   document.getElementById('contenu').innerHTML = `
     <div class="carte-bienvenue">
       <h1>Mes devoirs et notes</h1>
       <p>Retrouve ici tes devoirs à rendre et tes évaluations.</p>
     </div>
+    ${html_cartesStatutsDevoirs(compteStatutsEleve, { libelleEnCours: 'En cours' })}
     <div class="titre-section-pub">📚 Mes devoirs</div>
     <div id="zoneDevoirs">${html_listeDevoirs(devoirsAvecStatut, { interactif: true })}</div>
     <div class="titre-section-pub">📊 Mes notes</div>

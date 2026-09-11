@@ -16,6 +16,7 @@ let liensMasquesActuels = [];
 let raccourcisActuelsParam = [];
 let themePremiumActuel = false; // aperçu du formatage premium (élève uniquement) — preferences_navigation.theme_premium
 let accesPremiumEleveParam = false; // a_acces_premium_eleve(id) — un abonnement Premium actif débloque ce thème (et la messagerie instantanée, voir pages/eleve/messagerie.html)
+let themePremiumImposeATous = false; // parametres_premium.theme_premium_par_defaut_tous (11 septembre 2026, réglage global réversible)
 
 (async function () {
   const { data: { session } } = await supabaseClient.auth.getSession();
@@ -59,8 +60,12 @@ let accesPremiumEleveParam = false; // a_acces_premium_eleve(id) — un abonneme
   themePremiumActuel = !!prefs?.theme_premium;
 
   if (roleParametres === 'eleve') {
-    const { data: acces } = await supabaseClient.rpc('a_acces_premium_eleve', { p_eleve_id: profilParametres.id });
+    const [{ data: acces }, { data: parametresPremium }] = await Promise.all([
+      supabaseClient.rpc('a_acces_premium_eleve', { p_eleve_id: profilParametres.id }),
+      supabaseClient.from('parametres_premium').select('theme_premium_par_defaut_tous').eq('id', 1).maybeSingle()
+    ]);
     accesPremiumEleveParam = !!acces;
+    themePremiumImposeATous = !!parametresPremium?.theme_premium_par_defaut_tous;
   }
 
   afficherPageParametres();
@@ -81,6 +86,9 @@ function afficherPageParametres() {
     ${roleParametres === 'eleve' ? `
     <div class="carte-param">
       <h2>🎨 Nouveau look premium</h2>
+      ${themePremiumImposeATous ? `
+      <p class="desc-param">✨ Le nouveau look premium est actuellement activé pour tout le monde (réglage temporaire de l'administration) — pas besoin de cocher quoi que ce soit, il s'affiche déjà partout dans ton espace.</p>
+      ` : `
       <p class="desc-param">${accesPremiumEleveParam
         ? "Essaie le nouveau formatage premium de ton espace — c'est réversible, tu peux revenir au look actuel à tout moment en décochant la case ci-dessous."
         : "Ce nouveau look fait partie de l'offre <strong>✨ Premium</strong> (comme la messagerie instantanée) — demande à tes parents de souscrire depuis leur tableau de bord pour en profiter."}</p>
@@ -91,6 +99,7 @@ function afficherPageParametres() {
         </label>
       </div>
       <p class="message-param-succes" id="messageSuccesThemePremium" style="display:none">✅ Préférence enregistrée — recharge la page pour voir le changement.</p>
+      `}
     </div>` : ''}
 
     <div class="carte-param">
