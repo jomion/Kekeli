@@ -100,7 +100,9 @@ async function afficherGestion() {
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px">
           <span style="font-size:11px;color:var(--texte-gris)">${libelleDestinatairesDevoir((destinatairesParDevoir[d.id] || []).length, (eleves || []).length)}</span>
-          <button type="button" class="btn btn-discret" data-destinataires-devoir="${d.id}" style="padding:2px 10px;font-size:11px">Modifier</button>
+          <button type="button" class="btn btn-discret" data-destinataires-devoir="${d.id}" style="padding:2px 10px;font-size:11px">🎯 Destinataires</button>
+          <button type="button" class="btn btn-discret" data-modifier-devoir="${d.id}" style="padding:2px 10px;font-size:11px">✏️ Modifier</button>
+          <button type="button" class="btn btn-discret" data-supprimer-devoir="${d.id}" style="padding:2px 10px;font-size:11px;color:#B91C1C">🗑️ Supprimer</button>
         </div>
         ${devoirOuvertAdmin === d.id ? panneauRendusAdmin : ''}
       </div>`;
@@ -155,6 +157,20 @@ async function afficherGestion() {
       ouvrirSelectionDestinatairesDevoir(parseInt(btn.dataset.destinatairesDevoir, 10), eleves || [], afficherGestion);
     });
   });
+  zone.querySelectorAll('[data-modifier-devoir]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = parseInt(btn.dataset.modifierDevoir, 10);
+      const d = (devoirs || []).find(x => x.id === id);
+      if (d) ouvrirModificationDevoir(d, afficherGestion);
+    });
+  });
+  zone.querySelectorAll('[data-supprimer-devoir]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = parseInt(btn.dataset.supprimerDevoir, 10);
+      const d = (devoirs || []).find(x => x.id === id);
+      supprimerDevoir(id, d?.titre, () => { if (devoirOuvertAdmin === id) devoirOuvertAdmin = null; afficherGestion(); });
+    });
+  });
 
   if (devoirOuvertAdmin) {
     const devoirOuvert = (devoirs || []).find(d => d.id === devoirOuvertAdmin);
@@ -165,14 +181,21 @@ async function afficherGestion() {
   }
 }
 
-async function ouvrirNouveauDevoir(eleves) {
+function ouvrirNouveauDevoir(eleves) {
+  ouvrirChoixModeNouveauDevoir((mode) => {
+    if (mode === 'texte_libre') ouvrirNouveauDevoirTexteLibre(eleves);
+    else ouvrirNouveauDevoirBlocs(eleves);
+  });
+}
+
+async function ouvrirNouveauDevoirBlocs(eleves) {
   const seances = await chargerSeancesPourMatiere(classeSelectionnee, champSelectionne);
   if (!seances.length) {
-    alert("Aucune séance publiée n'existe pour cette matière dans cette classe. Créez d'abord une séance dans le parcours avant de donner un devoir.");
+    alert("Aucune séance publiée n'existe pour cette matière dans cette classe. Créez d'abord une séance dans le parcours avant de donner un devoir à blocs — ou choisissez le mode texte libre.");
     return;
   }
   ouvrirModal({
-    titre: 'Nouveau devoir',
+    titre: 'Nouveau devoir à blocs',
     champs: [
       { nom: 'titre', label: 'Titre' },
       { nom: 'seance_id', label: 'Séance à évaluer', type: 'select', options: seances.map(s => ({ valeur: s.id, label: s.label })) },
@@ -191,6 +214,45 @@ async function ouvrirNouveauDevoir(eleves) {
       const { data, error } = await supabaseClient.from('devoirs').insert({
         classe_id: classeSelectionnee, champ_formation_id: champSelectionne, titre, consigne: consigne || null,
         seance_id: parseInt(seance_id, 10), statut: 'brouillon',
+        date_limite: new Date(date_limite).toISOString(), cree_par: profilAdminDN.id
+      }).select().single();
+      if (error) return alert(error.message);
+      if (destinataires.length < eleves.length) {
+        const { error: erreurDest } = await supabaseClient.from('devoirs_destinataires')
+          .insert(destinataires.map(eleveId => ({ devoir_id: data.id, eleve_id: eleveId })));
+        if (erreurDest) alert("Devoir créé, mais erreur lors de l'enregistrement des destinataires : " + erreurDest.message);
+      }
+      devoirOuvertAdmin = data.id;
+      afficherGestion();
+    }
+  });
+}
+
+// Ancien mode restauré (lot 3, partie 3, volet 2) : réponse texte libre (+
+// pièce jointe côté élève) corrigée à la main — table devoirs_rendus,
+// jamais soumis au système d'abonnements premium. Publié immédiatement (pas
+// d'étape de construction de blocs à attendre, contrairement au mode à
+// blocs qui reste créé en brouillon).
+function ouvrirNouveauDevoirTexteLibre(eleves) {
+  ouvrirModal({
+    titre: 'Nouveau devoir (texte libre)',
+    champs: [
+      { nom: 'titre', label: 'Titre' },
+      { nom: 'consigne', label: 'Consigne', type: 'textarea' },
+      { nom: 'date_limite', label: 'À rendre pour le', type: 'date' },
+      {
+        nom: 'destinataires', label: 'Destinataires', type: 'checkboxes',
+        toutCocherLabel: 'Tous les élèves de la classe',
+        options: eleves.map(e => ({ valeur: e.id, label: `${e.profils?.prenom || ''} ${e.profils?.nom || ''}`.trim() || '(sans nom)' })),
+        valeur: eleves.map(e => e.id)
+      }
+    ],
+    texteValider: 'Créer',
+    onValider: async ({ titre, consigne, date_limite, destinataires }) => {
+      if (!destinataires.length) { alert('Sélectionnez au moins un élève, ou cochez "Tous les élèves de la classe".'); return; }
+      const { data, error } = await supabaseClient.from('devoirs').insert({
+        classe_id: classeSelectionnee, champ_formation_id: champSelectionne, titre, consigne: consigne || null,
+        seance_id: null, statut: 'publie',
         date_limite: new Date(date_limite).toISOString(), cree_par: profilAdminDN.id
       }).select().single();
       if (error) return alert(error.message);

@@ -63,9 +63,8 @@ async function afficher() {
 
   // Cartes de suivi (11 septembre 2026, demande explicite : "du côté des
   // parent fais pareil") — même logique que côté élève, pour l'enfant
-  // actuellement sélectionné.
-  const compteStatutsParent = compterStatutsDevoirs(devoirsAvecStatut);
-
+  // actuellement sélectionné, et désormais CLIQUABLES (voir eleve-devoirs-notes.js
+  // et js/devoirs-notes-rendu.js pour le détail).
   document.getElementById('contenu').innerHTML = `
     <div class="carte-bienvenue">
       <h1>Suivi devoirs et notes</h1>
@@ -76,14 +75,14 @@ async function afficher() {
       ${enfantsDN.map(e => `<button class="${e.id === enfantSelectionneId ? 'actif' : ''}" data-enfant="${e.id}">${e.prenom} ${e.nom}</button>`).join('')}
     </div>` : `<p style="font-weight:700;color:var(--noir-kekeli)">${enfant.prenom} ${enfant.nom}</p>`}
 
-    ${html_cartesStatutsDevoirs(compteStatutsParent, { libelleEnCours: 'En cours' })}
+    ${html_cartesStatutsDevoirs(devoirsAvecStatut, { libelleEnCours: 'En cours', interactif: false })}
     <div class="titre-section-pub">📚 Devoirs</div>
     <div id="zoneDevoirsParent">${html_listeDevoirs(devoirsAvecStatut, { interactif: false })}</div>
     <div class="titre-section-pub">📊 Notes</div>
-    ${html_listeEvaluations(evaluations)}
+    ${html_resumeNotesParMatiere(evaluations)}
   `;
 
-  attacherEcouteursDetailsDevoirs(document.getElementById('zoneDevoirsParent'));
+  attacherEcouteursListeDevoirs(document.getElementById('contenu'));
   const selecteur = document.getElementById('selecteurEnfant');
   if (selecteur) selecteur.querySelectorAll('[data-enfant]').forEach(btn => {
     btn.addEventListener('click', () => { enfantSelectionneId = btn.dataset.enfant; afficher(); });

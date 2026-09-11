@@ -319,6 +319,10 @@ function rendreBlocLecture(b, estEnfant = false) {
       <button type="button" class="btn btn-discret" data-bouton-correction="${b.id}">🔓 Voir la correction</button>
       <div class="contenu-riche-lecture" data-zone-correction="${b.id}" hidden>${contenuRicheInitial(c.texte)}</div>`;
   }
+  // Bloc "Exercice" en mode HTML brut (11 septembre 2026) — même cadre isolé
+  // (iframe sandbox) que le bloc "HTML libre", voir html_editeurExerciceLibre
+  // dans js/editeur/blocs.js et html_blocHtmlLibre plus bas dans ce fichier.
+  else if (b.type_bloc === 'exercice' && c.htmlBrut) corps = html_blocHtmlLibre(c.code, libelle);
   else if (TYPES_TEXTE_LIBRE.includes(b.type_bloc)) corps = `<div class="contenu-riche-lecture">${contenuRicheInitial(c.texte)}</div>`;
   else if (b.type_bloc === 'titre') corps = `<h3 style="margin:0">${echapper(c.texte)}</h3>`;
   else if (b.type_bloc === 'consigne') corps = `<p>${echapper(c.texte)}</p>`;
@@ -340,6 +344,7 @@ function rendreBlocLecture(b, estEnfant = false) {
     corps = `${c.titre ? `<p style="font-weight:700;margin-bottom:6px">${echapper(c.titre)}</p>` : ''}<table>${lignesHtml}</table>`;
   }
   else if (b.type_bloc === 'html_libre') corps = html_blocHtmlLibre(c.code, libelle);
+  else if (b.type_bloc === 'probleme') corps = html_lectureProbleme(c);
   else corps = `<p>${echapper(c.consigne || c.texte || '')}</p>`;
 
   const enfants = blocsCourants.filter(x => x.parent_bloc_id === b.id).sort((a, b2) => a.ordre - b2.ordre);

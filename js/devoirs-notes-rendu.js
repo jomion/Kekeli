@@ -18,13 +18,18 @@ function formaterDate(iso) {
 // Résume la réponse d'UN élève à UN devoir "à blocs" (exercice/quiz/évaluation/
 // activité — voir js/editeur/devoir-blocs.js), pour affichage compact (liste,
 // panneau enseignant) sans avoir à ré-analyser le détail de chaque bloc partout.
-// blocs : lignes blocs_seance (devoir_id = ce devoir).
+// blocs : lignes blocs_seance (devoir_id = ce devoir) — TOUS les blocs, y
+// compris un éventuel bloc "correction" (11 septembre 2026), volontairement
+// exclu du calcul ci-dessous : il ne recueille jamais de réponse (voir
+// js/pages/eleve-devoir-rendu.js), le compter viendrait fausser nbBlocs/
+// toutCorrige pour toujours.
 // reponses : lignes reponses_exercices de CET élève pour ces blocs (tous essais).
 // rendus : lignes rendus_activites de CET élève pour ces blocs (tous essais).
 // La note retenue par bloc est celle du DERNIER essai (les essais sont
 // illimités — c'est la réponse la plus récente qui compte pour la note).
 function resumerDevoirBlocs(blocs, reponses, rendus) {
-  if (!blocs || !blocs.length) return null;
+  const blocsNotables = (blocs || []).filter(b => b.type_bloc !== 'correction');
+  if (!blocsNotables.length) return null;
 
   const dernierParBloc = (lignes) => {
     const m = {};
@@ -41,8 +46,10 @@ function resumerDevoirBlocs(blocs, reponses, rendus) {
   let nbRepondus = 0;
   let toutCorrige = true;
 
-  blocs.forEach(b => {
-    if (b.type_bloc === 'activite') {
+  // "exercice" (11 septembre 2026) rejoint "activite" : réponse libre notée
+  // à la main (rendus_activites), plutôt que des questions auto-corrigées.
+  blocsNotables.forEach(b => {
+    if (b.type_bloc === 'activite' || b.type_bloc === 'exercice') {
       const r = dernieresActivites[b.id];
       if (!r) { toutCorrige = false; return; }
       nbRepondus++;
@@ -60,10 +67,10 @@ function resumerDevoirBlocs(blocs, reponses, rendus) {
   });
 
   return {
-    nbBlocs: blocs.length,
+    nbBlocs: blocsNotables.length,
     nbRepondus,
     noteSur20: nbNotes ? Math.round((fractionsCumulees / nbNotes) * 20 * 10) / 10 : null,
-    toutCorrige: toutCorrige && nbNotes === blocs.length,
+    toutCorrige: toutCorrige && nbNotes === blocsNotables.length,
   };
 }
 
@@ -128,26 +135,66 @@ function compterStatutsDevoirs(devoirs) {
   return compte;
 }
 
-// Cartes HTML (voir .grille-taches-admin/.pastille-tache-admin, css/style.css
-// et css/style-public.css) à partir du résultat de compterStatutsDevoirs().
+// Regroupe une liste de devoirs déjà enrichie par statut (mêmes clés que
+// LIBELLES_STATUT_DEVOIR) — sert de base aux cartes cliquables ci-dessous.
+function grouperDevoirsParStatut(devoirs) {
+  const groupes = { a_faire: [], rendu: [], en_retard: [], corrige: [] };
+  (devoirs || []).forEach(d => { groupes[calculerStatutDevoir(d)].push(d); });
+  return groupes;
+}
+
+// Cartes de suivi CLIQUABLES (11 septembre 2026, demande explicite : "chaque
+// carte pour devoir doit être cliquable et contenir ce qu'il renseigne au
+// lieu de présenter juste des statistiques [...] les devoirs doivent être
+// organisés par matière"). Un clic sur une carte déplie, juste en dessous,
+// la vraie liste des devoirs dans ce statut — déjà groupée par matière par
+// html_listeDevoirs() (aucune réutilisation de rendu à écrire deux fois).
+// Une seule carte ouverte à la fois (accordéon) ; aucun rechargement réseau,
+// tout le HTML est déjà présent, seul l'attribut "hidden" est basculé — voir
+// attacherEcouteursCartesStatutsDevoirs().
+// devoirsAvecStatut : même forme que celle passée à html_listeDevoirs.
 // titreCarte : libellé affiché à la place de "À faire" pour ce statut, quand
 // on veut le mot "En cours" plutôt que "À faire" côté élève/parent (même
 // donnée, juste un intitulé plus parlant pour ce contexte précis).
-function html_cartesStatutsDevoirs(compte, options = {}) {
+function html_cartesStatutsDevoirs(devoirsAvecStatut, options = {}) {
   const libelleAFaire = options.libelleEnCours || LIBELLES_STATUT_DEVOIR.a_faire;
+  const groupes = grouperDevoirsParStatut(devoirsAvecStatut);
   const cartes = [
     { cle: 'a_faire', libelle: `📌 ${libelleAFaire}` },
     { cle: 'rendu', libelle: '📤 Rendus' },
-    { cle: 'en_retard', libelle: '⏰ En retard', alerte: compte.en_retard > 0 },
+    { cle: 'en_retard', libelle: '⏰ En retard', alerte: groupes.en_retard.length > 0 },
     { cle: 'corrige', libelle: '✅ Corrigés' }
   ];
-  return `<div class="grille-taches-admin" style="margin-bottom:18px">
+  return `<div data-zone-cartes-statuts style="margin-bottom:18px">
+    <div class="grille-taches-admin" style="margin-bottom:0">
+      ${cartes.map(c => `
+        <button type="button" class="pastille-tache-admin ${c.alerte ? 'a-traiter' : ''}" data-carte-statut="${c.cle}">
+          <span class="chiffre-tache">${groupes[c.cle].length}</span>
+          <span class="libelle-tache">${c.libelle} <span class="fleche-carte-statut">▾</span></span>
+        </button>`).join('')}
+    </div>
     ${cartes.map(c => `
-      <div class="pastille-tache-admin ${c.alerte ? 'a-traiter' : ''}">
-        <span class="chiffre-tache">${compte[c.cle] || 0}</span>
-        <span class="libelle-tache">${c.libelle}</span>
+      <div class="zone-detail-carte-statut" data-zone-carte-statut="${c.cle}" hidden style="margin-top:12px">
+        ${html_listeDevoirs(groupes[c.cle], { ...options, prefixeId: `carte-${c.cle}-` })}
       </div>`).join('')}
   </div>`;
+}
+
+// À appeler après avoir inséré le HTML de html_cartesStatutsDevoirs() dans le
+// DOM : bascule l'affichage (accordéon — une seule carte ouverte à la fois,
+// re-cliquer la referme) sans aucun rechargement réseau.
+function attacherEcouteursCartesStatutsDevoirs(conteneurEl) {
+  conteneurEl.querySelectorAll('[data-carte-statut]').forEach(carte => {
+    carte.addEventListener('click', () => {
+      const cle = carte.dataset.carteStatut;
+      const zone = conteneurEl.querySelector(`[data-zone-carte-statut="${cle}"]`);
+      if (!zone) return;
+      const etaitOuverte = !zone.hidden;
+      conteneurEl.querySelectorAll('[data-zone-carte-statut]').forEach(z => { z.hidden = true; });
+      conteneurEl.querySelectorAll('[data-carte-statut]').forEach(c => c.classList.remove('carte-statut-active'));
+      if (!etaitOuverte) { zone.hidden = false; carte.classList.add('carte-statut-active'); }
+    });
+  });
 }
 
 function html_ligneDevoirTableau(d, options) {
@@ -157,7 +204,13 @@ function html_ligneDevoirTableau(d, options) {
     ? (resume.toutCorrige && resume.noteSur20 != null ? `${resume.noteSur20}/20` : '—')
     : (d.rendu?.note != null ? `${d.rendu.note}/20` : '—');
 
-  const idDetail = `detail-devoir-${d.id}`;
+  // prefixeId : un même devoir peut apparaître à la fois dans la liste
+  // principale ET dans une carte de suivi dépliée (voir
+  // html_cartesStatutsDevoirs) — sans préfixe, deux lignes porteraient le
+  // même id DOM "detail-devoir-X" et document.getElementById() ne trouverait
+  // jamais la bonne. Chaque appelant passe un préfixe qui lui est propre
+  // (vide pour la liste principale, "carte-<statut>-" pour une carte).
+  const idDetail = `detail-devoir-${options?.prefixeId || ''}${d.id}`;
   let actionCell;
   if (resume) {
     actionCell = options.interactif
@@ -205,6 +258,25 @@ function attacherEcouteursDetailsDevoirs(conteneurEl) {
       if (ligne) ligne.style.display = ligne.style.display === 'none' ? 'table-row' : 'none';
     });
   });
+}
+
+// Point d'entrée unique pour une page élève/parent : attache en un seul appel
+// les boutons "Détails" (y compris ceux à l'intérieur des cartes de suivi
+// dépliées), l'accordéon des cartes de suivi, et — si fourni — le bouton
+// "Rendre" (élève uniquement, absent côté parent qui n'a pas ce bouton).
+// conteneurEl : le conteneur englobant TOUT (cartes + liste de devoirs), les
+// ids/attributs data-* étant uniques sur la page, un seul appel suffit même
+// si le même devoir apparaît à la fois dans la liste principale et dans une
+// carte dépliée (peu probable mais sans risque : chaque bouton a son propre
+// data-toggle-detail ciblant un id de ligne spécifique).
+function attacherEcouteursListeDevoirs(conteneurEl, onRendre) {
+  attacherEcouteursDetailsDevoirs(conteneurEl);
+  attacherEcouteursCartesStatutsDevoirs(conteneurEl);
+  if (onRendre) {
+    conteneurEl.querySelectorAll('[data-rendre-devoir]').forEach(btn => {
+      btn.addEventListener('click', () => onRendre(parseInt(btn.dataset.rendreDevoir, 10), btn.dataset.titreDevoir));
+    });
+  }
 }
 
 // Calcule automatiquement, pour une classe et une matière (champ de formation)
@@ -356,7 +428,7 @@ function html_gestionRendusDevoirBlocs(devoir, eleves, blocs, reponsesExercices,
       const activitesBloc = activitesParEleve[e.id] || {};
       const resume = resumerDevoirBlocs(blocs, Object.values(reponsesBloc).flat(), Object.values(activitesBloc).flat());
       const nomEleve = `${echapperTexte(e.profils?.prenom || '')} ${echapperTexte(e.profils?.nom || '')}`;
-      const aCorriger = blocs.some(b => b.type_bloc === 'activite' && dernier(activitesBloc, b.id) && !dernier(activitesBloc, b.id).corrige_le);
+      const aCorriger = blocs.some(b => (b.type_bloc === 'activite' || b.type_bloc === 'exercice') && dernier(activitesBloc, b.id) && !dernier(activitesBloc, b.id).corrige_le);
       const couleurBadge = resume.nbRepondus === 0 ? grisRepli : (aCorriger ? '#B8860B' : bleuRepli);
       const texteBadge = resume.nbRepondus === 0
         ? 'Pas encore rendu'
@@ -368,11 +440,11 @@ function html_gestionRendusDevoirBlocs(devoir, eleves, blocs, reponsesExercices,
           <span style="font-size:11px;font-weight:700;color:${couleurBadge}">${texteBadge}</span>
         </summary>
         <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
-          ${blocs.map(b => {
+          ${blocs.filter(b => b.type_bloc !== 'correction').map(b => {
             const info = infoType(b.type_bloc);
             const c = b.contenu || {};
             const libelleBloc = `${info.icone} ${echapperTexte(c.libelle || info.label)}`;
-            if (b.type_bloc === 'activite') {
+            if (b.type_bloc === 'activite' || b.type_bloc === 'exercice') {
               const r = dernier(activitesBloc, b.id);
               if (!r) return `<div style="font-size:12px;color:${grisRepli}">${libelleBloc} — pas encore rendu</div>`;
               return `<div style="background:white;padding:8px;border-radius:6px">
@@ -544,20 +616,103 @@ function ouvrirCorrectionActiviteDevoir(renduId, correcteurId, onValide) {
   });
 }
 
+// Supprime un devoir, quel que soit son statut (11 septembre 2026, demande
+// explicite : "Ajoute la possibilité de supprimer un devoir [...] même si
+// c'est déjà publié") — une confirmation est demandée car l'opération est
+// irréversible. Toutes les tables qui dépendent de devoirs.id (destinataires,
+// blocs, et via les blocs : réponses/rendus/corrigés/compétences liées) sont
+// déclarées en ON DELETE CASCADE côté base : une seule suppression suffit,
+// pas besoin de nettoyer les tables enfants une à une côté client.
+function supprimerDevoir(devoirId, titreDevoir, onValide) {
+  confirmerAction(
+    `Supprimer définitivement le devoir « ${echapperTexte(titreDevoir || '')} » ?<br><br>Toutes les réponses déjà données par les élèves pour ce devoir seront supprimées avec lui. Cette action est irréversible.`,
+    async () => {
+      const { error } = await supabaseClient.from('devoirs').delete().eq('id', devoirId);
+      if (error) { alert(error.message); return; }
+      onValide();
+    }
+  );
+}
+
+// Modifie le titre/la consigne/la date limite d'un devoir déjà créé, quel que
+// soit son statut (11 septembre 2026, même demande que ci-dessus : "ou de le
+// modifier même si c'est déjà publié" — jusqu'ici, aucun champ du devoir
+// n'était modifiable après création, brouillon ou publié). La classe, la
+// matière et la séance liée (pour un devoir "à blocs") restent volontairement
+// figées : les changer romprait la cohérence des réponses déjà données —
+// mieux vaut alors créer un nouveau devoir.
+function ouvrirModificationDevoir(devoir, onValide) {
+  ouvrirModal({
+    titre: 'Modifier ce devoir',
+    champs: [
+      { nom: 'titre', label: 'Titre', valeur: devoir.titre },
+      { nom: 'consigne', label: `Consigne${devoir.seance_id ? ' générale' : ''} (optionnelle)`, type: 'textarea', requis: false, valeur: devoir.consigne || '' },
+      { nom: 'date_limite', label: 'À rendre pour le', type: 'date', valeur: devoir.date_limite ? devoir.date_limite.slice(0, 10) : '' }
+    ],
+    texteValider: 'Enregistrer',
+    onValider: async ({ titre, consigne, date_limite }) => {
+      const { error } = await supabaseClient.from('devoirs').update({
+        titre, consigne: consigne || null, date_limite: new Date(date_limite).toISOString()
+      }).eq('id', devoir.id);
+      if (error) return alert(error.message);
+      onValide();
+    }
+  });
+}
+
 // evaluations: [{...evaluation, champs_formation:{nom}}]
+// Ancien rendu, gardé pour compatibilité (une seule ligne par évaluation,
+// sans regroupement) — remplacé côté élève/parent par
+// html_resumeNotesParMatiere() ci-dessous (11 septembre 2026, demande
+// explicite : "réduire l'affichage des notes par défaut pour que ça ne soit
+// pas encombrant").
 function html_listeEvaluations(evaluations) {
   if (!evaluations || evaluations.length === 0) return '<p style="color:var(--text-gris);font-size:14px">Aucune note pour l\'instant.</p>';
 
-  return `<div class="liste-lignes-pub">${evaluations.map(e => {
-    const valeurAffichee = e.type === 'appreciation'
-      ? `<span class="pastille-statut pastille-${e.appreciation}">${LIBELLES_APPRECIATION[e.appreciation]}</span>`
-      : `<span class="pastille-note">${e.valeur} / ${e.type === 'note_20' ? '20' : '10'}</span>`;
-    return `<div class="ligne-pub">
-      <div>
-        <div class="titre-ligne-pub">${e.champs_formation ? echapperTexte(e.champs_formation.nom) : 'Évaluation'}</div>
-        <div class="sous-ligne-pub">${formaterDate(e.cree_le)}${e.commentaire ? ' · ' + echapperTexte(e.commentaire) : ''}</div>
-      </div>
-      ${valeurAffichee}
-    </div>`;
+  return `<div class="liste-lignes-pub">${evaluations.map(e => html_ligneEvaluation(e)).join('')}</div>`;
+}
+
+function html_ligneEvaluation(e) {
+  const valeurAffichee = e.type === 'appreciation'
+    ? `<span class="pastille-statut pastille-${e.appreciation}">${LIBELLES_APPRECIATION[e.appreciation]}</span>`
+    : `<span class="pastille-note">${e.valeur} / ${e.type === 'note_20' ? '20' : '10'}</span>`;
+  return `<div class="ligne-pub">
+    <div>
+      <div class="titre-ligne-pub">${e.champs_formation ? echapperTexte(e.champs_formation.nom) : 'Évaluation'}</div>
+      <div class="sous-ligne-pub">${formaterDate(e.cree_le)}${e.commentaire ? ' · ' + echapperTexte(e.commentaire) : ''}</div>
+    </div>
+    ${valeurAffichee}
+  </div>`;
+}
+
+// Résumé compact des notes, une ligne PAR MATIÈRE, dépliable pour voir le
+// détail (11 septembre 2026, demande explicite : "réduire l'affichage des
+// note par défaut pour qu ça ne soit pas encombrant" — choix retenu, validé
+// avec le porteur du projet : résumé par matière avec la note/appréciation
+// la plus récente affichée d'un coup d'œil, le détail complet caché derrière
+// un simple clic). Implémenté avec <details>/<summary> natif (déjà utilisé
+// ailleurs dans ce fichier pour le panneau enseignant/admin des devoirs à
+// blocs) : aucun JavaScript de bascule à écrire ni à attacher.
+// evaluations : même forme que html_listeEvaluations, déjà triées de la plus
+// récente à la plus ancienne (.order('cree_le', {ascending:false})).
+function html_resumeNotesParMatiere(evaluations) {
+  if (!evaluations || evaluations.length === 0) return '<p style="color:var(--text-gris);font-size:14px">Aucune note pour l\'instant.</p>';
+
+  const parMatiere = {};
+  evaluations.forEach(e => { (parMatiere[e.champs_formation?.nom || 'Autre'] ??= []).push(e); });
+
+  return `<div class="liste-resume-notes">${Object.entries(parMatiere).map(([matiere, liste]) => {
+    // liste[0] = la plus récente (l'ordre de tri est conservé par ??=/push).
+    const derniere = liste[0];
+    const valeurRecente = derniere.type === 'appreciation'
+      ? `<span class="pastille-statut pastille-${derniere.appreciation}">${LIBELLES_APPRECIATION[derniere.appreciation]}</span>`
+      : `<span class="pastille-note">${derniere.valeur} / ${derniere.type === 'note_20' ? '20' : '10'}</span>`;
+    return `<details class="details-resume-notes">
+      <summary>
+        <span class="titre-ligne-pub">${echapperTexte(matiere)}</span>
+        <span class="resume-notes-apercu">${valeurRecente}${liste.length > 1 ? `<span class="resume-notes-compte">${liste.length} notes</span>` : ''}</span>
+      </summary>
+      <div class="liste-lignes-pub resume-notes-detail">${liste.map(e => html_ligneEvaluation(e)).join('')}</div>
+    </details>`;
   }).join('')}</div>`;
 }

@@ -45,6 +45,7 @@ function extraitTexteApercuBloc(type, c) {
   // contenu vit dans c.code, un document HTML complet) — un mot-clé plutôt
   // que "(vide)", pour ne pas laisser croire que le bloc est réellement vide.
   if (type === 'html_libre') return c.code ? '(bloc HTML personnalisé)' : '';
+  if (type === 'probleme') return c.enonce || '';
   return c.texte || '';
 }
 

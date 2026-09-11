@@ -1,11 +1,29 @@
-// Éditeur de blocs pour un devoir (exercice / quiz / évaluation / activité).
-// Réutilise les mêmes types de blocs et le même éditeur de questions/corrigé
-// que l'éditeur de séance (js/editeur/blocs.js : infoType, teinteClaire,
-// echapper, html_questionEditeur...), en version volontairement plus simple :
-// pas de palier (concept propre à la progression dans une séance), pas de
-// glisser-déposer, pas de blocs de cours (texte, image, tableau...), pas
-// d'assistant IA de rédaction — juste ce qu'il faut pour composer un devoir
-// avec de vraies questions, notées automatiquement ou à corriger à la main.
+// Éditeur de blocs pour un devoir (exercice / correction / quiz / évaluation
+// / activité). Réutilise les mêmes types de blocs et le même éditeur de
+// questions/corrigé que l'éditeur de séance (js/editeur/blocs.js : infoType,
+// teinteClaire, echapper, html_questionEditeur, html_editeurTexteRiche...),
+// en version volontairement plus simple : pas de palier (concept propre à la
+// progression dans une séance), pas de glisser-déposer, pas de blocs de
+// cours (texte, image, tableau...), pas d'assistant IA de rédaction.
+//
+// Deux familles de blocs, depuis le 11 septembre 2026 (2e requête groupée du
+// jour, même remodelage que côté séance — voir js/editeur/blocs.js et
+// js/pages/eleve-seance.js) :
+// - 'exercice'/'correction' : texte libre (comme "Texte"), l'exercice étant
+//   suivi d'un bloc "Correction" masqué/révélé côté élève. Contrairement à
+//   la séance (contenu purement passif, sans envoi), un devoir "exercice"
+//   attend quand même une réponse de l'élève : elle est recueillie en texte
+//   libre (+ pièce jointe) et corrigée À LA MAIN par l'enseignant — même
+//   mécanisme (table rendus_activites, champs note/bareme/appréciation/
+//   commentaire) que le bloc "activité" historique, réutilisé tel quel (voir
+//   ouvrirCorrectionActiviteDevoir dans js/devoirs-notes-rendu.js et
+//   rendreExerciceLibreDevoir/attacherEcouteursExercicesLibresDevoir dans
+//   js/pages/eleve-devoir-rendu.js) plutôt que d'inventer un second circuit.
+// - 'quiz'/'evaluation'/'activite' : inchangés — questions structurées avec
+//   corrigé (barème/bonne réponse/commentaire) dans corriges_exercices,
+//   notées automatiquement dès que l'élève valide (Edge Function
+//   corriger-exercice) — c'est le "barème pour la correction automatique"
+//   déjà existant, juste rendu plus visible par ce remodelage.
 //
 // Contrairement à l'éditeur de séance (pages/editeur-seance.html, réservé aux
 // admins via requireAdmin()), ce module est appelé depuis les pages
@@ -13,7 +31,10 @@
 // que l'utilisateur peut gérer ce devoir avant d'appeler initEditeurBlocsDevoir
 // — les policies RLS protègent aussi côté serveur en cas d'oubli.
 
-const TYPES_BLOCS_DEVOIR = ['exercice', 'quiz', 'evaluation', 'activite'];
+const TYPES_BLOCS_DEVOIR = ['exercice', 'correction', 'quiz', 'evaluation', 'activite'];
+// Types de blocs devoir qui utilisent l'éditeur de texte libre (comme un
+// bloc "Texte" de séance) plutôt que l'éditeur de questions structurées.
+const TYPES_BLOCS_DEVOIR_TEXTE_LIBRE = ['exercice', 'correction'];
 
 let devoirBlocsEtat = {}; // devoirId -> { blocs, conteneurEl, minuteriesBloc }
 let minuteriesCorrigeDevoir = {}; // blocId -> timer (partagé, blocId est unique dans toute la table)
@@ -96,6 +117,12 @@ function html_ligneBlocDevoir(b, competencesDisponibles) {
 
 function html_corpsBlocDevoir(bloc, competencesDisponibles) {
   const c = bloc.contenu || {};
+  // "exercice" a droit à l'option HTML brut (voir html_editeurExerciceLibre
+  // dans blocs.js) ; "correction" reste un texte riche classique.
+  if (bloc.type_bloc === 'exercice') return html_editeurExerciceLibre(bloc, c);
+  if (TYPES_BLOCS_DEVOIR_TEXTE_LIBRE.includes(bloc.type_bloc)) {
+    return html_editeurTexteRiche(bloc, c);
+  }
   const questions = Array.isArray(c.questions) ? c.questions : [];
   return `
     <div class="champ-consigne-riche">
@@ -132,14 +159,50 @@ function attacherEcouteursBlocsDevoir(devoirId) {
     const el = conteneurEl.querySelector(`[data-bloc-devoir-id="${bloc.id}"]`);
     if (!el) return;
 
-    // Consigne générale du bloc : zone de texte riche depuis le 5 septembre
-    // 2026 (même formatage — gras/italique/listes/couleurs — que côté éditeur
-    // de séance, voir html_zoneTexteRiche/configurerZoneRiche dans blocs.js).
+    // Champs simples (ex. data-champ="code" du mode HTML brut de l'exercice
+    // — voir html_editeurExerciceLibre dans blocs.js) — même wiring générique
+    // que js/pages/editeur-seance.js.
+    el.querySelectorAll(':scope > .bloc-corps [data-champ]').forEach(champEl => {
+      champEl.addEventListener('input', () => {
+        bloc.contenu = { ...bloc.contenu, [champEl.dataset.champ]: champEl.value };
+        sauvegarderBlocDevoir(devoirId, bloc);
+      });
+    });
+
+    // Case "HTML brut" du bloc Exercice (11 septembre 2026) — bascule un
+    // champ structurel, donc réaffichage complet du bloc (voir le même
+    // commentaire dans js/pages/editeur-seance.js).
+    const caseHtmlBrutExerciceDevoir = el.querySelector(':scope > .bloc-corps [data-champ-case-html-brut]');
+    if (caseHtmlBrutExerciceDevoir) {
+      caseHtmlBrutExerciceDevoir.addEventListener('change', () => {
+        bloc.contenu = { ...bloc.contenu, htmlBrut: caseHtmlBrutExerciceDevoir.checked };
+        sauvegarderBlocDevoir(devoirId, bloc);
+        rendreBlocsDevoir(devoirId);
+      });
+    }
+
+    // Consigne générale du bloc (quiz/évaluation/activité) : zone de texte
+    // riche depuis le 5 septembre 2026 (même formatage — gras/italique/
+    // listes/couleurs — que côté éditeur de séance, voir
+    // html_zoneTexteRiche/configurerZoneRiche dans blocs.js).
     const zoneConsigneRiche = el.querySelector('[data-champ-devoir-riche="consigne"]');
     if (zoneConsigneRiche) {
       const barresOutilsConsigne = Array.from(el.querySelectorAll(':scope > .bloc-corps .barre-outils-texte'));
       configurerZoneRiche(zoneConsigneRiche, barresOutilsConsigne, (html) => {
         bloc.contenu = { ...bloc.contenu, consigne: html };
+        sauvegarderBlocDevoir(devoirId, bloc);
+      });
+    }
+
+    // Texte libre du bloc (exercice/correction, 11 septembre 2026) — même
+    // attribut générique data-champ-riche que côté éditeur de séance (voir
+    // html_editeurTexteRiche dans blocs.js), câblage identique à
+    // editeur-seance.js pour ne pas faire diverger la logique.
+    const zoneTexteLibre = el.querySelector(':scope > .bloc-corps [data-champ-riche]');
+    if (zoneTexteLibre) {
+      const barresOutilsTexteLibre = Array.from(el.querySelectorAll(':scope > .bloc-corps .barre-outils-texte'));
+      configurerZoneRiche(zoneTexteLibre, barresOutilsTexteLibre, (html) => {
+        bloc.contenu = { ...bloc.contenu, [zoneTexteLibre.dataset.champRiche]: html };
         sauvegarderBlocDevoir(devoirId, bloc);
       });
     }
@@ -172,7 +235,7 @@ function attacherEcouteursBlocsDevoir(devoirId) {
       });
     });
 
-    if (['exercice', 'quiz', 'evaluation', 'activite'].includes(bloc.type_bloc)) {
+    if (['quiz', 'evaluation', 'activite'].includes(bloc.type_bloc)) {
       attacherEcouteursQuestionsDevoir(devoirId, el, bloc);
     }
   });
@@ -642,7 +705,7 @@ async function dupliquerBlocDevoir(devoirId, bloc) {
     .insert({ devoir_id: devoirId, type_bloc: bloc.type_bloc, contenu: bloc.contenu, ordre }).select().single();
   if (error) { alert(error.message); return; }
 
-  if (['exercice', 'quiz', 'evaluation', 'activite'].includes(bloc.type_bloc)) {
+  if (['quiz', 'evaluation', 'activite'].includes(bloc.type_bloc)) {
     const { data: corrigeOriginal } = await supabaseClient.from('corriges_exercices').select('corrige').eq('bloc_id', bloc.id).maybeSingle();
     if (corrigeOriginal) await supabaseClient.from('corriges_exercices').insert({ bloc_id: data.id, corrige: corrigeOriginal.corrige });
   }

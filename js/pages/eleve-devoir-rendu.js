@@ -56,21 +56,26 @@ async function chargerDevoir() {
 
   // Depuis la refonte des Activités, un bloc "activite" est noté comme un
   // exercice (questions + corrigé) — voir la même note dans js/pages/eleve-seance.js.
-  const idsExercices = blocsDevoirCourant.filter(b => ['exercice', 'quiz', 'evaluation', 'activite'].includes(b.type_bloc)).map(b => b.id);
-  const idsActivites = blocsDevoirCourant.filter(b => b.type_bloc === 'activite').map(b => b.id);
+  // Depuis le 11 septembre 2026 (2e requête groupée du jour), "exercice" n'est
+  // PLUS un exercice structuré (voir js/editeur/devoir-blocs.js) : il rejoint
+  // "activite" côté table (rendus_activites, réponse libre + correction à la
+  // main) au lieu de reponses_exercices — "correction" ne recueille jamais
+  // aucune réponse (contenu masqué/révélé uniquement, comme côté séance).
+  const idsExercicesStructures = blocsDevoirCourant.filter(b => ['quiz', 'evaluation', 'activite'].includes(b.type_bloc)).map(b => b.id);
+  const idsReponsesLibres = blocsDevoirCourant.filter(b => ['exercice', 'activite'].includes(b.type_bloc)).map(b => b.id);
   reponsesExistantesDevoir = {};
   rendusActivitesExistantsDevoir = {};
   formulairesReouvertsDevoir.clear();
 
-  if (idsExercices.length) {
+  if (idsExercicesStructures.length) {
     const { data: reponses } = await supabaseClient
-      .from('reponses_exercices').select('*').eq('eleve_id', profilEleveDevoir.id).in('bloc_id', idsExercices).order('numero_essai');
+      .from('reponses_exercices').select('*').eq('eleve_id', profilEleveDevoir.id).in('bloc_id', idsExercicesStructures).order('numero_essai');
     (reponses || []).forEach(r => { (reponsesExistantesDevoir[r.bloc_id] ??= []).push(r); });
     await rafraichirAccesCorrectionIADevoir();
   }
-  if (idsActivites.length) {
+  if (idsReponsesLibres.length) {
     const { data: rendus } = await supabaseClient
-      .from('rendus_activites').select('*').eq('eleve_id', profilEleveDevoir.id).in('bloc_id', idsActivites).order('numero_essai');
+      .from('rendus_activites').select('*').eq('eleve_id', profilEleveDevoir.id).in('bloc_id', idsReponsesLibres).order('numero_essai');
     (rendus || []).forEach(r => { (rendusActivitesExistantsDevoir[r.bloc_id] ??= []).push(r); });
   }
 
@@ -115,7 +120,24 @@ function rendreDevoir() {
 
   attacherEcouteursExercicesDevoir();
   attacherEcouteursActivitesDevoir();
+  attacherEcouteursExercicesLibresDevoir();
+  attacherEcouteursCorrectionsDevoir();
   attacherEcouteursRefaireDevoir();
+}
+
+// Bascule "🔓 Voir la correction" d'un bloc "correction" (11 septembre 2026)
+// — purement côté client, aucun appel réseau, même principe que côté séance
+// (js/pages/eleve-seance.js, attacherEcouteursCorrections).
+function attacherEcouteursCorrectionsDevoir() {
+  document.querySelectorAll('[data-bouton-correction-devoir]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const zone = document.querySelector(`[data-zone-correction-devoir="${btn.dataset.boutonCorrectionDevoir}"]`);
+      if (!zone) return;
+      const estMasquee = zone.hidden;
+      zone.hidden = !estMasquee;
+      btn.textContent = estMasquee ? '🔼 Masquer la correction' : '🔓 Voir la correction';
+    });
+  });
 }
 
 function rendreBlocTravailDevoir(b) {
@@ -127,15 +149,81 @@ function rendreBlocTravailDevoir(b) {
   const couleur = c.couleurBloc || info.couleur || 'var(--bleu-kekeli)';
   const couleurFond = c.couleurBloc || info.couleur || '#0000D1';
   const libelle = c.libelle || info.label;
+
+  // Bloc "Correction" (11 septembre 2026) : jamais de réponse à recueillir,
+  // contenu masqué/révélé au clic — même gabarit que côté séance (voir
+  // js/pages/eleve-seance.js, rendreBlocLecture).
+  if (b.type_bloc === 'correction') {
+    const corpsCorrection = `
+      <button type="button" class="btn btn-discret" data-bouton-correction-devoir="${b.id}">🔓 Voir la correction</button>
+      <div class="contenu-riche-lecture" data-zone-correction-devoir="${b.id}" hidden>${contenuRicheInitial(c.texte)}</div>`;
+    return `<div class="bloc-lecture" style="border-left-color:${couleur};background:${teinteClaire(couleurFond, 0.04)}">
+      <div class="bloc-lecture-titre" style="color:${couleur}">${info.icone} ${echapper(libelle)}</div>
+      ${corpsCorrection}
+    </div>`;
+  }
+
   // Voir la même logique (et son explication) dans js/pages/eleve-seance.js :
   // une activité déjà rendue via l'ancien mode (texte libre) garde son
   // affichage legacy ; une nouvelle activité passe par le parcours structuré.
-  const aRenduLegacy = b.type_bloc === 'activite' && (rendusActivitesExistantsDevoir[b.id] || []).length > 0;
-  const corps = aRenduLegacy ? rendreActiviteDevoir(b, c) : rendreExerciceDevoir(b, c);
+  // "exercice" (11 septembre 2026) n'est plus structuré du tout : réponse
+  // libre + correction à la main, sur le même principe que "activite" —
+  // voir rendreExerciceLibreDevoir ci-dessous.
+  let corps;
+  if (b.type_bloc === 'exercice') corps = rendreExerciceLibreDevoir(b, c);
+  else {
+    const aRenduLegacy = b.type_bloc === 'activite' && (rendusActivitesExistantsDevoir[b.id] || []).length > 0;
+    corps = aRenduLegacy ? rendreActiviteDevoir(b, c) : rendreExerciceDevoir(b, c);
+  }
   return `<div class="bloc-lecture" style="border-left-color:${couleur};background:${teinteClaire(couleurFond, 0.04)}">
     <div class="bloc-lecture-titre" style="color:${couleur}">${info.icone} ${echapper(libelle)}</div>
     ${corps}
   </div>`;
+}
+
+// Bloc "exercice" devenu texte libre (11 septembre 2026) : l'élève lit le
+// texte rédigé par l'enseignant (c.texte, comme un bloc "Texte"), puis rend
+// une réponse libre (+ pièce jointe optionnelle) — recueillie dans
+// rendus_activites et corrigée À LA MAIN par l'enseignant (note/barème/
+// appréciation/commentaire), exactement comme pour un bloc "activité" — voir
+// attacherEcouteursExercicesLibresDevoir ci-dessous et
+// ouvrirCorrectionActiviteDevoir dans js/devoirs-notes-rendu.js.
+function rendreExerciceLibreDevoir(b, c) {
+  const essais = rendusActivitesExistantsDevoir[b.id] || [];
+  const dernier = essais[essais.length - 1];
+  // Mode "HTML brut" (11 septembre 2026) — même cadre isolé que le bloc
+  // "HTML libre" côté séance, voir html_editeurExerciceLibre dans blocs.js.
+  const texteExercice = c.htmlBrut
+    ? html_blocHtmlLibre(c.code, '')
+    : `<div class="contenu-riche-lecture">${contenuRicheInitial(c.texte)}</div>`;
+
+  if (dernier && !formulairesReouvertsDevoir.has(b.id)) {
+    if (dernier.corrige_le) {
+      return `
+        ${texteExercice}
+        <p style="font-size:13px;background:#F9F9F9;padding:8px;border-radius:6px;white-space:pre-wrap">${echapper(dernier.reponse_texte || '')}</p>
+        <div class="carte-note-activite">
+          ✅ Corrigé${dernier.note != null ? ` — <strong>${dernier.note}${dernier.bareme ? `/${dernier.bareme}` : ''}</strong>` : ''}
+          ${dernier.appreciation ? ` — ${{ acquis: 'Acquis', en_cours: 'En cours', non_acquis: 'Non acquis' }[dernier.appreciation]}` : ''}
+          ${dernier.commentaire ? `<p style="margin:6px 0 0">💬 ${echapper(dernier.commentaire)}</p>` : ''}
+        </div>
+        <button type="button" class="btn btn-discret" data-refaire-devoir="${b.id}" data-type-refaire-devoir="exercice_libre" style="margin-top:10px">🔄 Rendre une nouvelle réponse</button>`;
+    }
+    return `
+      ${texteExercice}
+      <p style="font-size:13px;background:#F9F9F9;padding:8px;border-radius:6px;white-space:pre-wrap">${echapper(dernier.reponse_texte || '')}</p>
+      <p style="font-size:12px;color:var(--text-gris);margin-top:8px">⏳ En attente de correction.</p>`;
+  }
+
+  return `
+    ${texteExercice}
+    ${essais.length ? `<p style="font-size:12px;color:var(--text-gris)">Nouvel envoi (n°${essais.length + 1})</p>` : ''}
+    <form data-form-exercice-libre-devoir="${b.id}" class="activite-lecture">
+      <textarea name="reponse" required placeholder="Écris ta réponse ici..."></textarea>
+      <input type="url" name="piece_jointe" placeholder="Lien vers une pièce jointe (optionnel)">
+      <button type="submit" class="btn btn-filled bouton-valider-exercice">📤 Rendre mon travail</button>
+    </form>
+  `;
 }
 
 function libelleMedailleDevoir(medaille, numeroEssai) {
@@ -643,6 +731,40 @@ function attacherEcouteursActivitesDevoir() {
     form.addEventListener('submit', async (ev) => {
       ev.preventDefault();
       const blocId = parseInt(form.dataset.formActiviteDevoir, 10);
+      const reponseTexte = form.querySelector('[name=reponse]').value.trim();
+      const pieceJointe = form.querySelector('[name=piece_jointe]').value.trim();
+      const numeroEssai = (rendusActivitesExistantsDevoir[blocId] || []).length + 1;
+
+      const boutonValider = form.querySelector('button[type=submit]');
+      boutonValider.disabled = true;
+      boutonValider.textContent = 'Envoi en cours...';
+
+      const { data, error } = await supabaseClient.from('rendus_activites').insert({
+        bloc_id: blocId, eleve_id: profilEleveDevoir.id, numero_essai: numeroEssai,
+        reponse_texte: reponseTexte, piece_jointe_url: pieceJointe || null
+      }).select().single();
+
+      if (error) {
+        alert(error.message);
+        boutonValider.disabled = false;
+        boutonValider.textContent = '📤 Rendre mon travail';
+        return;
+      }
+      (rendusActivitesExistantsDevoir[blocId] ??= []).push(data);
+      formulairesReouvertsDevoir.delete(blocId);
+      rendreDevoir();
+    });
+  });
+}
+
+// Même mécanique que attacherEcouteursActivitesDevoir ci-dessus, pour le
+// bloc "exercice" redevenu texte libre (11 septembre 2026) — table
+// rendus_activites partagée, seul le sélecteur de formulaire diffère.
+function attacherEcouteursExercicesLibresDevoir() {
+  document.querySelectorAll('[data-form-exercice-libre-devoir]').forEach(form => {
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const blocId = parseInt(form.dataset.formExerciceLibreDevoir, 10);
       const reponseTexte = form.querySelector('[name=reponse]').value.trim();
       const pieceJointe = form.querySelector('[name=piece_jointe]').value.trim();
       const numeroEssai = (rendusActivitesExistantsDevoir[blocId] || []).length + 1;

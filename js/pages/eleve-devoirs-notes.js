@@ -45,28 +45,25 @@ async function charger() {
     : { ...d, rendu: rendusParDevoir[d.id] || null });
 
   // Cartes de suivi (11 septembre 2026, demande explicite) : "rendu / en
-  // cours / en retard" — voir compterStatutsDevoirs() / html_cartesStatutsDevoirs()
-  // dans js/devoirs-notes-rendu.js. "En cours" reprend le statut "à faire"
+  // cours / en retard" — désormais CLIQUABLES (11 septembre 2026, 2e
+  // demande : "chaque carte [...] doit être cliquable et contenir ce qu'il
+  // renseigne au lieu de présenter juste des statistiques") — voir
+  // html_cartesStatutsDevoirs()/attacherEcouteursListeDevoirs() dans
+  // js/devoirs-notes-rendu.js. "En cours" reprend le statut "à faire"
   // (l'intitulé neutre par défaut ne parle pas bien à un élève).
-  const compteStatutsEleve = compterStatutsDevoirs(devoirsAvecStatut);
-
   document.getElementById('contenu').innerHTML = `
     <div class="carte-bienvenue">
       <h1>Mes devoirs et notes</h1>
       <p>Retrouve ici tes devoirs à rendre et tes évaluations.</p>
     </div>
-    ${html_cartesStatutsDevoirs(compteStatutsEleve, { libelleEnCours: 'En cours' })}
+    ${html_cartesStatutsDevoirs(devoirsAvecStatut, { libelleEnCours: 'En cours', interactif: true })}
     <div class="titre-section-pub">📚 Mes devoirs</div>
     <div id="zoneDevoirs">${html_listeDevoirs(devoirsAvecStatut, { interactif: true })}</div>
     <div class="titre-section-pub">📊 Mes notes</div>
-    ${html_listeEvaluations(evaluations)}
+    ${html_resumeNotesParMatiere(evaluations)}
   `;
 
-  const zoneDevoirs = document.getElementById('zoneDevoirs');
-  attacherEcouteursDetailsDevoirs(zoneDevoirs);
-  zoneDevoirs.querySelectorAll('[data-rendre-devoir]').forEach(btn => {
-    btn.addEventListener('click', () => rendreDevoir(parseInt(btn.dataset.rendreDevoir, 10), btn.dataset.titreDevoir));
-  });
+  attacherEcouteursListeDevoirs(document.getElementById('contenu'), rendreDevoir);
 }
 
 function rendreDevoir(devoirId, titreDevoir) {

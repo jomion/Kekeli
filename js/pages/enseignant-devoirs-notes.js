@@ -115,46 +115,63 @@ async function afficherGestionEns() {
   const maintenantEns = new Date();
   const devoirsListe = devoirs || [];
   const estPublieEns = (d) => !d.seance_id || d.statut === 'publie';
-  const nbPublies = devoirsListe.filter(estPublieEns).length;
-  const nbBrouillons = devoirsListe.length - nbPublies;
-  const nbEnRetard = devoirsListe.filter(d => estPublieEns(d) && d.date_limite && new Date(d.date_limite) < maintenantEns).length;
-  const nbReponsesRecues = devoirsListe.filter(d => !d.seance_id).reduce((total, d) => total + (rendusParDevoir[d.id] || 0), 0);
+  const devoirsPublies = devoirsListe.filter(estPublieEns);
+  const devoirsBrouillons = devoirsListe.filter(d => !estPublieEns(d));
+  const devoirsEnRetard = devoirsListe.filter(d => estPublieEns(d) && d.date_limite && new Date(d.date_limite) < maintenantEns);
+  const devoirsAvecReponses = devoirsListe.filter(d => !d.seance_id && (rendusParDevoir[d.id] || 0) > 0);
+  // Cartes de suivi enseignant CLIQUABLES (11 septembre 2026, 2e demande :
+  // "chaque carte [...] doit être cliquable et contenir ce qu'il renseigne").
+  // La matière est déjà celle choisie dans le sélecteur ci-dessus — chaque
+  // carte dépliée n'a donc besoin de lister que les devoirs concernés, sans
+  // sous-groupage supplémentaire (une seule matière à la fois sur cette page).
   const cartesEns = [
-    { chiffre: nbPublies, libelle: '📋 Devoirs publiés' },
-    { chiffre: nbBrouillons, libelle: '📝 Brouillons (non visibles des élèves)', alerte: nbBrouillons > 0 },
-    { chiffre: nbEnRetard, libelle: '⏰ Échéance dépassée', alerte: nbEnRetard > 0 },
-    { chiffre: nbReponsesRecues, libelle: '📨 Réponses reçues (devoirs texte libre)' }
+    { cle: 'publies', devoirs: devoirsPublies, libelle: '📋 Devoirs publiés' },
+    { cle: 'brouillons', devoirs: devoirsBrouillons, libelle: '📝 Brouillons (non visibles des élèves)', alerte: devoirsBrouillons.length > 0 },
+    { cle: 'retard', devoirs: devoirsEnRetard, libelle: '⏰ Échéance dépassée', alerte: devoirsEnRetard.length > 0 },
+    { cle: 'reponses', devoirs: devoirsAvecReponses, libelle: '📨 Réponses reçues (devoirs texte libre)' }
   ];
+  const html_ligneDevoirEns = (d) => {
+    const estBlocs = !!d.seance_id;
+    const sousLigne = estBlocs
+      ? `${echapperEns2(d.seances?.titre || '')} · ${d.statut === 'publie' ? 'Publié' : 'Brouillon'} · à rendre le ${new Date(d.date_limite).toLocaleDateString('fr-FR')}`
+      : `À rendre le ${new Date(d.date_limite).toLocaleDateString('fr-FR')} · ${rendusParDevoir[d.id] || 0}/${(eleves || []).length} rendus`;
+    return `
+    <div class="ligne-pub" style="flex-direction:column;align-items:stretch;gap:0">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <div><div class="titre-ligne-pub">${echapperEns2(d.titre)}</div><div class="sous-ligne-pub">${sousLigne}</div></div>
+        <button type="button" class="btn btn-discret" data-toggle-rendus-ens="${d.id}" style="padding:6px 14px;font-size:12px">${devoirOuvertEns === d.id ? '▲ Fermer' : (estBlocs ? '📂 Gérer' : '📋 Voir les rendus')}</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px">
+        <span style="font-size:11px;color:var(--text-gris)">${libelleDestinatairesDevoir((destinatairesParDevoir[d.id] || []).length, (eleves || []).length)}</span>
+        <button type="button" class="btn btn-discret" data-destinataires-devoir="${d.id}" style="padding:2px 10px;font-size:11px">🎯 Destinataires</button>
+        <button type="button" class="btn btn-discret" data-modifier-devoir="${d.id}" style="padding:2px 10px;font-size:11px">✏️ Modifier</button>
+        <button type="button" class="btn btn-discret" data-supprimer-devoir="${d.id}" style="padding:2px 10px;font-size:11px;color:#B91C1C">🗑️ Supprimer</button>
+      </div>
+      ${devoirOuvertEns === d.id ? panneauRendusEns : ''}
+    </div>`;
+  };
+  const html_listeDevoirsEns = (liste) => liste.length
+    ? `<div class="liste-lignes-pub">${liste.map(html_ligneDevoirEns).join('')}</div>`
+    : '<p style="color:var(--text-gris);font-size:14px">Aucun devoir dans cette situation.</p>';
 
   zone.innerHTML = `
-    <div class="grille-taches-admin" style="margin-bottom:20px">
+    <div data-zone-cartes-statuts style="margin-bottom:20px">
+      <div class="grille-taches-admin" style="margin-bottom:0">
+        ${cartesEns.map(c => `
+          <button type="button" class="pastille-tache-admin ${c.alerte ? 'a-traiter' : ''}" data-carte-statut="${c.cle}">
+            <span class="chiffre-tache">${c.devoirs.length}</span>
+            <span class="libelle-tache">${c.libelle} <span class="fleche-carte-statut">▾</span></span>
+          </button>`).join('')}
+      </div>
       ${cartesEns.map(c => `
-        <div class="pastille-tache-admin ${c.alerte ? 'a-traiter' : ''}">
-          <span class="chiffre-tache">${c.chiffre}</span>
-          <span class="libelle-tache">${c.libelle}</span>
+        <div class="zone-detail-carte-statut" data-zone-carte-statut="${c.cle}" hidden style="margin-top:12px">
+          ${html_listeDevoirsEns(c.devoirs)}
         </div>`).join('')}
     </div>
     <button class="btn btn-filled" id="btnNouveauDevoirEns" style="margin-bottom:20px">+ Nouveau devoir</button>
 
     <div class="titre-section-pub">Devoirs</div>
-    ${(devoirs && devoirs.length) ? `<div class="liste-lignes-pub">${devoirs.map(d => {
-      const estBlocs = !!d.seance_id;
-      const sousLigne = estBlocs
-        ? `${echapperEns2(d.seances?.titre || '')} · ${d.statut === 'publie' ? 'Publié' : 'Brouillon'} · à rendre le ${new Date(d.date_limite).toLocaleDateString('fr-FR')}`
-        : `À rendre le ${new Date(d.date_limite).toLocaleDateString('fr-FR')} · ${rendusParDevoir[d.id] || 0}/${(eleves || []).length} rendus`;
-      return `
-      <div class="ligne-pub" style="flex-direction:column;align-items:stretch;gap:0">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-          <div><div class="titre-ligne-pub">${echapperEns2(d.titre)}</div><div class="sous-ligne-pub">${sousLigne}</div></div>
-          <button type="button" class="btn btn-discret" data-toggle-rendus-ens="${d.id}" style="padding:6px 14px;font-size:12px">${devoirOuvertEns === d.id ? '▲ Fermer' : (estBlocs ? '📂 Gérer' : '📋 Voir les rendus')}</button>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px">
-          <span style="font-size:11px;color:var(--text-gris)">${libelleDestinatairesDevoir((destinatairesParDevoir[d.id] || []).length, (eleves || []).length)}</span>
-          <button type="button" class="btn btn-discret" data-destinataires-devoir="${d.id}" style="padding:2px 10px;font-size:11px">Modifier</button>
-        </div>
-        ${devoirOuvertEns === d.id ? panneauRendusEns : ''}
-      </div>`;
-    }).join('')}</div>` : '<p style="color:var(--text-gris);font-size:14px">Aucun devoir.</p>'}
+    ${html_listeDevoirsEns(devoirsListe)}
 
     <div class="titre-section-pub">Mes élèves suivis dans cette classe</div>
     <div class="liste-lignes-pub">${(eleves || []).map(e => `
@@ -172,7 +189,22 @@ async function afficherGestionEns() {
       </div>`).join('')}</div>
   `;
 
+  attacherEcouteursCartesStatutsDevoirs(zone);
   document.getElementById('btnNouveauDevoirEns').addEventListener('click', () => ouvrirNouveauDevoirEns(eleves || []));
+  zone.querySelectorAll('[data-supprimer-devoir]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = parseInt(btn.dataset.supprimerDevoir, 10);
+      const d = devoirsListe.find(x => x.id === id);
+      supprimerDevoir(id, d?.titre, () => { if (devoirOuvertEns === id) devoirOuvertEns = null; afficherGestionEns(); });
+    });
+  });
+  zone.querySelectorAll('[data-modifier-devoir]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = parseInt(btn.dataset.modifierDevoir, 10);
+      const d = devoirsListe.find(x => x.id === id);
+      if (d) ouvrirModificationDevoir(d, afficherGestionEns);
+    });
+  });
   zone.querySelectorAll('[data-noter-ens]').forEach(btn => {
     btn.addEventListener('click', () => ouvrirNouvelleNoteEns(btn.dataset.noterEns));
   });

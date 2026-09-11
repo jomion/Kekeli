@@ -33,6 +33,13 @@ const TYPES_BLOCS = [
   // de lien de dépendance strict en base avec le bloc Exercice qui précède,
   // l'enseignant l'ajoute simplement juste après quand il le souhaite.
   { valeur: 'correction', label: 'Correction',  icone: '✅', usage: 'Corrigé d\'un exercice libre (masqué, révélé par l\'élève)', couleur: '#065F46' },
+  // Bloc "Problème" (11 septembre 2026) : problème mathématique avec un
+  // tableau de résolution à 3 colonnes (phrase/équation, résultat, opération
+  // posée) — demande explicite : "les opérations soient facilement posée
+  // verticalement et à les effectuer sans créer des décalages désordonnés
+  // surtout pour la division". Voir html_editeurProbleme/html_lectureProbleme
+  // plus bas dans ce fichier.
+  { valeur: 'probleme',   label: 'Problème',    icone: '🧮', usage: 'Problème mathématique + tableau de résolution', couleur: '#9A3412' },
   { valeur: 'quiz',       label: 'Quiz',        icone: '❓', usage: 'Questions',           couleur: '#C2410C' },
   { valeur: 'evaluation', label: 'Évaluation',  icone: '🧾', usage: 'Évaluation / épreuve', couleur: '#B91C1C' },
   { valeur: 'ressource',  label: 'Ressource',   icone: '📎', usage: 'Document ou média',   couleur: '#64748B' },
@@ -93,10 +100,21 @@ const TYPES_TEXTE_LIBRE = ['texte', 'a_retenir', 'definition', 'exemple', 'atten
 const TYPES_IA_CHAMP_TEXTE = [...TYPES_TEXTE_LIBRE, 'titre', 'consigne', 'autre'];
 const TYPES_IA_CHAMP_CONSIGNE = ['activite', 'quiz', 'evaluation'];
 function champIA(typeBloc) {
+  // Bloc "Problème" : l'IA (générer/améliorer) agit sur l'énoncé (c.enonce),
+  // jamais sur le tableau de résolution (rempli à la main par l'enseignant).
+  if (typeBloc === 'probleme') return 'enonce';
   if (TYPES_IA_CHAMP_TEXTE.includes(typeBloc)) return 'texte';
   if (TYPES_IA_CHAMP_CONSIGNE.includes(typeBloc)) return 'consigne';
   return null;
 }
+// Types dont le champ IA (voir champIA ci-dessus) contient du HTML riche
+// (généré par html_zoneTexteRiche) plutôt que du texte brut — sert à
+// js/pages/editeur-seance.js pour savoir s'il faut passer le résultat de
+// l'IA par markdownVersHtml (riche) ou nettoyerMarkdown (brut) avant de
+// l'enregistrer. 'probleme' n'est volontairement PAS dans TYPES_TEXTE_LIBRE
+// (son bloc entier a un rendu dédié, pas un simple champ "texte"), mais son
+// champ IA ('enonce') est bien du texte riche comme les autres.
+const TYPES_CHAMP_IA_RICHE = [...TYPES_TEXTE_LIBRE, 'probleme'];
 
 // Types de blocs qui agissent comme des SECTIONS : ils peuvent contenir
 // d'autres blocs en leur sein (voir parent_bloc_id). La liste définitive
@@ -140,8 +158,14 @@ function html_editeurBloc(bloc) {
         <textarea data-champ="texte" placeholder="Contenu...">${echapper(c.texte)}</textarea>`;
 
     case 'texte': case 'a_retenir': case 'definition': case 'exemple': case 'attention': case 'astuce': case 'item': case 'resume':
-    case 'exercice': case 'correction':
+    case 'correction':
       return html_editeurTexteRiche(bloc, c);
+
+    case 'exercice':
+      return html_editeurExerciceLibre(bloc, c);
+
+    case 'probleme':
+      return html_editeurProbleme(bloc, c);
 
     case 'image': case 'video':
       return `
@@ -274,6 +298,160 @@ function html_zoneTexteRiche(attributRiche, valeurInitiale, classeBarreOutils = 
 
 function html_editeurTexteRiche(bloc, c) {
   return html_zoneTexteRiche('data-champ-riche="texte"', c.texte);
+}
+
+// Éditeur du bloc "Exercice" (texte libre, 11 septembre 2026) — avec une
+// option "HTML brut" pour les cas de rédaction complexes (demande explicite :
+// "Prévois [...] la possibilité d'ajouter du html brut dans les exercices
+// pour des exercices particulier dont la rédaction serait complexe"). Même
+// principe de confiance que le bloc "HTML libre" existant (voir
+// html_blocHtmlLibre) : le HTML n'est PAS filtré, l'isolation vient
+// uniquement du cadre <iframe sandbox=""> à l'affichage élève — donc pas un
+// simple textarea de plus, un vrai second mode d'édition, actif seulement
+// si la case est cochée (bloc.contenu.htmlBrut). Le texte riche (c.texte)
+// reste conservé tel quel pendant qu'on bascule, pour ne rien perdre si
+// l'enseignant décoche ensuite la case.
+function html_editeurExerciceLibre(bloc, c) {
+  const modeHtmlBrut = !!c.htmlBrut;
+  return `
+    <label class="case-html-brut-exercice">
+      <input type="checkbox" data-champ-case-html-brut ${modeHtmlBrut ? 'checked' : ''}>
+      🌐 Rédiger cet exercice en HTML brut (mise en page complexe : tableau personnalisé, schéma...)
+    </label>
+    ${modeHtmlBrut
+      ? `<p class="note-future">⚠️ Affiché à l'élève dans un cadre isolé (sandbox), comme le bloc « HTML libre » — aucun script ne s'y exécute.</p>
+         <textarea data-champ="code" class="champ-code-html" placeholder="Colle ici ton code HTML..." spellcheck="false" rows="12">${echapper(c.code)}</textarea>`
+      : html_zoneTexteRiche('data-champ-riche="texte"', c.texte)}
+  `;
+}
+
+// --- BLOC "PROBLÈME" (11 septembre 2026) ------------------------------------
+// Problème mathématique : un énoncé riche (c.enonce), un petit rappel avant
+// résolution (Données / Inconnues / Autre — c.donnees/c.inconnues/c.autre,
+// simples champs texte), puis un tableau de résolution (c.lignes[]) à 3
+// colonnes rempli à la main par l'enseignant : 1) la phrase de solution /
+// l'équation posée, 2) le résultat trouvé, 3) l'opération posée verticalement
+// — demande explicite du porteur du projet : "les opérations soient
+// facilement posée verticalement [...] sans créer des décalages désordonnés
+// surtout pour la division". Pas de calcul automatique : l'alignement des
+// chiffres vient uniquement d'une police à chasse fixe + alignement à droite
+// (voir .grille-operation, css/style.css et css/style-public.css), posée sur
+// une ligne "simple" (addition/soustraction/multiplication) ou un gabarit de
+// division dédié (dividende/diviseur/quotient + étapes). Câblage JS dans
+// js/pages/editeur-seance.js (attacherEcouteursProbleme, seul endroit où ce
+// type de bloc peut être créé/édité pour l'instant — pas de version devoir).
+function operationProblemeParDefaut() {
+  return { mode: 'simple', texte: '', dividende: '', diviseur: '', quotient: '', etapes: '' };
+}
+function ligneProblemeParDefaut() {
+  return { phrase: '', resultat: '', operation: operationProblemeParDefaut() };
+}
+
+function html_editeurOperationProbleme(blocId, ligneIndex, op) {
+  const o = op || operationProblemeParDefaut();
+  const mode = o.mode === 'division' ? 'division' : 'simple';
+  const nomGroupe = `mode-operation-probleme-${blocId}-${ligneIndex}`;
+  return `
+    <div class="choix-mode-operation-probleme">
+      <label><input type="radio" data-probleme-mode data-probleme-ligne="${ligneIndex}" name="${nomGroupe}" value="simple" ${mode === 'simple' ? 'checked' : ''}> ➕ Opération posée</label>
+      <label><input type="radio" data-probleme-mode data-probleme-ligne="${ligneIndex}" name="${nomGroupe}" value="division" ${mode === 'division' ? 'checked' : ''}> ➗ Division posée</label>
+    </div>
+    ${mode === 'division' ? `
+      <div class="poser-division-editeur">
+        <div class="division-editeur-haut">
+          <input type="text" class="grille-operation champ-dividende-division" data-probleme-champ="dividende" data-probleme-ligne="${ligneIndex}" placeholder="Dividende" value="${echapper(o.dividende)}">
+          <div class="potence-division"></div>
+          <div class="division-editeur-droite">
+            <input type="text" class="grille-operation champ-diviseur-division" data-probleme-champ="diviseur" data-probleme-ligne="${ligneIndex}" placeholder="Diviseur" value="${echapper(o.diviseur)}">
+            <input type="text" class="grille-operation champ-quotient-division" data-probleme-champ="quotient" data-probleme-ligne="${ligneIndex}" placeholder="Quotient" value="${echapper(o.quotient)}">
+          </div>
+        </div>
+        <textarea class="grille-operation champ-etapes-division" data-probleme-champ="etapes" data-probleme-ligne="${ligneIndex}" spellcheck="false" rows="4" placeholder="Étapes posées (soustractions successives) — une par ligne, alignées automatiquement à droite">${echapper(o.etapes)}</textarea>
+      </div>`
+      : `<textarea class="grille-operation champ-texte-operation" data-probleme-champ="texte" data-probleme-ligne="${ligneIndex}" spellcheck="false" rows="5" placeholder="Ex :&#10;   27&#10; + 15&#10; -----&#10;   42&#10;(une ligne par ligne, alignées automatiquement à droite)">${echapper(o.texte)}</textarea>`}
+  `;
+}
+
+function html_ligneEditeurProbleme(blocId, ligne, i) {
+  const l = ligne || ligneProblemeParDefaut();
+  return `
+    <tr data-ligne-probleme="${i}">
+      <td class="cellule-phrase-probleme"><textarea data-probleme-champ="phrase" data-probleme-ligne="${i}" placeholder="Phrase de solution, équation posée...">${echapper(l.phrase)}</textarea></td>
+      <td class="cellule-resultat-probleme"><input type="text" data-probleme-champ="resultat" data-probleme-ligne="${i}" placeholder="Résultat" value="${echapper(l.resultat)}"></td>
+      <td class="cellule-operation-probleme">
+        ${html_editeurOperationProbleme(blocId, i, l.operation)}
+        <button type="button" class="btn btn-discret bouton-supprimer-ligne-probleme" data-action-probleme="supprimer-ligne" data-probleme-ligne="${i}">🗑️ Supprimer la ligne</button>
+      </td>
+    </tr>`;
+}
+
+function html_editeurProbleme(bloc, c) {
+  const lignes = Array.isArray(c.lignes) && c.lignes.length ? c.lignes : [ligneProblemeParDefaut()];
+  return `
+    ${html_zoneTexteRiche('data-champ-riche="enonce"', c.enonce)}
+    <div class="entete-probleme">
+      <div class="champ-entete-probleme"><label>📊 Données</label><textarea data-champ="donnees" rows="2" placeholder="Ce que l'énoncé donne...">${echapper(c.donnees)}</textarea></div>
+      <div class="champ-entete-probleme"><label>❓ Inconnues</label><textarea data-champ="inconnues" rows="2" placeholder="Ce qu'on cherche...">${echapper(c.inconnues)}</textarea></div>
+      <div class="champ-entete-probleme"><label>➕ Autre</label><textarea data-champ="autre" rows="2" placeholder="Autre information utile...">${echapper(c.autre)}</textarea></div>
+    </div>
+    <p class="note-future">Tableau de résolution : une ligne par étape. Colonne 1 = phrase de solution / équation posée, colonne 2 = résultat trouvé, colonne 3 = opération posée (addition/soustraction/multiplication, ou une division avec son propre gabarit) — l'alignement des chiffres est automatique (police à chasse fixe, alignée à droite).</p>
+    <table class="tableau-probleme" data-tableau-probleme="1">
+      <thead><tr><th>Phrase / équation</th><th>Résultat</th><th>Opération posée</th></tr></thead>
+      <tbody data-corps-tableau-probleme>${lignes.map((l, i) => html_ligneEditeurProbleme(bloc.id, l, i)).join('')}</tbody>
+    </table>
+    <button type="button" class="btn btn-discret" data-action-probleme="ajouter-ligne">+ Ligne de résolution</button>
+  `;
+}
+
+// Rendu en LECTURE SEULE du bloc "Problème" — partagé entre l'aperçu de
+// l'éditeur (js/pages/editeur-seance.js, rendreBlocApercu) et la vraie page
+// élève (js/pages/eleve-seance.js, rendreBlocLecture), même principe que
+// html_blocHtmlLibre ci-dessous : une seule version pour ne jamais laisser
+// les deux diverger visuellement.
+function html_operationLecture(op) {
+  const o = op || {};
+  if (o.mode === 'division') {
+    const dividende = (o.dividende || '').trim();
+    const diviseur = (o.diviseur || '').trim();
+    const quotient = (o.quotient || '').trim();
+    const etapes = (o.etapes || '').trim();
+    if (!dividende && !diviseur && !quotient && !etapes) return '<p class="operation-vide">—</p>';
+    return `
+      <div class="division-lecture">
+        <div class="division-lecture-haut">
+          <span class="division-lecture-dividende">${echapper(dividende)}</span>
+          <div class="division-lecture-potence">
+            <span class="division-lecture-diviseur">${echapper(diviseur)}</span>
+            <span class="division-lecture-quotient">${echapper(quotient)}</span>
+          </div>
+        </div>
+        ${etapes ? `<pre class="grille-operation-lecture">${echapper(etapes)}</pre>` : ''}
+      </div>`;
+  }
+  const texte = (o.texte || '').trim();
+  if (!texte) return '<p class="operation-vide">—</p>';
+  return `<pre class="grille-operation-lecture">${echapper(texte)}</pre>`;
+}
+
+function html_lectureProbleme(c) {
+  const lignes = Array.isArray(c.lignes)
+    ? c.lignes.filter(l => l && (l.phrase || l.resultat || (l.operation && (l.operation.texte || l.operation.dividende || l.operation.diviseur || l.operation.quotient || l.operation.etapes))))
+    : [];
+  const aEntete = !!(c.donnees || c.inconnues || c.autre);
+  return `
+    ${c.enonce ? `<div class="contenu-riche-lecture enonce-probleme">${contenuRicheInitial(c.enonce)}</div>` : ''}
+    ${aEntete ? `
+      <div class="entete-probleme-lecture">
+        ${c.donnees ? `<div class="champ-entete-probleme-lecture"><strong>📊 Données</strong><p>${echapper(c.donnees)}</p></div>` : ''}
+        ${c.inconnues ? `<div class="champ-entete-probleme-lecture"><strong>❓ Inconnues</strong><p>${echapper(c.inconnues)}</p></div>` : ''}
+        ${c.autre ? `<div class="champ-entete-probleme-lecture"><strong>➕ Autre</strong><p>${echapper(c.autre)}</p></div>` : ''}
+      </div>` : ''}
+    ${lignes.length ? `
+      <table class="tableau-probleme-lecture">
+        <thead><tr><th>Phrase / équation</th><th>Résultat</th><th>Opération posée</th></tr></thead>
+        <tbody>${lignes.map(l => `<tr><td>${echapper(l.phrase).replace(/\n/g, '<br>')}</td><td>${echapper(l.resultat)}</td><td>${html_operationLecture(l.operation)}</td></tr>`).join('')}</tbody>
+      </table>` : ''}
+  `;
 }
 
 // Câblage JS d'UNE zone de texte riche générée par html_zoneTexteRiche

@@ -203,6 +203,7 @@ function rendre() {
         <button class="btn btn-discret" onclick="dupliquerSeance()">📑 Dupliquer la séance</button>
         <button class="btn btn-discret" onclick="ouvrirGenerationResume()">🗒️ Résumé IA</button>
         <button class="btn btn-discret" id="btnGenererSeanceIA" onclick="ouvrirGenerationSeanceIA()">🧠 Générer avec l'IA</button>
+        <button class="btn btn-discret" id="btnPasserActivites" onclick="ouvrirPasserAuxActivites()" title="Génère automatiquement des blocs Activité/Quiz/Évaluation à partir du contenu déjà rédigé">🚀 Passer aux activités</button>
         <button class="btn btn-accent" onclick="ouvrirApercu()">👁️ Aperçu élève</button>
       </div>
     </div>
@@ -398,6 +399,19 @@ function attacherEcouteursBloc(bloc) {
     });
   }
 
+  // Case "HTML brut" du bloc Exercice (11 septembre 2026) — bascule un champ
+  // structurel (rich text <-> textarea de code), donc un ré-affichage complet
+  // du bloc est nécessaire (même pattern que caseEntete/caseBordures pour le
+  // bloc "tableau", plus bas dans ce fichier).
+  const caseHtmlBrutExercice = el.querySelector(':scope > .bloc-corps [data-champ-case-html-brut]');
+  if (caseHtmlBrutExercice) {
+    caseHtmlBrutExercice.addEventListener('change', () => {
+      bloc.contenu = { ...bloc.contenu, htmlBrut: caseHtmlBrutExercice.checked };
+      programmerSauvegardeBloc(bloc);
+      rendreListeBlocs();
+    });
+  }
+
   // Palier
   const selectPalier = el.querySelector(':scope > .bloc-corps [data-champ-palier]');
   if (selectPalier) {
@@ -468,6 +482,7 @@ function attacherEcouteursBloc(bloc) {
 
   attacherEcouteursTableau(el, bloc);
   attacherEcouteursQuestions(el, bloc);
+  attacherEcouteursProbleme(el, bloc);
 
   // Brouillon ↔ publié (Résumé IA, et maintenant aussi les blocs d'exercice/
   // quiz/évaluation/activité dont les questions ont été générées par IA) :
@@ -626,6 +641,86 @@ function attacherEcouteursTableau(el, bloc) {
       const colonne = parseInt(btn.dataset.colonne, 10);
       const fusions = (c().fusions || []).filter(f => !(f.ligne === ligne && f.colonneDebut === colonne));
       declencherRerendu({ fusions });
+    });
+  });
+}
+
+// --- PROBLÈME : phrase/résultat/opération posée du tableau de résolution ---
+// Voir html_editeurProbleme (js/editeur/blocs.js) pour le détail du modèle.
+// Les champs Données/Inconnues/Autre (data-champ="donnees"/"inconnues"/"autre")
+// et l'énoncé riche (data-champ-riche="enonce") sont déjà couverts par le
+// câblage générique en tête d'attacherEcouteursBloc — seul le tableau de
+// résolution (tableau de lignes, chacune avec sa propre opération posée)
+// a besoin d'un câblage dédié ici, car indexé par ligne comme le tableau
+// générique (attacherEcouteursTableau) mais avec une forme différente
+// (objets, pas des cellules de texte).
+function attacherEcouteursProbleme(el, bloc) {
+  const conteneur = el.querySelector(':scope > .bloc-corps [data-tableau-probleme]');
+  if (!conteneur) return;
+  const c = () => bloc.contenu || {};
+
+  const lignesActuelles = () => {
+    const l = c().lignes;
+    return Array.isArray(l) && l.length
+      ? l.map(x => ({ ...x, operation: { ...operationProblemeParDefaut(), ...(x.operation || {}) } }))
+      : [ligneProblemeParDefaut()];
+  };
+  const declencherRerendu = (lignes) => {
+    bloc.contenu = { ...c(), lignes };
+    programmerSauvegardeBloc(bloc);
+    rendreListeBlocs();
+  };
+
+  // Phrase / résultat : simples champs texte, pas de ré-affichage nécessaire.
+  conteneur.querySelectorAll('[data-probleme-champ="phrase"], [data-probleme-champ="resultat"]').forEach(champEl => {
+    champEl.addEventListener('input', () => {
+      const i = parseInt(champEl.dataset.problemeLigne, 10);
+      const lignes = lignesActuelles();
+      if (!lignes[i]) return;
+      lignes[i][champEl.dataset.problemeChamp] = champEl.value;
+      bloc.contenu = { ...c(), lignes };
+      programmerSauvegardeBloc(bloc);
+    });
+  });
+
+  // Champs de l'opération posée (texte libre, ou dividende/diviseur/quotient/étapes).
+  conteneur.querySelectorAll('[data-probleme-champ="texte"], [data-probleme-champ="dividende"], [data-probleme-champ="diviseur"], [data-probleme-champ="quotient"], [data-probleme-champ="etapes"]').forEach(champEl => {
+    champEl.addEventListener('input', () => {
+      const i = parseInt(champEl.dataset.problemeLigne, 10);
+      const lignes = lignesActuelles();
+      if (!lignes[i]) return;
+      lignes[i].operation = { ...lignes[i].operation, [champEl.dataset.problemeChamp]: champEl.value };
+      bloc.contenu = { ...c(), lignes };
+      programmerSauvegardeBloc(bloc);
+    });
+  });
+
+  // Mode de l'opération (posée simple <-> division) : change la structure
+  // affichée, donc un ré-affichage complet du bloc est nécessaire (même
+  // principe que la case "HTML brut" du bloc Exercice, plus haut).
+  conteneur.querySelectorAll('[data-probleme-mode]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      if (!radio.checked) return;
+      const i = parseInt(radio.dataset.problemeLigne, 10);
+      const lignes = lignesActuelles();
+      if (!lignes[i]) return;
+      lignes[i].operation = { ...lignes[i].operation, mode: radio.value };
+      declencherRerendu(lignes);
+    });
+  });
+
+  const boutonAjouterLigne = el.querySelector(':scope > .bloc-corps [data-action-probleme="ajouter-ligne"]');
+  if (boutonAjouterLigne) boutonAjouterLigne.addEventListener('click', () => {
+    declencherRerendu([...lignesActuelles(), ligneProblemeParDefaut()]);
+  });
+
+  conteneur.querySelectorAll('[data-action-probleme="supprimer-ligne"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (lignesActuelles().length <= 1) return alert('Le tableau doit garder au moins une ligne de résolution.');
+      const i = parseInt(btn.dataset.problemeLigne, 10);
+      const lignes = lignesActuelles();
+      lignes.splice(i, 1);
+      declencherRerendu(lignes);
     });
   });
 }
@@ -1591,7 +1686,7 @@ function markdownVersHtml(texte) {
 async function ameliorerBlocAvecIA(bloc, bouton) {
   const champ = champIA(bloc.type_bloc);
   if (!champ) return;
-  const estRiche = TYPES_TEXTE_LIBRE.includes(bloc.type_bloc);
+  const estRiche = TYPES_CHAMP_IA_RICHE.includes(bloc.type_bloc);
   const valeurActuelle = (bloc.contenu && bloc.contenu[champ]) || '';
   const texteActuel = estRiche ? texteBrutDepuisHtml(valeurActuelle) : valeurActuelle.toString();
   if (!texteActuel.trim()) return alert('Ce bloc est vide — rien à améliorer pour le moment.');
@@ -1628,7 +1723,7 @@ function ouvrirGenerationIA(bloc) {
           action: 'generer', sujet, typeBloc: bloc.type_bloc,
           classe: chaineNavigation?.classeNom, champ: chaineNavigation?.champNom
         });
-        const estRiche = TYPES_TEXTE_LIBRE.includes(bloc.type_bloc);
+        const estRiche = TYPES_CHAMP_IA_RICHE.includes(bloc.type_bloc);
         bloc.contenu = { ...bloc.contenu, [champ]: estRiche ? markdownVersHtml(resultat) : nettoyerMarkdown(resultat) };
         programmerSauvegardeBloc(bloc);
         rendreListeBlocs();
@@ -1657,6 +1752,7 @@ function ouvrirGenerationIA(bloc) {
 function texteBlocPourResume(bloc) {
   const c = bloc.contenu || {};
   if (TYPES_TEXTE_LIBRE.includes(bloc.type_bloc)) return texteBrutDepuisHtml(c.texte);
+  if (bloc.type_bloc === 'probleme') return [texteBrutDepuisHtml(c.enonce), c.donnees, c.inconnues].filter(Boolean).join('\n');
   if (bloc.type_bloc === 'titre') return c.texte ? `— ${c.texte} —` : '';
   if (bloc.type_bloc === 'consigne' || bloc.type_bloc === 'autre') return [c.nom, c.texte].filter(Boolean).join(' : ');
   if (['quiz', 'evaluation', 'activite'].includes(bloc.type_bloc)) {
@@ -1886,7 +1982,7 @@ async function lancerGenerationSeanceIA(idsCibles, instructionsPersonnalisees) {
       if (!bloc) continue;
       const champ = champIA(bloc.type_bloc);
       if (!champ || typeof item.content !== 'string' || !item.content.trim()) continue;
-      const estRiche = TYPES_TEXTE_LIBRE.includes(bloc.type_bloc);
+      const estRiche = TYPES_CHAMP_IA_RICHE.includes(bloc.type_bloc);
       bloc.contenu = { ...bloc.contenu, [champ]: estRiche ? markdownVersHtml(item.content) : nettoyerMarkdown(item.content) };
       programmerSauvegardeBloc(bloc);
       nbAppliques++;
@@ -1894,6 +1990,109 @@ async function lancerGenerationSeanceIA(idsCibles, instructionsPersonnalisees) {
     rendreListeBlocs();
     afficherSauvegarde();
     if (!nbAppliques) alert("L'IA n'a renvoyé aucun contenu exploitable pour les blocs sélectionnés — réessayez.");
+  } catch (e) {
+    alert('Erreur IA : ' + e.message);
+  } finally {
+    if (bouton) { bouton.disabled = false; bouton.textContent = texteBoutonOriginal; }
+  }
+}
+
+// --- "PASSER AUX ACTIVITÉS" (11 septembre 2026) -----------------------------
+// Demande explicite : "Créer un bouton au niveau de l'éditeur de séance qui
+// permettra de cliquer sur passer aux activités après édition. ça permettra
+// de calculer automatiquement les bloc d'activité, consigne évaluation,
+// quiz". Décision validée avec le porteur du projet : génération IA
+// automatique à partir du contenu déjà rédigé dans la séance (comme le
+// bouton "🧠 Générer des questions (IA)" déjà existant par bloc), plutôt
+// qu'un simple filtre d'affichage — l'admin choisit quels types créer, un
+// palier commun, un nombre de questions, puis chaque nouveau bloc est créé
+// PUIS rempli par l'IA l'un après l'autre (même mécanisme que
+// lancerGenerationActiviteIA/le résumé IA pour "consigne") : tout reste en
+// BROUILLON, à relire et publier explicitement, comme toute génération IA
+// de ce fichier.
+function ouvrirPasserAuxActivites() {
+  ouvrirModal({
+    titre: '🚀 Passer aux activités',
+    champs: [
+      {
+        nom: 'types',
+        label: 'Quels blocs voulez-vous que l\'IA propose, à partir du contenu déjà rédigé dans cette séance ?',
+        type: 'checkboxes', requis: false,
+        options: [
+          { valeur: 'consigne', label: '📋 Consigne (introduit les activités qui suivent)' },
+          { valeur: 'activite', label: '📝 Activité' },
+          { valeur: 'quiz', label: '❓ Quiz' },
+          { valeur: 'evaluation', label: '🎯 Évaluation' }
+        ],
+        valeur: ['activite', 'quiz']
+      },
+      {
+        nom: 'palier', label: 'Palier de difficulté (pour Activité/Quiz/Évaluation — inutile pour Consigne)',
+        type: 'select', requis: false,
+        options: [{ valeur: '', label: '— Choisis un palier —' }, ...PALIERS_MODAL_IA]
+      },
+      { nom: 'nombre', label: 'Nombre de questions par bloc généré', type: 'number', valeur: 5, placeholder: '5' },
+      {
+        nom: 'instructions', requis: false, type: 'textarea',
+        label: "Consignes pour l'IA (facultatif)",
+        placeholder: 'Laisser vide pour une génération standard'
+      }
+    ],
+    texteValider: 'Générer',
+    onValider: ({ types, palier, nombre, instructions }) => {
+      const typesChoisis = types || [];
+      if (!typesChoisis.length) return alert('Sélectionnez au moins un type de bloc à générer.');
+      if (typesChoisis.some(t => t !== 'consigne') && !palier) {
+        return alert("Choisis un palier avant de générer Activité/Quiz/Évaluation.");
+      }
+      const n = Math.max(1, Math.min(12, parseInt(nombre, 10) || 5));
+      lancerPasserAuxActivites(typesChoisis, palier || null, n, (instructions || '').trim());
+    }
+  });
+}
+
+async function lancerPasserAuxActivites(typesChoisis, palier, nombre, instructions) {
+  const bouton = document.getElementById('btnPasserActivites');
+  const texteBoutonOriginal = bouton ? bouton.textContent : '';
+  if (bouton) { bouton.disabled = true; bouton.textContent = '⏳ Génération en cours...'; }
+  try {
+    // Ordre de création volontaire : Consigne d'abord (elle introduit le
+    // reste), puis Activité, Quiz, Évaluation.
+    const ordreTypes = ['consigne', 'activite', 'quiz', 'evaluation'].filter(t => typesChoisis.includes(t));
+    for (const type of ordreTypes) {
+      const fratrie = blocs.filter(b => !b.parent_bloc_id);
+      const ordreMax = fratrie.length ? Math.max(...fratrie.map(b => b.ordre)) : -1;
+      const { data: nouveauBloc, error } = await supabaseClient.from('blocs_seance').insert({
+        seance_id: idSeance, type_bloc: type, contenu: {}, ordre: ordreMax + 1,
+        palier: type !== 'consigne' ? palier : null, statut_bloc: 'brouillon'
+      }).select().single();
+      if (error) { alert(`Bloc "${type}" : ${error.message}`); continue; }
+      blocs.push(nouveauBloc);
+      rendreListeBlocs();
+
+      if (type === 'consigne') {
+        try {
+          const contexteSeance = texteContextePourActiviteIA(nouveauBloc);
+          const consignePersonnalisee = "Rédige une courte consigne générale (2 à 4 phrases, PAS un résumé du cours) qui introduit les activités/exercices à faire à partir du contenu ci-dessus."
+            + (instructions ? ' ' + instructions : '');
+          const resultat = await appelerAssistantIA({
+            action: 'resumer', contenuSource: contexteSeance, instructions: consignePersonnalisee,
+            classe: chaineNavigation?.classeNom, champ: chaineNavigation?.champNom
+          });
+          if (resultat && resultat.trim()) {
+            nouveauBloc.contenu = { ...nouveauBloc.contenu, texte: markdownVersHtml(resultat) };
+            await supabaseClient.from('blocs_seance').update({ contenu: nouveauBloc.contenu }).eq('id', nouveauBloc.id);
+            rendreListeBlocs();
+          }
+        } catch (e) {
+          // On garde le bloc créé (vide) plutôt que de bloquer les
+          // générations suivantes — l'admin pourra le rédiger/régénérer.
+        }
+      } else {
+        await lancerGenerationActiviteIA(nouveauBloc, nombre, instructions);
+      }
+    }
+    afficherSauvegarde();
   } catch (e) {
     alert('Erreur IA : ' + e.message);
   } finally {
@@ -2265,6 +2464,7 @@ async function ouvrirApercu() {
       corps = `${c.titre ? `<p style="font-weight:700;margin-bottom:6px">${echapper(c.titre)}</p>` : ''}<table>${lignesHtml}</table>`;
     }
     else if (b.type_bloc === 'html_libre') corps = html_blocHtmlLibre(c.code, libelle);
+    else if (b.type_bloc === 'probleme') corps = html_lectureProbleme(c);
     else corps = `<p>${echapper(c.consigne || c.texte || '')}</p>`;
 
     const enfants = blocs.filter(x => x.parent_bloc_id === b.id).sort((a, b2) => a.ordre - b2.ordre);

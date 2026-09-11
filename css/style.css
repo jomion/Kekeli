@@ -487,6 +487,13 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .champ-consigne-riche { margin-bottom: 10px; }
 .champ-consigne-riche .etiquette-outils { display: block; margin-bottom: 4px; }
 
+/* Case "HTML brut" du bloc Exercice (11 septembre 2026) — voir
+   html_editeurExerciceLibre(), js/editeur/blocs.js. */
+.case-html-brut-exercice {
+  display: flex; align-items: center; gap: 6px; font-size: 12px; margin-bottom: 8px;
+  color: var(--texte-gris); cursor: pointer;
+}
+
 /* ===== Bloc "HTML libre" (11 septembre 2026, reconstruit) ===== */
 .champ-code-html {
   width: 100%; font-family: 'Courier New', Consolas, monospace; font-size: 12.5px;
@@ -500,6 +507,40 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
   width: 100%; min-height: 420px; height: 480px; border: 1px solid var(--bordure);
   border-radius: 8px; resize: vertical; overflow: auto; display: block; background: #fff;
 }
+
+/* ===== Bloc "Problème" (11 septembre 2026) ===== */
+.entete-probleme { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin: 10px 0; }
+.champ-entete-probleme { display: flex; flex-direction: column; gap: 4px; }
+.champ-entete-probleme label { font-size: 12px; color: var(--texte-gris); font-weight: 700; }
+.champ-entete-probleme textarea { resize: vertical; }
+
+.tableau-probleme { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.tableau-probleme th { background: #F1F5F9; font-size: 12px; text-align: left; padding: 6px 8px; border: 1px solid var(--bordure); }
+.tableau-probleme td { border: 1px solid var(--bordure); padding: 8px; vertical-align: top; }
+.tableau-probleme th:nth-child(1), .tableau-probleme td.cellule-phrase-probleme { width: 42%; }
+.tableau-probleme th:nth-child(2), .tableau-probleme td.cellule-resultat-probleme { width: 16%; }
+.tableau-probleme th:nth-child(3), .tableau-probleme td.cellule-operation-probleme { width: 42%; }
+.cellule-phrase-probleme textarea { width: 100%; min-height: 70px; resize: vertical; }
+.cellule-resultat-probleme input { width: 100%; text-align: center; font-weight: 700; }
+.choix-mode-operation-probleme { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--texte-gris); margin-bottom: 6px; }
+.choix-mode-operation-probleme label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.bouton-supprimer-ligne-probleme { margin-top: 6px; }
+
+/* Grille d'opération posée : police à chasse fixe + alignement à droite —
+   c'est cet alignement (pas un calcul) qui garantit que les chiffres
+   tombent dans la bonne colonne d'une ligne à l'autre, y compris pour une
+   division (demande explicite : "sans créer des décalages désordonnés"). */
+.grille-operation { font-family: 'Courier New', Consolas, monospace; font-variant-numeric: tabular-nums; font-size: 15px; letter-spacing: 1px; }
+textarea.grille-operation { text-align: right; white-space: pre; resize: vertical; width: 100%; min-height: 70px; line-height: 1.6; }
+input.grille-operation { text-align: right; }
+
+.poser-division-editeur { display: flex; flex-direction: column; gap: 8px; }
+.division-editeur-haut { display: flex; align-items: stretch; gap: 0; }
+.champ-dividende-division { width: 70px; min-height: unset; }
+.potence-division { width: 0; border-left: 2px solid var(--bordure); margin: 2px 10px; }
+.division-editeur-droite { display: flex; flex-direction: column; gap: 4px; }
+.champ-diviseur-division { width: 70px; min-height: unset; text-align: center; border-bottom: 2px solid var(--bordure); }
+.champ-quotient-division { width: 70px; min-height: unset; text-align: center; font-weight: 700; }
 
 /* Intrus lexical : une ligne par série (mots + choix de l'intrus). */
 .series-intrus { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
