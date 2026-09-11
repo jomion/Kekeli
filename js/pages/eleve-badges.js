@@ -14,7 +14,18 @@ const COULEURS_PALIER_BADGES = { azovi: '#15803D', devi: '#1D4ED8', ogan: '#9A34
 // Un palier réussi donne toujours la médaille/le trophée de SA propre
 // couleur (cahier des charges : Azɔ̀ví → Bronze, Dèví → Argent, Ògán → Or,
 // Axɔ́sú → Diamant) — même correspondance que calculer_medaille() côté base.
-const MEDAILLE_PAR_PALIER = { azovi: '🥉 Bronze', devi: '🥈 Argent', ogan: '🥇 Or', axosu: '💎 Diamant' };
+// Depuis le 11 septembre 2026 (photos fournies par le porteur du projet) :
+// une vraie coupe (bronze/argent/or/diamant) au lieu d'un emoji — voir
+// assets/badges/medaille-*.jpg et RACINE_SITE (défini par chaque page HTML).
+const MEDAILLE_PAR_PALIER = { azovi: 'Bronze', devi: 'Argent', ogan: 'Or', axosu: 'Diamant' };
+const IMAGE_MEDAILLE_PAR_PALIER = { azovi: 'medaille-bronze.jpg', devi: 'medaille-argent.jpg', ogan: 'medaille-or.jpg', axosu: 'medaille-diamant.jpg' };
+
+// Petites icônes <img> réutilisées à plusieurs endroits de la page — voir
+// les images fournies le 11 septembre 2026 (coupes de médailles, gemme pour
+// le trophée d'excellence, badge métallique pour le logo standard).
+function iconeBadgeImgMat(fichier, taille, alt) {
+  return `<img src="${RACINE_SITE}assets/badges/${fichier}" alt="${alt || ''}" width="${taille}" height="${taille}" class="icone-badge-img-mat" loading="lazy">`;
+}
 
 let filtrePalierBadges = 'tous';
 let compteursBadgesParPalier = {}; // palier -> { logo_standard, medaille_speciale, trophee_excellence }
@@ -62,6 +73,12 @@ function rendreBadges() {
   const totalLogos = totalBadgeType('logo_standard');
   const totalMedailles = totalBadgeType('medaille_speciale');
   const totalTrophees = totalBadgeType('trophee_excellence');
+  // Logo et trophée ont chacun UNE seule image, quel que soit le palier ;
+  // la médaille dépend de la couleur du palier — on n'affiche l'image
+  // réelle que si un palier précis est sélectionné (sinon le total mélange
+  // les 4 couleurs, donc on garde l'emoji générique 🎖️).
+  const iconeMedailleTop = filtrePalierBadges !== 'tous'
+    ? iconeBadgeImgMat(IMAGE_MEDAILLE_PAR_PALIER[filtrePalierBadges], 34, MEDAILLE_PAR_PALIER[filtrePalierBadges]) : '🎖️';
 
   const boutonsFiltre = ['tous', ...Object.keys(LIBELLES_PALIER_BADGES)].map(p => {
     const libelle = p === 'tous' ? 'Tous les paliers' : LIBELLES_PALIER_BADGES[p];
@@ -76,8 +93,10 @@ function rendreBadges() {
     const c = compteursBadgesParPalier[p] || {};
     return `<div class="carte-detail-palier-badges" style="border-left-color:${COULEURS_PALIER_BADGES[p]}">
       <div class="bloc-lecture-titre" style="color:${COULEURS_PALIER_BADGES[p]}">${LIBELLES_PALIER_BADGES[p]}</div>
-      <p style="margin:6px 0 0;color:var(--text-gris);font-size:14px">
-        🏷️ ${c.logo_standard || 0} logo${(c.logo_standard || 0) > 1 ? 's' : ''} · ${MEDAILLE_PAR_PALIER[p]} × ${c.medaille_speciale || 0} · 🏆 ${c.trophee_excellence || 0} trophée${(c.trophee_excellence || 0) > 1 ? 's' : ''} d'excellence
+      <p style="margin:6px 0 0;color:var(--text-gris);font-size:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        ${iconeBadgeImgMat('logo-standard.jpg', 20, 'Logo')} ${c.logo_standard || 0} logo${(c.logo_standard || 0) > 1 ? 's' : ''}
+        · ${iconeBadgeImgMat(IMAGE_MEDAILLE_PAR_PALIER[p], 20, MEDAILLE_PAR_PALIER[p])} ${MEDAILLE_PAR_PALIER[p]} × ${c.medaille_speciale || 0}
+        · ${iconeBadgeImgMat('trophee-excellence.jpg', 20, 'Trophée')} ${c.trophee_excellence || 0} trophée${(c.trophee_excellence || 0) > 1 ? 's' : ''} d'excellence
       </p>
     </div>`;
   })() : '';
@@ -91,9 +110,9 @@ function rendreBadges() {
     <div class="section-title-eleve">🎯 Badges des paliers</div>
     <div class="grille-totaux-badges-paliers">
       <div class="carte-total-badge-palier">⭐<div class="valeur-total-badge-palier">${totalEtoilesBadges}</div><div>Étoile${totalEtoilesBadges > 1 ? 's' : ''}</div></div>
-      <div class="carte-total-badge-palier">🏷️<div class="valeur-total-badge-palier">${totalLogos}</div><div>Logo${totalLogos > 1 ? 's' : ''} de palier</div></div>
-      <div class="carte-total-badge-palier">🎖️<div class="valeur-total-badge-palier">${totalMedailles}</div><div>Médaille${totalMedailles > 1 ? 's' : ''} spéciale${totalMedailles > 1 ? 's' : ''}</div></div>
-      <div class="carte-total-badge-palier">🏆<div class="valeur-total-badge-palier">${totalTrophees}</div><div>Trophée${totalTrophees > 1 ? 's' : ''} d'excellence</div></div>
+      <div class="carte-total-badge-palier">${iconeBadgeImgMat('logo-standard.jpg', 34, 'Logo')}<div class="valeur-total-badge-palier">${totalLogos}</div><div>Logo${totalLogos > 1 ? 's' : ''} de palier</div></div>
+      <div class="carte-total-badge-palier">${iconeMedailleTop}<div class="valeur-total-badge-palier">${totalMedailles}</div><div>Médaille${totalMedailles > 1 ? 's' : ''} spéciale${totalMedailles > 1 ? 's' : ''}</div></div>
+      <div class="carte-total-badge-palier">${iconeBadgeImgMat('trophee-excellence.jpg', 34, 'Trophée')}<div class="valeur-total-badge-palier">${totalTrophees}</div><div>Trophée${totalTrophees > 1 ? 's' : ''} d'excellence</div></div>
     </div>
     <div class="filtres-palier-badges">${boutonsFiltre}</div>
     ${detailParPalier}

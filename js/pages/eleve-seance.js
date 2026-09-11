@@ -77,6 +77,12 @@ const LIBELLES_PALIER_ELEVE = { azovi: '🌱 Azɔ̀ví', devi: '🪘 Dèví', og
 // éducatifs, ce que le porteur du projet sait — cf. LISEZ-MOI).
 const COULEURS_PALIER_ELEVE = { azovi: '#15803D', devi: '#1D4ED8', ogan: '#9A3412', axosu: '#B91C1C' };
 const LIBELLES_MEDAILLE = { bronze: '🥉 Bronze', argent: '🥈 Argent', or: '🥇 Or', diamant: '💎 Diamant' };
+// Vraies photos de coupes (fournies le 11 septembre 2026) affichées dans la
+// pastille de médaille du récapitulatif d'exercice — voir libelleMedaille
+// ci-dessous et assets/badges/. Même correspondance que côté page badges
+// (js/pages/eleve-badges.js#IMAGE_MEDAILLE_PAR_PALIER), indexée ici par
+// nom de médaille plutôt que par palier (mêmes valeurs, deux clés).
+const IMAGE_MEDAILLE = { bronze: 'medaille-bronze.jpg', argent: 'medaille-argent.jpg', or: 'medaille-or.jpg', diamant: 'medaille-diamant.jpg' };
 
 (async function () {
   profilEleveSeance = await requireRole('eleve');
@@ -446,7 +452,9 @@ function rendreBlocLecture(b, estEnfant = false) {
 function libelleMedaille(medaille, numeroEssai) {
   if (!medaille || numeroEssai > 2) return '';
   const marque = numeroEssai === 2 ? ' <span style="font-size:11px;opacity:.75">· 2ᵉ essai</span>' : '';
-  return ` <span class="badge-palier-seance" style="background:#FEF3C7;color:#92620A">${LIBELLES_MEDAILLE[medaille]}${marque}</span>`;
+  const image = IMAGE_MEDAILLE[medaille]
+    ? `<img src="${RACINE_SITE}assets/badges/${IMAGE_MEDAILLE[medaille]}" alt="" width="16" height="16" style="display:inline-block;vertical-align:middle;object-fit:contain;margin-right:3px">` : '';
+  return ` <span class="badge-palier-seance" style="background:#FEF3C7;color:#92620A">${image}${LIBELLES_MEDAILLE[medaille]}${marque}</span>`;
 }
 
 function rendreExercice(b, c) {

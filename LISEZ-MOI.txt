@@ -1,130 +1,68 @@
-KEKELI — Livraison : progression par tâches dans les paliers, sons,
-messages et badges (11 septembre 2026)
+KEKELI — Livraison : pierres rouges, vraies photos pour les badges/
+trophées, séances déverrouillées temporairement (11 septembre 2026)
 ================================================================
 
 Ce zip est une LIVRAISON DIFFÉRENTIELLE : il ne contient que les fichiers
-créés ou modifiés depuis la dernière livraison (kekeli-devoirs-probleme-
-passer-activites-2026-09-11.zip). Aucun fichier inchangé n'est inclus —
-pour installer, décompressez ce zip par-dessus votre copie actuelle du
-site, en conservant l'arborescence des dossiers.
+créés ou modifiés depuis la dernière livraison (kekeli-paliers-badges-
+progressifs-2026-09-11.zip). Aucun fichier inchangé n'est inclus — pour
+installer, décompressez ce zip par-dessus votre copie actuelle du site, en
+conservant l'arborescence des dossiers.
 
-Contexte
---------
-Ce lot met en œuvre la refonte demandée du système "Activité et Paliers"
-et "Badge et Récompense" : notation par TÂCHE (et non plus par question),
-3 essais maximum, déverrouillage progressif des activités et des
-questions à l'intérieur d'un palier, sons et messages d'encouragement/
-félicitations, et un nouveau jeu de badges (logos, étoiles, médailles
-spéciales, trophées d'excellence). La base de données (tables, fonctions,
-Edge Function de correction) avait déjà été mise à jour et sécurisée dans
-un lot précédent ; ce zip livre la partie visible côté élève qui
-manquait encore.
+1) Pierres rouges (dernier point du chantier "Activité et Paliers")
+   ------------------------------------------------------------------
+   Fichier : js/pages/eleve-matiere.js
+   Les "5 pierres rouges" s'affichent maintenant devant le nom d'une racine
+   de matière (un Thème en français, un Dossier en mathématiques) quand
+   TOUS les paliers qui en dépendent sont validés — aussi bien dans le
+   thème gratuit (sur la carte du Thème/Dossier) que dans le thème premium
+   (sur la pastille d'onglet). Le calcul est entièrement fait côté base de
+   données (fonction déjà existante racine_a_pierres_rouges, en lecture
+   seule) : aucune nouvelle table, aucune nouvelle fonction.
 
-1) Masquage des activités tant que l'élève n'a pas choisi de commencer
-   --------------------------------------------------------------------
-   Fichier : js/pages/eleve-seance.js
-   Comme demandé, toutes les activités d'une séance (exercices, quiz,
-   évaluations, paliers) restent masquées et verrouillées par défaut :
-   l'élève voit d'abord le cours, puis doit appuyer sur le bouton
-   "▶️ Passer aux activités" pour les faire apparaître. Un travail déjà
-   commencé (au moins une réponse enregistrée) ne se remasque jamais.
+2) Vraies photos à la place des emoji pour les badges et trophées
+   ------------------------------------------------------------------
+   Fichiers : assets/badges/ (nouveau dossier, 7 images), js/pages/
+   eleve-badges.js, js/pages/eleve-seance.js, js/pages/eleve-matiere.js,
+   css/style-public.css, css/theme-premium-eleve.css, pages/eleve/badges.html
+   À partir des photos que vous avez transmises, les médailles de palier
+   (coupe bronze/argent/or/diamant), le trophée d'excellence et le logo de
+   palier utilisent maintenant de vraies images à la place des emoji, à la
+   fois sur la page "Mes badges" et dans le petit encart affiché juste
+   après un exercice réussi. Les photos de coupes ont été recadrées pour
+   retirer le socle en bois (qui portait un texte en anglais, "GOLD" /
+   "SILVER" / "BLUE DIAMOND", peu adapté à une appli en français pour des
+   enfants) : seule la coupe elle-même est conservée.
+   Point d'attention : la photo de gemme rouge que vous avez fournie pour
+   les pierres rouges portait un filigrane visible de banque d'images (elle
+   n'est donc probablement pas libre de droits) — elle n'a PAS été utilisée.
+   À la place, la gemme bleue (propre, sans filigrane) a été teintée en
+   rouge pour obtenir un visuel cohérent avec les autres images. Si vous
+   avez une version sans filigrane de la gemme rouge, elle pourra la
+   remplacer facilement (un seul fichier : assets/badges/pierre-rouge.jpg).
 
-2) Déverrouillage PROGRESSIF, question par question, à l'intérieur
-   d'un palier
-   -----------------------------------------------------------------
-   Fichier : js/pages/eleve-seance.js
-   Pour un exercice/quiz/évaluation/activité tagué d'un palier, les
-   questions ne sont plus toutes affichées d'un coup : une seule question
-   est visible à la fois, et la suivante ne se déverrouille que lorsque
-   la précédente a été validée (comme demandé : "tant que la précédente
-   n'est pas validée, la suivante n'est pas activée"). Cette validation
-   en direct est purement un guide pour l'élève : elle ne consomme AUCUN
-   essai et n'utilise AUCUN quota Premium — elle appelle une nouvelle
-   action de l'Edge Function de correction (déjà en place) qui vérifie la
-   réponse sans rien enregistrer. Une fois toutes les questions
-   travaillées, un bouton "📤 Valider tout le palier" soumet l'ensemble
-   pour la VRAIE correction (celle qui compte pour l'essai, la note et les
-   badges). Les exercices SANS palier gardent le formulaire classique
-   (toutes les questions affichées, un seul bouton "Valider").
-
-3) Sons et messages à chaque validation/rejet, et à chaque palier réussi
-   ----------------------------------------------------------------------
-   Fichiers : js/sons-eleve.js (déjà livré, désormais utilisé), js/pages/
-   eleve-seance.js
-   Chaque question validée ou rejetée (en direct comme à la soumission
-   finale) est désormais accompagnée d'un son (réussite/échec) — pour
-   l'instant des sons synthétisés simples, prêts à être remplacés par de
-   vrais fichiers audio plus tard sans toucher au reste du code. Une
-   petite fanfare distincte se joue en plus quand un palier entier vient
-   d'être réussi. Un message de félicitations ("🎉 Parfait, toutes les
-   tâches réussies du premier coup !") ou d'encouragement ("💪 Ne lâche
-   rien, tu vas y arriver au prochain essai !") s'affiche après chaque
-   soumission, adapté au résultat et au numéro d'essai.
-
-4) Affichage par tâche (et non plus par question)
-   ------------------------------------------------
-   Fichier : js/pages/eleve-seance.js
-   Chaque palier affiche désormais en haut le nombre total de tâches à
-   mener et le taux déjà obtenu (ex. "🌱 Azɔ̀ví — 5/9 tâches réussies
-   (55,6%)"), et chaque question à plusieurs tâches (texte à trous,
-   association, classement...) affiche combien de SES tâches ont été
-   réussies (ex. "🟡 2/3 tâches réussies") sans jamais annuler toute la
-   question si une seule tâche est ratée, comme demandé. Un palier marqué
-   "réussi" reste visible même si l'élève continue de s'entraîner dessus.
-
-5) Correction visible seulement au 3e essai (ou en cas de 100%)
-   ---------------------------------------------------------------
-   Fichier : js/pages/eleve-seance.js
-   Un bouton "🔓 Voir la correction" apparaît sur le récapitulatif d'un
-   exercice UNIQUEMENT au 3e essai, ou avant si l'élève a déjà réussi à
-   100% (règle déjà en place côté base, désormais câblée côté élève) :
-   il affiche alors la vraie bonne réponse de chaque question. Consulter
-   la correction avant d'avoir atteint 100% "gèle" ce palier (il ne pourra
-   plus être validé pour cette séance) — un message d'avertissement
-   discret l'indique sur la carte du palier concerné.
-
-6) Étoiles et badges de palier, désormais visibles
-   ---------------------------------------------------
-   Fichiers : js/theme-premium-eleve.js, js/pages/eleve-badges.js,
-   pages/eleve/badges.html
-   Le compteur d'étoiles de la barre du haut (déjà présent visuellement,
-   mais désactivé) affiche maintenant le vrai total de l'élève, toutes
-   matières confondues (2 étoiles par tâche réussie au 1er essai, 1 au
-   2e). La page "Mes badges" affiche en plus une nouvelle section "Badges
-   des paliers" : total des logos de palier, médailles spéciales
-   (🥉/🥈/🥇/💎 selon Azɔ̀ví/Dèví/Ògán/Axɔ́sú) et trophées d'excellence
-   (réussite à 90%+ dès le premier essai), avec des boutons de filtre pour
-   consulter le détail d'un seul palier à la fois, comme demandé.
-
-Ce qui n'est PAS encore livré (prochaine étape)
-------------------------------------------------
-Les "pierres rouges" devant le nom d'une racine de matière entièrement
-réussie (5 pierres rouges quand tous les paliers d'un thème/dossier sont
-validés à 66,7%+) ne sont pas encore affichées dans les pages de
-navigation (ex. pages/eleve/matiere.html) — la fonction de calcul existe
-déjà côté base (racine_a_pierres_rouges) mais son intégration visuelle
-dans l'arborescence, plus délicate à greffer sans risque de régression
-sur cette page déjà volumineuse, sera livrée dans un prochain lot.
+3) Séances temporairement déverrouillées (demande explicite)
+   ------------------------------------------------------------------
+   Fait directement en base de données (fonction etat_seances_sa).
+   Comme demandé, TOUTES les séances d'une SA apparaissent désormais
+   déverrouillées, même si les séances précédentes n'ont pas été terminées
+   — pratique pour parcourir/tester le contenu librement. La règle normale
+   (une séance ne se débloque qu'une fois la précédente terminée) a été
+   conservée en commentaire dans la fonction et sera restaurée à l'identique
+   sur simple demande ("on verrouille après").
 
 Vérifications effectuées
 -------------------------
-- node --check sur les 4 fichiers JS modifiés/créés : aucune erreur de
-  syntaxe.
-- Vérification de l'équilibre des accolades sur css/style-public.css.
-- Relecture complète du contrat de l'Edge Function corriger-exercice
-  (action valider_tache, forme des réponses de soumission complète) pour
-  s'assurer que le nouveau code élève appelle exactement les bons champs.
-- Contrôle de sécurité Supabase (get_advisors) : aucune nouvelle alerte
-  introduite par ce lot (les fonctions sensibles ajoutées au lot
-  précédent — écriture des badges, recalcul des paliers — restent bien
-  fermées à l'exécution directe ; seules les fonctions de LECTURE, prévues
-  pour être appelées par l'élève, restent accessibles, avec leurs propres
-  vérifications internes déjà en place).
-- Relecture manuelle du nouveau parcours "progression question par
-  question" (déverrouillage, sons, messages, soumission finale, affichage
-  du résultat par tâche, consultation de la correction) pour vérifier la
-  cohérence avec le cahier des charges transmis.
+- node --check sur les 3 fichiers JS modifiés : aucune erreur de syntaxe.
+- Vérification de l'équilibre des accolades sur les 2 fichiers CSS modifiés
+  et sur le bloc <style> de pages/eleve/badges.html.
+- Contrôle de sécurité Supabase (get_advisors) après la modification de
+  fonction : aucune nouvelle alerte, racine_a_pierres_rouges et
+  etat_seances_sa restent dans le même profil d'accès que les autres
+  fonctions de lecture déjà en place (aucune fonction d'écriture rendue
+  accessible).
+- Inspection visuelle de chaque photo retouchée (recadrage, mise au carré,
+  vérification qu'aucun texte anglais ne reste visible) avant intégration.
 
-Comme convenu, ce zip ne contient que les fichiers créés ou modifiés
-depuis la dernière livraison (livraison différentielle) — aucun fichier
-inchangé n'est inclus.
+Comme convenu, ce zip ne contient que les fichiers créés ou modifiés depuis
+la dernière livraison (livraison différentielle) — aucun fichier inchangé
+n'est inclus.

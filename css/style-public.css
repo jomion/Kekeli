@@ -522,6 +522,11 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .carte-champ-eleve { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); cursor: pointer; transition: transform .15s; border: 2px solid transparent; }
 .carte-champ-eleve:hover { transform: translateY(-3px); border-color: var(--bleu-kekeli); }
 .icone-champ-eleve { font-size: 30px; margin-bottom: 8px; }
+/* Pierres rouges (tâche #155, 11 septembre 2026) : récompense affichée sous
+   le titre d'une racine de matière entièrement maîtrisée — voir
+   pastillePierresRougesMat/chargerPierresRougesMat dans eleve-matiere.js. */
+.pastille-pierres-rouges-mat { display: inline-flex; align-items: center; }
+.pastille-pierres-rouges-mat.en-bloc { display: flex; margin-top: 4px; }
 .grille-sa-eleve { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
 .carte-sa-eleve { background: white; border-radius: 12px; padding: 16px 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .carte-sa-eleve:hover { border-left: 5px solid var(--bleu-kekeli); }

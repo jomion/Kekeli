@@ -223,6 +223,12 @@ async function afficherNiveau() {
     sas = data || [];
   }
 
+  // Pierres rouges : uniquement au niveau racine (parentId null) — une
+  // "racine de matière" au sens de racine_a_pierres_rouges est toujours un
+  // noeud sans parent ; ne rien calculer plus bas dans l'arborescence.
+  const pierresRougesMat = (!parentId && noeuds && noeuds.length)
+    ? await chargerPierresRougesMat(noeuds.map(n => n.id)) : {};
+
   conteneur.innerHTML = `
     ${filArianeMat(segments)}
     <div class="carte-bienvenue"><h1 style="margin:0">${echapper(etatMat.cheminNoeuds.length ? etatMat.cheminNoeuds[etatMat.cheminNoeuds.length - 1].titre : etatMat.champ.nom)}</h1></div>
@@ -230,6 +236,7 @@ async function afficherNiveau() {
       <div class="carte-champ-eleve" data-noeud-id="${n.id}">
         <div class="icone-champ-eleve">📂</div>
         <strong>${echapper(n.titre)}</strong>
+        ${pastillePierresRougesMat(pierresRougesMat[n.id], true)}
       </div>`).join('')}</div>` : ''}
     ${(sas && sas.length) ? `<div class="grille-sa-eleve" id="grilleSaMat" style="margin-top:16px">${sas.map(s => `
       <div class="carte-sa-eleve" data-sa-id="${s.id}">
@@ -439,6 +446,18 @@ async function afficherMatierePremium() {
   etatMat.cheminNoeuds = [{ id: ongletActif.id, titre: ongletActif.titre }];
   synchroniserUrlMat();
 
+  // Pierres rouges sur les onglets premium : la "racine" au sens de
+  // racine_a_pierres_rouges est toujours le noeud SANS parent — pour une
+  // structure à plusieurs niveaux (français : Thème → Unité), l'onglet
+  // affiché est l'Unité, donc la racine réelle est son parent (le Thème) ;
+  // pour une structure à un seul niveau (mathématiques), l'onglet EST déjà
+  // la racine. Plusieurs onglets peuvent partager la même racine (deux
+  // Unités d'un même Thème) : ils affichent alors le même badge, ce qui est
+  // le comportement attendu (la maîtrise se juge au niveau du Thème entier).
+  const structurePremMat = STRUCTURES_IMPOSEES_ELEVE[etatMat.champ.code];
+  const racineOngletMat = o => (structurePremMat && structurePremMat.length > 1) ? (o.parent_id ?? o.id) : o.id;
+  const pierresRougesOngletsMat = await chargerPierresRougesMat(onglets.map(racineOngletMat));
+
   const entreesSa = await collecterSaDescendantesMat(ongletActif.id, []);
   const listesParSa = await Promise.all(entreesSa.map(({ sa }) =>
     supabaseClient.rpc('etat_seances_sa', { p_eleve_id: profilEleveMat.id, p_sa_id: sa.id })
@@ -489,7 +508,7 @@ async function afficherMatierePremium() {
         ${onglets.map((o, i) => `<button type="button" class="prem-onglet-unite${o.id === ongletActif.id ? ' actif' : ''}" data-onglet-noeud="${o.id}">
           <span class="prem-onglet-unite-icone">${iconePrem(ICONES_ONGLET_UNITE_MAT[i % ICONES_ONGLET_UNITE_MAT.length], 15)}</span>
           <span>
-            <div class="prem-onglet-unite-titre">${echapper(libelleOrdinalOngletMat(o.type_noeud, i + 1))}</div>
+            <div class="prem-onglet-unite-titre">${echapper(libelleOrdinalOngletMat(o.type_noeud, i + 1))}${pastillePierresRougesMat(pierresRougesOngletsMat[racineOngletMat(o)], false)}</div>
             <div class="prem-onglet-unite-sous">${echapper(o.titre)}</div>
           </span>
         </button>`).join('')}
@@ -696,4 +715,36 @@ function echapper(v) {
   const d = document.createElement('div');
   d.textContent = v ?? '';
   return d.innerHTML;
+}
+
+// ===== Pierres rouges (reste de la tâche #155, livré le 11 septembre 2026)
+// Récompense visuelle affichée devant le nom d'une racine de matière (un
+// noeud SANS parent : Thème pour le français, Dossier pour les
+// mathématiques) quand TOUS les paliers qui en dépendent — toute la
+// descendance : Unité/Semaine/SA/séances — sont validés. La fonction
+// serveur racine_a_pierres_rouges (déjà en place, lecture seule) fait tout
+// le calcul ; ce module se contente de l'appeler et d'afficher le résultat.
+// Aucune nouvelle migration, aucune nouvelle table.
+async function chargerPierresRougesMat(racineIds) {
+  const uniques = [...new Set((racineIds || []).filter(id => id != null))];
+  if (!uniques.length) return {};
+  const resultats = await Promise.all(uniques.map(id =>
+    supabaseClient.rpc('racine_a_pierres_rouges', { p_eleve_id: profilEleveMat.id, p_noeud_racine_id: id })
+  ));
+  const carte = {};
+  uniques.forEach((id, i) => { carte[id] = resultats[i].data === true; });
+  return carte;
+}
+
+// `enBloc` : true = affichée sous le titre (cartes du thème gratuit),
+// false = affichée en ligne à côté du titre (pilule d'onglet premium).
+// Depuis le 11 septembre 2026 : la vraie photo de gemme fournie par le
+// porteur du projet (recadrée puis teintée en rouge à partir de la gemme
+// bleue déjà utilisée pour le trophée d'excellence — la photo de gemme
+// rouge d'origine portait un filigrane de banque d'images et n'a donc pas
+// été utilisée, voir assets/badges/pierre-rouge.jpg), à la place de l'emoji.
+function pastillePierresRougesMat(reussie, enBloc) {
+  if (!reussie) return '';
+  const gemme = `<img src="${RACINE_SITE}assets/badges/pierre-rouge.jpg" alt="Pierre rouge" width="14" height="14" style="display:inline-block;vertical-align:middle;object-fit:contain;border-radius:3px;margin-right:1px">`;
+  return `<span class="pastille-pierres-rouges-mat${enBloc ? ' en-bloc' : ''}" title="Racine entièrement maîtrisée : 5 pierres rouges !">${gemme.repeat(5)}</span>`;
 }
