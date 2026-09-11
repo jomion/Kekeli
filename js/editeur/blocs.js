@@ -325,133 +325,612 @@ function html_editeurExerciceLibre(bloc, c) {
   `;
 }
 
-// --- BLOC "PROBLÈME" (11 septembre 2026) ------------------------------------
-// Problème mathématique : un énoncé riche (c.enonce), un petit rappel avant
-// résolution (Données / Inconnues / Autre — c.donnees/c.inconnues/c.autre,
-// simples champs texte), puis un tableau de résolution (c.lignes[]) à 3
-// colonnes rempli à la main par l'enseignant : 1) la phrase de solution /
-// l'équation posée, 2) le résultat trouvé, 3) l'opération posée verticalement
-// — demande explicite du porteur du projet : "les opérations soient
-// facilement posée verticalement [...] sans créer des décalages désordonnés
-// surtout pour la division". Pas de calcul automatique : l'alignement des
-// chiffres vient uniquement d'une police à chasse fixe + alignement à droite
-// (voir .grille-operation, css/style.css et css/style-public.css), posée sur
-// une ligne "simple" (addition/soustraction/multiplication) ou un gabarit de
-// division dédié (dividende/diviseur/quotient + étapes). Câblage JS dans
-// js/pages/editeur-seance.js (attacherEcouteursProbleme, seul endroit où ce
-// type de bloc peut être créé/édité pour l'instant — pas de version devoir).
-function operationProblemeParDefaut() {
-  return { mode: 'simple', texte: '', dividende: '', diviseur: '', quotient: '', etapes: '' };
-}
-function ligneProblemeParDefaut() {
-  return { phrase: '', resultat: '', operation: operationProblemeParDefaut() };
+// --- BLOC "PROBLÈME" v2 (11 septembre 2026, REMPLACEMENT du v1) --------------
+// Demande explicite du porteur du projet, avec un fichier de référence fourni
+// (outil_math.html) : "remplace le bloc problème par un bloc de même
+// fonctionnalité que ce fichier [...] ajoute la possibilité de laisser le
+// maitre décider si l'élève doit aussi poser lui-même l'opération avant
+// d'effectuer". Le v1 (phrase/résultat/opération tapés à la main par
+// l'enseignant, jamais interactif) est entièrement remplacé par un moteur qui
+// PARSE l'équation saisie par l'enseignant (ex : "15 caisses * 24 € =") pour
+// générer automatiquement une grille de calcul posé (addition/soustraction/
+// division : grille simple ; multiplication : grille avec produits
+// intermédiaires) — porté fidèlement depuis outil_math.html
+// (parseDataElement/autoGenerateOperation/generateStandardGrid/
+// generateMultiplicationGrid). Décision de conception : plutôt que de garder
+// en plus l'ancien système v1 (textarea libre + gabarit de division dédié)
+// comme "mode difficile" séparé, la demande "l'élève pose lui-même
+// l'opération" est satisfaite en réutilisant CE MÊME moteur de grille : les
+// cases des opérandes (normalement toujours pré-remplies, y compris côté
+// élève dans le fichier de référence) deviennent, elles aussi, des cases à
+// remplir quand `poseParEleve` est coché — un seul moteur, jamais deux
+// structures pédagogiques concurrentes pour la même chose. Aucune notation
+// automatique : la notation (Solution/Équation/Résultat, un nombre libre par
+// case, sans "sur X" fixe) se fait entièrement à la correction manuelle (voir
+// js/pages/activites-correction.js et js/devoirs-notes-rendu.js), la note
+// finale étant la SOMME de tous ces nombres (demande explicite : "il n'y a
+// pas de sur et après toute les notes sera sommés pour avoir la note sur
+// 20") — stockée dans rendus_activites.note (sur rendus_activites.bareme,
+// déjà à 20 par défaut), le détail dans rendus_activites.details_notation
+// (jsonb). Soumission élève interactive dans rendus_activites (même table
+// que les blocs "activité"/"exercice"), aussi bien en séance qu'en devoir
+// (les deux, demande explicite du porteur du projet) — voir
+// js/pages/eleve-seance.js / js/pages/eleve-devoir-rendu.js.
+//
+// Forme de bloc.contenu :
+//   { enonce, modeAffichage: 'eleve'|'corrige', poseParEleve: bool,
+//     prepMode: 'auto'|'manuel', explicationPos: 'solution'|'operation'|'dessous',
+//     donneesManuelles, inconnuesManuelles (texte, une entrée par ligne),
+//     lignes: [ { description, equation, explication } ] }
+
+// Classe une valeur+étiquette détectée dans une équation (ex: "24", "€") en
+// une "nature" affichable (Prix/Coût, Masse, Volume, Longueur, Durée, ou
+// "Nombre de X" par défaut) — porté depuis parseDataElement() du fichier de
+// référence, à l'identique (mêmes familles d'unités).
+function problemeParseElement(valeur, etiquette) {
+  const label = String(etiquette || '').trim();
+  const l = label.toLowerCase();
+  if (['€', '$', 'eur', 'usd', 'francs', 'fcfa'].some(x => l.includes(x))) return { nature: 'Prix / Coût', texte: `${valeur} ${label}`, uniteReelle: true, uniteSeule: label };
+  if (['kg', 'g', 'mg', 't'].some(x => l.includes(x))) return { nature: 'Masse', texte: `${valeur} ${label}`, uniteReelle: true, uniteSeule: label };
+  if (['l', 'ml', 'cl', 'dl'].some(x => l.includes(x))) return { nature: 'Volume', texte: `${valeur} ${label}`, uniteReelle: true, uniteSeule: label };
+  if (['m', 'cm', 'mm', 'km'].some(x => l.includes(x))) return { nature: 'Longueur', texte: `${valeur} ${label}`, uniteReelle: true, uniteSeule: label };
+  if (['h', 'min', 's', 'sec', 'ans', 'jours'].some(x => l.includes(x))) return { nature: 'Durée', texte: `${valeur} ${label}`, uniteReelle: true, uniteSeule: label };
+  const nom = label || 'éléments';
+  return { nature: `Nombre de ${nom}`, texte: `${valeur}`, uniteReelle: false, uniteSeule: '' };
 }
 
-function html_editeurOperationProbleme(blocId, ligneIndex, op) {
-  const o = op || operationProblemeParDefaut();
-  const mode = o.mode === 'division' ? 'division' : 'simple';
-  const nomGroupe = `mode-operation-probleme-${blocId}-${ligneIndex}`;
+// Analyse une équation du type "15 caisses * 24 € =" -> { n1, unite1, type,
+// n2, unite2, resultat, uniteDetectee } ou null si non reconnue — porté
+// depuis autoGenerateOperation() (partie analyse) du fichier de référence.
+function problemeAnalyserEquation(equation) {
+  const eq = String(equation || '').trim();
+  const m = eq.match(/(\d+)(?:\s*([a-zA-Zà-üÀ-Ü€$]+))?\s*([+\-*/xX])\s*(\d+)(?:\s*([a-zA-Zà-üÀ-Ü€$]+))?/);
+  if (!m) return null;
+  const n1 = m[1], unite1 = m[2] || '';
+  let type = m[3].toLowerCase(); if (type === 'x') type = '*';
+  const n2 = m[4], unite2 = m[5] || '';
+  const p1 = problemeParseElement(n1, unite1);
+  const p2 = problemeParseElement(n2, unite2);
+  const uniteDetectee = p2.uniteReelle ? p2.uniteSeule : (p1.uniteReelle ? p1.uniteSeule : '');
+  const a = parseInt(n1, 10), b = parseInt(n2, 10);
+  let resultat;
+  if (type === '*') resultat = a * b;
+  else if (type === '+') resultat = a + b;
+  else if (type === '-') resultat = a - b;
+  else if (type === '/') resultat = b === 0 ? NaN : Number((a / b).toFixed(2));
+  else return null;
+  if (Number.isNaN(resultat)) return null;
+  return { n1, unite1, type, n2, unite2, resultat, uniteDetectee };
+}
+
+// À partir des équations de toutes les lignes, calcule les listes "Données
+// connues" / "Inconnues à trouver" affichées en mode auto — porté depuis
+// updateDataAndUnknowns() du fichier de référence (les nombres détectés dans
+// chaque équation pour les données, la description de chaque étape —
+// débarrassée de son "Étape N :" — pour les inconnues).
+function problemeCalculerDonneesInconnues(lignes) {
+  const donnees = [];
+  const inconnues = [];
+  (lignes || []).forEach(l => {
+    const desc = String(l.description || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (desc) inconnues.push(desc.replace(/^\s*(<strong>)?\s*Étape\s*\d+\s*:?\s*(<\/strong>)?\s*/i, ''));
+    const eq = String(l.equation || '');
+    const re = /(\d+)\s*([a-zA-Zà-üÀ-Ü€$]*)/g;
+    let m;
+    while ((m = re.exec(eq))) {
+      if (m[1] && m[1] !== '0') {
+        const p = problemeParseElement(m[1], m[2] || '');
+        const formatte = `<span class="nature-donnee-probleme">${echapper(p.nature)}</span> : ${echapper(p.texte)}`;
+        if (!donnees.includes(formatte)) donnees.push(formatte);
+      }
+    }
+  });
+  return { donnees, inconnues };
+}
+
+// Une case de la grille de calcul posé. Toujours un <input maxlength=1> (même
+// en lecture seule) pour que le style visuel soit rigoureusement identique
+// entre l'aperçu enseignant, le corrigé et le formulaire élève — seul
+// l'attribut `readonly` change. `nom` sert de clé de soumission (data-cellule-probleme)
+// quand la case est modifiable, pour relire les valeurs saisies par l'élève.
+function problemeCelluleHtml(valeur, editable, id, classesExtra, nom) {
+  const classes = ['case-calcul-probleme', ...(classesExtra || [])].filter(Boolean).join(' ');
+  const attrs = [
+    'type="text"', 'maxlength="1"', `class="${classes}"`,
+    id ? `id="${echapper(id)}"` : '',
+    (editable && nom) ? `data-cellule-probleme="${echapper(nom)}"` : '',
+    editable ? '' : 'readonly tabindex="-1"',
+    `value="${valeur == null ? '' : echapper(String(valeur))}"`
+  ].filter(Boolean).join(' ');
+  return `<input ${attrs}>`;
+}
+
+// Les N-1 lignes de produits intermédiaires d'une multiplication posée (une
+// ligne par chiffre du second facteur, décalée d'autant de zéros) — porté
+// depuis getMultiplicationIntermediateRows() du fichier de référence.
+function problemeLignesIntermediairesMultiplication(n1Str, n2Str, totalCols) {
+  const n1 = parseInt(n1Str, 10);
+  const lignes = [];
+  const chiffresN2 = n2Str.split('').reverse();
+  for (let i = 0; i < chiffresN2.length; i++) {
+    const chiffre = parseInt(chiffresN2[i], 10);
+    const produit = n1 * chiffre;
+    const zeros = '0'.repeat(i);
+    const valStr = (i > 0 && produit === 0) ? '0'.repeat(i + 1) : (produit.toString() + (i > 0 ? zeros : ''));
+    lignes.push(valStr.padStart(totalCols, ' '));
+  }
+  return lignes;
+}
+
+// Génère la grille de calcul posé complète pour une équation déjà analysée
+// (problemeAnalyserEquation). `opts.interactif` = false -> tout est déjà
+// résolu et en lecture seule (aperçu enseignant, mode "corrigé", vue de
+// correction). `opts.interactif` = true -> les cases de retenues, produits
+// intermédiaires et résultat sont à remplir par l'élève ; les cases des
+// opérandes (les chiffres de l'équation elle-même) restent pré-remplies EN
+// LECTURE SEULE, sauf si `opts.poseParEleve` est vrai — c'est précisément le
+// réglage ajouté à la demande du porteur du projet, qui n'existe pas dans le
+// fichier de référence (celui-ci garde toujours les opérandes pré-remplies,
+// même en mode élève). `opts.valeurs` (optionnel) réinjecte des valeurs déjà
+// saisies (brouillon élève, ou relecture de sa copie par le correcteur —
+// voir `opts.revision` : lecture seule, mais affichant ce que l'ÉLÈVE a
+// réellement écrit plutôt que le corrigé, pour que le correcteur voie sa
+// copie telle quelle, y compris les cases qu'il a laissées vides).
+function problemeGenererGrilleHtml(analyse, opts) {
+  const o = opts || {};
+  const interactif = !!o.interactif;
+  const poseParEleve = !!o.poseParEleve;
+  const revision = !!o.revision;
+  const prefixeId = o.prefixeId || 'grille-probleme';
+  const valeurs = o.valeurs || null;
+  const lire = (cle, defaut) => (valeurs && Object.prototype.hasOwnProperty.call(valeurs, cle)) ? valeurs[cle] : defaut;
+
+  const { n1, n2, type, resultat, uniteDetectee } = analyse;
+  const operandeEditable = interactif && poseParEleve;
+  const calculEditable = interactif;
+  // En relecture (revision), une case "opérande" retombe sur le chiffre
+  // correct si l'élève ne l'a pas saisie (cases jamais éditables quand
+  // poseParEleve=false) ; une case "calcul" retombe sur vide (on montre ce
+  // qu'il a écrit, pas le corrigé) si elle est absente de sa copie.
+  const valeurOperande = (c, cle, correcte) => revision ? lire(cle, correcte) : (operandeEditable ? lire(cle, '') : correcte);
+  const valeurCalcul = (cle, correcte) => revision ? lire(cle, '') : (calculEditable ? lire(cle, '') : correcte);
+  let cols, html;
+
+  if (type === '*') {
+    const rowsN2 = n2.length;
+    cols = n1.length + n2.length + 1;
+    const resStr = String(resultat).padStart(cols, ' ');
+    html = `<div class="grille-calcul-probleme" style="grid-template-columns:repeat(${cols},32px)">`;
+    for (let c = 0; c < cols; c++) html += problemeCelluleHtml(valeurCalcul(`retenue-${c}`, ''), interactif && !revision, `${prefixeId}-retenue-${c}`, ['case-retenue-probleme'], `retenue-${c}`);
+    const paddedN1 = n1.padStart(cols, ' ');
+    for (let c = 0; c < cols; c++) {
+      const correcte = paddedN1[c] === ' ' ? '' : paddedN1[c];
+      html += problemeCelluleHtml(valeurOperande(c, `n1-${c}`, correcte), operandeEditable && !revision, `${prefixeId}-n1-${c}`, [], `n1-${c}`);
+    }
+    html += problemeCelluleHtml('×', false, null, ['case-bordure-basse-probleme']);
+    const paddedN2 = n2.padStart(cols - 1, ' ');
+    for (let c = 0; c < cols - 1; c++) {
+      const correcte = paddedN2[c] === ' ' ? '' : paddedN2[c];
+      html += problemeCelluleHtml(valeurOperande(c, `n2-${c}`, correcte), operandeEditable && !revision, `${prefixeId}-n2-${c}`, ['case-bordure-basse-probleme'], `n2-${c}`);
+    }
+    let ligneIdx = 0;
+    if (rowsN2 > 1) {
+      const inter = problemeLignesIntermediairesMultiplication(n1, n2, cols);
+      for (let r = 0; r < rowsN2; r++) {
+        const derniere = r === rowsN2 - 1;
+        for (let c = 0; c < cols; c++) {
+          const correcte = inter[r][c] === ' ' ? '' : inter[r][c];
+          html += problemeCelluleHtml(valeurCalcul(`inter-${ligneIdx}-${c}`, correcte), calculEditable && !revision, `${prefixeId}-inter-${ligneIdx}-${c}`, derniere ? ['case-bordure-basse-probleme'] : [], `inter-${ligneIdx}-${c}`);
+        }
+        ligneIdx++;
+      }
+    }
+    for (let c = 0; c < cols; c++) {
+      const correcte = resStr[c] === ' ' ? '' : resStr[c];
+      html += problemeCelluleHtml(valeurCalcul(`resultat-${c}`, correcte), calculEditable && !revision, `${prefixeId}-resultat-${c}`, [], `resultat-${c}`);
+    }
+    html += `</div>`;
+  } else {
+    // Addition, soustraction et division partagent la même grille simple
+    // (posée mais sans potence de division dédiée) — fidèle au fichier de
+    // référence, qui traite les trois de la même façon.
+    cols = Math.max(n1.length, n2.length) + 1;
+    const resStr = String(resultat).padStart(cols, ' ');
+    html = `<div class="grille-calcul-probleme" style="grid-template-columns:repeat(${cols},32px)">`;
+    for (let c = 0; c < cols; c++) html += problemeCelluleHtml(valeurCalcul(`retenue-${c}`, ''), interactif && !revision, `${prefixeId}-retenue-${c}`, ['case-retenue-probleme'], `retenue-${c}`);
+    const paddedN1 = n1.padStart(cols, ' ');
+    for (let c = 0; c < cols; c++) {
+      const correcte = paddedN1[c] === ' ' ? '' : paddedN1[c];
+      html += problemeCelluleHtml(valeurOperande(c, `n1-${c}`, correcte), operandeEditable && !revision, `${prefixeId}-n1-${c}`, [], `n1-${c}`);
+    }
+    const symbole = type === '+' ? '+' : (type === '-' ? '-' : '÷');
+    html += problemeCelluleHtml(symbole, false, null, ['case-bordure-basse-probleme']);
+    const paddedN2 = n2.padStart(cols - 1, ' ');
+    for (let c = 0; c < cols - 1; c++) {
+      const correcte = paddedN2[c] === ' ' ? '' : paddedN2[c];
+      html += problemeCelluleHtml(valeurOperande(c, `n2-${c}`, correcte), operandeEditable && !revision, `${prefixeId}-n2-${c}`, ['case-bordure-basse-probleme'], `n2-${c}`);
+    }
+    for (let c = 0; c < cols; c++) {
+      const correcte = resStr[c] === ' ' ? '' : resStr[c];
+      html += problemeCelluleHtml(valeurCalcul(`resultat-${c}`, correcte), calculEditable && !revision, `${prefixeId}-resultat-${c}`, [], `resultat-${c}`);
+    }
+    html += `</div>`;
+  }
+
+  let enveloppe = `<div class="conteneur-calcul-probleme">${html}`;
+  if (uniteDetectee) enveloppe += `<div class="badge-unite-probleme">Unité : ${echapper(uniteDetectee)}</div>`;
+  enveloppe += `</div>`;
+  return enveloppe;
+}
+
+function problemeLigneParDefaut() {
+  return { description: '<strong>Étape 1 :</strong> ', equation: '', explication: '' };
+}
+
+// Une ligne du tableau de résolution, côté ÉDITEUR (aperçu de la grille en
+// lecture seule à titre indicatif — la vraie interactivité élève est gérée à
+// part, voir js/pages/eleve-seance.js / eleve-devoir-rendu.js).
+function html_ligneEditeurProbleme(bloc, ligne, i, ctx) {
+  const l = ligne || problemeLigneParDefaut();
+  const analyse = problemeAnalyserEquation(l.equation);
+  const idPrefixe = `probleme-${bloc.id || 'x'}-${i}`;
+  const grilleHtml = analyse
+    ? problemeGenererGrilleHtml(analyse, { interactif: false, prefixeId: idPrefixe })
+    : `<p class="operation-vide">Saisissez une équation avec deux nombres et un opérateur (ex : 15 * 24 =) pour générer la grille.</p>`;
+  const explicationChamp = `<textarea data-probleme-champ="explication" data-probleme-ligne="${i}" class="explication-probleme" rows="2" placeholder="💡 Explication pour l'élève (optionnelle)...">${echapper(l.explication)}</textarea>`;
+
   return `
-    <div class="choix-mode-operation-probleme">
-      <label><input type="radio" data-probleme-mode data-probleme-ligne="${ligneIndex}" name="${nomGroupe}" value="simple" ${mode === 'simple' ? 'checked' : ''}> ➕ Opération posée</label>
-      <label><input type="radio" data-probleme-mode data-probleme-ligne="${ligneIndex}" name="${nomGroupe}" value="division" ${mode === 'division' ? 'checked' : ''}> ➗ Division posée</label>
+    <div class="ligne-probleme" data-ligne-probleme="${i}">
+      <div class="colonne-solution-probleme">
+        <div class="champ-description-probleme" contenteditable="true" data-probleme-champ="description" data-probleme-ligne="${i}">${l.description || ''}</div>
+        <input type="text" class="champ-equation-probleme" data-probleme-champ="equation" data-probleme-ligne="${i}" placeholder="Ex : 15 caisses * 24 € =" value="${echapper(l.equation)}">
+        ${ctx.explicationPos === 'solution' ? explicationChamp : ''}
+        <button type="button" class="btn btn-discret bouton-supprimer-ligne-probleme" data-action-probleme="supprimer-ligne" data-probleme-ligne="${i}">🗑️ Supprimer cette étape</button>
+      </div>
+      <div class="colonne-operation-probleme">
+        <div class="apercu-grille-probleme" data-apercu-grille-probleme="${i}">${grilleHtml}</div>
+        ${ctx.explicationPos === 'operation' ? explicationChamp : ''}
+      </div>
     </div>
-    ${mode === 'division' ? `
-      <div class="poser-division-editeur">
-        <div class="division-editeur-haut">
-          <input type="text" class="grille-operation champ-dividende-division" data-probleme-champ="dividende" data-probleme-ligne="${ligneIndex}" placeholder="Dividende" value="${echapper(o.dividende)}">
-          <div class="potence-division"></div>
-          <div class="division-editeur-droite">
-            <input type="text" class="grille-operation champ-diviseur-division" data-probleme-champ="diviseur" data-probleme-ligne="${ligneIndex}" placeholder="Diviseur" value="${echapper(o.diviseur)}">
-            <input type="text" class="grille-operation champ-quotient-division" data-probleme-champ="quotient" data-probleme-ligne="${ligneIndex}" placeholder="Quotient" value="${echapper(o.quotient)}">
-          </div>
-        </div>
-        <textarea class="grille-operation champ-etapes-division" data-probleme-champ="etapes" data-probleme-ligne="${ligneIndex}" spellcheck="false" rows="4" placeholder="Étapes posées (soustractions successives) — une par ligne, alignées automatiquement à droite">${echapper(o.etapes)}</textarea>
-      </div>`
-      : `<textarea class="grille-operation champ-texte-operation" data-probleme-champ="texte" data-probleme-ligne="${ligneIndex}" spellcheck="false" rows="5" placeholder="Ex :&#10;   27&#10; + 15&#10; -----&#10;   42&#10;(une ligne par ligne, alignées automatiquement à droite)">${echapper(o.texte)}</textarea>`}
+    ${ctx.explicationPos === 'dessous' ? explicationChamp : ''}
   `;
-}
-
-function html_ligneEditeurProbleme(blocId, ligne, i) {
-  const l = ligne || ligneProblemeParDefaut();
-  return `
-    <tr data-ligne-probleme="${i}">
-      <td class="cellule-phrase-probleme"><textarea data-probleme-champ="phrase" data-probleme-ligne="${i}" placeholder="Phrase de solution, équation posée...">${echapper(l.phrase)}</textarea></td>
-      <td class="cellule-resultat-probleme"><input type="text" data-probleme-champ="resultat" data-probleme-ligne="${i}" placeholder="Résultat" value="${echapper(l.resultat)}"></td>
-      <td class="cellule-operation-probleme">
-        ${html_editeurOperationProbleme(blocId, i, l.operation)}
-        <button type="button" class="btn btn-discret bouton-supprimer-ligne-probleme" data-action-probleme="supprimer-ligne" data-probleme-ligne="${i}">🗑️ Supprimer la ligne</button>
-      </td>
-    </tr>`;
 }
 
 function html_editeurProbleme(bloc, c) {
-  const lignes = Array.isArray(c.lignes) && c.lignes.length ? c.lignes : [ligneProblemeParDefaut()];
+  const lignes = Array.isArray(c.lignes) && c.lignes.length ? c.lignes : [problemeLigneParDefaut()];
+  const modeAffichage = c.modeAffichage === 'corrige' ? 'corrige' : 'eleve';
+  const poseParEleve = !!c.poseParEleve;
+  const prepMode = c.prepMode === 'manuel' ? 'manuel' : 'auto';
+  const explicationPos = ['solution', 'operation', 'dessous'].includes(c.explicationPos) ? c.explicationPos : 'operation';
+  const auto = prepMode === 'auto' ? problemeCalculerDonneesInconnues(lignes) : null;
+  const ctx = { modeAffichage, poseParEleve, explicationPos };
+
   return `
     ${html_zoneTexteRiche('data-champ-riche="enonce"', c.enonce)}
-    <div class="entete-probleme">
-      <div class="champ-entete-probleme"><label>📊 Données</label><textarea data-champ="donnees" rows="2" placeholder="Ce que l'énoncé donne...">${echapper(c.donnees)}</textarea></div>
-      <div class="champ-entete-probleme"><label>❓ Inconnues</label><textarea data-champ="inconnues" rows="2" placeholder="Ce qu'on cherche...">${echapper(c.inconnues)}</textarea></div>
-      <div class="champ-entete-probleme"><label>➕ Autre</label><textarea data-champ="autre" rows="2" placeholder="Autre information utile...">${echapper(c.autre)}</textarea></div>
+
+    <div class="reglages-probleme">
+      <div class="champ-reglage-probleme">
+        <label>⚙️ Mode d'affichage à l'élève</label>
+        <select data-champ-probleme="modeAffichage">
+          <option value="eleve" ${modeAffichage === 'eleve' ? 'selected' : ''}>✏️ Élève (exercice interactif à compléter)</option>
+          <option value="corrige" ${modeAffichage === 'corrige' ? 'selected' : ''}>🤖 Corrigé (exemple entièrement résolu, lecture seule)</option>
+        </select>
+      </div>
+      <div class="champ-reglage-probleme">
+        <label>📋 Données &amp; Inconnues</label>
+        <select data-champ-probleme="prepMode">
+          <option value="auto" ${prepMode === 'auto' ? 'selected' : ''}>🤖 Détection automatique (depuis les équations)</option>
+          <option value="manuel" ${prepMode === 'manuel' ? 'selected' : ''}>✍️ Remplissage manuel</option>
+        </select>
+      </div>
+      <div class="champ-reglage-probleme">
+        <label>💬 Emplacement de l'explication</label>
+        <select data-champ-probleme="explicationPos">
+          <option value="solution" ${explicationPos === 'solution' ? 'selected' : ''}>Dans la colonne Solution / Équation</option>
+          <option value="operation" ${explicationPos === 'operation' ? 'selected' : ''}>Sous l'opération posée</option>
+          <option value="dessous" ${explicationPos === 'dessous' ? 'selected' : ''}>En bas du tableau</option>
+        </select>
+      </div>
+      <label class="case-pose-par-eleve-probleme">
+        <input type="checkbox" data-champ-case-probleme="poseParEleve" ${poseParEleve ? 'checked' : ''}>
+        ✍️ En mode élève, l'élève doit aussi poser lui-même l'opération (recopier les chiffres dans la grille) avant de l'effectuer
+      </label>
     </div>
-    <p class="note-future">Tableau de résolution : une ligne par étape. Colonne 1 = phrase de solution / équation posée, colonne 2 = résultat trouvé, colonne 3 = opération posée (addition/soustraction/multiplication, ou une division avec son propre gabarit) — l'alignement des chiffres est automatique (police à chasse fixe, alignée à droite).</p>
-    <table class="tableau-probleme" data-tableau-probleme="1">
-      <thead><tr><th>Phrase / équation</th><th>Résultat</th><th>Opération posée</th></tr></thead>
-      <tbody data-corps-tableau-probleme>${lignes.map((l, i) => html_ligneEditeurProbleme(bloc.id, l, i)).join('')}</tbody>
-    </table>
-    <button type="button" class="btn btn-discret" data-action-probleme="ajouter-ligne">+ Ligne de résolution</button>
+
+    <div class="prep-grille-probleme">
+      <div class="prep-boite-probleme">
+        <h4>📥 Données connues</h4>
+        ${prepMode === 'manuel'
+          ? `<textarea data-champ="donneesManuelles" rows="3" placeholder="Une donnée par ligne...">${echapper(c.donneesManuelles)}</textarea>`
+          : `<ul class="liste-auto-probleme" data-liste-donnees-probleme>${auto.donnees.length ? auto.donnees.map(d => `<li>${d}</li>`).join('') : '<li><em>Saisissez une équation…</em></li>'}</ul>`}
+      </div>
+      <div class="prep-boite-probleme">
+        <h4>❓ Inconnues à trouver</h4>
+        ${prepMode === 'manuel'
+          ? `<textarea data-champ="inconnuesManuelles" rows="3" placeholder="Une inconnue par ligne...">${echapper(c.inconnuesManuelles)}</textarea>`
+          : `<ul class="liste-auto-probleme" data-liste-inconnues-probleme>${auto.inconnues.length ? auto.inconnues.map(u => `<li>${echapper(u)}</li>`).join('') : '<li><em>Saisissez une étape…</em></li>'}</ul>`}
+      </div>
+    </div>
+
+    <p class="note-future">Tableau de résolution : une ligne par étape. Décrivez l'étape puis saisissez l'équation (ex : <code>15 caisses * 24 € =</code>) — la grille de calcul posé est générée automatiquement (addition, soustraction, division : grille simple ; multiplication : produits intermédiaires). Aucune note ici : la notation se fait entièrement à la correction (Solution / Équation / Résultat, un nombre libre par case, sans "sur X" fixe — ces nombres sont ensuite sommés pour donner la note finale sur ${bloc.seuil_reussite != null ? '20' : '20'}).</p>
+
+    <div class="lignes-probleme" data-lignes-probleme>
+      ${lignes.map((l, i) => html_ligneEditeurProbleme(bloc, l, i, ctx)).join('')}
+    </div>
+    <button type="button" class="btn btn-discret" data-action-probleme="ajouter-ligne">+ Ajouter une étape</button>
   `;
 }
 
-// Rendu en LECTURE SEULE du bloc "Problème" — partagé entre l'aperçu de
-// l'éditeur (js/pages/editeur-seance.js, rendreBlocApercu) et la vraie page
-// élève (js/pages/eleve-seance.js, rendreBlocLecture), même principe que
-// html_blocHtmlLibre ci-dessous : une seule version pour ne jamais laisser
-// les deux diverger visuellement.
-function html_operationLecture(op) {
-  const o = op || {};
-  if (o.mode === 'division') {
-    const dividende = (o.dividende || '').trim();
-    const diviseur = (o.diviseur || '').trim();
-    const quotient = (o.quotient || '').trim();
-    const etapes = (o.etapes || '').trim();
-    if (!dividende && !diviseur && !quotient && !etapes) return '<p class="operation-vide">—</p>';
-    return `
-      <div class="division-lecture">
-        <div class="division-lecture-haut">
-          <span class="division-lecture-dividende">${echapper(dividende)}</span>
-          <div class="division-lecture-potence">
-            <span class="division-lecture-diviseur">${echapper(diviseur)}</span>
-            <span class="division-lecture-quotient">${echapper(quotient)}</span>
-          </div>
-        </div>
-        ${etapes ? `<pre class="grille-operation-lecture">${echapper(etapes)}</pre>` : ''}
-      </div>`;
-  }
-  const texte = (o.texte || '').trim();
-  if (!texte) return '<p class="operation-vide">—</p>';
-  return `<pre class="grille-operation-lecture">${echapper(texte)}</pre>`;
+// Rendu en LECTURE SEULE (« corrigé ») du bloc "Problème" — partagé entre
+// l'aperçu de l'éditeur (js/pages/editeur-seance.js, rendreBlocApercu), la
+// vue élève quand modeAffichage='corrige' et l'aperçu compact
+// (js/apercu-blocs-seance.js). L'interactivité (modeAffichage='eleve') est
+// gérée par des fonctions dédiées côté élève (rendreProbleme dans
+// eleve-seance.js / eleve-devoir-rendu.js), pas ici — cette fonction ne
+// produit jamais de formulaire soumissible.
+// Construit la boîte "Données connues / Inconnues à trouver" — partagée
+// entre le corrigé statique (ci-dessous) et le rendu élève interactif
+// (js/pages/eleve-seance.js / eleve-devoir-rendu.js, rendreProbleme) pour ne
+// jamais faire diverger cette logique entre les deux.
+function html_prepDonneesInconnuesProbleme(c, lignes) {
+  const prepMode = c.prepMode === 'manuel' ? 'manuel' : 'auto';
+  const auto = prepMode === 'auto' ? problemeCalculerDonneesInconnues(lignes) : null;
+  const donnees = prepMode === 'manuel'
+    ? String(c.donneesManuelles || '').split('\n').map(s => s.trim()).filter(Boolean).map(echapper)
+    : auto.donnees;
+  const inconnues = prepMode === 'manuel'
+    ? String(c.inconnuesManuelles || '').split('\n').map(s => s.trim()).filter(Boolean).map(echapper)
+    : auto.inconnues;
+  if (!donnees.length && !inconnues.length) return '';
+  return `
+    <div class="prep-grille-probleme-lecture">
+      ${donnees.length ? `<div class="prep-boite-probleme-lecture"><h4>📥 Données connues</h4><ul>${donnees.map(d => `<li>${d}</li>`).join('')}</ul></div>` : ''}
+      ${inconnues.length ? `<div class="prep-boite-probleme-lecture"><h4>❓ Inconnues à trouver</h4><ul>${inconnues.map(u => `<li>${u}</li>`).join('')}</ul></div>` : ''}
+    </div>`;
 }
 
-function html_lectureProbleme(c) {
-  const lignes = Array.isArray(c.lignes)
-    ? c.lignes.filter(l => l && (l.phrase || l.resultat || (l.operation && (l.operation.texte || l.operation.dividende || l.operation.diviseur || l.operation.quotient || l.operation.etapes))))
-    : [];
-  const aEntete = !!(c.donnees || c.inconnues || c.autre);
+function explicationLectureProbleme(texte) {
+  return texte ? `<div class="explication-lecture-probleme">💡 ${echapper(texte)}</div>` : '';
+}
+
+function html_lectureProbleme(c, blocId) {
+  const lignes = Array.isArray(c.lignes) ? c.lignes.filter(l => l && (l.description || l.equation)) : [];
+  const explicationPos = ['solution', 'operation', 'dessous'].includes(c.explicationPos) ? c.explicationPos : 'operation';
+  const explicationHtml = explicationLectureProbleme;
+  const explicationsDessous = [];
+
+  const lignesHtml = lignes.map((l, i) => {
+    const analyse = problemeAnalyserEquation(l.equation);
+    const grille = analyse
+      ? problemeGenererGrilleHtml(analyse, { interactif: false, prefixeId: `probleme-lect-${blocId || 'x'}-${i}` })
+      : '<p class="operation-vide">—</p>';
+    if (explicationPos === 'dessous' && l.explication) explicationsDessous.push(l.explication);
+    return `
+      <tr>
+        <td class="cellule-solution-probleme-lecture">
+          <div>${l.description || ''}</div>
+          ${l.equation ? `<p class="equation-lecture-probleme">${echapper(l.equation)}</p>` : ''}
+          ${explicationPos === 'solution' ? explicationHtml(l.explication) : ''}
+        </td>
+        <td class="cellule-operation-probleme-lecture">
+          ${grille}
+          ${explicationPos === 'operation' ? explicationHtml(l.explication) : ''}
+        </td>
+      </tr>`;
+  }).join('');
+
   return `
     ${c.enonce ? `<div class="contenu-riche-lecture enonce-probleme">${contenuRicheInitial(c.enonce)}</div>` : ''}
-    ${aEntete ? `
-      <div class="entete-probleme-lecture">
-        ${c.donnees ? `<div class="champ-entete-probleme-lecture"><strong>📊 Données</strong><p>${echapper(c.donnees)}</p></div>` : ''}
-        ${c.inconnues ? `<div class="champ-entete-probleme-lecture"><strong>❓ Inconnues</strong><p>${echapper(c.inconnues)}</p></div>` : ''}
-        ${c.autre ? `<div class="champ-entete-probleme-lecture"><strong>➕ Autre</strong><p>${echapper(c.autre)}</p></div>` : ''}
-      </div>` : ''}
-    ${lignes.length ? `
-      <table class="tableau-probleme-lecture">
-        <thead><tr><th>Phrase / équation</th><th>Résultat</th><th>Opération posée</th></tr></thead>
-        <tbody>${lignes.map(l => `<tr><td>${echapper(l.phrase).replace(/\n/g, '<br>')}</td><td>${echapper(l.resultat)}</td><td>${html_operationLecture(l.operation)}</td></tr>`).join('')}</tbody>
-      </table>` : ''}
+    ${html_prepDonneesInconnuesProbleme(c, lignes)}
+    ${lignesHtml ? `<table class="tableau-probleme-lecture-v2"><tbody>${lignesHtml}</tbody></table>` : ''}
+    ${explicationsDessous.length ? `<div class="explications-dessous-probleme">${explicationsDessous.map(explicationHtml).join('')}</div>` : ''}
   `;
+}
+
+// Corps du FORMULAIRE interactif (mode élève) du bloc "Problème" — partagé
+// entre js/pages/eleve-seance.js et js/pages/eleve-devoir-rendu.js (séance ET
+// devoir, demande explicite du porteur du projet). Ne produit ni la balise
+// <form>, ni le bouton de soumission (chaque appelant les ajoute avec son
+// propre texte/état "nouvel essai", comme pour les blocs "activité"
+// existants) — seulement l'énoncé, les données/inconnues et une grille par
+// étape avec des cases <input> à remplir (voir problemeGenererGrilleHtml,
+// interactif:true). Quand `poseParEleve` est coché, l'équation elle-même
+// n'est PAS montrée en clair : le but est que l'élève la détermine lui-même
+// à partir de l'énoncé et de la description de l'étape, puis la pose dans la
+// grille — sans quoi "poser soi-même l'opération" ne serait qu'une recopie.
+function html_formulaireProbleme(bloc, c) {
+  const lignes = Array.isArray(c.lignes) ? c.lignes.filter(l => l && (l.description || l.equation)) : [];
+  const poseParEleve = !!c.poseParEleve;
+  const explicationPos = ['solution', 'operation', 'dessous'].includes(c.explicationPos) ? c.explicationPos : 'operation';
+  const explicationsDessous = [];
+
+  const lignesHtml = lignes.map((l, i) => {
+    const analyse = problemeAnalyserEquation(l.equation);
+    const idPrefixe = `probleme-forme-${bloc.id}-${i}`;
+    const grille = analyse
+      ? problemeGenererGrilleHtml(analyse, { interactif: true, poseParEleve, prefixeId: idPrefixe })
+      : '<p class="operation-vide">—</p>';
+    if (explicationPos === 'dessous' && l.explication) explicationsDessous.push(l.explication);
+    const equationVisible = !poseParEleve && l.equation ? `<p class="equation-lecture-probleme">${echapper(l.equation)}</p>` : '';
+    return `
+      <div class="ligne-probleme-eleve" data-ligne-probleme-eleve="${i}">
+        <div class="colonne-solution-probleme-eleve">
+          <div>${l.description || ''}</div>
+          ${equationVisible}
+          ${explicationPos === 'solution' ? explicationLectureProbleme(l.explication) : ''}
+        </div>
+        <div class="colonne-operation-probleme-eleve">
+          ${grille}
+          ${explicationPos === 'operation' ? explicationLectureProbleme(l.explication) : ''}
+        </div>
+      </div>`;
+  }).join('');
+
+  return `
+    ${c.enonce ? `<div class="contenu-riche-lecture enonce-probleme">${contenuRicheInitial(c.enonce)}</div>` : ''}
+    ${html_prepDonneesInconnuesProbleme(c, lignes)}
+    ${poseParEleve ? '<p class="note-future">✍️ À toi de poser l\'opération dans la grille (recopie les chiffres au bon endroit) avant de l\'effectuer.</p>' : ''}
+    <div class="lignes-probleme-eleve" data-lignes-probleme-eleve>${lignesHtml}</div>
+    ${explicationsDessous.length ? `<div class="explications-dessous-probleme">${explicationsDessous.map(explicationLectureProbleme).join('')}</div>` : ''}
+  `;
+}
+
+// Relit une copie déjà rendue (en attente de correction, ou déjà corrigée) :
+// même mise en page que le formulaire, mais entièrement en lecture seule et
+// affichant ce que l'ÉLÈVE a réellement écrit (voir `revision` dans
+// problemeGenererGrilleHtml) — jamais un formulaire soumissible.
+// `reponseLignes` est le tableau `lignes` déjà décodé de rendus_activites.reponse_texte
+// (voir formatReponseProbleme / lireReponseProbleme dans eleve-seance.js).
+function html_relectureProbleme(c, reponseLignes) {
+  const lignes = Array.isArray(c.lignes) ? c.lignes.filter(l => l && (l.description || l.equation)) : [];
+  const lignesHtml = lignes.map((l, i) => {
+    const analyse = problemeAnalyserEquation(l.equation);
+    const valeurs = (Array.isArray(reponseLignes) && reponseLignes[i] && reponseLignes[i].grille) || null;
+    const grille = analyse
+      ? problemeGenererGrilleHtml(analyse, { interactif: false, revision: true, prefixeId: `probleme-rev-${i}`, valeurs })
+      : '<p class="operation-vide">—</p>';
+    return `
+      <div class="ligne-probleme-eleve">
+        <div class="colonne-solution-probleme-eleve">
+          <div>${l.description || ''}</div>
+          ${l.equation ? `<p class="equation-lecture-probleme">${echapper(l.equation)}</p>` : ''}
+        </div>
+        <div class="colonne-operation-probleme-eleve">${grille}</div>
+      </div>`;
+  }).join('');
+  return `
+    ${c.enonce ? `<div class="contenu-riche-lecture enonce-probleme">${contenuRicheInitial(c.enonce)}</div>` : ''}
+    <div class="lignes-probleme-eleve lignes-probleme-relecture">${lignesHtml}</div>
+  `;
+}
+
+// Lit les valeurs saisies par l'élève dans le formulaire (voir
+// html_formulaireProbleme) pour un bloc donné, sous la forme attendue par
+// rendus_activites.reponse_texte (JSON.stringify de { lignes: [{grille}] }).
+// Partagé par eleve-seance.js/eleve-devoir-rendu.js pour ne jamais faire
+// diverger le format de sérialisation des deux côtés.
+function collecterReponseProbleme(formEl, nbLignes) {
+  const lignes = [];
+  for (let i = 0; i < nbLignes; i++) {
+    const conteneur = formEl.querySelector(`[data-ligne-probleme-eleve="${i}"]`);
+    const grille = {};
+    if (conteneur) {
+      conteneur.querySelectorAll('[data-cellule-probleme]').forEach(input => {
+        grille[input.dataset.celluleProbleme] = input.value;
+      });
+    }
+    lignes.push({ grille });
+  }
+  return JSON.stringify({ lignes });
+}
+
+function lireReponseProbleme(reponseTexte) {
+  try {
+    const data = JSON.parse(reponseTexte || '{}');
+    return Array.isArray(data.lignes) ? data.lignes : [];
+  } catch (_e) {
+    return [];
+  }
+}
+
+// Somme tous les nombres saisis par le correcteur (Solution/Équation/Résultat,
+// un par étape) pour obtenir la note finale — demande explicite du porteur du
+// projet : "il n'y a pas de sur et après toute les notes sera sommés pour
+// avoir la note sur 20". `details` est la forme stockée dans
+// rendus_activites.details_notation : { lignes: [{solution, equation, resultat}] }.
+// Partagé par js/pages/activites-correction.js (séance) et
+// js/devoirs-notes-rendu.js (devoir) pour ne jamais faire diverger le calcul.
+function sommeNotesDetailleesProbleme(details) {
+  const lignes = (details && Array.isArray(details.lignes)) ? details.lignes : [];
+  let total = 0;
+  lignes.forEach(l => {
+    ['solution', 'equation', 'resultat'].forEach(champ => {
+      const v = parseFloat(l && l[champ]);
+      if (!Number.isNaN(v)) total += v;
+    });
+  });
+  return total;
+}
+
+// Corps HTML du formulaire de correction détaillée d'un rendu de bloc
+// "Problème" (voir sommeNotesDetailleesProbleme ci-dessus pour la règle de
+// calcul) : une grille en lecture seule montrant ce que l'élève a réellement
+// écrit (mode `revision` de problemeGenererGrilleHtml), avec à côté trois
+// champs numériques libres (Solution/Équation/Résultat, sans maximum fixe —
+// demande explicite du porteur du projet) par étape. Partagé par
+// js/pages/activites-correction.js (contexte séance) et
+// js/devoirs-notes-rendu.js (contexte devoir), chacun l'insérant dans sa
+// propre modale bespoke (le système générique ouvrirModal de js/modal.js ne
+// permet pas une liste de champs dynamique comme celle-ci).
+function html_formulaireCorrectionProbleme(c, reponseLignes, detailsExistants) {
+  const lignes = Array.isArray(c.lignes) ? c.lignes.filter(l => l && (l.description || l.equation)) : [];
+  const detailsLignes = (detailsExistants && Array.isArray(detailsExistants.lignes)) ? detailsExistants.lignes : [];
+  const champNote = (i, nom, label) => {
+    const brut = detailsLignes[i] ? detailsLignes[i][nom] : null;
+    const valeur = (brut === null || brut === undefined) ? '' : brut;
+    return `<label class="champ-note-probleme">${label}
+      <input type="number" step="any" data-note-probleme="${i}" data-note-probleme-champ="${nom}" value="${echapper(String(valeur))}" placeholder="0">
+    </label>`;
+  };
+  const lignesHtml = lignes.map((l, i) => {
+    const valeurs = (Array.isArray(reponseLignes) && reponseLignes[i] && reponseLignes[i].grille) || null;
+    const analyse = problemeAnalyserEquation(l.equation);
+    const grille = analyse
+      ? problemeGenererGrilleHtml(analyse, { interactif: false, revision: true, prefixeId: `probleme-correction-${i}`, valeurs })
+      : '<p class="operation-vide">—</p>';
+    return `
+      <div class="ligne-correction-probleme" data-ligne-correction-probleme="${i}">
+        <div class="colonne-solution-probleme-eleve">
+          <div>${l.description || ''}</div>
+          ${l.equation ? `<p class="equation-lecture-probleme">${echapper(l.equation)}</p>` : ''}
+        </div>
+        <div class="colonne-operation-probleme-eleve">${grille}</div>
+        <div class="notes-correction-probleme">
+          ${champNote(i, 'solution', 'Note Solution')}
+          ${champNote(i, 'equation', 'Note Équation')}
+          ${champNote(i, 'resultat', 'Note Résultat')}
+        </div>
+      </div>`;
+  }).join('');
+  return `
+    ${c.enonce ? `<div class="contenu-riche-lecture enonce-probleme">${contenuRicheInitial(c.enonce)}</div>` : ''}
+    <div class="lignes-correction-probleme" data-lignes-correction-probleme>${lignesHtml}</div>
+    <p class="total-note-correction-probleme">Total : <strong data-total-note-correction-probleme>${sommeNotesDetailleesProbleme(detailsExistants)}</strong> / 20</p>
+  `;
+}
+
+// Relit les notes saisies par le correcteur dans le formulaire produit par
+// html_formulaireCorrectionProbleme, sous la forme attendue par
+// rendus_activites.details_notation : { lignes: [{solution, equation, resultat}] }.
+function collecterDetailsNotationProbleme(formEl, nbLignes) {
+  const lignes = [];
+  for (let i = 0; i < nbLignes; i++) {
+    const conteneur = formEl.querySelector(`[data-ligne-correction-probleme="${i}"]`);
+    const ligne = {};
+    if (conteneur) {
+      conteneur.querySelectorAll('[data-note-probleme]').forEach(input => {
+        ligne[input.dataset.noteProblemeChamp] = input.value === '' ? null : parseFloat(input.value);
+      });
+    }
+    lignes.push(ligne);
+  }
+  return { lignes };
+}
+
+// Recalcule et affiche en direct le total du formulaire de correction dès
+// qu'un correcteur modifie une note (voir html_formulaireCorrectionProbleme).
+function attacherMiseAJourTotalCorrectionProbleme(formEl) {
+  const total = formEl.querySelector('[data-total-note-correction-probleme]');
+  if (!total) return;
+  const recalculer = () => {
+    let somme = 0;
+    formEl.querySelectorAll('[data-note-probleme]').forEach(input => {
+      const v = parseFloat(input.value);
+      if (!Number.isNaN(v)) somme += v;
+    });
+    total.textContent = somme;
+  };
+  formEl.querySelectorAll('[data-note-probleme]').forEach(input => input.addEventListener('input', recalculer));
 }
 
 // Câblage JS d'UNE zone de texte riche générée par html_zoneTexteRiche

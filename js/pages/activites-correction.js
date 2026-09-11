@@ -54,10 +54,14 @@ async function chargerActivites() {
   // ouvrirCorrectionActiviteDevoir), où le contexte (devoir, élève, note
   // globale) est clair. Les lister aussi ici les afficherait sans classe ni
   // séance (elles n'ont pas de seance_id), ce qui serait confus.
+  // Depuis le remplacement du bloc "Problème" (11 septembre 2026), les blocs
+  // 'probleme' de séance atterrissent aussi ici — même écran, mais leur
+  // correction se fait via une note détaillée par étape (voir
+  // ouvrirCorrectionProbleme) plutôt que le champ "note" unique générique.
   const { data, error } = await supabaseClient
     .from('blocs_seance')
-    .select('id, contenu, palier, seance_id, seances(titre, sa_id, sa(titre, noeud_id, noeuds_parcours(classe_id, champ_formation_id, classes(nom), champs_formation(nom))))')
-    .eq('type_bloc', 'activite')
+    .select('id, type_bloc, contenu, palier, seance_id, seances(titre, sa_id, sa(titre, noeud_id, noeuds_parcours(classe_id, champ_formation_id, classes(nom), champs_formation(nom))))')
+    .in('type_bloc', ['activite', 'probleme'])
     .is('devoir_id', null)
     .order('id', { ascending: false });
 
@@ -65,7 +69,7 @@ async function chargerActivites() {
   blocsActivites = data || [];
 
   if (!blocsActivites.length) {
-    zone.innerHTML = `<p class="chargement">Aucune activité pour l'instant — créez un bloc "Activité" depuis l'éditeur de séance.</p>`;
+    zone.innerHTML = `<p class="chargement">Aucune activité pour l'instant — créez un bloc "Activité" ou "Problème" depuis l'éditeur de séance.</p>`;
     return;
   }
 
@@ -136,16 +140,16 @@ async function rendrePageActivites() {
           </div>
           ${enAttente ? `<span class="statut-pill" style="background:#FFF3E0;color:#B8860B">${enAttente} à corriger</span>` : ''}
         </div>
-        <p style="margin:10px 0 12px;font-size:13px">${echapperAct(c.consigne || '')}</p>
+        <p style="margin:10px 0 12px;font-size:13px">${b.type_bloc === 'probleme' ? contenuRicheInitial(c.enonce || '') : echapperAct(c.consigne || '')}</p>
         ${rendusBloc.length ? `<div class="liste-lignes">${rendusBloc.map(r => `
           <div class="ligne" style="align-items:flex-start;flex-direction:column;gap:6px">
             <div style="display:flex;justify-content:space-between;width:100%;align-items:center;flex-wrap:wrap;gap:6px">
               <strong>${echapperAct(profilParId[r.eleve_id]?.prenom || '')} ${echapperAct(profilParId[r.eleve_id]?.nom || '')}</strong>
               ${r.corrige_le
                 ? `<span class="statut-pill statut-publie">${r.note != null ? `${r.note}/${r.bareme}` : ''} ${r.appreciation ? ({ acquis: 'Acquis', en_cours: 'En cours', non_acquis: 'Non acquis' })[r.appreciation] : ''}</span>`
-                : `<button class="btn btn-primaire" data-corriger-rendu="${r.id}" style="padding:5px 12px;font-size:12px">✏️ Corriger</button>`}
+                : `<button class="btn btn-primaire" data-corriger-rendu="${r.id}" data-type-bloc-rendu="${b.type_bloc}" style="padding:5px 12px;font-size:12px">✏️ Corriger</button>`}
             </div>
-            ${r.reponse_texte ? `<p style="margin:0;font-size:13px;background:#F9F9F9;padding:8px;border-radius:6px;width:100%">${echapperAct(r.reponse_texte)}</p>` : ''}
+            ${(r.reponse_texte && b.type_bloc !== 'probleme') ? `<p style="margin:0;font-size:13px;background:#F9F9F9;padding:8px;border-radius:6px;width:100%">${echapperAct(r.reponse_texte)}</p>` : ''}
             ${r.piece_jointe_url ? `<a href="${echapperAct(r.piece_jointe_url)}" target="_blank" rel="noopener" style="font-size:12px">📎 Pièce jointe</a>` : ''}
             ${r.commentaire ? `<p style="margin:0;font-size:12px;color:var(--texte-gris)">💬 ${echapperAct(r.commentaire)}</p>` : ''}
           </div>`).join('')}</div>` : `<p style="font-size:12px;color:var(--texte-gris)">Aucun rendu pour l'instant.</p>`}
@@ -157,7 +161,16 @@ async function rendrePageActivites() {
   document.getElementById('selectPalierAct').addEventListener('change', (e) => { filtrePalierActivites = e.target.value; rendrePageActivites(); });
   document.getElementById('selectTriAct').addEventListener('change', (e) => { triActivites = e.target.value; rendrePageActivites(); });
   zone.querySelectorAll('[data-corriger-rendu]').forEach(btn => {
-    btn.addEventListener('click', () => corrigerRendu(parseInt(btn.dataset.corrigerRendu, 10)));
+    const renduId = parseInt(btn.dataset.corrigerRendu, 10);
+    if (btn.dataset.typeBlocRendu === 'probleme') {
+      btn.addEventListener('click', () => {
+        const rendu = blocsActivites.flatMap(bl => rendusParBloc[bl.id] || []).find(r => r.id === renduId);
+        const bloc = blocsActivites.find(bl => (rendusParBloc[bl.id] || []).some(r => r.id === renduId));
+        if (bloc && rendu) ouvrirCorrectionProbleme(bloc, rendu, profilParId[rendu.eleve_id]);
+      });
+    } else {
+      btn.addEventListener('click', () => corrigerRendu(renduId));
+    }
   });
 }
 
@@ -182,6 +195,73 @@ function corrigerRendu(renduId) {
       if (error) return alert(error.message);
       rendrePageActivites();
     }
+  });
+}
+
+// Correction détaillée d'un rendu de bloc "Problème" (v2, 11 septembre
+// 2026) : une note libre par étape et par colonne (Solution/Équation/
+// Résultat, sans maximum fixe), sommées automatiquement pour donner la note
+// finale — demande explicite du porteur du projet. Modale bespoke (pas
+// ouvrirModal, qui ne gère pas une liste de champs dynamique) construite
+// autour du corps partagé html_formulaireCorrectionProbleme (js/editeur/blocs.js),
+// pour rester identique à l'équivalent côté devoir (js/devoirs-notes-rendu.js,
+// ouvrirCorrectionProblemeDevoir).
+function ouvrirCorrectionProbleme(bloc, rendu, profilEleve) {
+  const c = bloc.contenu || {};
+  const lignes = Array.isArray(c.lignes) ? c.lignes.filter(l => l && (l.description || l.equation)) : [];
+  const reponseLignes = lireReponseProbleme(rendu.reponse_texte);
+  const detailsExistants = rendu.details_notation || {};
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-boite modal-boite-large">
+      <h3>Corriger le problème — ${echapperAct(profilEleve?.prenom || '')} ${echapperAct(profilEleve?.nom || '')}</h3>
+      <form id="formCorrectionProbleme">
+        ${html_formulaireCorrectionProbleme(c, reponseLignes, detailsExistants)}
+        <label class="champ-modal">Appréciation (optionnelle)
+          <select name="appreciation">
+            <option value="" ${!rendu.appreciation ? 'selected' : ''}>— Aucune —</option>
+            <option value="acquis" ${rendu.appreciation === 'acquis' ? 'selected' : ''}>Acquis</option>
+            <option value="en_cours" ${rendu.appreciation === 'en_cours' ? 'selected' : ''}>En cours</option>
+            <option value="non_acquis" ${rendu.appreciation === 'non_acquis' ? 'selected' : ''}>Non acquis</option>
+          </select>
+        </label>
+        <label class="champ-modal">Commentaire (optionnel)
+          <textarea name="commentaire" placeholder="Retour pour l'élève...">${echapperAct(rendu.commentaire || '')}</textarea>
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-discret" data-fermer-modal>Annuler</button>
+          <button type="submit" class="btn btn-primaire">Enregistrer la correction</button>
+        </div>
+      </form>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const fermer = () => overlay.remove();
+  overlay.querySelector('[data-fermer-modal]').addEventListener('click', fermer);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) fermer(); });
+
+  const form = overlay.querySelector('#formCorrectionProbleme');
+  attacherMiseAJourTotalCorrectionProbleme(form);
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const details = collecterDetailsNotationProbleme(form, lignes.length);
+    const note = sommeNotesDetailleesProbleme(details);
+    const appreciation = form.querySelector('[name="appreciation"]').value;
+    const commentaire = form.querySelector('[name="commentaire"]').value;
+    const { error } = await supabaseClient.from('rendus_activites').update({
+      note,
+      details_notation: details,
+      appreciation: appreciation || null,
+      commentaire: commentaire || null,
+      corrige_par: profilActivites.id,
+      corrige_le: new Date().toISOString()
+    }).eq('id', rendu.id);
+    if (error) return alert(error.message);
+    fermer();
+    rendrePageActivites();
   });
 }
 

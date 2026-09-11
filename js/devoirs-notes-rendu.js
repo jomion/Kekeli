@@ -48,8 +48,11 @@ function resumerDevoirBlocs(blocs, reponses, rendus) {
 
   // "exercice" (11 septembre 2026) rejoint "activite" : réponse libre notée
   // à la main (rendus_activites), plutôt que des questions auto-corrigées.
+  // "probleme" (même jour, remplacement v2) rejoint le même groupe : grille
+  // de calcul soumise par l'élève, notée à la main (Solution/Équation/
+  // Résultat sommés — voir js/editeur/blocs.js, sommeNotesDetailleesProbleme).
   blocsNotables.forEach(b => {
-    if (b.type_bloc === 'activite' || b.type_bloc === 'exercice') {
+    if (b.type_bloc === 'activite' || b.type_bloc === 'exercice' || b.type_bloc === 'probleme') {
       const r = dernieresActivites[b.id];
       if (!r) { toutCorrige = false; return; }
       nbRepondus++;
@@ -428,7 +431,7 @@ function html_gestionRendusDevoirBlocs(devoir, eleves, blocs, reponsesExercices,
       const activitesBloc = activitesParEleve[e.id] || {};
       const resume = resumerDevoirBlocs(blocs, Object.values(reponsesBloc).flat(), Object.values(activitesBloc).flat());
       const nomEleve = `${echapperTexte(e.profils?.prenom || '')} ${echapperTexte(e.profils?.nom || '')}`;
-      const aCorriger = blocs.some(b => (b.type_bloc === 'activite' || b.type_bloc === 'exercice') && dernier(activitesBloc, b.id) && !dernier(activitesBloc, b.id).corrige_le);
+      const aCorriger = blocs.some(b => (b.type_bloc === 'activite' || b.type_bloc === 'exercice' || b.type_bloc === 'probleme') && dernier(activitesBloc, b.id) && !dernier(activitesBloc, b.id).corrige_le);
       const couleurBadge = resume.nbRepondus === 0 ? grisRepli : (aCorriger ? '#B8860B' : bleuRepli);
       const texteBadge = resume.nbRepondus === 0
         ? 'Pas encore rendu'
@@ -444,6 +447,17 @@ function html_gestionRendusDevoirBlocs(devoir, eleves, blocs, reponsesExercices,
             const info = infoType(b.type_bloc);
             const c = b.contenu || {};
             const libelleBloc = `${info.icone} ${echapperTexte(c.libelle || info.label)}`;
+            if (b.type_bloc === 'probleme') {
+              const r = dernier(activitesBloc, b.id);
+              if (!r) return `<div style="font-size:12px;color:${grisRepli}">${libelleBloc} — pas encore rendu</div>`;
+              return `<div style="background:white;padding:8px;border-radius:6px">
+                <div style="font-size:11px;font-weight:700;color:${grisRepli};text-transform:uppercase">${libelleBloc}${r.numero_essai > 1 ? ` (essai ${r.numero_essai})` : ''}</div>
+                ${r.corrige_le
+                  ? `<p style="margin:4px 0 0;font-size:12px;color:${bleuRepli};font-weight:700">✅ ${r.note != null ? `${r.note}/${r.bareme}` : 'Corrigé'}${r.appreciation ? ` — ${LIBELLES_APPRECIATION[r.appreciation] || ''}` : ''}</p>
+                    ${r.commentaire ? `<p style="margin:2px 0 0;font-size:12px;color:${grisRepli}">💬 ${echapperTexte(r.commentaire)}</p>` : ''}`
+                  : `<button type="button" class="btn" data-corriger-probleme-devoir="${r.id}" style="background:${bleuRepli};color:white;padding:4px 10px;font-size:11px;margin-top:4px">✏️ Corriger</button>`}
+              </div>`;
+            }
             if (b.type_bloc === 'activite' || b.type_bloc === 'exercice') {
               const r = dernier(activitesBloc, b.id);
               if (!r) return `<div style="font-size:12px;color:${grisRepli}">${libelleBloc} — pas encore rendu</div>`;
@@ -613,6 +627,81 @@ function ouvrirCorrectionActiviteDevoir(renduId, correcteurId, onValide) {
       if (error) return alert(error.message);
       onValide();
     }
+  });
+}
+
+// Ouvre la correction détaillée d'un rendu de bloc "Problème" (v2, 11
+// septembre 2026) appartenant à un devoir "à blocs" — même principe que
+// ouvrirCorrectionProbleme dans js/pages/activites-correction.js (contexte
+// séance) : note libre par étape/colonne (Solution/Équation/Résultat, sans
+// maximum fixe), sommées automatiquement pour la note finale (voir
+// sommeNotesDetailleesProbleme dans js/editeur/blocs.js). Modale bespoke,
+// pas ouvrirModal (liste de champs dynamique). Contrairement à
+// ouvrirCorrectionActiviteDevoir, a besoin du contenu du bloc (les étapes à
+// noter) : on le récupère ici via rendu.bloc_id plutôt que de faire porter
+// cette responsabilité aux pages appelantes (js/pages/admin-devoirs-notes.js,
+// js/pages/enseignant-devoirs-notes.js), qui n'ont que l'id du rendu.
+async function ouvrirCorrectionProblemeDevoir(renduId, correcteurId, onValide) {
+  const { data: rendu, error: erreurRendu } = await supabaseClient.from('rendus_activites').select('*').eq('id', renduId).single();
+  if (erreurRendu || !rendu) { alert(erreurRendu?.message || 'Rendu introuvable.'); return; }
+  const { data: bloc, error: erreurBloc } = await supabaseClient.from('blocs_seance').select('id, contenu').eq('id', rendu.bloc_id).single();
+  if (erreurBloc || !bloc) { alert(erreurBloc?.message || 'Bloc introuvable.'); return; }
+
+  const c = bloc.contenu || {};
+  const lignes = Array.isArray(c.lignes) ? c.lignes.filter(l => l && (l.description || l.equation)) : [];
+  const reponseLignes = lireReponseProbleme(rendu.reponse_texte);
+  const detailsExistants = rendu.details_notation || {};
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-boite modal-boite-large">
+      <h3>Corriger le problème</h3>
+      <form id="formCorrectionProblemeDevoir">
+        ${html_formulaireCorrectionProbleme(c, reponseLignes, detailsExistants)}
+        <label class="champ-modal">Appréciation (optionnelle)
+          <select name="appreciation">
+            <option value="" ${!rendu.appreciation ? 'selected' : ''}>— Aucune —</option>
+            <option value="acquis" ${rendu.appreciation === 'acquis' ? 'selected' : ''}>Acquis</option>
+            <option value="en_cours" ${rendu.appreciation === 'en_cours' ? 'selected' : ''}>En cours</option>
+            <option value="non_acquis" ${rendu.appreciation === 'non_acquis' ? 'selected' : ''}>Non acquis</option>
+          </select>
+        </label>
+        <label class="champ-modal">Commentaire (optionnel)
+          <textarea name="commentaire" placeholder="Retour pour l'élève...">${echapperTexte(rendu.commentaire || '')}</textarea>
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-discret" data-fermer-modal>Annuler</button>
+          <button type="submit" class="btn btn-primaire">Enregistrer la correction</button>
+        </div>
+      </form>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const fermer = () => overlay.remove();
+  overlay.querySelector('[data-fermer-modal]').addEventListener('click', fermer);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) fermer(); });
+
+  const form = overlay.querySelector('#formCorrectionProblemeDevoir');
+  attacherMiseAJourTotalCorrectionProbleme(form);
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const details = collecterDetailsNotationProbleme(form, lignes.length);
+    const note = sommeNotesDetailleesProbleme(details);
+    const appreciation = form.querySelector('[name="appreciation"]').value;
+    const commentaire = form.querySelector('[name="commentaire"]').value;
+    const { error } = await supabaseClient.from('rendus_activites').update({
+      note,
+      details_notation: details,
+      appreciation: appreciation || null,
+      commentaire: commentaire || null,
+      corrige_par: correcteurId,
+      corrige_le: new Date().toISOString()
+    }).eq('id', renduId);
+    if (error) return alert(error.message);
+    fermer();
+    onValide();
   });
 }
 

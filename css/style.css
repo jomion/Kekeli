@@ -508,39 +508,77 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
   border-radius: 8px; resize: vertical; overflow: auto; display: block; background: #fff;
 }
 
-/* ===== Bloc "Problème" (11 septembre 2026) ===== */
-.entete-probleme { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin: 10px 0; }
-.champ-entete-probleme { display: flex; flex-direction: column; gap: 4px; }
-.champ-entete-probleme label { font-size: 12px; color: var(--texte-gris); font-weight: 700; }
-.champ-entete-probleme textarea { resize: vertical; }
+/* ===== Bloc "Problème" v2 (11 septembre 2026 — remplacement complet du
+   bloc "Problème" d'origine par un moteur de grille de calcul posé unique,
+   partagé avec la lecture élève/la correction — voir js/editeur/blocs.js).
+   Réglages de l'éditeur (mode d'affichage, préparation, position de
+   l'explication, "poser soi-même l'opération"). ===== */
+.reglages-probleme { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 10px 0 14px; background: #F8FAFC; border-radius: 10px; padding: 12px 14px; }
+.champ-reglage-probleme { display: flex; flex-direction: column; gap: 4px; }
+.champ-reglage-probleme label { font-size: 12px; color: var(--texte-gris); font-weight: 700; }
+.case-pose-par-eleve-probleme { grid-column: 1 / -1; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; background: #FFF7E6; border: 1px solid #F5D48A; border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+.case-pose-par-eleve-probleme input { margin-top: 3px; }
 
-.tableau-probleme { width: 100%; border-collapse: collapse; margin-top: 8px; }
-.tableau-probleme th { background: #F1F5F9; font-size: 12px; text-align: left; padding: 6px 8px; border: 1px solid var(--bordure); }
-.tableau-probleme td { border: 1px solid var(--bordure); padding: 8px; vertical-align: top; }
-.tableau-probleme th:nth-child(1), .tableau-probleme td.cellule-phrase-probleme { width: 42%; }
-.tableau-probleme th:nth-child(2), .tableau-probleme td.cellule-resultat-probleme { width: 16%; }
-.tableau-probleme th:nth-child(3), .tableau-probleme td.cellule-operation-probleme { width: 42%; }
-.cellule-phrase-probleme textarea { width: 100%; min-height: 70px; resize: vertical; }
-.cellule-resultat-probleme input { width: 100%; text-align: center; font-weight: 700; }
-.choix-mode-operation-probleme { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--texte-gris); margin-bottom: 6px; }
-.choix-mode-operation-probleme label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
-.bouton-supprimer-ligne-probleme { margin-top: 6px; }
+/* Boîtes "Données connues / Inconnues à trouver" (éditeur ET lecture). */
+.prep-grille-probleme, .prep-grille-probleme-lecture { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 10px 0; }
+.prep-boite-probleme, .prep-boite-probleme-lecture { background: #F8FAFC; border-radius: 8px; padding: 10px 12px; border: 1px solid var(--bordure); }
+.prep-boite-probleme h4, .prep-boite-probleme-lecture h4 { margin: 0 0 6px; font-size: 12px; color: var(--texte-gris); text-transform: uppercase; letter-spacing: .3px; }
+.prep-boite-probleme textarea { width: 100%; resize: vertical; }
+.liste-auto-probleme, .prep-boite-probleme-lecture ul { margin: 0; padding-left: 18px; font-size: 13px; }
+.liste-auto-probleme li, .prep-boite-probleme-lecture li { margin-bottom: 3px; }
+.nature-donnee-probleme { font-weight: 700; color: var(--bleu-principal); }
 
-/* Grille d'opération posée : police à chasse fixe + alignement à droite —
-   c'est cet alignement (pas un calcul) qui garantit que les chiffres
-   tombent dans la bonne colonne d'une ligne à l'autre, y compris pour une
-   division (demande explicite : "sans créer des décalages désordonnés"). */
-.grille-operation { font-family: 'Courier New', Consolas, monospace; font-variant-numeric: tabular-nums; font-size: 15px; letter-spacing: 1px; }
-textarea.grille-operation { text-align: right; white-space: pre; resize: vertical; width: 100%; min-height: 70px; line-height: 1.6; }
-input.grille-operation { text-align: right; }
+/* Tableau de résolution (éditeur) : une ligne par étape, solution à gauche,
+   opération posée à droite — même disposition en lecture/formulaire élève. */
+.lignes-probleme, .lignes-probleme-eleve { display: flex; flex-direction: column; gap: 12px; margin: 10px 0; }
+.ligne-probleme, .ligne-probleme-eleve { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; border: 1px solid var(--bordure); border-radius: 10px; padding: 12px; background: white; }
+.colonne-solution-probleme, .colonne-solution-probleme-eleve { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.colonne-operation-probleme, .colonne-operation-probleme-eleve { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; overflow-x: auto; }
+.champ-description-probleme { border: 1px solid var(--bordure); border-radius: 6px; padding: 6px 8px; font-size: 13px; min-height: 20px; background: #FAFAFA; }
+.champ-description-probleme:focus { outline: 2px solid var(--bleu-principal); background: white; }
+.champ-equation-probleme { font-family: 'Courier New', Consolas, monospace; }
+.explication-probleme { width: 100%; resize: vertical; font-size: 12.5px; }
+.bouton-supprimer-ligne-probleme { margin-top: 2px; align-self: flex-start; color: #B91C1C; }
+.lignes-probleme-relecture .ligne-probleme-eleve { background: #F9FAFB; }
 
-.poser-division-editeur { display: flex; flex-direction: column; gap: 8px; }
-.division-editeur-haut { display: flex; align-items: stretch; gap: 0; }
-.champ-dividende-division { width: 70px; min-height: unset; }
-.potence-division { width: 0; border-left: 2px solid var(--bordure); margin: 2px 10px; }
-.division-editeur-droite { display: flex; flex-direction: column; gap: 4px; }
-.champ-diviseur-division { width: 70px; min-height: unset; text-align: center; border-bottom: 2px solid var(--bordure); }
-.champ-quotient-division { width: 70px; min-height: unset; text-align: center; font-weight: 700; }
+/* Grille de calcul posé — utilisée partout (aperçu éditeur, corrigé,
+   formulaire élève, relecture, correction) : chaque case est un
+   <input maxlength=1> pour un alignement identique dans les 4 contextes. */
+.conteneur-calcul-probleme { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; }
+.grille-calcul-probleme { display: grid; gap: 2px; }
+.case-calcul-probleme {
+  width: 32px; height: 32px; text-align: center; font-family: 'Courier New', Consolas, monospace;
+  font-size: 16px; font-weight: 700; border: 1px solid var(--bordure); border-radius: 4px; padding: 0;
+}
+.case-calcul-probleme:focus { outline: 2px solid var(--bleu-principal); }
+.case-calcul-probleme[readonly] { background: #F1F5F9; color: var(--texte-fonce); cursor: default; }
+.case-retenue-probleme { height: 20px; font-size: 12px; border-style: dashed; color: #B8860B; }
+.case-bordure-basse-probleme { border-bottom: 2px solid #1E293B; }
+.badge-unite-probleme { font-size: 11px; color: var(--texte-gris); background: #F1F5F9; border-radius: 999px; padding: 2px 10px; }
+.operation-vide { color: #94A3B8; font-style: italic; margin: 0; }
+
+/* Lecture / corrigé (tableau à 2 colonnes, une ligne par étape). */
+.enonce-probleme { margin-bottom: 10px; }
+.tableau-probleme-lecture-v2 { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.tableau-probleme-lecture-v2 td { border: 1px solid var(--bordure); padding: 10px; vertical-align: top; }
+.cellule-solution-probleme-lecture { width: 46%; font-size: 13px; }
+.cellule-operation-probleme-lecture { text-align: center; }
+.equation-lecture-probleme { font-family: 'Courier New', Consolas, monospace; color: var(--texte-gris); margin: 4px 0 0; font-size: 13px; }
+.explication-lecture-probleme { margin-top: 6px; font-size: 12.5px; background: #FFF9E6; border-radius: 6px; padding: 6px 8px; }
+.explications-dessous-probleme { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+
+/* Correction détaillée (js/pages/activites-correction.js, js/devoirs-notes-rendu.js) :
+   grille de relecture + 3 notes libres par étape, sommées en direct. */
+.lignes-correction-probleme { display: flex; flex-direction: column; gap: 14px; margin: 10px 0; }
+.ligne-correction-probleme { display: grid; grid-template-columns: 1fr 1fr auto; gap: 14px; align-items: start; border: 1px solid var(--bordure); border-radius: 10px; padding: 12px; }
+.notes-correction-probleme { display: flex; flex-direction: column; gap: 8px; min-width: 120px; }
+.champ-note-probleme { display: flex; flex-direction: column; gap: 3px; font-size: 11px; font-weight: 700; color: var(--texte-gris); }
+.champ-note-probleme input { width: 90px; padding: 5px 6px; border: 1px solid var(--bordure); border-radius: 6px; font-size: 13px; }
+.total-note-correction-probleme { margin: 10px 0 4px; font-size: 14px; text-align: right; }
+.modal-boite-large { max-width: 760px; max-height: 85vh; overflow-y: auto; }
+@media (max-width: 640px) {
+  .ligne-probleme, .ligne-probleme-eleve, .ligne-correction-probleme { grid-template-columns: 1fr; }
+}
 
 /* Intrus lexical : une ligne par série (mots + choix de l'intrus). */
 .series-intrus { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }

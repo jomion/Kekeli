@@ -31,7 +31,14 @@
 // que l'utilisateur peut gérer ce devoir avant d'appeler initEditeurBlocsDevoir
 // — les policies RLS protègent aussi côté serveur en cas d'oubli.
 
-const TYPES_BLOCS_DEVOIR = ['exercice', 'correction', 'quiz', 'evaluation', 'activite'];
+// 'probleme' ajouté le 11 septembre 2026 (remplacement v2 du bloc Problème,
+// demande explicite du porteur du projet : "seance et devoir c'est ma
+// préférence pour le bloc problème") — voir js/editeur/blocs.js pour le
+// moteur partagé (parsing d'équation + génération de grille de calcul posé)
+// et attacherEcouteursProblemeDevoir plus bas pour le câblage propre au
+// devoir (mêmes fonctions que côté séance, juste raccordées aux fonctions
+// de sauvegarde/réaffichage de CE fichier).
+const TYPES_BLOCS_DEVOIR = ['exercice', 'correction', 'probleme', 'quiz', 'evaluation', 'activite'];
 // Types de blocs devoir qui utilisent l'éditeur de texte libre (comme un
 // bloc "Texte" de séance) plutôt que l'éditeur de questions structurées.
 const TYPES_BLOCS_DEVOIR_TEXTE_LIBRE = ['exercice', 'correction'];
@@ -123,6 +130,7 @@ function html_corpsBlocDevoir(bloc, competencesDisponibles) {
   if (TYPES_BLOCS_DEVOIR_TEXTE_LIBRE.includes(bloc.type_bloc)) {
     return html_editeurTexteRiche(bloc, c);
   }
+  if (bloc.type_bloc === 'probleme') return html_editeurProbleme(bloc, c);
   const questions = Array.isArray(c.questions) ? c.questions : [];
   return `
     <div class="champ-consigne-riche">
@@ -238,6 +246,114 @@ function attacherEcouteursBlocsDevoir(devoirId) {
     if (['quiz', 'evaluation', 'activite'].includes(bloc.type_bloc)) {
       attacherEcouteursQuestionsDevoir(devoirId, el, bloc);
     }
+    if (bloc.type_bloc === 'probleme') {
+      attacherEcouteursProblemeDevoir(devoirId, el, bloc);
+    }
+  });
+}
+
+// Câblage du bloc "Problème" v2 côté devoir — même logique que
+// attacherEcouteursProbleme dans js/pages/editeur-seance.js (moteur partagé
+// dans js/editeur/blocs.js), juste raccordée à sauvegarderBlocDevoir/
+// rendreBlocsDevoir plutôt qu'aux globales de l'éditeur de séance. Les champs
+// génériques (énoncé riche, donneesManuelles/inconnuesManuelles) sont déjà
+// couverts par le câblage générique juste au-dessus (zoneTexteLibre / boucle
+// data-champ) — seuls les réglages spécifiques et le tableau de résolution
+// (indexé par ligne) ont besoin d'un câblage dédié ici.
+function attacherEcouteursProblemeDevoir(devoirId, el, bloc) {
+  const corps = el.querySelector(':scope > .bloc-corps [data-lignes-probleme]');
+  if (!corps) return;
+  const c = () => bloc.contenu || {};
+
+  const lignesActuelles = () => {
+    const l = c().lignes;
+    return Array.isArray(l) && l.length ? l.map(x => ({ ...x })) : [problemeLigneParDefaut()];
+  };
+  const declencherRerendu = (nouveauxChamps) => {
+    bloc.contenu = { ...c(), ...nouveauxChamps };
+    sauvegarderBlocDevoir(devoirId, bloc);
+    rendreBlocsDevoir(devoirId);
+  };
+
+  ['modeAffichage', 'prepMode', 'explicationPos'].forEach(champ => {
+    const select = el.querySelector(`:scope > .bloc-corps [data-champ-probleme="${champ}"]`);
+    if (select) select.addEventListener('change', () => declencherRerendu({ [champ]: select.value }));
+  });
+
+  const casePoseParEleve = el.querySelector(':scope > .bloc-corps [data-champ-case-probleme="poseParEleve"]');
+  if (casePoseParEleve) casePoseParEleve.addEventListener('change', () => {
+    bloc.contenu = { ...c(), poseParEleve: casePoseParEleve.checked };
+    sauvegarderBlocDevoir(devoirId, bloc);
+  });
+
+  const rafraichirApercus = (lignes, iEquationSeule) => {
+    if (typeof iEquationSeule === 'number') {
+      const apercu = corps.querySelector(`[data-apercu-grille-probleme="${iEquationSeule}"]`);
+      if (apercu) {
+        const analyse = problemeAnalyserEquation(lignes[iEquationSeule].equation);
+        const idPrefixe = `probleme-devoir-${bloc.id}-${iEquationSeule}`;
+        apercu.innerHTML = analyse
+          ? problemeGenererGrilleHtml(analyse, { interactif: false, prefixeId: idPrefixe })
+          : `<p class="operation-vide">Saisissez une équation avec deux nombres et un opérateur (ex : 15 * 24 =) pour générer la grille.</p>`;
+      }
+    }
+    if ((c().prepMode || 'auto') !== 'manuel') {
+      const { donnees, inconnues } = problemeCalculerDonneesInconnues(lignes);
+      const ulDonnees = el.querySelector(':scope > .bloc-corps [data-liste-donnees-probleme]');
+      if (ulDonnees) ulDonnees.innerHTML = donnees.length ? donnees.map(d => `<li>${d}</li>`).join('') : '<li><em>Saisissez une équation…</em></li>';
+      const ulInconnues = el.querySelector(':scope > .bloc-corps [data-liste-inconnues-probleme]');
+      if (ulInconnues) ulInconnues.innerHTML = inconnues.length ? inconnues.map(u => `<li>${echapper(u)}</li>`).join('') : '<li><em>Saisissez une étape…</em></li>';
+    }
+  };
+
+  corps.querySelectorAll('[data-probleme-champ="description"]').forEach(champEl => {
+    champEl.addEventListener('input', () => {
+      const i = parseInt(champEl.dataset.problemeLigne, 10);
+      const lignes = lignesActuelles();
+      if (!lignes[i]) return;
+      lignes[i].description = champEl.innerHTML;
+      bloc.contenu = { ...c(), lignes };
+      sauvegarderBlocDevoir(devoirId, bloc);
+      rafraichirApercus(lignes);
+    });
+  });
+
+  corps.querySelectorAll('[data-probleme-champ="equation"]').forEach(champEl => {
+    champEl.addEventListener('input', () => {
+      const i = parseInt(champEl.dataset.problemeLigne, 10);
+      const lignes = lignesActuelles();
+      if (!lignes[i]) return;
+      lignes[i].equation = champEl.value;
+      bloc.contenu = { ...c(), lignes };
+      sauvegarderBlocDevoir(devoirId, bloc);
+      rafraichirApercus(lignes, i);
+    });
+  });
+
+  corps.querySelectorAll('[data-probleme-champ="explication"]').forEach(champEl => {
+    champEl.addEventListener('input', () => {
+      const i = parseInt(champEl.dataset.problemeLigne, 10);
+      const lignes = lignesActuelles();
+      if (!lignes[i]) return;
+      lignes[i].explication = champEl.value;
+      bloc.contenu = { ...c(), lignes };
+      sauvegarderBlocDevoir(devoirId, bloc);
+    });
+  });
+
+  const boutonAjouterLigne = el.querySelector(':scope > .bloc-corps [data-action-probleme="ajouter-ligne"]');
+  if (boutonAjouterLigne) boutonAjouterLigne.addEventListener('click', () => {
+    declencherRerendu({ lignes: [...lignesActuelles(), problemeLigneParDefaut()] });
+  });
+
+  corps.querySelectorAll('[data-action-probleme="supprimer-ligne"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (lignesActuelles().length <= 1) return alert('Le tableau doit garder au moins une étape de résolution.');
+      const i = parseInt(btn.dataset.problemeLigne, 10);
+      const lignes = lignesActuelles();
+      lignes.splice(i, 1);
+      declencherRerendu({ lignes });
+    });
   });
 }
 

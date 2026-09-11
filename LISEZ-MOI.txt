@@ -1,103 +1,98 @@
-KEKELI — Lot du 11 septembre 2026
-==================================
+KEKELI — Lot du 11 septembre 2026 (2)
+======================================
 
-Ce lot répond à la demande en 8 points concernant les devoirs, les notes et
-l'éditeur de séance. Voici ce qui a changé, fichier par fichier.
+Ce lot répond à la demande : remplacer le bloc "Problème" par un bloc offrant
+les mêmes fonctionnalités que le fichier de référence fourni (outil_math.html),
+en ajoutant la possibilité, pour l'enseignant, de décider si l'élève doit
+aussi poser lui-même l'opération avant de l'effectuer — fonctionnalité qui
+n'existait pas dans le fichier de référence. Un correctif de sécurité
+important (point 0) est inclus dans ce même lot.
 
-1) Correction du bug bloquant "invalid input value for enum type_bloc:
-   correction"
-   -----------------------------------------------------------------
-   La valeur 'correction' avait été ajoutée côté JS pour le nouveau bloc
-   Correction, mais jamais côté base de données. Corrigé directement en
-   base (migration Supabase appliquée immédiatement, comme convenu) :
-   plus aucune séance ne peut planter à l'ajout d'un bloc Correction.
-
-2) Cartes de devoirs cliquables, organisées par matière
-   -----------------------------------------------------
-   Fichiers : js/devoirs-notes-rendu.js, js/pages/eleve-devoirs-notes.js,
-   js/pages/parent-devoirs-notes.js, js/pages/enseignant-devoirs-notes.js,
-   css/style-public.css
-   Les cartes "Publiés / Brouillons / En retard / ..." ne se contentent
-   plus d'afficher un chiffre : un clic déroule directement la liste des
-   devoirs concernés, regroupés par matière, pour l'élève, le parent et
-   l'enseignant.
-
-3) Suppression et modification d'un devoir, même déjà publié
-   -----------------------------------------------------------
-   Fichiers : js/devoirs-notes-rendu.js, js/pages/enseignant-devoirs-notes.js,
-   js/pages/admin-devoirs-notes.js
-   Nouveaux boutons "✏️ Modifier" et "🗑️ Supprimer" sur chaque devoir, dans
-   les vues enseignant et admin, quel que soit son statut (brouillon ou
-   publié).
-
-4) Barème pour la correction automatique + note manuelle pour les exercices
-   libres des devoirs
-   ---------------------------------------------------------------------
-   Fichiers : js/editeur/devoir-blocs.js, js/pages/eleve-devoir-rendu.js,
-   js/devoirs-notes-rendu.js
-   Le bloc "Exercice" d'un devoir fonctionne maintenant comme celui d'une
-   séance (texte libre + bloc Correction), avec un champ HTML brut en
-   option (voir point 7). L'élève rend une réponse rédigée, l'enseignant la
-   corrige à la main et lui attribue une note — les blocs Quiz/Évaluation/
-   Activité gardent, eux, leur barème et leur correction automatique
-   inchangés.
-
-5) Affichage des notes réduit par défaut
-   ---------------------------------------
-   Fichiers : js/devoirs-notes-rendu.js, js/pages/eleve-devoirs-notes.js,
-   js/pages/parent-devoirs-notes.js, css/style-public.css
-   Les notes s'affichent maintenant en résumé compact, une ligne par
-   matière (dernière note/appréciation), dépliable pour voir le détail
-   complet — fini l'affichage encombrant de toutes les notes d'un coup.
-
-6) Bouton "🚀 Passer aux activités" dans l'éditeur de séance
-   -----------------------------------------------------------
-   Fichier : js/pages/editeur-seance.js
-   Un nouveau bouton, à côté de "🧠 Générer avec l'IA", permet de choisir
-   les blocs à créer (Consigne, Activité, Quiz, Évaluation) et le palier :
-   l'IA génère automatiquement leur contenu (questions + corrigé) à partir
-   de ce qui est déjà rédigé dans la séance, sans avoir à créer les blocs
-   un par un.
-
-7) HTML brut dans les exercices (séance et devoir)
-   ---------------------------------------------------
-   Fichiers : js/editeur/blocs.js, js/editeur/devoir-blocs.js,
-   js/pages/editeur-seance.js, js/pages/eleve-devoir-rendu.js, css/style.css
-   Une case à cocher sur le bloc "Exercice" (séance ET devoir) permet de
-   basculer en mode "HTML brut" pour coller une mise en page complexe
-   (tableau personnalisé, schéma...) — affichée à l'élève dans un cadre
-   isolé, sans script exécutable, comme le bloc "HTML libre" existant.
-
-8) Nouveau bloc "Problème" (mathématiques) avec tableau de résolution
+0) Correctif : des enseignants ne pouvaient pas corriger leurs propres devoirs
    ----------------------------------------------------------------------
+   En base de données uniquement (migration Supabase appliquée
+   immédiatement) — aucun fichier JS concerné.
+   En vérifiant les autorisations avant de construire ce lot, une erreur de
+   permissions préexistante a été repérée : les règles de sécurité (RLS) de
+   lecture/correction des devoirs utilisaient une fonction réservée aux
+   administrateurs habilités, alors qu'elles devaient aussi couvrir les
+   enseignants gérant leur classe. Concrètement, un enseignant pouvait créer
+   un devoir avec un bloc "Exercice" (texte libre), mais ne pouvait jamais
+   voir ni corriger les réponses de ses élèves une fois rendues — cette
+   fonctionnalité, livrée dans un lot précédent, n'avait donc jamais pu être
+   utilisée par un enseignant. Corrigé : les enseignants gérant la classe et
+   la matière concernées peuvent maintenant lire et corriger les devoirs de
+   leurs élèves, exactement comme les administrateurs habilités.
+
+1) Remplacement complet du bloc "Problème"
+   ----------------------------------------
    Fichiers : js/editeur/blocs.js, js/pages/editeur-seance.js,
-   js/pages/eleve-seance.js, js/apercu-blocs-seance.js, css/style.css,
-   css/style-public.css
-   Nouveau type de bloc "🧮 Problème" pour l'éditeur de séance :
+   js/editeur/devoir-blocs.js, js/pages/eleve-seance.js,
+   js/pages/eleve-devoir-rendu.js, css/style.css, css/style-public.css
+   L'ancien bloc "Problème" (tableau de résolution en lecture seule pour
+   l'élève) est entièrement remplacé par un nouveau bloc reproduisant le
+   fonctionnement du fichier fourni :
    - un énoncé rédigé avec l'éditeur riche habituel ;
-   - trois champs à renseigner avant la résolution : Données, Inconnues,
-     Autre ;
-   - un tableau de résolution où l'enseignant ajoute une ligne par étape :
-     colonne 1 la phrase de solution / l'équation posée, colonne 2 le
-     résultat trouvé, colonne 3 l'opération posée.
-   La colonne 3 propose deux gabarits : "Opération posée" (addition,
-   soustraction, multiplication — les chiffres s'alignent automatiquement
-   grâce à une police à chasse fixe alignée à droite, sans décalage) et
-   "Division posée" (dividende / diviseur / quotient présentés selon la
-   disposition classique, avec les étapes de soustraction en dessous,
-   alignées de la même façon). Ce bloc est en lecture seule côté élève
-   (pas de soumission ni de note automatique) — l'enseignant rédige
-   lui-même la résolution modèle.
-   Remarque : ce nouveau bloc a nécessité une migration Supabase (valeur
-   'probleme' ajoutée à l'énumération des types de blocs), déjà appliquée
-   en base au moment de cette livraison.
+   - une préparation "Données connues / Inconnues à trouver", soit détectée
+     automatiquement à partir des équations saisies (prix, masse, volume,
+     longueur, durée, ou nombre générique — même logique de détection que le
+     fichier de référence), soit remplie à la main par l'enseignant ;
+   - un tableau de résolution, une ligne par étape : une description de
+     l'étape, une équation (ex. "15 caisses * 24 € ="), et une grille de
+     calcul posé générée automatiquement (addition, soustraction et division
+     sur une grille simple ; multiplication avec les produits intermédiaires
+     détaillés, un par chiffre du second facteur) ;
+   - l'explication de chaque étape peut être placée dans la colonne Solution,
+     sous l'opération posée, ou regroupée en bas du tableau.
+   Le bloc peut être réglé sur "Corrigé" (exemple entièrement résolu, lecture
+   seule — comme avant) ou "Élève" (exercice interactif que l'élève remplit
+   lui-même, avec correction par l'enseignant ensuite) — les deux modes
+   demandés sont disponibles. Disponible aussi bien dans une séance que dans
+   un devoir, comme demandé.
+
+2) Nouveau réglage : "l'élève doit-il poser lui-même l'opération ?"
+   -----------------------------------------------------------------
+   Fichier : js/editeur/blocs.js (fonction problemeGenererGrilleHtml)
+   C'est la demande explicite qui allait au-delà du fichier fourni : une case
+   à cocher dans le bloc "Problème" ("✍️ En mode élève, l'élève doit aussi
+   poser lui-même l'opération..."). Non cochée (par défaut, comme dans le
+   fichier de référence) : les chiffres de l'équation restent pré-remplis
+   dans la grille, l'élève ne complète que les retenues/produits
+   intermédiaires/résultat. Cochée : l'équation n'est plus affichée en clair
+   à l'élève, et les chiffres de l'équation eux-mêmes deviennent des cases à
+   remplir dans la grille — l'élève doit donc d'abord comprendre l'énoncé
+   pour "poser" la bonne opération, avant de la résoudre.
+
+3) Soumission par l'élève et correction détaillée (séance ET devoir)
+   -------------------------------------------------------------------
+   Fichiers : js/pages/eleve-seance.js, js/pages/eleve-devoir-rendu.js,
+   js/pages/activites-correction.js, js/devoirs-notes-rendu.js,
+   js/pages/admin-devoirs-notes.js, js/pages/enseignant-devoirs-notes.js,
+   pages/admin/activites.html, css/style.css, css/style-public.css
+   En mode "Élève", l'élève remplit la grille directement dans la séance ou
+   le devoir, puis rend sa copie (essais illimités). Le correcteur (admin
+   pour les séances, admin/enseignant habilité pour les devoirs) voit
+   exactement ce que l'élève a écrit et attribue, pour chaque étape, trois
+   notes libres — Solution, Équation, Résultat — sans note maximale fixée
+   par case : ces notes sont sommées automatiquement pour donner la note
+   finale sur 20, affichée en direct pendant la correction.
+   Remarque : ce lot a nécessité une nouvelle colonne en base de données
+   (rendus_activites.details_notation, pour garder le détail des notes par
+   étape), déjà appliquée en base au moment de cette livraison.
 
 Vérifications effectuées
 -------------------------
-- node --check sur les 13 fichiers JS modifiés : aucune erreur de syntaxe.
+- node --check sur les 10 fichiers JS modifiés : aucune erreur de syntaxe.
 - Vérification de cohérence des accolades sur les 2 fichiers CSS modifiés.
-- Contrôle de sécurité Supabase (get_advisors) après la migration : aucune
-  nouvelle alerte introduite par ce lot.
+- Contrôle de sécurité Supabase (get_advisors) après les deux migrations :
+  aucune nouvelle alerte introduite par ce lot.
+- Script de vérification indépendant (17 tests) de l'analyse d'équation et
+  de la génération de grille (addition, soustraction, multiplication à
+  plusieurs chiffres, division, détection d'unité, mode "poser soi-même
+  l'opération", relecture d'une copie, somme des notes) : tous passés.
+- Relecture des règles de sécurité de la base (RLS) pour confirmer que la
+  soumission et la correction fonctionnent bien dans les deux contextes
+  (séance et devoir), pour les élèves comme pour les correcteurs habilités.
 
 Comme convenu, ce zip ne contient que les fichiers créés ou modifiés
 depuis la dernière livraison (livraison différentielle) — aucun fichier

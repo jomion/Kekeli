@@ -542,8 +542,10 @@ function attacherEcouteursBloc(bloc) {
 // concernée par cette restriction : elle continue d'accepter tout type.
 // 11 septembre 2026 : 'exercice' retiré — c'est désormais un bloc de texte
 // libre comme les autres, autorisé dans une section "Contenu" ('correction'
-// aussi, par cohérence : même famille de blocs).
-const TYPES_INTERDITS_DANS_CONTENU = ['quiz', 'evaluation', 'activite', 'consigne', 'item'];
+// aussi, par cohérence : même famille de blocs). 'probleme' AJOUTÉ le même
+// jour (remplacement v2) : en mode "élève" c'est désormais un exercice noté
+// avec soumission (comme "activité"), donc soumis à la même restriction.
+const TYPES_INTERDITS_DANS_CONTENU = ['quiz', 'evaluation', 'activite', 'probleme', 'consigne', 'item'];
 
 function typesAutorisesPourParent(parentBlocId) {
   if (!parentBlocId) return TYPES_BLOCS;
@@ -645,82 +647,117 @@ function attacherEcouteursTableau(el, bloc) {
   });
 }
 
-// --- PROBLÈME : phrase/résultat/opération posée du tableau de résolution ---
-// Voir html_editeurProbleme (js/editeur/blocs.js) pour le détail du modèle.
-// Les champs Données/Inconnues/Autre (data-champ="donnees"/"inconnues"/"autre")
-// et l'énoncé riche (data-champ-riche="enonce") sont déjà couverts par le
-// câblage générique en tête d'attacherEcouteursBloc — seul le tableau de
-// résolution (tableau de lignes, chacune avec sa propre opération posée)
-// a besoin d'un câblage dédié ici, car indexé par ligne comme le tableau
-// générique (attacherEcouteursTableau) mais avec une forme différente
-// (objets, pas des cellules de texte).
+// --- PROBLÈME v2 : réglages + tableau de résolution (11 septembre 2026) ----
+// Voir js/editeur/blocs.js (commentaire en tête de la section "BLOC PROBLÈME
+// v2") pour le détail du modèle et le moteur de génération de grille. Les
+// réglages "modeAffichage"/"prepMode"/"explicationPos" changent la STRUCTURE
+// affichée (texte libre <-> liste auto, position de l'explication...), donc
+// déclenchent un ré-affichage complet du bloc comme la case "HTML brut" du
+// bloc Exercice, plus haut. "poseParEleve" n'affecte jamais l'aperçu de
+// l'éditeur (toujours en lecture seule, quel que soit son état) : simple
+// sauvegarde. La description/équation de chaque ligne sont rafraîchies
+// SANS ré-affichage complet (juste la grille de calcul de cette ligne + les
+// listes Données/Inconnues en mode auto), pour ne jamais faire perdre le
+// focus/curseur pendant la frappe.
 function attacherEcouteursProbleme(el, bloc) {
-  const conteneur = el.querySelector(':scope > .bloc-corps [data-tableau-probleme]');
-  if (!conteneur) return;
+  const corps = el.querySelector(':scope > .bloc-corps [data-lignes-probleme]');
+  if (!corps) return;
   const c = () => bloc.contenu || {};
 
   const lignesActuelles = () => {
     const l = c().lignes;
-    return Array.isArray(l) && l.length
-      ? l.map(x => ({ ...x, operation: { ...operationProblemeParDefaut(), ...(x.operation || {}) } }))
-      : [ligneProblemeParDefaut()];
+    return Array.isArray(l) && l.length ? l.map(x => ({ ...x })) : [problemeLigneParDefaut()];
   };
-  const declencherRerendu = (lignes) => {
-    bloc.contenu = { ...c(), lignes };
+  const declencherRerendu = (nouveauxChamps) => {
+    bloc.contenu = { ...c(), ...nouveauxChamps };
     programmerSauvegardeBloc(bloc);
     rendreListeBlocs();
   };
 
-  // Phrase / résultat : simples champs texte, pas de ré-affichage nécessaire.
-  conteneur.querySelectorAll('[data-probleme-champ="phrase"], [data-probleme-champ="resultat"]').forEach(champEl => {
+  // Réglages globaux (structurels -> ré-affichage complet).
+  ['modeAffichage', 'prepMode', 'explicationPos'].forEach(champ => {
+    const select = el.querySelector(`:scope > .bloc-corps [data-champ-probleme="${champ}"]`);
+    if (select) select.addEventListener('change', () => declencherRerendu({ [champ]: select.value }));
+  });
+
+  // "L'élève doit aussi poser lui-même l'opération" — n'affecte jamais
+  // l'aperçu de l'éditeur (toujours statique), simple sauvegarde.
+  const caseposeParEleve = el.querySelector(':scope > .bloc-corps [data-champ-case-probleme="poseParEleve"]');
+  if (caseposeParEleve) caseposeParEleve.addEventListener('change', () => {
+    bloc.contenu = { ...c(), poseParEleve: caseposeParEleve.checked };
+    programmerSauvegardeBloc(bloc);
+  });
+
+  // Rafraîchit, SANS ré-affichage complet, la grille de calcul d'une ligne
+  // (à partir de sa nouvelle équation) et — en mode auto — les listes
+  // Données/Inconnues, à partir de l'état actuellement en mémoire.
+  const rafraichirApercus = (lignes, iEquationSeule) => {
+    if (typeof iEquationSeule === 'number') {
+      const apercu = corps.querySelector(`[data-apercu-grille-probleme="${iEquationSeule}"]`);
+      if (apercu) {
+        const analyse = problemeAnalyserEquation(lignes[iEquationSeule].equation);
+        const idPrefixe = `probleme-${bloc.id}-${iEquationSeule}`;
+        apercu.innerHTML = analyse
+          ? problemeGenererGrilleHtml(analyse, { interactif: false, prefixeId: idPrefixe })
+          : `<p class="operation-vide">Saisissez une équation avec deux nombres et un opérateur (ex : 15 * 24 =) pour générer la grille.</p>`;
+      }
+    }
+    if ((c().prepMode || 'auto') !== 'manuel') {
+      const { donnees, inconnues } = problemeCalculerDonneesInconnues(lignes);
+      const ulDonnees = el.querySelector(':scope > .bloc-corps [data-liste-donnees-probleme]');
+      if (ulDonnees) ulDonnees.innerHTML = donnees.length ? donnees.map(d => `<li>${d}</li>`).join('') : '<li><em>Saisissez une équation…</em></li>';
+      const ulInconnues = el.querySelector(':scope > .bloc-corps [data-liste-inconnues-probleme]');
+      if (ulInconnues) ulInconnues.innerHTML = inconnues.length ? inconnues.map(u => `<li>${echapper(u)}</li>`).join('') : '<li><em>Saisissez une étape…</em></li>';
+    }
+  };
+
+  corps.querySelectorAll('[data-probleme-champ="description"]').forEach(champEl => {
     champEl.addEventListener('input', () => {
       const i = parseInt(champEl.dataset.problemeLigne, 10);
       const lignes = lignesActuelles();
       if (!lignes[i]) return;
-      lignes[i][champEl.dataset.problemeChamp] = champEl.value;
+      lignes[i].description = champEl.innerHTML;
       bloc.contenu = { ...c(), lignes };
       programmerSauvegardeBloc(bloc);
+      rafraichirApercus(lignes);
     });
   });
 
-  // Champs de l'opération posée (texte libre, ou dividende/diviseur/quotient/étapes).
-  conteneur.querySelectorAll('[data-probleme-champ="texte"], [data-probleme-champ="dividende"], [data-probleme-champ="diviseur"], [data-probleme-champ="quotient"], [data-probleme-champ="etapes"]').forEach(champEl => {
+  corps.querySelectorAll('[data-probleme-champ="equation"]').forEach(champEl => {
     champEl.addEventListener('input', () => {
       const i = parseInt(champEl.dataset.problemeLigne, 10);
       const lignes = lignesActuelles();
       if (!lignes[i]) return;
-      lignes[i].operation = { ...lignes[i].operation, [champEl.dataset.problemeChamp]: champEl.value };
+      lignes[i].equation = champEl.value;
       bloc.contenu = { ...c(), lignes };
       programmerSauvegardeBloc(bloc);
+      rafraichirApercus(lignes, i);
     });
   });
 
-  // Mode de l'opération (posée simple <-> division) : change la structure
-  // affichée, donc un ré-affichage complet du bloc est nécessaire (même
-  // principe que la case "HTML brut" du bloc Exercice, plus haut).
-  conteneur.querySelectorAll('[data-probleme-mode]').forEach(radio => {
-    radio.addEventListener('change', () => {
-      if (!radio.checked) return;
-      const i = parseInt(radio.dataset.problemeLigne, 10);
+  corps.querySelectorAll('[data-probleme-champ="explication"]').forEach(champEl => {
+    champEl.addEventListener('input', () => {
+      const i = parseInt(champEl.dataset.problemeLigne, 10);
       const lignes = lignesActuelles();
       if (!lignes[i]) return;
-      lignes[i].operation = { ...lignes[i].operation, mode: radio.value };
-      declencherRerendu(lignes);
+      lignes[i].explication = champEl.value;
+      bloc.contenu = { ...c(), lignes };
+      programmerSauvegardeBloc(bloc);
     });
   });
 
   const boutonAjouterLigne = el.querySelector(':scope > .bloc-corps [data-action-probleme="ajouter-ligne"]');
   if (boutonAjouterLigne) boutonAjouterLigne.addEventListener('click', () => {
-    declencherRerendu([...lignesActuelles(), ligneProblemeParDefaut()]);
+    declencherRerendu({ lignes: [...lignesActuelles(), problemeLigneParDefaut()] });
   });
 
-  conteneur.querySelectorAll('[data-action-probleme="supprimer-ligne"]').forEach(btn => {
+  corps.querySelectorAll('[data-action-probleme="supprimer-ligne"]').forEach(btn => {
     btn.addEventListener('click', () => {
-      if (lignesActuelles().length <= 1) return alert('Le tableau doit garder au moins une ligne de résolution.');
+      if (lignesActuelles().length <= 1) return alert('Le tableau doit garder au moins une étape de résolution.');
       const i = parseInt(btn.dataset.problemeLigne, 10);
       const lignes = lignesActuelles();
       lignes.splice(i, 1);
-      declencherRerendu(lignes);
+      declencherRerendu({ lignes });
     });
   });
 }
@@ -1752,7 +1789,7 @@ function ouvrirGenerationIA(bloc) {
 function texteBlocPourResume(bloc) {
   const c = bloc.contenu || {};
   if (TYPES_TEXTE_LIBRE.includes(bloc.type_bloc)) return texteBrutDepuisHtml(c.texte);
-  if (bloc.type_bloc === 'probleme') return [texteBrutDepuisHtml(c.enonce), c.donnees, c.inconnues].filter(Boolean).join('\n');
+  if (bloc.type_bloc === 'probleme') return [texteBrutDepuisHtml(c.enonce), ...(Array.isArray(c.lignes) ? c.lignes.map(l => texteBrutDepuisHtml(l.description)) : [])].filter(Boolean).join('\n');
   if (bloc.type_bloc === 'titre') return c.texte ? `— ${c.texte} —` : '';
   if (bloc.type_bloc === 'consigne' || bloc.type_bloc === 'autre') return [c.nom, c.texte].filter(Boolean).join(' : ');
   if (['quiz', 'evaluation', 'activite'].includes(bloc.type_bloc)) {
@@ -2464,7 +2501,7 @@ async function ouvrirApercu() {
       corps = `${c.titre ? `<p style="font-weight:700;margin-bottom:6px">${echapper(c.titre)}</p>` : ''}<table>${lignesHtml}</table>`;
     }
     else if (b.type_bloc === 'html_libre') corps = html_blocHtmlLibre(c.code, libelle);
-    else if (b.type_bloc === 'probleme') corps = html_lectureProbleme(c);
+    else if (b.type_bloc === 'probleme') corps = html_lectureProbleme(c, b.id);
     else corps = `<p>${echapper(c.consigne || c.texte || '')}</p>`;
 
     const enfants = blocs.filter(x => x.parent_bloc_id === b.id).sort((a, b2) => a.ordre - b2.ordre);

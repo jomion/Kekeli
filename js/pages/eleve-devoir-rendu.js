@@ -62,7 +62,11 @@ async function chargerDevoir() {
   // main) au lieu de reponses_exercices — "correction" ne recueille jamais
   // aucune réponse (contenu masqué/révélé uniquement, comme côté séance).
   const idsExercicesStructures = blocsDevoirCourant.filter(b => ['quiz', 'evaluation', 'activite'].includes(b.type_bloc)).map(b => b.id);
-  const idsReponsesLibres = blocsDevoirCourant.filter(b => ['exercice', 'activite'].includes(b.type_bloc)).map(b => b.id);
+  // 'probleme' ajouté le 11 septembre 2026 (v2, remplacement) : partage
+  // rendus_activites avec 'exercice'/'activite' (voir js/editeur/blocs.js) —
+  // demande explicite du porteur du projet : le bloc Problème doit exister
+  // aussi bien en séance qu'en devoir.
+  const idsReponsesLibres = blocsDevoirCourant.filter(b => ['exercice', 'activite', 'probleme'].includes(b.type_bloc)).map(b => b.id);
   reponsesExistantesDevoir = {};
   rendusActivitesExistantsDevoir = {};
   formulairesReouvertsDevoir.clear();
@@ -120,6 +124,7 @@ function rendreDevoir() {
 
   attacherEcouteursExercicesDevoir();
   attacherEcouteursActivitesDevoir();
+  attacherEcouteursProblemesDevoir();
   attacherEcouteursExercicesLibresDevoir();
   attacherEcouteursCorrectionsDevoir();
   attacherEcouteursRefaireDevoir();
@@ -171,6 +176,7 @@ function rendreBlocTravailDevoir(b) {
   // voir rendreExerciceLibreDevoir ci-dessous.
   let corps;
   if (b.type_bloc === 'exercice') corps = rendreExerciceLibreDevoir(b, c);
+  else if (b.type_bloc === 'probleme') corps = rendreProblemeDevoir(b, c);
   else {
     const aRenduLegacy = b.type_bloc === 'activite' && (rendusActivitesExistantsDevoir[b.id] || []).length > 0;
     corps = aRenduLegacy ? rendreActiviteDevoir(b, c) : rendreExerciceDevoir(b, c);
@@ -221,6 +227,44 @@ function rendreExerciceLibreDevoir(b, c) {
     <form data-form-exercice-libre-devoir="${b.id}" class="activite-lecture">
       <textarea name="reponse" required placeholder="Écris ta réponse ici..."></textarea>
       <input type="url" name="piece_jointe" placeholder="Lien vers une pièce jointe (optionnel)">
+      <button type="submit" class="btn btn-filled bouton-valider-exercice">📤 Rendre mon travail</button>
+    </form>
+  `;
+}
+
+// Bloc "Problème" v2 côté devoir (11 septembre 2026, remplacement) — même
+// mécanisme que rendreProbleme dans js/pages/eleve-seance.js (rendus_activites,
+// grille de calcul posé interactive), voir js/editeur/blocs.js pour le moteur
+// partagé. modeAffichage='corrige' reste un exemple entièrement résolu, en
+// lecture seule (support de cours dans le devoir, pas un exercice à rendre).
+function rendreProblemeDevoir(b, c) {
+  if ((c.modeAffichage || 'eleve') === 'corrige') return html_lectureProbleme(c, b.id);
+
+  const essais = rendusActivitesExistantsDevoir[b.id] || [];
+  const dernier = essais[essais.length - 1];
+
+  if (dernier && !formulairesReouvertsDevoir.has(b.id)) {
+    const reponseLignes = lireReponseProbleme(dernier.reponse_texte);
+    if (dernier.corrige_le) {
+      return `
+        ${html_relectureProbleme(c, reponseLignes)}
+        <div class="carte-note-activite">
+          ✅ Corrigé${dernier.note != null ? ` — <strong>${dernier.note}/${dernier.bareme}</strong>` : ''}
+          ${dernier.appreciation ? ` — ${{ acquis: 'Acquis', en_cours: 'En cours', non_acquis: 'Non acquis' }[dernier.appreciation]}` : ''}
+          ${libelleMedailleDevoir(dernier.medaille, dernier.numero_essai)}
+          ${dernier.commentaire ? `<p style="margin:6px 0 0">💬 ${echapper(dernier.commentaire)}</p>` : ''}
+        </div>
+        <button type="button" class="btn btn-discret" data-refaire-devoir="${b.id}" data-type-refaire-devoir="probleme" style="margin-top:10px">🔄 Refaire ce problème</button>`;
+    }
+    return `
+      ${html_relectureProbleme(c, reponseLignes)}
+      <p style="font-size:12px;color:var(--text-gris);margin-top:8px">⏳ En attente de correction.</p>`;
+  }
+
+  return `
+    ${essais.length ? `<p style="font-size:12px;color:var(--text-gris)">Nouvel essai (n°${essais.length + 1})</p>` : ''}
+    <form data-form-probleme-devoir="${b.id}" data-nb-lignes-probleme="${(Array.isArray(c.lignes) ? c.lignes.filter(l => l && (l.description || l.equation)) : []).length}">
+      ${html_formulaireProbleme(b, c)}
       <button type="submit" class="btn btn-filled bouton-valider-exercice">📤 Rendre mon travail</button>
     </form>
   `;
@@ -742,6 +786,41 @@ function attacherEcouteursActivitesDevoir() {
       const { data, error } = await supabaseClient.from('rendus_activites').insert({
         bloc_id: blocId, eleve_id: profilEleveDevoir.id, numero_essai: numeroEssai,
         reponse_texte: reponseTexte, piece_jointe_url: pieceJointe || null
+      }).select().single();
+
+      if (error) {
+        alert(error.message);
+        boutonValider.disabled = false;
+        boutonValider.textContent = '📤 Rendre mon travail';
+        return;
+      }
+      (rendusActivitesExistantsDevoir[blocId] ??= []).push(data);
+      formulairesReouvertsDevoir.delete(blocId);
+      rendreDevoir();
+    });
+  });
+}
+
+// Soumission du bloc "Problème" v2 côté devoir — mêmes principes que
+// attacherEcouteursProblemes dans js/pages/eleve-seance.js (voir
+// collecterReponseProbleme dans js/editeur/blocs.js pour le format JSON
+// stocké dans reponse_texte).
+function attacherEcouteursProblemesDevoir() {
+  document.querySelectorAll('[data-form-probleme-devoir]').forEach(form => {
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const blocId = parseInt(form.dataset.formProblemeDevoir, 10);
+      const nbLignes = parseInt(form.dataset.nbLignesProbleme, 10) || 0;
+      const reponseTexte = collecterReponseProbleme(form, nbLignes);
+      const numeroEssai = (rendusActivitesExistantsDevoir[blocId] || []).length + 1;
+
+      const boutonValider = form.querySelector('button[type=submit]');
+      boutonValider.disabled = true;
+      boutonValider.textContent = 'Envoi en cours...';
+
+      const { data, error } = await supabaseClient.from('rendus_activites').insert({
+        bloc_id: blocId, eleve_id: profilEleveDevoir.id, numero_essai: numeroEssai,
+        reponse_texte: reponseTexte, piece_jointe_url: null
       }).select().single();
 
       if (error) {

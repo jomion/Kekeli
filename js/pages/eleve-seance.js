@@ -31,7 +31,11 @@ let formulairesReouverts = new Set(); // bloc_id pour lesquels l'élève a cliqu
 // 11 septembre 2026 : 'exercice' retiré de la liste des blocs "travail" —
 // c'est désormais un bloc de texte libre (lecture), voir rendreBlocLecture
 // et le nouveau bloc 'correction' (masqué, révélé par un bouton) juste après.
-const TYPES_TRAVAIL = ['quiz', 'evaluation', 'activite'];
+// 'probleme' ajouté le même jour (remplacement v2 du bloc Problème) : en
+// mode "élève" il devient un exercice interactif à rendre (comme "activité"),
+// donc doit passer par la colonne "à faire" plutôt que la colonne lecture —
+// voir rendreBlocTravail/rendreProbleme plus bas.
+const TYPES_TRAVAIL = ['quiz', 'evaluation', 'activite', 'probleme'];
 const LIBELLES_PALIER_ELEVE = { azovi: '🌱 Azɔ̀ví', devi: '🪘 Dèví', ogan: '🦁 Ògán', axosu: '👑 Axɔ́sú' };
 // Couleurs "pleines" (fond dense) des sections Paliers, demandées le 5
 // septembre 2026 pour remplacer le bandeau bleu unique — l'axosu est ici
@@ -117,7 +121,9 @@ async function charger() {
   // en parallèle pour l'historique des anciennes activités (texte libre
   // corrigé à la main) créées avant cette refonte — voir rendreBlocTravail.
   const idsExercices = blocsCourants.filter(b => ['quiz', 'evaluation', 'activite'].includes(b.type_bloc)).map(b => b.id);
-  const idsActivites = blocsCourants.filter(b => b.type_bloc === 'activite').map(b => b.id);
+  // 'probleme' ajouté le 11 septembre 2026 (v2) : partage rendus_activites
+  // avec 'activite' — même table, mêmes colonnes (voir js/editeur/blocs.js).
+  const idsActivites = blocsCourants.filter(b => b.type_bloc === 'activite' || b.type_bloc === 'probleme').map(b => b.id);
   reponsesExistantes = {};
   rendusActivitesExistants = {};
   formulairesReouverts.clear();
@@ -228,6 +234,7 @@ function rendre() {
 
   attacherEcouteursExercices();
   attacherEcouteursActivites();
+  attacherEcouteursProblemes();
   attacherEcouteursRefaire();
   attacherEcouteursCorrections();
   const btnMarquerTermine = document.getElementById('btnMarquerTermine');
@@ -287,7 +294,7 @@ function rendreBlocTravail(b) {
   // activité (pas encore de rendu legacy) passe par le parcours structuré
   // (questions + corrigé auto), comme un exercice/quiz/évaluation.
   const aRenduLegacy = b.type_bloc === 'activite' && (rendusActivitesExistants[b.id] || []).length > 0;
-  const corps = aRenduLegacy ? rendreActivite(b, c) : rendreExercice(b, c);
+  const corps = b.type_bloc === 'probleme' ? rendreProbleme(b, c) : (aRenduLegacy ? rendreActivite(b, c) : rendreExercice(b, c));
   return `<div class="bloc-lecture" style="border-left-color:${couleur};background:${teinteClaire(couleurFond, 0.04)}">
     <div class="bloc-lecture-titre" style="color:${couleur}">${info.icone} ${echapper(libelle)}</div>
     ${corps}
@@ -433,6 +440,46 @@ function rendreActivite(b, c) {
     <form data-form-activite="${b.id}" class="activite-lecture">
       <textarea name="reponse" required placeholder="Écris ta réponse ici..."></textarea>
       <input type="url" name="piece_jointe" placeholder="Lien vers une pièce jointe (optionnel)">
+      <button type="submit" class="btn btn-filled bouton-valider-exercice">📤 Rendre mon travail</button>
+    </form>
+  `;
+}
+
+// Bloc "Problème" v2 (11 septembre 2026, remplacement) — même mécanisme que
+// "activité" ci-dessus (rendus_activites, correction manuelle par un
+// enseignant/admin), mais avec un formulaire de grille de calcul posé
+// (voir html_formulaireProbleme/html_relectureProbleme dans js/editeur/blocs.js)
+// au lieu d'un simple textarea. modeAffichage='corrige' reste un exemple
+// entièrement résolu, en LECTURE SEULE, jamais soumissible (l'enseignant l'a
+// choisi comme support de cours plutôt que comme exercice à rendre).
+function rendreProbleme(b, c) {
+  if ((c.modeAffichage || 'eleve') === 'corrige') return html_lectureProbleme(c, b.id);
+
+  const essais = rendusActivitesExistants[b.id] || [];
+  const dernier = essais[essais.length - 1];
+
+  if (dernier && !formulairesReouverts.has(b.id)) {
+    const reponseLignes = lireReponseProbleme(dernier.reponse_texte);
+    if (dernier.corrige_le) {
+      return `
+        ${html_relectureProbleme(c, reponseLignes)}
+        <div class="carte-note-activite">
+          ✅ Corrigé${dernier.note != null ? ` — <strong>${dernier.note}/${dernier.bareme}</strong>` : ''}
+          ${dernier.appreciation ? ` — ${{ acquis: 'Acquis', en_cours: 'En cours', non_acquis: 'Non acquis' }[dernier.appreciation]}` : ''}
+          ${libelleMedaille(dernier.medaille, dernier.numero_essai)}
+          ${dernier.commentaire ? `<p style="margin:6px 0 0">💬 ${echapper(dernier.commentaire)}</p>` : ''}
+        </div>
+        <button type="button" class="btn btn-discret" data-refaire="${b.id}" data-type-refaire="probleme" style="margin-top:10px">🔄 Refaire ce problème</button>`;
+    }
+    return `
+      ${html_relectureProbleme(c, reponseLignes)}
+      <p style="font-size:12px;color:var(--text-gris);margin-top:8px">⏳ En attente de correction.</p>`;
+  }
+
+  return `
+    ${essais.length ? `<p style="font-size:12px;color:var(--text-gris)">Nouvel essai (n°${essais.length + 1})</p>` : ''}
+    <form data-form-probleme="${b.id}" data-nb-lignes-probleme="${(Array.isArray(c.lignes) ? c.lignes.filter(l => l && (l.description || l.equation)) : []).length}">
+      ${html_formulaireProbleme(b, c)}
       <button type="submit" class="btn btn-filled bouton-valider-exercice">📤 Rendre mon travail</button>
     </form>
   `;
@@ -923,6 +970,42 @@ function attacherEcouteursActivites() {
       const { data, error } = await supabaseClient.from('rendus_activites').insert({
         bloc_id: blocId, eleve_id: profilEleveSeance.id, numero_essai: numeroEssai,
         reponse_texte: reponseTexte, piece_jointe_url: pieceJointe || null
+      }).select().single();
+
+      if (error) {
+        alert(error.message);
+        boutonValider.disabled = false;
+        boutonValider.textContent = '📤 Rendre mon travail';
+        return;
+      }
+      (rendusActivitesExistants[blocId] ??= []).push(data);
+      formulairesReouverts.delete(blocId);
+      rendre();
+    });
+  });
+}
+
+// Soumission du bloc "Problème" v2 — collecte toutes les cases de la grille
+// de chaque étape (voir collecterReponseProbleme dans js/editeur/blocs.js) et
+// les enregistre en JSON dans rendus_activites.reponse_texte, exactement
+// comme le texte libre d'une "activité" (même table, même mécanisme de
+// correction manuelle par la suite).
+function attacherEcouteursProblemes() {
+  document.querySelectorAll('[data-form-probleme]').forEach(form => {
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const blocId = parseInt(form.dataset.formProbleme, 10);
+      const nbLignes = parseInt(form.dataset.nbLignesProbleme, 10) || 0;
+      const reponseTexte = collecterReponseProbleme(form, nbLignes);
+      const numeroEssai = (rendusActivitesExistants[blocId] || []).length + 1;
+
+      const boutonValider = form.querySelector('button[type=submit]');
+      boutonValider.disabled = true;
+      boutonValider.textContent = 'Envoi en cours...';
+
+      const { data, error } = await supabaseClient.from('rendus_activites').insert({
+        bloc_id: blocId, eleve_id: profilEleveSeance.id, numero_essai: numeroEssai,
+        reponse_texte: reponseTexte, piece_jointe_url: null
       }).select().single();
 
       if (error) {

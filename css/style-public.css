@@ -558,32 +558,93 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .contenu-riche-lecture p, .contenu-riche-lecture div { margin-left: 0 !important; text-indent: 0 !important; }
 .contenu-riche-lecture img { margin-left: 0 !important; }
 
-/* ===== Bloc "Problème" (11 septembre 2026) — lecture élève ===== */
+/* ===== Bloc "Problème" v2 (11 septembre 2026 — remplacement complet, moteur
+   de grille de calcul posé unique partagé avec l'éditeur et la correction,
+   voir js/editeur/blocs.js) — lecture/formulaire/relecture côté élève. ===== */
 .enonce-probleme { margin-bottom: 10px; }
-.entete-probleme-lecture { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin: 10px 0; background: #F8FAFC; border-radius: 8px; padding: 10px 12px; }
-.champ-entete-probleme-lecture strong { display: block; font-size: 12px; color: var(--texte-gris, #64748B); margin-bottom: 2px; }
-.champ-entete-probleme-lecture p { margin: 0; font-size: 14px; }
-
-.tableau-probleme-lecture { width: 100%; border-collapse: collapse; margin-top: 10px; }
-.tableau-probleme-lecture th { background: #F1F5F9; font-size: 12px; text-align: left; padding: 6px 8px; border: 1px solid var(--bordure); }
-.tableau-probleme-lecture td { border: 1px solid var(--bordure); padding: 8px; vertical-align: top; }
-.tableau-probleme-lecture th:nth-child(1), .tableau-probleme-lecture td:nth-child(1) { width: 42%; }
-.tableau-probleme-lecture th:nth-child(2), .tableau-probleme-lecture td:nth-child(2) { width: 16%; text-align: center; font-weight: 700; }
-.tableau-probleme-lecture th:nth-child(3), .tableau-probleme-lecture td:nth-child(3) { width: 42%; text-align: center; }
 .operation-vide { color: #94A3B8; font-style: italic; margin: 0; }
 
-/* Gabarit de division "posée" (potence) : dividende à gauche, diviseur en
-   haut à droite séparé du quotient par un trait — même principe que le
-   tableau papier classique, pour que l'enfant reconnaisse la disposition. */
-.division-lecture-haut { display: inline-flex; align-items: flex-start; }
-.division-lecture-dividende { padding: 2px 10px 2px 2px; font-family: 'Courier New', Consolas, monospace; font-size: 16px; }
-.division-lecture-potence { border-left: 2px solid #1E293B; border-top: 2px solid #1E293B; padding: 2px 12px; display: flex; flex-direction: column; align-items: center; min-width: 44px; }
-.division-lecture-diviseur { padding-bottom: 4px; border-bottom: 2px solid #1E293B; width: 100%; text-align: center; font-family: 'Courier New', Consolas, monospace; }
-.division-lecture-quotient { padding-top: 4px; font-weight: 700; text-align: center; font-family: 'Courier New', Consolas, monospace; }
-/* Grille d'opération posée (addition/soustraction/multiplication, ou étapes
-   de division) : police à chasse fixe + alignement à droite, pour que les
-   chiffres tombent dans la bonne colonne sans décalage désordonné. */
-.grille-operation-lecture { font-family: 'Courier New', Consolas, monospace; font-size: 15px; line-height: 1.6; letter-spacing: 1px; text-align: right; white-space: pre-wrap; margin: 6px 0 0; background: #F8FAFC; border-radius: 6px; padding: 6px 10px; display: inline-block; min-width: 70px; }
+.prep-grille-probleme-lecture { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 10px 0; }
+.prep-boite-probleme-lecture { background: #F8FAFC; border-radius: 8px; padding: 10px 12px; border: 1px solid var(--bordure); }
+.prep-boite-probleme-lecture h4 { margin: 0 0 6px; font-size: 12px; color: var(--text-gris); text-transform: uppercase; letter-spacing: .3px; }
+.prep-boite-probleme-lecture ul { margin: 0; padding-left: 18px; font-size: 13px; }
+.prep-boite-probleme-lecture li { margin-bottom: 3px; }
+.nature-donnee-probleme { font-weight: 700; color: var(--bleu-kekeli); }
+
+/* Tableau de résolution en lecture/corrigé (2 colonnes, une ligne par étape). */
+.tableau-probleme-lecture-v2 { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.tableau-probleme-lecture-v2 td { border: 1px solid var(--bordure); padding: 10px; vertical-align: top; }
+.cellule-solution-probleme-lecture { width: 46%; font-size: 13px; }
+.cellule-operation-probleme-lecture { text-align: center; }
+.equation-lecture-probleme { font-family: 'Courier New', Consolas, monospace; color: var(--text-gris); margin: 4px 0 0; font-size: 13px; }
+.explication-lecture-probleme { margin-top: 6px; font-size: 12.5px; background: #FFF9E6; border-radius: 6px; padding: 6px 8px; }
+.explications-dessous-probleme { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+
+/* Formulaire interactif élève (mêmes 2 colonnes que le tableau de lecture,
+   mais éditable) et sa relecture après soumission (lecture seule, montrant
+   ce que l'élève a réellement écrit — voir html_relectureProbleme). */
+.lignes-probleme-eleve { display: flex; flex-direction: column; gap: 12px; margin: 10px 0; }
+.ligne-probleme-eleve { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; border: 1px solid var(--bordure); border-radius: 10px; padding: 12px; background: white; }
+.colonne-solution-probleme-eleve { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.colonne-operation-probleme-eleve { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; overflow-x: auto; }
+.lignes-probleme-relecture .ligne-probleme-eleve { background: #F9FAFB; }
+
+/* Grille de calcul posé — identique en apparence dans tous les contextes
+   (corrigé, formulaire élève, relecture, correction) : chaque case est un
+   <input maxlength=1>, seul l'attribut readonly change. */
+.conteneur-calcul-probleme { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; }
+.grille-calcul-probleme { display: grid; gap: 2px; }
+.case-calcul-probleme {
+  width: 32px; height: 32px; text-align: center; font-family: 'Courier New', Consolas, monospace;
+  font-size: 16px; font-weight: 700; border: 1px solid var(--bordure); border-radius: 4px; padding: 0;
+}
+.case-calcul-probleme:focus { outline: 2px solid var(--bleu-kekeli); }
+.case-calcul-probleme[readonly] { background: #F1F5F9; color: var(--text-dark); cursor: default; }
+.case-retenue-probleme { height: 20px; font-size: 12px; border-style: dashed; color: #B8860B; }
+.case-bordure-basse-probleme { border-bottom: 2px solid #1E293B; }
+.badge-unite-probleme { font-size: 11px; color: var(--text-gris); background: #F1F5F9; border-radius: 999px; padding: 2px 10px; }
+
+@media (max-width: 640px) {
+  .ligne-probleme-eleve { grid-template-columns: 1fr; }
+}
+
+/* Éditeur de bloc "Problème" côté devoir (js/editeur/devoir-blocs.js) —
+   l'enseignant peut créer un devoir "à blocs" ici, même mise en page que
+   dans l'éditeur de séance admin (css/style.css). */
+.reglages-probleme { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 10px 0 14px; background: #F8FAFC; border-radius: 10px; padding: 12px 14px; }
+.champ-reglage-probleme { display: flex; flex-direction: column; gap: 4px; }
+.champ-reglage-probleme label { font-size: 12px; color: var(--text-gris); font-weight: 700; }
+.case-pose-par-eleve-probleme { grid-column: 1 / -1; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; background: #FFF7E6; border: 1px solid #F5D48A; border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+.case-pose-par-eleve-probleme input { margin-top: 3px; }
+.prep-grille-probleme { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 10px 0; }
+.prep-boite-probleme { background: #F8FAFC; border-radius: 8px; padding: 10px 12px; border: 1px solid var(--bordure); }
+.prep-boite-probleme h4 { margin: 0 0 6px; font-size: 12px; color: var(--text-gris); text-transform: uppercase; letter-spacing: .3px; }
+.prep-boite-probleme textarea { width: 100%; resize: vertical; }
+.liste-auto-probleme { margin: 0; padding-left: 18px; font-size: 13px; }
+.liste-auto-probleme li { margin-bottom: 3px; }
+.lignes-probleme { display: flex; flex-direction: column; gap: 12px; margin: 10px 0; }
+.ligne-probleme { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; border: 1px solid var(--bordure); border-radius: 10px; padding: 12px; background: white; }
+.colonne-solution-probleme { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.colonne-operation-probleme { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; overflow-x: auto; }
+.champ-description-probleme { border: 1px solid var(--bordure); border-radius: 6px; padding: 6px 8px; font-size: 13px; min-height: 20px; background: #FAFAFA; }
+.champ-description-probleme:focus { outline: 2px solid var(--bleu-kekeli); background: white; }
+.champ-equation-probleme { font-family: 'Courier New', Consolas, monospace; }
+.explication-probleme { width: 100%; resize: vertical; font-size: 12.5px; }
+.bouton-supprimer-ligne-probleme { margin-top: 2px; align-self: flex-start; color: #B91C1C; }
+
+/* Correction détaillée d'un rendu "Problème" (js/devoirs-notes-rendu.js,
+   ouvrirCorrectionProblemeDevoir) : grille de relecture + 3 notes libres par
+   étape, sommées en direct — même règle que côté séance (css/style.css). */
+.lignes-correction-probleme { display: flex; flex-direction: column; gap: 14px; margin: 10px 0; }
+.ligne-correction-probleme { display: grid; grid-template-columns: 1fr 1fr auto; gap: 14px; align-items: start; border: 1px solid var(--bordure); border-radius: 10px; padding: 12px; }
+.notes-correction-probleme { display: flex; flex-direction: column; gap: 8px; min-width: 120px; }
+.champ-note-probleme { display: flex; flex-direction: column; gap: 3px; font-size: 11px; font-weight: 700; color: var(--text-gris); }
+.champ-note-probleme input { width: 90px; padding: 5px 6px; border: 1px solid var(--bordure); border-radius: 6px; font-size: 13px; }
+.total-note-correction-probleme { margin: 10px 0 4px; font-size: 14px; text-align: right; }
+.modal-boite-large { max-width: 760px; max-height: 85vh; overflow-y: auto; }
+@media (max-width: 640px) {
+  .ligne-probleme, .ligne-correction-probleme { grid-template-columns: 1fr; }
+}
 
 .question-lecture { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--bordure); }
 .question-lecture:first-child { margin-top: 0; padding-top: 0; border-top: none; }

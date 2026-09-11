@@ -144,6 +144,11 @@ async function afficherGestion() {
       ouvrirCorrectionActiviteDevoir(parseInt(btn.dataset.corrigerActiviteDevoir, 10), profilAdminDN.id, afficherGestion);
     });
   });
+  zone.querySelectorAll('[data-corriger-probleme-devoir]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      ouvrirCorrectionProblemeDevoir(parseInt(btn.dataset.corrigerProblemeDevoir, 10), profilAdminDN.id, afficherGestion);
+    });
+  });
   zone.querySelectorAll('[data-toggle-statut-devoir]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const { error } = await supabaseClient.from('devoirs')
