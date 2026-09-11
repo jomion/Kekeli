@@ -1,0 +1,1030 @@
+/* ============================================================
+   KEKELI — Pages "utilisateur" (accueil public, connexion, espaces
+   élève/parent/enseignant). Palette distincte de l'outil d'admin
+   (css/style.css), fidèle à la maquette fournie.
+   ============================================================ */
+
+/* --- Éditeur de blocs de devoir (partagé enseignant + admin) -----------
+   Voir js/editeur/devoir-blocs.js — même structure que la version admin
+   dans css/style.css, avec les variables de ce thème-ci. */
+.bloc { background: white; border-radius: 10px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); border-left: 5px solid var(--bleu-kekeli); }
+.bloc-entete { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.bloc-type { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--bleu-kekeli); }
+.bloc-actions { display: flex; gap: 6px; align-items: center; }
+.bloc-actions button { background: none; border: none; cursor: pointer; font-size: 15px; padding: 3px 6px; border-radius: 6px; }
+.bloc-actions button:hover { background: var(--bordure); }
+.bloc textarea, .bloc input[type=text], .bloc input[type=url] { width: 100%; border: 1px solid var(--bordure); border-radius: 6px; padding: 8px; font-size: 14px; font-family: inherit; box-sizing: border-box; }
+.bloc textarea { min-height: 70px; resize: vertical; }
+.champ-ligne { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+.champ-ligne label { font-size: 12px; color: var(--text-gris); min-width: 70px; }
+.note-future { font-size: 12px; color: var(--text-gris); font-style: italic; margin-top: 6px; }
+.editeur-questions { margin-top: 10px; border-top: 1px dashed var(--bordure); padding-top: 10px; }
+.question-editeur { background: #F1F5F9; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+.question-editeur textarea { min-height: 44px; }
+.question-entete { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+.question-entete select { padding: 5px 8px; border-radius: 6px; border: 1px solid var(--bordure); font-size: 12px; }
+.question-entete label { font-size: 12px; color: var(--text-gris); display: flex; align-items: center; gap: 4px; }
+.question-entete input[type=number] { width: 60px; border: 1px solid var(--bordure); border-radius: 6px; padding: 4px 6px; }
+.question-entete .bouton-supprimer-question { background: none; border: none; cursor: pointer; font-size: 14px; margin-left: auto; }
+.options-qcm { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+.option-qcm { display: flex; align-items: center; gap: 6px; }
+.option-qcm input[type=text] { flex: 1; margin: 0; width: auto; }
+.option-qcm button { background: none; border: none; cursor: pointer; color: var(--rouge); font-size: 13px; }
+.vrai-faux-choix { display: flex; gap: 16px; margin-top: 6px; font-size: 13px; }
+.reponse-courte-champ, .bareme-champ { margin-top: 6px; }
+.reponse-courte-champ label, .bareme-champ label { font-size: 12px; color: var(--text-gris); display: block; margin-bottom: 3px; }
+.reponse-courte-champ input { width: 100%; border: 1px solid var(--bordure); border-radius: 6px; padding: 6px 8px; box-sizing: border-box; }
+.trous-champ { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+.trous-champ label { font-size: 12px; color: var(--text-gris); display: block; }
+.trous-champ input[type=text] { width: 100%; border: 1px solid var(--bordure); border-radius: 6px; padding: 6px 8px; box-sizing: border-box; margin-top: 3px; }
+.options-ordre { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+.options-ordre .option-qcm input[type=number] { flex: none; width: auto; }
+.item-type-devoir:hover { background: #F1F5F9; }
+
+:root {
+  --bleu-kekeli: #0000D1;
+  --bleu-kekeli-fonce: #080696;
+  --noir-kekeli: #000000;
+  --bg-light: #F0F2F8;
+  --text-dark: #1A1A1A;
+  --text-gris: #64748B;
+  --accent-cyan: #00D1FF;
+  --bordure: #E2E8F0;
+  --blanc: #ffffff;
+  --rouge: #c0392b;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  /* Fond ciel demandé le 4 septembre 2026, pour toutes les pages sauf
+     connexion/inscription. Ce fichier CSS est partagé par ces deux pages ET
+     par le reste du site, donc l'exclusion se fait via la classe
+     "page-sans-fond-ciel" posée sur leur <body> (voir pages/login.html et
+     pages/inscription.html) plutôt qu'en modifiant chaque page une par une. */
+  background-color: var(--bg-light);
+  background-image: url('../assets/fond/fond-ciel.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  margin: 0; padding: 0; color: var(--text-dark); line-height: 1.5;
+}
+body.page-sans-fond-ciel {
+  background-image: none;
+}
+a { text-decoration: none; }
+
+header.entete-publique {
+  background-color: var(--noir-kekeli);
+  padding: 15px 50px;
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  border-bottom: 4px solid var(--bleu-kekeli);
+  position: sticky; top: 0; z-index: 100;
+}
+.logo { display: flex; align-items: center; gap: 12px; font-size: 24px; font-weight: 800; color: white; }
+.logo img { height: 38px; width: auto; }
+
+nav.nav-publique ul { display: flex; list-style: none; gap: 25px; margin: 0; padding: 0; flex-wrap: wrap; }
+nav.nav-publique a { color: #E2E8F0; font-weight: 600; font-size: 15px; transition: color .2s; }
+nav.nav-publique a:hover { color: var(--accent-cyan); }
+
+.auth-buttons { display: flex; gap: 12px; }
+.btn { padding: 10px 20px; border-radius: 8px; font-weight: 800; font-size: 14px; cursor: pointer; border: none; display: inline-block; }
+.btn-outline { border: 2px solid var(--bleu-kekeli); color: white; background: none; }
+.btn-outline:hover { background: rgba(0,0,209,0.15); }
+.btn-filled { background-color: var(--bleu-kekeli); color: white; }
+.btn-filled:hover { background-color: var(--bleu-kekeli-fonce); }
+
+.hero {
+  background: linear-gradient(135deg, var(--noir-kekeli) 0%, var(--bleu-kekeli) 100%);
+  color: white; padding: 70px 50px; display: flex; align-items: center; justify-content: space-between;
+  gap: 40px; flex-wrap: wrap;
+}
+/* Ajouté le 5 septembre 2026 (demande explicite : le bouton "Continuer mon
+   espace" / "Accéder à mon espace" doit rester "toujours en bas" du héro,
+   quelle que soit la longueur du texte affiché au-dessus). Le bloc de texte
+   s'étire désormais sur toute la hauteur de la ligne (align-self: stretch,
+   au lieu d'être seulement centré comme avant) et devient lui-même une
+   colonne flexible ; le bouton reçoit une marge haute automatique
+   (voir #lienAccederEspace ci-dessous) qui absorbe tout l'espace libre
+   au-dessus de lui et le pousse ainsi tout en bas, au niveau du bas de
+   l'image du héro, que le titre/paragraphe dynamique (js/accueil-hero.js)
+   soit court ou long. */
+.hero-text { flex: 1 1 0%; min-width: 280px; align-self: stretch; display: flex; flex-direction: column; }
+.hero-text h1 { font-size: 40px; margin: 0 0 18px; line-height: 1.2; }
+.hero-text h1 span { color: var(--accent-cyan); }
+.hero-text p { font-size: 17px; color: #CBD5E1; margin-bottom: 26px; line-height: 1.6; max-width: 480px; }
+#lienAccederEspace { margin-top: auto; align-self: flex-start; }
+/* Redimensionné le 5 septembre 2026, puis rendu réglable par bloc le même
+   jour (demande explicite : "50% de l'espace disponible sur PC", avec un
+   choix Petite/Moyenne/Grande depuis Admin ▸ Section d'accueil). --taille-img
+   fixe la part de largeur du bloc image dans le héro (flex-basis + max-width,
+   flex-grow à 0 pour ne pas dépasser ce réglage) ; .hero-text absorbe le
+   reste (flex: 1 1 auto). Hauteur toujours calculée via aspect-ratio, jamais
+   fixée en pixels, pour rester fluide à toute taille. */
+.hero-image {
+  --taille-img: 40%;
+  background: rgba(255,255,255,0.08); border: 2px dashed rgba(255,255,255,0.3); border-radius: 16px;
+  flex: 0 0 var(--taille-img); width: 100%; max-width: var(--taille-img); aspect-ratio: 4 / 3;
+  display: flex; justify-content: center; align-items: center;
+  font-size: clamp(48px, 9vw, 72px); overflow: hidden;
+}
+.hero-image.taille-petite { --taille-img: 30%; }
+.hero-image.taille-moyenne { --taille-img: 40%; }
+.hero-image.taille-grande { --taille-img: 50%; }
+/* Quand un bloc de la section d'accueil dynamique (js/accueil-hero.js) fournit
+   une vraie image plutôt qu'un emoji, le cadre pointillé "espace réservé"
+   laisse place à un cadre plein, plus adapté à une photo. */
+.hero-image.avec-photo { border-style: solid; border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.03); }
+/* Position de l'image par rapport au texte (réglage "Gauche/Droite/Centre"
+   de Admin ▸ Section d'accueil), portée par le conteneur .hero lui-même
+   (js/accueil-hero.js bascule la classe selon le bloc affiché) : Droite est
+   l'ordre naturel du HTML (texte puis image), Gauche inverse l'ordre visuel
+   sans toucher au DOM, Centre empile image au-dessus du texte, tout centré —
+   pratique pour un bloc "affiche" plutôt que "texte + illustration". */
+.hero.position-gauche { flex-direction: row-reverse; }
+.hero.position-centre { flex-direction: column; text-align: center; }
+.hero.position-centre .hero-text { align-items: center; }
+.hero.position-centre .hero-text p { max-width: 620px; }
+.hero.position-centre #lienAccederEspace { align-self: center; }
+.hero.position-centre .hero-image { --taille-img: 60%; max-width: 420px; }
+/* Une fois le bloc image passé sur sa propre ligne (voir le point de
+   rupture du flex-wrap du .hero, autour de 900px), toute la largeur du héro
+   lui est disponible : on relâche le plafond (quel que soit le réglage de
+   taille choisi sur PC) et on aplatit un peu le ratio pour que l'image en
+   profite pleinement — occupation "optimale" sur mobile demandée le
+   5 septembre 2026, plutôt qu'un pourcentage figé qui n'aurait plus de sens
+   sur une seule colonne. */
+@media (max-width: 900px) {
+  .hero-image, .hero.position-centre .hero-image { --taille-img: 100%; max-width: 560px; aspect-ratio: 16 / 10; }
+  .hero.position-gauche { flex-direction: column; }
+}
+.hero-points { display: flex; gap: 8px; margin-top: 22px; }
+.hero-point { width: 9px; height: 9px; border-radius: 50%; border: none; background: rgba(255,255,255,0.3); cursor: pointer; padding: 0; }
+.hero-point:hover { background: rgba(255,255,255,0.55); }
+.hero-point.actif { background: var(--accent-cyan); }
+
+/* ===== Dispositions multi-blocs (réglage global "Disposition du bandeau"
+   de Admin ▸ Section d'accueil, 5 septembre 2026) : par défaut le bandeau
+   reste un carrousel (#heroSlideUnique, un seul bloc visible à la fois,
+   logique ci-dessus inchangée) ; ces deux dispositions affichent TOUS les
+   blocs actifs en même temps, sans défilement pour un nombre raisonnable de
+   blocs (jusqu'à 4-5 environ — au-delà, réduire le nombre de blocs actifs
+   reste le seul moyen de garantir l'absence de défilement, quelle que soit
+   la disposition). #heroBlocsMultiples remplace alors #heroSlideUnique. */
+.hero-blocs-multiples { width: 100%; }
+.hero-blocs-multiples.mode-grille {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 22px;
+}
+.hero-carte-multi {
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 14px;
+  padding: 18px; display: flex; flex-direction: column; gap: 12px;
+}
+.hero-carte-multi.position-gauche, .hero-carte-multi.position-droite { flex-direction: row; align-items: center; }
+.hero-carte-multi.position-gauche { flex-direction: row-reverse; }
+.hero-carte-multi-image {
+  flex: 0 0 auto; border-radius: 10px; overflow: hidden; background: rgba(255,255,255,0.08);
+  display: flex; align-items: center; justify-content: center; font-size: 34px;
+}
+.hero-carte-multi.position-centre .hero-carte-multi-image { width: 100%; aspect-ratio: 16/9; }
+.hero-carte-multi.position-gauche .hero-carte-multi-image, .hero-carte-multi.position-droite .hero-carte-multi-image { aspect-ratio: 1/1; }
+.hero-carte-multi.taille-petite .hero-carte-multi-image { width: 64px; height: 64px; }
+.hero-carte-multi.taille-moyenne .hero-carte-multi-image { width: 92px; height: 92px; }
+.hero-carte-multi.taille-grande .hero-carte-multi-image { width: 128px; height: 128px; }
+.hero-carte-multi.taille-grande.position-centre .hero-carte-multi-image,
+.hero-carte-multi.taille-moyenne.position-centre .hero-carte-multi-image,
+.hero-carte-multi.taille-petite.position-centre .hero-carte-multi-image { width: 100%; height: auto; }
+.hero-carte-multi-image img { width: 100%; height: 100%; object-fit: cover; }
+.hero-carte-multi h3 { margin: 0 0 6px; font-size: 19px; }
+.hero-carte-multi p { margin: 0; font-size: 14px; color: #CBD5E1; line-height: 1.5; }
+
+.hero-blocs-multiples.mode-sections { display: flex; flex-direction: column; gap: 10px; }
+.hero-section-compacte {
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
+  padding: 10px 14px; display: flex; align-items: center; gap: 12px;
+}
+.hero-section-compacte-image {
+  flex: 0 0 auto; border-radius: 8px; overflow: hidden; background: rgba(255,255,255,0.08);
+  display: flex; align-items: center; justify-content: center; font-size: 20px;
+}
+.hero-section-compacte.taille-petite .hero-section-compacte-image { width: 40px; height: 40px; }
+.hero-section-compacte.taille-moyenne .hero-section-compacte-image { width: 56px; height: 56px; }
+.hero-section-compacte.taille-grande .hero-section-compacte-image { width: 74px; height: 74px; }
+.hero-section-compacte-image img { width: 100%; height: 100%; object-fit: cover; }
+.hero-section-compacte.position-gauche { flex-direction: row-reverse; }
+.hero-section-compacte-texte { flex: 1 1 auto; min-width: 0; }
+.hero-section-compacte-texte h3 { margin: 0; font-size: 15px; }
+.hero-section-compacte-texte p {
+  margin: 2px 0 0; font-size: 12.5px; color: #CBD5E1; line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+}
+@media (max-width: 640px) {
+  .hero-carte-multi.position-gauche, .hero-carte-multi.position-droite { flex-direction: column; }
+  .hero-carte-multi.taille-petite .hero-carte-multi-image, .hero-carte-multi.taille-moyenne .hero-carte-multi-image, .hero-carte-multi.taille-grande .hero-carte-multi-image { width: 100%; height: auto; aspect-ratio: 16/9; }
+}
+
+.features { max-width: 1100px; margin: 55px auto; padding: 0 20px; text-align: center; }
+.features h2 { color: var(--noir-kekeli); font-size: 26px; margin-bottom: 8px; }
+.features .sous-titre { color: var(--text-gris); margin-bottom: 34px; }
+.grid-features { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 22px; }
+.feature-card { background: white; padding: 28px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,209,0.10), 0 0 0 1px rgba(15,23,42,0.07); border-top: 5px solid var(--bleu-kekeli); text-align: left; }
+.feature-icon { font-size: 32px; margin-bottom: 12px; }
+.feature-card h3 { margin: 0 0 8px; font-size: 16px; color: var(--noir-kekeli); }
+.feature-card p { margin: 0; font-size: 14px; color: var(--text-gris); line-height: 1.5; }
+
+.grille-paliers { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 10px; }
+.puce-palier { display: flex; align-items: center; gap: 8px; background: white; border-radius: 30px; padding: 10px 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); font-size: 13px; font-weight: 700; color: var(--bleu-kekeli); }
+
+/* Le pied de page public complet (logo/slogan, navigation, informations
+   légales) vit désormais dans css/pied-de-page.css, partagé par toutes les
+   pages du site (voir js/pied-de-page.js) — session du 4 septembre 2026.
+   Retiré d'ici pour éviter deux copies qui pourraient diverger. */
+
+/* ===== Cartes de connexion / inscription ===== */
+.page-auth { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; background: linear-gradient(135deg, var(--noir-kekeli) 0%, var(--bleu-kekeli) 100%); }
+.carte-auth {
+  background: white; padding: 34px; border-radius: 14px; box-shadow: 0 12px 30px rgba(0,0,0,0.3); width: 100%; max-width: 400px;
+  border-top: 6px solid var(--accent-cyan); animation: apparitionCarteAuth .35s ease both;
+}
+/* Variante plus large pour l'inscription : beaucoup plus de champs qu'à la
+   connexion — les regrouper par paires (voir .rangee-champs-auth) sur une
+   carte plus large évite l'interminable colonne unique d'origine. */
+.carte-auth.carte-auth-large { max-width: 660px; }
+@keyframes apparitionCarteAuth { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.carte-auth .logo { color: var(--noir-kekeli); justify-content: center; margin-bottom: 4px; }
+.carte-auth .sous-titre { text-align: center; font-size: 13px; color: var(--text-gris); margin-bottom: 24px; }
+.champ-auth { margin-bottom: 16px; text-align: left; }
+.champ-auth label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+.champ-auth input, .champ-auth select { width: 100%; padding: 11px; border: 2px solid var(--bordure); border-radius: 8px; font-size: 14px; font-family: inherit; transition: border-color .15s, box-shadow .15s; }
+.champ-auth input:focus, .champ-auth select:focus { outline: none; border-color: var(--bleu-kekeli); box-shadow: 0 0 0 3px rgba(0,0,209,0.1); }
+/* Aperçu du mot de passe (session du 5 septembre 2026) : un bouton œil
+   superposé au champ, qui bascule son type text/password. Le padding-right
+   de l'input laisse la place au bouton sans le recouvrir. */
+.champ-mot-de-passe { position: relative; }
+.champ-mot-de-passe input { padding-right: 42px; }
+.btn-afficher-mdp {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; font-size: 17px; line-height: 1;
+  padding: 8px; border-radius: 6px; color: var(--text-gris);
+}
+.btn-afficher-mdp:hover { color: var(--bleu-kekeli); background: var(--bg-light); }
+/* Case à cocher d'acceptation des conditions d'utilisation et de la
+   politique de confidentialité, obligatoire pour finaliser l'inscription
+   (session du 5 septembre 2026) — voir pages/inscription.html. */
+.case-consentement { display: flex; align-items: flex-start; gap: 10px; margin: 2px 0 18px; font-size: 13px; line-height: 1.5; color: var(--text-dark); text-align: left; }
+.case-consentement input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; margin-top: 2px; cursor: pointer; accent-color: var(--bleu-kekeli); }
+.case-consentement a { color: var(--bleu-kekeli); font-weight: 700; }
+/* Regroupe deux (ou trois) champs sur une même rangée sur les écrans assez
+   larges, pour une saisie plus fluide et moins verticale — repasse à une
+   colonne sur mobile (voir la media query plus bas). */
+.rangee-champs-auth { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 0 16px; }
+.btn-auth-principal {
+  width: 100%; padding: 13px; background: var(--bleu-kekeli); color: white; border: none; border-radius: 8px;
+  font-weight: 800; font-size: 15px; cursor: pointer; transition: background .15s, transform .1s;
+}
+.btn-auth-principal:hover { background: var(--bleu-kekeli-fonce); }
+.btn-auth-principal:active { transform: scale(.98); }
+.btn-auth-principal:disabled { opacity: .6; cursor: default; transform: none; }
+.lien-auth-secondaire { text-align: center; margin-top: 18px; font-size: 13px; color: var(--text-gris); }
+.lien-auth-secondaire a { color: var(--bleu-kekeli); font-weight: 700; }
+.message-erreur-auth { color: var(--rouge); font-size: 13px; margin-bottom: 10px; text-align: center; }
+@media (max-width: 560px) {
+  .rangee-champs-auth { grid-template-columns: 1fr; }
+}
+
+/* ===== Tableaux de bord (parent / enseignant / élève) ===== */
+.entete-tableau-bord {
+  background-color: var(--noir-kekeli); padding: 14px 30px; display: flex; justify-content: space-between;
+  align-items: center; flex-wrap: wrap; gap: 12px; border-bottom: 4px solid var(--bleu-kekeli);
+}
+.badge-utilisateur-public { background: rgba(255,255,255,0.12); color: white; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+.btn-deconnexion-public { background: none; border: 1px solid rgba(255,255,255,0.4); color: #E2E8F0; padding: 6px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; }
+
+/* ===== En-tête fixe partagé (js/entete-navigation.js) — thème sombre ===== */
+header.entete-kekeli {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 500;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 24px; background: var(--noir-kekeli); border-bottom: 4px solid var(--bleu-kekeli);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+body.avec-entete-fixe { padding-top: 68px; }
+
+/* Bannière dynamique du super admin — voir js/banniere-site.js. */
+.banniere-site {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 700;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px;
+  padding: 10px 44px 10px 16px; text-align: center;
+  font-size: 13.5px; font-weight: 600; line-height: 1.4; color: white;
+}
+.banniere-site a { color: inherit; text-decoration: underline; font-weight: 800; white-space: nowrap; }
+.banniere-site-fermer {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: inherit; opacity: .75; cursor: pointer;
+  font-size: 15px; line-height: 1; padding: 4px;
+}
+.banniere-site-fermer:hover { opacity: 1; }
+.banniere-site--info    { background: #2563EB; }
+.banniere-site--succes  { background: #16A34A; }
+.banniere-site--alerte  { background: #D97706; }
+.banniere-site--urgence { background: #DC2626; }
+/* Pousse le contenu (et l'en-tête fixe/sticky) sous la bannière quand elle
+   est affichée — hauteur réelle mesurée en JS (--hauteur-banniere-site). */
+body.avec-banniere-site { padding-top: var(--hauteur-banniere-site, 0px); }
+body.avec-entete-fixe.avec-banniere-site { padding-top: calc(68px + var(--hauteur-banniere-site, 0px)); }
+body.avec-banniere-site .entete-kekeli,
+body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px); }
+.entete-kekeli-logo { display: flex; align-items: center; gap: 8px; font-size: 19px; font-weight: 800; color: white; }
+.entete-kekeli-logo img { height: 30px; width: auto; }
+.entete-kekeli-hamburger { display: none; flex-direction: column; justify-content: center; align-items: center; gap: 4px; width: 34px; height: 34px; background: none; border: none; cursor: pointer; flex-shrink: 0; }
+.entete-kekeli-hamburger span { display: block; width: 20px; height: 2.5px; border-radius: 2px; background: white; transition: transform .2s ease, opacity .2s ease; }
+.entete-kekeli-hamburger[aria-expanded="true"] span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+.entete-kekeli-hamburger[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+.entete-kekeli-hamburger[aria-expanded="true"] span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+.entete-kekeli-zone { display: flex; align-items: center; gap: 22px; }
+.entete-kekeli-liens { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.entete-kekeli-liens a { padding: 8px 13px; border-radius: 20px; font-size: 13.5px; font-weight: 700; color: #E2E8F0; transition: background .15s, color .15s; white-space: nowrap; }
+.entete-kekeli-liens a:hover { background: rgba(255,255,255,0.12); color: var(--accent-cyan); }
+.entete-kekeli-actions { display: flex; align-items: center; gap: 10px; }
+.entete-kekeli-badge { background: rgba(255,255,255,0.12); color: white; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.entete-kekeli-icone-btn { background: none; border: 1px solid rgba(255,255,255,0.35); color: #E2E8F0; width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; cursor: pointer; transition: background .15s, border-color .15s, color .15s; text-decoration: none; }
+.entete-kekeli-icone-btn:hover { background: rgba(255,255,255,0.15); border-color: var(--accent-cyan); color: var(--accent-cyan); }
+.entete-kekeli-overlay { display: none; }
+
+/* Catégories de liens regroupés en menu déroulant (voir css/style.css pour
+   le détail du fonctionnement — même mécanique, couleurs de ce thème). */
+.entete-kekeli-categorie { position: relative; }
+.entete-kekeli-categorie-btn {
+  background: none; border: none; font: inherit; cursor: pointer;
+  padding: 8px 13px; border-radius: 20px; font-size: 13.5px; font-weight: 700; color: #E2E8F0;
+  transition: background .15s, color .15s; display: inline-flex; align-items: center; gap: 4px;
+}
+.entete-kekeli-categorie-btn:hover { background: rgba(255,255,255,0.12); color: var(--accent-cyan); }
+.entete-kekeli-caret { font-size: 10px; transition: transform .15s; }
+.entete-kekeli-categorie.ouvert .entete-kekeli-caret { transform: rotate(180deg); }
+/* Voir css/style.css pour l'explication : le padding-top remplace un vrai
+   gap pour que la souris reste "en survol" en continu entre le bouton et le
+   sous-menu (sinon le menu se referme avant le clic — surtout sur le
+   premier lien, juste sous le bouton). */
+.entete-kekeli-sousmenu {
+  position: absolute; top: 100%; left: 0; padding-top: 6px;
+  opacity: 0; visibility: hidden; transition: opacity .15s ease, transform .15s ease;
+  transform: translateY(-6px); z-index: 40;
+}
+.entete-kekeli-sousmenu-inner {
+  min-width: 210px; background: var(--noir-kekeli); border-radius: 12px; box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+  padding: 6px; display: flex; flex-direction: column; gap: 2px;
+}
+.entete-kekeli-sousmenu a { padding: 9px 12px; border-radius: 8px; white-space: nowrap; color: #E2E8F0; }
+.entete-kekeli-sousmenu a:hover { background: rgba(255,255,255,0.12); color: var(--accent-cyan); }
+.entete-kekeli-categorie:hover .entete-kekeli-sousmenu,
+.entete-kekeli-categorie.ouvert .entete-kekeli-sousmenu { opacity: 1; visibility: visible; transform: translateY(0); }
+
+@media (max-width: 860px) {
+  .entete-kekeli-hamburger { display: flex; }
+  .entete-kekeli-zone {
+    position: fixed; top: 0; right: 0; height: 100vh; width: min(78vw, 320px);
+    background: var(--noir-kekeli); flex-direction: column; align-items: stretch; justify-content: flex-start;
+    padding: 78px 22px 22px; gap: 18px; box-shadow: -10px 0 30px rgba(0,0,0,0.4); overflow-y: auto;
+    transform: translateX(100%); transition: transform .28s cubic-bezier(.22,.9,.35,1); z-index: 600;
+  }
+  .entete-kekeli-zone.ouvert { transform: translateX(0); }
+  .entete-kekeli-liens { flex-direction: column; align-items: stretch; gap: 4px; }
+  .entete-kekeli-liens a { padding: 12px 14px; border-radius: 10px; }
+  .entete-kekeli-actions { flex-direction: column; align-items: stretch; gap: 10px; }
+  .entete-kekeli-badge { text-align: center; }
+  .entete-kekeli-overlay {
+    display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 550;
+  }
+  .entete-kekeli-overlay.visible { opacity: 1; pointer-events: auto; }
+
+  .entete-kekeli-categorie-btn { width: 100%; justify-content: space-between; padding: 12px 14px; border-radius: 10px; }
+  .entete-kekeli-sousmenu {
+    position: static; opacity: 1; visibility: visible; transform: none; padding: 0 0 0 14px;
+    max-height: 0; overflow: hidden; transition: max-height .2s ease;
+  }
+  .entete-kekeli-sousmenu-inner { background: none; box-shadow: none; border-radius: 0; padding: 0; }
+  .entete-kekeli-categorie.ouvert .entete-kekeli-sousmenu { max-height: 400px; }
+}
+
+.conteneur-tableau-bord { max-width: 900px; margin: 40px auto; padding: 0 20px; }
+.carte-bienvenue { background: white; border-radius: 14px; padding: 32px; box-shadow: 0 4px 15px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); border-top: 6px solid var(--accent-cyan); margin-bottom: 26px; }
+.carte-bienvenue h1 { color: var(--noir-kekeli); font-size: 24px; margin: 0 0 8px; }
+.carte-bienvenue p { color: var(--text-gris); margin: 0; }
+.grille-actions-tb { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+.carte-action-tb { background: white; border-radius: 12px; padding: 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); border: 2px solid transparent; }
+.carte-action-tb.disponible { border-color: var(--bleu-kekeli); cursor: pointer; }
+.carte-action-tb.a-venir { opacity: .6; }
+.carte-action-tb.disponible:hover { transform: translateY(-2px); }
+.carte-action-tb .icone-action-tb { font-size: 30px; margin-bottom: 10px; }
+.carte-action-tb h3 { margin: 0 0 6px; font-size: 15px; color: var(--noir-kekeli); }
+.carte-action-tb p { margin: 0; font-size: 13px; color: var(--text-gris); line-height: 1.4; }
+.carte-action-tb button.btn-filled { margin-top: 12px; width: 100%; }
+
+/* ===== Modales (formulaires dynamiques) — mêmes classes que js/modal.js ===== */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal-boite { background: white; border-radius: 12px; padding: 24px; width: 100%; max-width: 420px; box-shadow: 0 12px 32px rgba(0,0,0,0.3); }
+.modal-boite h3 { margin: 0 0 16px; color: var(--noir-kekeli); font-size: 17px; }
+.modal-boite.modal-confirmation p { font-size: 14px; color: var(--text-dark); margin-bottom: 18px; }
+.champ-modal { display: block; font-size: 12px; font-weight: 700; color: var(--text-gris); margin-bottom: 12px; }
+.champ-modal input, .champ-modal select, .champ-modal textarea {
+  display: block; width: 100%; margin-top: 5px; padding: 9px; border: 1px solid var(--bordure); border-radius: 7px;
+  font-size: 14px; font-family: inherit; color: var(--text-dark);
+}
+.champ-modal textarea { min-height: 60px; resize: vertical; }
+.champ-modal-checkboxes-titre { display: block; margin-bottom: 6px; }
+.liste-checkboxes-modal { max-height: 190px; overflow-y: auto; border: 1px solid var(--bordure,#E2E8F0); border-radius: 7px; padding: 4px 8px; background: #FAFBFF; }
+.checkbox-modal { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--text-dark); padding: 6px 2px; text-transform: none; }
+.checkbox-modal input { width: auto; margin: 0; }
+.checkbox-modal-tout { font-weight: 700; padding-bottom: 8px; margin-bottom: 4px; border-bottom: 1px solid var(--bordure,#E2E8F0); }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+.btn-discret { background: var(--bordure); color: var(--text-dark); }
+.btn-danger { background: #FCEBEB; color: var(--rouge); }
+
+.mascot-selection { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+.mascot-option { flex: 1; min-width: 50px; text-align: center; background: var(--bg-light); border: 2px solid var(--bordure); border-radius: 8px; padding: 8px; cursor: pointer; font-size: 20px; }
+.mascot-option.selected, .mascot-option:hover { border-color: var(--accent-cyan); background: #E6FBFF; }
+
+.bandeau-succes { background: #E6F9EF; color: #0F7A45; border: 1px solid #b7ebc9; border-radius: 8px; padding: 12px 16px; font-size: 13px; margin-bottom: 18px; text-align: center; }
+
+/* ===== Listes (devoirs, notes) ===== */
+.liste-lignes-pub { display: flex; flex-direction: column; gap: 10px; }
+.ligne-pub { background: white; border-radius: 10px; padding: 14px 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ligne-pub .titre-ligne-pub { font-weight: 700; font-size: 14px; color: var(--noir-kekeli); }
+.ligne-pub .sous-ligne-pub { font-size: 12px; color: var(--text-gris); margin-top: 2px; }
+.pastille-statut { font-size: 11px; font-weight: 800; padding: 4px 12px; border-radius: 12px; white-space: nowrap; }
+.pastille-a_faire { background: #F1F5F9; color: var(--text-gris); }
+.pastille-rendu { background: #E6F9EF; color: #0F7A45; }
+.pastille-en_retard { background: #FCEBEB; color: var(--rouge); }
+.pastille-corrige { background: #E6FBFF; color: var(--bleu-kekeli); }
+.pastille-note { background: var(--bleu-kekeli); color: white; font-size: 13px; font-weight: 800; padding: 4px 12px; border-radius: 12px; }
+.pastille-acquis { background: #E6F9EF; color: #0F7A45; }
+.pastille-en_cours { background: #FFF6E0; color: #92620A; }
+.pastille-non_acquis { background: #FCEBEB; color: var(--rouge); }
+.selecteur-enfant { display: flex; gap: 8px; margin-bottom: 22px; flex-wrap: wrap; }
+.selecteur-enfant button { padding: 8px 16px; border-radius: 20px; border: 2px solid var(--bordure); background: white; font-weight: 700; font-size: 13px; cursor: pointer; }
+.selecteur-enfant button.actif { border-color: var(--bleu-kekeli); background: var(--bleu-kekeli); color: white; }
+.titre-section-pub { font-size: 17px; font-weight: 800; color: var(--noir-kekeli); margin: 26px 0 12px; }
+
+/* ===== Cloche de notifications ===== */
+.cloche-notif { position: relative; cursor: pointer; font-size: 20px; color: white; }
+.badge-notif { position: absolute; top: -6px; right: -8px; background: var(--rouge); color: white; font-size: 10px; font-weight: 800; border-radius: 10px; padding: 1px 6px; min-width: 16px; text-align: center; }
+.liste-notif {
+  display: none; position: absolute; right: 0; top: 130%; width: 300px; max-height: 380px; overflow-y: auto;
+  background: white; border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,0.25); z-index: 200;
+}
+.liste-notif.ouverte { display: block; }
+.item-notif { display: block; padding: 12px 16px; border-bottom: 1px solid var(--bordure); text-decoration: none; color: var(--text-dark); }
+.item-notif:last-child { border-bottom: none; }
+.item-notif.non-lue { background: #F0F2FF; }
+.item-notif .titre-notif { font-weight: 700; font-size: 13px; color: var(--noir-kekeli); }
+.item-notif .msg-notif { font-size: 12px; color: var(--text-gris); margin-top: 2px; }
+.item-notif .date-notif { font-size: 11px; color: var(--text-gris); margin-top: 4px; }
+
+/* ===== Écrans de bienvenue (élève / enseignant) ===== */
+.welcome-container-eleve { max-width: 900px; margin: 30px auto; padding: 0 20px; text-align: center; }
+.welcome-card-eleve { background: white; border-radius: 16px; padding: 36px; box-shadow: 0 4px 15px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); border-top: 6px solid #FFCC00; margin-bottom: 28px; }
+.welcome-card-eleve.theme-enseignant { border-top-color: var(--bleu-kekeli); }
+.mascot-avatar-eleve { font-size: 56px; background: #FFF9E6; width: 92px; height: 92px; line-height: 92px; border-radius: 50%; margin: 0 auto 14px; border: 3px solid #FFCC00; }
+.mascot-avatar-eleve.theme-enseignant { background: #EBF5FB; border-color: var(--bleu-kekeli); }
+.welcome-card-eleve.theme-autorite { border-top-color: #6D28D9; }
+.mascot-avatar-eleve.theme-autorite { background: #F4ECF7; border-color: #6D28D9; }
+.streak-info-eleve { display: inline-flex; align-items: center; gap: 10px; background: #F1F5F9; padding: 8px 18px; border-radius: 30px; font-weight: bold; color: #E67E22; margin-top: 10px; }
+.section-title-eleve { text-align: left; font-size: 19px; color: var(--bleu-kekeli); margin-bottom: 18px; }
+.actions-grid-eleve { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 18px; }
+.action-card-eleve { background: white; border-radius: 12px; padding: 22px; text-align: left; box-shadow: 0 2px 8px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); border: 2px solid transparent; transition: all .2s; text-decoration: none; color: inherit; display: block; }
+.action-card-eleve:hover { border-color: var(--bleu-kekeli); transform: translateY(-3px); }
+.action-icon-eleve { font-size: 28px; margin-bottom: 10px; }
+.action-title-eleve { font-size: 17px; font-weight: bold; color: var(--bleu-kekeli); margin-bottom: 5px; }
+.action-desc-eleve { font-size: 13px; color: var(--text-gris); line-height: 1.4; }
+.btn-start-eleve { display: block; width: 100%; padding: 12px; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; margin-top: 12px; text-align: center; }
+
+/* ===== Tableau de bord élève ===== */
+.carte-bienvenue-eleve { text-align: center; }
+.mascotte-eleve { font-size: 56px; background: #E6FBFF; width: 96px; height: 96px; line-height: 96px; border-radius: 50%; margin: 0 auto 14px; border: 3px solid var(--accent-cyan); }
+.profile-card-eleve { background: white; border-left: 6px solid var(--bleu-kekeli); padding: 1.4rem 1.6rem; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); margin-bottom: 1.6rem; }
+.progress-bar-bg-eleve { background: #E2E8F0; height: 12px; border-radius: 6px; overflow: hidden; margin-top: .5rem; }
+.progress-bar-fill-eleve { background: linear-gradient(90deg, var(--bleu-kekeli), var(--accent-cyan)); height: 100%; border-radius: 6px; }
+.dashboard-grid-eleve { display: grid; grid-template-columns: 2fr 1fr; gap: 1.4rem; }
+@media (max-width: 900px) { .dashboard-grid-eleve { grid-template-columns: 1fr; } }
+.grille-paliers-tb { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.6rem; }
+.palier-card-tb { background: white; padding: 1.2rem; border-radius: 12px; text-align: center; border-top: 5px solid; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); text-decoration: none; color: inherit; display: block; }
+.palier-card-tb.courant { box-shadow: 0 0 0 3px rgba(0,0,209,0.15); }
+.widget-eleve { background: white; padding: 1.2rem 1.4rem; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); margin-bottom: 1.2rem; }
+.stat-item-eleve { display: flex; justify-content: space-between; padding: .6rem 0; border-bottom: 1px solid var(--bordure); font-size: 14px; }
+.stat-item-eleve:last-child { border-bottom: none; }
+
+/* ===== Parcours matière (champs → SA → paliers → séances) ===== */
+.fil-ariane-eleve { font-size: 13px; color: var(--text-gris); margin-bottom: 14px; }
+.fil-ariane-eleve a { color: var(--bleu-kekeli); text-decoration: none; font-weight: 700; cursor: pointer; }
+.grille-champs-eleve { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 16px; }
+.carte-champ-eleve { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); cursor: pointer; transition: transform .15s; border: 2px solid transparent; }
+.carte-champ-eleve:hover { transform: translateY(-3px); border-color: var(--bleu-kekeli); }
+.icone-champ-eleve { font-size: 30px; margin-bottom: 8px; }
+/* Pierres rouges (tâche #155, 11 septembre 2026) : récompense affichée sous
+   le titre d'une racine de matière entièrement maîtrisée — voir
+   pastillePierresRougesMat/chargerPierresRougesMat dans eleve-matiere.js. */
+.pastille-pierres-rouges-mat { display: inline-flex; align-items: center; }
+.pastille-pierres-rouges-mat.en-bloc { display: flex; margin-top: 4px; }
+.grille-sa-eleve { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+.carte-sa-eleve { background: white; border-radius: 12px; padding: 16px 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.carte-sa-eleve:hover { border-left: 5px solid var(--bleu-kekeli); }
+.subject-header { background: white; padding: 1.5rem 2rem; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); margin-bottom: 1.5rem; border-top: 6px solid var(--bleu-kekeli); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.grille-paliers-eleve { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+.palier-card-eleve { background: white; padding: 1.2rem; border-radius: 12px; text-align: center; border-top: 5px solid; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); }
+.palier-card-eleve.verrouille { opacity: .55; }
+.palier-icon-eleve { font-size: 2rem; margin-bottom: .4rem; }
+.btn-palier-eleve { color: white; border: none; padding: .5rem 1rem; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%; margin-top: .6rem; text-decoration: none; display: inline-block; }
+.session-list-eleve { display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem; }
+.session-card-eleve { background: white; border-radius: 12px; padding: 1.2rem 1.5rem; display: flex; align-items: center; gap: 1.2rem; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); border: 1px solid var(--bordure); }
+.session-card-eleve.active { border-left: 6px solid var(--bleu-kekeli); }
+.session-card-eleve.completed { border-left: 6px solid #22A559; opacity: .9; }
+.session-card-eleve.locked { background: #F1F5F9; color: var(--text-gris); border-style: dashed; }
+.session-icon-eleve { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; background: #E0E7FF; }
+.session-content-eleve { flex-grow: 1; }
+.session-title-eleve { font-size: 1.05rem; font-weight: 700; }
+
+/* ===== Page séance (lecture + travail : exercices / activités) ===== */
+.bloc-lecture { background: white; border-radius: 10px; padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); border-left: 5px solid var(--bleu-kekeli); }
+.bloc-lecture-titre { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--bleu-kekeli); margin-bottom: 8px; }
+.bloc-lecture img { max-width: 100%; border-radius: 8px; display: block; margin: 0 0 8px; }
+.bloc-lecture table { border-collapse: collapse; width: 100%; }
+.bloc-lecture table td { border: 1px solid var(--bordure); padding: 6px; }
+.bloc-lecture table th { border: 1px solid var(--bordure); padding: 6px; background: #F1F5F9; font-weight: 700; text-align: left; }
+/* Le contenu riche (texte/définition/exemple...) vient de l'éditeur admin :
+   selon comment il a été saisi ou collé, il peut porter ses propres marges
+   ou indentations. On les neutralise pour qu'il reste toujours aligné avec
+   le titre du bloc juste au-dessus, plutôt que de décaler visuellement le
+   contenu vers la droite. */
+.contenu-riche-lecture { margin: 0; padding: 0; text-align: left; }
+.contenu-riche-lecture > *:first-child { margin-top: 0; }
+.contenu-riche-lecture > *:last-child { margin-bottom: 0; }
+.contenu-riche-lecture p, .contenu-riche-lecture div { margin-left: 0 !important; text-indent: 0 !important; }
+.contenu-riche-lecture img { margin-left: 0 !important; }
+
+/* ===== Bloc "Problème" v2 (11 septembre 2026 — remplacement complet, moteur
+   de grille de calcul posé unique partagé avec l'éditeur et la correction,
+   voir js/editeur/blocs.js) — lecture/formulaire/relecture côté élève. ===== */
+.enonce-probleme { margin-bottom: 10px; }
+.operation-vide { color: #94A3B8; font-style: italic; margin: 0; }
+
+.prep-grille-probleme-lecture { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 10px 0; }
+.prep-boite-probleme-lecture { background: #F8FAFC; border-radius: 8px; padding: 10px 12px; border: 1px solid var(--bordure); }
+.prep-boite-probleme-lecture h4 { margin: 0 0 6px; font-size: 12px; color: var(--text-gris); text-transform: uppercase; letter-spacing: .3px; }
+.prep-boite-probleme-lecture ul { margin: 0; padding-left: 18px; font-size: 13px; }
+.prep-boite-probleme-lecture li { margin-bottom: 3px; }
+.nature-donnee-probleme { font-weight: 700; color: var(--bleu-kekeli); }
+
+/* Tableau de résolution en lecture/corrigé (2 colonnes, une ligne par étape). */
+.tableau-probleme-lecture-v2 { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.tableau-probleme-lecture-v2 td { border: 1px solid var(--bordure); padding: 10px; vertical-align: top; }
+.cellule-solution-probleme-lecture { width: 38%; font-size: 13px; }
+.cellule-resultat-probleme-lecture { width: 18%; text-align: center; vertical-align: middle; }
+.cellule-operation-probleme-lecture { width: 44%; text-align: center; }
+.equation-lecture-probleme { font-family: 'Courier New', Consolas, monospace; color: var(--text-gris); margin: 4px 0 0; font-size: 13px; }
+.explication-lecture-probleme { margin-top: 6px; font-size: 12.5px; background: #FFF9E6; border-radius: 6px; padding: 6px 8px; }
+.explications-dessous-probleme { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+
+/* Formulaire interactif élève (mêmes 2 colonnes que le tableau de lecture,
+   mais éditable) et sa relecture après soumission (lecture seule, montrant
+   ce que l'élève a réellement écrit — voir html_relectureProbleme). */
+.lignes-probleme-eleve { display: flex; flex-direction: column; gap: 12px; margin: 10px 0; }
+.ligne-probleme-eleve { display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 14px; border: 1px solid var(--bordure); border-radius: 10px; padding: 12px; background: white; }
+.colonne-solution-probleme-eleve { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.colonne-operation-probleme-eleve { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; overflow-x: auto; }
+/* Colonne "Résultats" (tâche du 11 septembre 2026 : "ça manque la colonne de
+   résultat") — 3ᵉ colonne du modèle de référence, entre Solution/Équation et
+   Opérations posées. Voir problemeResultatBoiteHtml dans js/editeur/blocs.js. */
+.colonne-resultat-probleme, .colonne-resultat-probleme-eleve {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-width: 0;
+}
+.etiquette-colonne-probleme-eleve { font-size: 11px; color: var(--text-gris); font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
+.boite-resultat-probleme {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 10px 8px; background: #F8FAFC; border: 1px solid var(--bordure); border-radius: 8px;
+}
+.case-calcul-probleme.case-resultat-final-probleme { width: 74px; height: 36px; font-size: 16px; }
+.case-unite-probleme {
+  width: 74px; height: 26px; text-align: center; font-size: 12px;
+  border: 1px solid var(--bordure); border-radius: 6px; padding: 0;
+}
+.case-unite-probleme[readonly] { background: #F1F5F9; color: var(--text-gris); }
+.lignes-probleme-relecture .ligne-probleme-eleve { background: #F9FAFB; }
+
+/* Grille de calcul posé — identique en apparence dans tous les contextes
+   (corrigé, formulaire élève, relecture, correction) : chaque case est un
+   <input maxlength=1>, seul l'attribut readonly change. */
+.conteneur-calcul-probleme { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; }
+.grille-calcul-probleme { display: grid; gap: 2px; }
+.case-calcul-probleme {
+  width: 32px; height: 32px; text-align: center; font-family: 'Courier New', Consolas, monospace;
+  font-size: 16px; font-weight: 700; border: 1px solid var(--bordure); border-radius: 4px; padding: 0;
+}
+.case-calcul-probleme:focus { outline: 2px solid var(--bleu-kekeli); }
+.case-calcul-probleme[readonly] { background: #F1F5F9; color: var(--text-dark); cursor: default; }
+.case-retenue-probleme { height: 20px; font-size: 12px; border-style: dashed; color: #B8860B; }
+.case-bordure-basse-probleme { border-bottom: 2px solid #1E293B; }
+.badge-unite-probleme { font-size: 11px; color: var(--text-gris); background: #F1F5F9; border-radius: 999px; padding: 2px 10px; }
+
+@media (max-width: 640px) {
+  .ligne-probleme-eleve { grid-template-columns: 1fr; }
+}
+
+/* Éditeur de bloc "Problème" côté devoir (js/editeur/devoir-blocs.js) —
+   l'enseignant peut créer un devoir "à blocs" ici, même mise en page que
+   dans l'éditeur de séance admin (css/style.css). */
+.reglages-probleme { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 10px 0 14px; background: #F8FAFC; border-radius: 10px; padding: 12px 14px; }
+.champ-reglage-probleme { display: flex; flex-direction: column; gap: 4px; }
+.champ-reglage-probleme label { font-size: 12px; color: var(--text-gris); font-weight: 700; }
+.case-pose-par-eleve-probleme { grid-column: 1 / -1; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; background: #FFF7E6; border: 1px solid #F5D48A; border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+.case-pose-par-eleve-probleme input { margin-top: 3px; }
+.prep-grille-probleme { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 10px 0; }
+.prep-boite-probleme { background: #F8FAFC; border-radius: 8px; padding: 10px 12px; border: 1px solid var(--bordure); }
+.prep-boite-probleme h4 { margin: 0 0 6px; font-size: 12px; color: var(--text-gris); text-transform: uppercase; letter-spacing: .3px; }
+.prep-boite-probleme textarea { width: 100%; resize: vertical; }
+.liste-auto-probleme { margin: 0; padding-left: 18px; font-size: 13px; }
+.liste-auto-probleme li { margin-bottom: 3px; }
+.lignes-probleme { display: flex; flex-direction: column; gap: 12px; margin: 10px 0; }
+.ligne-probleme { display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 14px; border: 1px solid var(--bordure); border-radius: 10px; padding: 12px; background: white; }
+.colonne-solution-probleme { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.colonne-operation-probleme { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; overflow-x: auto; }
+.champ-description-probleme { border: 1px solid var(--bordure); border-radius: 6px; padding: 6px 8px; font-size: 13px; min-height: 20px; background: #FAFAFA; }
+.champ-description-probleme:focus { outline: 2px solid var(--bleu-kekeli); background: white; }
+.champ-equation-probleme { font-family: 'Courier New', Consolas, monospace; }
+.explication-probleme { width: 100%; resize: vertical; font-size: 12.5px; }
+.bouton-supprimer-ligne-probleme { margin-top: 2px; align-self: flex-start; color: #B91C1C; }
+
+/* Correction détaillée d'un rendu "Problème" (js/devoirs-notes-rendu.js,
+   ouvrirCorrectionProblemeDevoir) : grille de relecture + 3 notes libres par
+   étape, sommées en direct — même règle que côté séance (css/style.css). */
+.lignes-correction-probleme { display: flex; flex-direction: column; gap: 14px; margin: 10px 0; }
+.ligne-correction-probleme { display: grid; grid-template-columns: 2fr 1fr 2fr auto; gap: 14px; align-items: start; border: 1px solid var(--bordure); border-radius: 10px; padding: 12px; }
+.notes-correction-probleme { display: flex; flex-direction: column; gap: 8px; min-width: 120px; }
+.champ-note-probleme { display: flex; flex-direction: column; gap: 3px; font-size: 11px; font-weight: 700; color: var(--text-gris); }
+.champ-note-probleme input { width: 90px; padding: 5px 6px; border: 1px solid var(--bordure); border-radius: 6px; font-size: 13px; }
+.total-note-correction-probleme { margin: 10px 0 4px; font-size: 14px; text-align: right; }
+.modal-boite-large { max-width: 760px; max-height: 85vh; overflow-y: auto; }
+@media (max-width: 640px) {
+  .ligne-probleme, .ligne-correction-probleme { grid-template-columns: 1fr; }
+}
+
+.question-lecture { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--bordure); }
+.question-lecture:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+.question-enonce { font-weight: 700; margin: 0 0 8px; }
+.question-lecture label { display: block; margin-bottom: 6px; cursor: pointer; }
+.question-lecture input[type=text], .question-lecture textarea {
+  width: 100%; border: 2px solid var(--bordure); border-radius: 8px; padding: 8px; font-size: 14px; font-family: inherit;
+}
+.question-lecture textarea { min-height: 80px; resize: vertical; }
+.vf-choix { display: flex; gap: 20px; }
+.champ-trou { border: 2px solid var(--bordure); border-radius: 6px; padding: 4px 8px; font-size: 14px; font-family: inherit; text-align: center; }
+
+/* ===== Nouveaux types de question (8e lot, 5 septembre 2026) ===== */
+/* Intrus lexical : une série de mots par ligne, un radio par mot. */
+.series-intrus-lecture { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+.serie-intrus { display: flex; flex-wrap: wrap; gap: 14px; background: #F8FAFC; border: 1px solid var(--bordure); border-radius: 8px; padding: 10px 12px; }
+.chip-mot-choix-radio { display: flex; align-items: center; gap: 5px; margin-bottom: 0; font-size: 14px; cursor: pointer; }
+
+/* Sélection de mots dans un texte : chaque mot est un bouton cliquable,
+   celui sélectionné se met en évidence (couleur Kekeli). */
+.mots-selectionnables-lecture { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.chip-mot-choix {
+  border: 2px solid var(--bordure); background: white; border-radius: 999px; padding: 5px 14px;
+  cursor: pointer; font-size: 14px; font-family: inherit; color: var(--texte-fonce, #1E293B);
+}
+.chip-mot-choix:hover { border-color: var(--bleu-kekeli); }
+.chip-mot-choix.selectionne { background: var(--bleu-kekeli); border-color: var(--bleu-kekeli); color: white; font-weight: 700; }
+
+/* Glisser-déposer les mots dans le texte : banque de mots à glisser (ou
+   toucher, en repli tactile) vers les trous intégrés à l'énoncé. */
+.banque-mots-glisser { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.chip-glisser {
+  border: 2px solid var(--bleu-kekeli); background: white; color: var(--bleu-kekeli); border-radius: 999px;
+  padding: 6px 14px; font-size: 14px; font-family: inherit; cursor: grab; font-weight: 700;
+}
+.chip-glisser:hover { background: #EEF2FF; }
+.chip-glisser.chip-armee { background: var(--bleu-kekeli); color: white; box-shadow: 0 0 0 3px rgba(0,0,209,0.25); }
+.chip-glisser[hidden] { display: none; }
+.zone-trou-glisser {
+  display: inline-block; min-width: 90px; min-height: 1.4em; margin: 0 4px; padding: 2px 10px;
+  border: 2px dashed var(--bordure); border-radius: 8px; background: #F8FAFC; vertical-align: middle;
+  text-align: center; font-weight: 700; color: var(--bleu-kekeli); cursor: pointer;
+}
+.zone-trou-glisser.trou-glisser-rempli { border-style: solid; background: #EEF2FF; }
+.zone-trou-glisser.trou-glisser-survole { border-color: var(--bleu-kekeli); background: #E0E7FF; }
+.note-aide-glisser { font-size: 12px; color: var(--text-gris); margin: 4px 0 0; }
+
+.liste-remise-en-ordre { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.liste-remise-en-ordre li { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: white; border: 2px solid var(--bordure); border-radius: 8px; padding: 8px 10px; }
+.fleches-ordre { display: flex; gap: 4px; flex-shrink: 0; }
+.fleches-ordre button { background: var(--bleu-clair, #F1F5F9); border: 1px solid var(--bordure); border-radius: 6px; cursor: pointer; font-size: 12px; padding: 3px 8px; }
+.fleches-ordre button:hover { background: var(--bordure); }
+.bouton-valider-exercice { margin-top: 16px; }
+.resultat-question { margin-top: 14px; padding: 10px 12px; border-radius: 8px; }
+.resultat-question.correct { background: #E8F8EF; border-left: 4px solid #22A559; }
+.resultat-question.incorrect { background: #FCEBEB; border-left: 4px solid var(--rouge); }
+.resultat-question.attente { background: #FFF8E1; border-left: 4px solid #FFC93C; }
+/* Question à plusieurs tâches (texte à trous, association...) partiellement
+   réussie — lot "Activité et Paliers", 11 septembre 2026 : une tâche ratée
+   ne doit jamais se confondre visuellement avec une question entièrement
+   ratée, ni avec une entièrement réussie. */
+.resultat-question.partiel { background: #FFF8E1; border-left: 4px solid #EAB308; }
+.recap-score { font-size: 20px; font-weight: 800; color: var(--bleu-kekeli); margin-bottom: 10px; }
+.acces-suspendu-exercice { background: #FFF3E0; border-left: 4px solid #FF9800; border-radius: 8px; padding: 12px 14px; font-size: 14px; color: #7A4A00; }
+.note-essai-gratuit { font-size: 12px; color: #B8860B; background: #FFF8E1; border-radius: 6px; padding: 6px 10px; display: inline-block; margin-bottom: 8px; }
+/* Message de félicitations/encouragement affiché juste après une soumission
+   d'exercice (voir soumettreExercice dans js/pages/eleve-seance.js). */
+.message-apres-essai { font-size: 15px; font-weight: 700; background: #EFF6FF; color: #1D4ED8; border-radius: 8px; padding: 8px 12px; margin: 0 0 10px; }
+/* Feedback de la validation EN DIRECT d'une question, mode progressif des
+   paliers (voir rendreExerciceProgressif) — ok/partiel/echec, distinct du
+   récapitulatif final .resultat-question pour rester léger pendant que
+   l'élève avance question par question. */
+.feedback-tache-progressive { margin-top: 10px; padding: 8px 12px; border-radius: 8px; font-weight: 700; font-size: 14px; }
+.feedback-tache-progressive.feedback-ok { background: #E8F8EF; color: #15803D; }
+.feedback-tache-progressive.feedback-partiel { background: #FFF8E1; color: #92620A; }
+.feedback-tache-progressive.feedback-echec { background: #FCEBEB; color: #B91C1C; }
+.bonne-reponse-corrigee { color: #1D4ED8; font-weight: 600; }
+.entete-seance-eleve { background: white; border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); border-left: 5px solid var(--bleu-kekeli); }
+/* Fil d'ariane miniature (arborescence complète : classe > matière >
+   thème/unité/semaine/dossier... > SA > séance), suivi du titre de la séance
+   en grand puis de la discipline (le titre prime sur la discipline dans
+   l'en-tête — voir js/pages/eleve-seance.js). */
+.miniature-arborescence-eleve { font-size: 12px; color: var(--text-gris); line-height: 1.5; }
+.miniature-arborescence-eleve a { color: var(--bleu-kekeli); text-decoration: none; font-weight: 700; }
+.miniature-arborescence-eleve a:hover { text-decoration: underline; }
+.miniature-arborescence-eleve .sep-arbo-eleve { color: var(--text-gris); }
+.titre-seance-eleve { font-size: 24px; font-weight: 800; color: var(--bleu-kekeli); margin: 6px 0 4px; line-height: 1.25; }
+.badge-discipline-seance { display: inline-block; font-size: 15px; font-weight: 800; padding: 4px 12px; border-radius: 20px; margin-top: 2px; background: #F1F5F9; color: var(--bleu-kekeli); }
+.badge-palier-seance { display: inline-block; font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 20px; margin-top: 6px; }
+.badge-palier-azovi { background: #E8F8EF; color: #22A559; }
+.badge-palier-devi { background: #EBF5FB; color: #3498DB; }
+.badge-palier-ogan { background: #FDF2E9; color: #E67E22; }
+.badge-palier-axosu { background: #F4ECF7; color: #9B59B6; }
+.zone-travail-seance { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.colonne-lecture-seance, .colonne-exercice-seance { min-width: 0; }
+.activite-lecture { padding-top: 8px; }
+/* Zone de réponse libre d'un bloc "exercice" (11 septembre 2026 : signalée
+   "presque invisible" — l'ancien bordure très pâle (var(--bordure)) se
+   fondait dans le fond blanc). Bordure plus marquée, fond légèrement teinté
+   pour bien délimiter la zone de saisie, halo net au focus. */
+.activite-lecture textarea {
+  width: 100%; border: 2px solid #94A3B8; border-radius: 8px; padding: 10px 12px;
+  font-size: 14px; font-family: inherit; min-height: 110px; resize: vertical;
+  background: #F8FAFC; transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.activite-lecture textarea::placeholder { color: #94A3B8; }
+.activite-lecture textarea:focus {
+  outline: none; border-color: var(--bleu-kekeli); background: white;
+  box-shadow: 0 0 0 3px rgba(0,0,209,0.12);
+}
+.activite-lecture input[type=url] {
+  width: 100%; border: 2px solid #CBD5E1; border-radius: 8px; padding: 8px 12px;
+  font-size: 14px; margin-top: 10px; background: #F8FAFC; transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.activite-lecture input[type=url]:focus {
+  outline: none; border-color: var(--bleu-kekeli); background: white;
+  box-shadow: 0 0 0 3px rgba(0,0,209,0.12);
+}
+.carte-note-activite { background: #F1F5F9; border-radius: 8px; padding: 10px 12px; margin-top: 8px; font-size: 13px; }
+.bouton-marquer-termine { margin-top: 10px; }
+@media (max-width: 860px) { .zone-travail-seance { grid-template-columns: 1fr; } }
+
+/* ============================================================
+   pages/navigation.html vu par un non-administrateur (élève, enseignant,
+   invité) — cette page partagée par tous les rôles ne chargeait jusqu'ici
+   QUE css/style.css (thème admin clair), ce qui donnait un en-tête et des
+   cartes au mauvais thème pour tout le monde d'autre. js/pages/navigation.js
+   choisit désormais la feuille de style selon le rôle détecté ; les classes
+   ci-dessous reprennent celles de css/style.css utilisées par cette page,
+   adaptées aux variables de CE thème, pour un rendu identique pièce par
+   pièce (les boutons d'édition n'apparaissent de toute façon jamais ici en
+   dehors du thème admin, réservés aux administrateurs habilités).
+   ============================================================ */
+.titre-page { font-size: 24px; font-weight: 800; color: var(--noir-kekeli); margin-bottom: 4px; }
+.sous-titre-page { font-size: 14px; color: var(--text-gris); margin-bottom: 22px; }
+.titre-page.centre, .sous-titre-page.centre { text-align: center; }
+.titre-page.centre { font-size: 28px; }
+
+.fil-ariane { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; color: var(--text-gris); margin-bottom: 20px; }
+.fil-ariane .segment { cursor: pointer; padding: 4px 10px; border-radius: 14px; transition: background .12s; }
+.fil-ariane .segment[data-fil-action]:hover { background: rgba(0,0,209,.08); color: var(--bleu-kekeli); text-decoration: underline; }
+.fil-ariane .segment.actif { color: white; font-weight: 700; background: var(--bleu-kekeli); cursor: default; }
+.fil-ariane .sep { color: var(--bordure); font-weight: 700; }
+
+.grille-cartes { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+.carte { background: var(--blanc); border-radius: 10px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); border-top: 4px solid var(--bleu-kekeli); cursor: pointer; transition: transform .15s, box-shadow .15s; }
+.carte:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,209,0.12); }
+.carte .titre-carte { font-weight: 700; color: var(--bleu-kekeli); font-size: 15px; margin-bottom: 4px; }
+.carte .sous-titre-carte { font-size: 12px; color: var(--text-gris); }
+
+.liste-lignes { display: flex; flex-direction: column; gap: 8px; }
+.ligne { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--blanc); border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); }
+.ligne .titre-ligne { font-weight: 600; font-size: 14px; }
+.statut-pill { font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: 700; }
+.statut-brouillon { background: #F1F5F9; color: var(--text-gris); }
+.statut-publie { background: #E6F9EF; color: #0F7A45; }
+.statut-archive { background: #FCEBEB; color: var(--rouge); }
+
+.message-erreur { color: var(--rouge); font-size: 13px; margin: 8px 0; }
+.chargement { padding: 60px 20px; text-align: center; color: var(--text-gris); }
+
+.carte-champ { background: white; border-left: 5px solid var(--bleu-kekeli); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); display: flex; flex-direction: column; cursor: pointer; transition: border-color .2s, transform .2s, box-shadow .2s; position: relative; }
+.carte-champ:hover { border-left-color: var(--accent-cyan); transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,209,0.14); z-index: 5; }
+.survol-enfants-champ { position: absolute; left: 12px; right: 12px; top: calc(100% - 8px); background: var(--bleu-kekeli-fonce); color: white; border-radius: 10px; padding: 12px 14px; box-shadow: 0 12px 28px rgba(0,0,0,0.28); opacity: 0; visibility: hidden; transform: translateY(-6px); transition: opacity .16s ease, transform .16s ease; pointer-events: none; z-index: 20; }
+.carte-champ:hover .survol-enfants-champ { opacity: 1; visibility: visible; transform: translateY(0); }
+.survol-enfants-titre { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--accent-cyan); margin-bottom: 6px; }
+.survol-enfants-champ ul { list-style: none; margin: 0; padding: 0; max-height: 168px; overflow: hidden; }
+.survol-enfants-champ li { font-size: 13px; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.survol-enfants-champ li:last-child { border-bottom: none; }
+.entete-carte-champ { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.icone-champ { flex-shrink: 0; width: 48px; height: 48px; border-radius: 8px; background: var(--bg-light); display: flex; align-items: center; justify-content: center; font-size: 28px; }
+.titre-carte-champ { font-size: 17px; font-weight: 800; color: var(--bleu-kekeli); line-height: 1.25; margin: 0; }
+.description-carte-champ { font-size: 13px; color: var(--text-gris); line-height: 1.4; margin-bottom: 15px; flex-grow: 1; }
+.pied-carte-champ { display: flex; align-items: center; justify-content: space-between; margin-top: auto; border-top: 1px solid var(--bg-light); padding-top: 10px; font-size: 12px; font-weight: 800; color: var(--bleu-kekeli); }
+.nb-unites-champ { font-size: 12px; font-weight: 800; color: var(--bleu-kekeli); }
+.bouton-acceder-champ { background: var(--bleu-kekeli); color: white; font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 6px; border: none; display: inline-flex; align-items: center; gap: 4px; }
+.grille-champs { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; align-items: stretch; }
+
+/* Panneau "Structure" déplié sous une carte champ (pages/navigation.html) :
+   liste indentée Thème/Unité/.../SA, chargée à la demande — voir
+   basculerPanneauStructureChamp() dans js/pages/navigation.js. */
+.panneau-structure-champ { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--bordure); max-height: 260px; overflow-y: auto; cursor: default; }
+.structure-champ-liste { font-size: 13px; }
+.ligne-structure-champ { padding: 3px 0; color: var(--text-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ligne-structure-champ .type-arbo { font-size: 10px; color: var(--text-gris); background: var(--bg-light); padding: 1px 7px; border-radius: 8px; margin-left: 6px; }
+
+/* ===== Panneau LATÉRAL "🗂️ Structure" (déployable/repliable, cliquable) —
+   voir js/structure-laterale.js. Remplace l'ancien panneau inline
+   ci-dessus (classes .panneau-structure-champ/.structure-champ-liste/
+   .ligne-structure-champ, laissées telles quelles mais plus générées). */
+.structure-laterale { position: fixed; inset: 0; z-index: 900; visibility: hidden; }
+.structure-laterale.ouvert { visibility: visible; }
+.structure-laterale-overlay { position: absolute; inset: 0; background: rgba(15,23,42,.35); opacity: 0; transition: opacity .2s ease; }
+.structure-laterale.ouvert .structure-laterale-overlay { opacity: 1; }
+.structure-laterale-panneau {
+  position: absolute; top: 0; right: 0; bottom: 0; width: min(420px, 92vw); background: #fff;
+  box-shadow: -8px 0 30px rgba(15,23,42,.18); display: flex; flex-direction: column;
+  transform: translateX(100%); transition: transform .25s ease;
+}
+.structure-laterale.ouvert .structure-laterale-panneau { transform: translateX(0); }
+.structure-laterale-entete { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid var(--bordure); flex-shrink: 0; }
+.structure-laterale-titre { font-weight: 700; font-size: 15px; color: var(--text-dark); }
+.structure-laterale-fermer { background: none; border: none; font-size: 16px; cursor: pointer; color: var(--text-gris); padding: 4px 8px; }
+.structure-laterale-corps { flex: 1; overflow-y: auto; padding: 10px 12px 24px; }
+.structure-laterale-ligne { display: flex; align-items: center; gap: 6px; padding: 6px 4px; border-radius: 6px; }
+.structure-laterale-ligne:hover { background: var(--bg-light); }
+.structure-laterale-bascule { background: none; border: none; cursor: pointer; font-size: 12px; width: 18px; flex-shrink: 0; color: var(--text-gris); }
+.structure-laterale-bascule-vide { display: inline-block; width: 18px; flex-shrink: 0; }
+.structure-laterale-icone { flex-shrink: 0; }
+.structure-laterale-libelle { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dark); font-size: 13.5px; }
+.structure-laterale-libelle.cliquable { cursor: pointer; }
+.structure-laterale-libelle.cliquable:hover { text-decoration: underline; color: var(--bleu-kekeli); }
+.structure-laterale-ligne-sa .structure-laterale-libelle { color: var(--text-gris); }
+.structure-laterale .type-arbo { font-size: 10px; color: var(--text-gris); background: var(--bg-light); padding: 1px 7px; border-radius: 8px; flex-shrink: 0; }
+
+/* Puce du filtre "Structure" actif sur pages/seances.html */
+.puce-filtre-structure-sea {
+  display: inline-flex; align-items: center; gap: 8px; background: var(--bg-light); border: 1px solid var(--bordure);
+  border-radius: 20px; padding: 6px 8px 6px 14px; font-size: 12.5px; color: var(--text-dark); margin: 0 0 14px;
+}
+.puce-filtre-structure-sea button { background: none; border: none; cursor: pointer; color: var(--text-gris); font-size: 13px; padding: 2px 6px; }
+
+.titre-cycle { font-size: 18px; font-weight: 800; color: var(--bleu-kekeli); border-bottom: 2px solid var(--bordure); padding-bottom: 8px; margin: 34px 0 20px; }
+.titre-cycle:first-of-type { margin-top: 10px; }
+.grille-classes { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 22px; }
+.carte-classe-detail { background: white; border-radius: 14px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); border-top: 6px solid var(--bleu-kekeli); display: flex; flex-direction: column; justify-content: space-between; transition: transform .2s; cursor: pointer; }
+.carte-classe-detail:hover { transform: translateY(-4px); }
+.entete-carte-classe { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.badge-classe { background: rgba(0,209,255,.15); color: var(--bleu-kekeli); border: 1px solid var(--accent-cyan); padding: 6px 14px; border-radius: 8px; font-weight: 800; font-size: 20px; }
+.age-classe { font-size: 13px; color: var(--text-gris); font-weight: 600; }
+.titre-classe-detail { font-size: 20px; color: var(--bleu-kekeli); margin: 5px 0 10px; }
+.description-classe-detail { font-size: 14px; color: #475569; line-height: 1.5; margin-bottom: 15px; }
+.liste-infos-classe { list-style: none; padding: 0; margin: 0 0 20px; border-top: 1px dashed var(--bordure); padding-top: 10px; }
+.liste-infos-classe li { font-size: 13px; color: var(--text-gris); padding: 4px 0; }
+.bouton-explorer-classe { display: block; width: 100%; padding: 12px; background-color: var(--bleu-kekeli); color: white; text-align: center; border-radius: 8px; font-weight: bold; border: none; box-sizing: border-box; font-size: 14px; }
+
+.btn-primaire { background: var(--bleu-kekeli); color: white; }
+.btn-primaire:hover { background: var(--bleu-kekeli-fonce); }
+.btn-accent { background: var(--accent-cyan); color: var(--noir-kekeli); }
+.btn-accent:hover { background: #00b8dd; }
+
+/* Aperçu générique au survol d'une carte (tableau de bord, matières) — voir
+   js/apercu-survol.js pour le générateur de bulle. Même principe visuel que
+   .carte-champ/.survol-enfants-champ ci-dessus, réutilisable sur d'autres
+   cartes (carte-action-tb, carte-bienvenue...). */
+.carte-apercu-hover { position: relative; }
+/* z-index explicite : dès qu'une carte voisine applique un transform au
+   survol (ex. translateY), elle forme un nouveau contexte d'empilement et
+   peut sinon passer devant la bulle d'une carte précédente survolée. */
+.carte-apercu-hover:hover { z-index: 5; }
+.bulle-apercu-hover { position: absolute; left: 12px; right: 12px; top: calc(100% - 8px); background: var(--bleu-kekeli-fonce); color: white; border-radius: 10px; padding: 12px 14px; box-shadow: 0 12px 28px rgba(0,0,0,0.28); opacity: 0; visibility: hidden; transform: translateY(-6px); transition: opacity .16s ease, transform .16s ease; pointer-events: none; z-index: 30; }
+.carte-apercu-hover:hover .bulle-apercu-hover { opacity: 1; visibility: visible; transform: translateY(0); }
+.bulle-apercu-hover-titre { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--accent-cyan); margin-bottom: 6px; }
+.bulle-apercu-hover ul { list-style: none; margin: 0; padding: 0; max-height: 168px; overflow: hidden; }
+.bulle-apercu-hover li { font-size: 13px; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.bulle-apercu-hover li:last-child { border-bottom: none; }
+
+/* ===== pages/seances.html — liste partagée par tous les rôles ===== */
+.barre-filtres-seances { display: flex; gap: 10px; flex-wrap: wrap; margin: 18px 0; align-items: center; }
+.barre-filtres-seances select, .barre-filtres-seances input[type="search"] {
+  padding: 9px 12px; border-radius: 8px; border: 1px solid var(--bordure); font-size: 13px; background: var(--blanc);
+}
+.barre-filtres-seances input[type="search"] { flex-grow: 1; min-width: 180px; }
+.case-epingles-sea { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.liste-lignes-seances { display: flex; flex-direction: column; gap: 8px; }
+.ligne-seance-partagee {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  background: var(--blanc); border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07);
+}
+.details-ligne-seance-partagee { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.titre-ligne-seance-partagee { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* Le titre de la séance doit ressortir nettement plus que les badges
+   (discipline, repère, statut) à côté de lui sur la même ligne — demande
+   explicite : mettre le titre "plus en avant", sans regrouper les lignes
+   par SA (juste ce texte-là, sur sa propre ligne). */
+.texte-titre-seance-partagee { font-weight: 800; font-size: 17px; color: var(--bleu-kekeli); }
+.chemin-ligne-seance-partagee { font-size: 12px; color: var(--text-gris); }
+.actions-ligne-seance-partagee { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.bouton-epingler-sea { background: none; border: 1px solid var(--bordure); border-radius: 50%; width: 34px; height: 34px; font-size: 15px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: background .15s, border-color .15s; }
+.bouton-epingler-sea:hover { background: rgba(0,0,209,.08); border-color: var(--bleu-kekeli); }
+.bouton-epingler-sea.epinglee { border-color: var(--accent-cyan); background: rgba(0,209,255,.15); }
+/* Aperçu bloc par bloc du contenu d'une séance (5 septembre 2026, 3e passe) :
+   déplié directement sous la ligne, dans une carte visuellement rattachée. */
+.apercu-contenu-seance-partagee:not([hidden]) {
+  background: var(--blanc); border-radius: 8px; margin-top: -4px; padding: 2px 14px 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07);
+}
+
+/* ===== Pages légales (pages/politique-confidentialite.html,
+   pages/conditions-utilisation.html) — session du 4 septembre 2026,
+   liées depuis le nouveau pied de page public. ===== */
+.page-legale { max-width: 760px; margin: 50px auto 70px; padding: 0 20px; }
+.carte-legale { background: var(--blanc); border-radius: 16px; padding: 40px; box-shadow: 0 8px 30px rgba(0,0,0,0.08); }
+.carte-legale h1 { font-size: 26px; color: var(--noir-kekeli); margin: 0 0 6px; }
+.carte-legale .maj-legale { font-size: 13px; color: var(--text-gris); margin: 0 0 30px; }
+.carte-legale h2 { font-size: 17px; color: var(--bleu-kekeli); margin: 30px 0 10px; }
+.carte-legale h2:first-of-type { margin-top: 0; }
+.carte-legale p, .carte-legale li { font-size: 14.5px; line-height: 1.7; color: var(--text-dark); }
+.carte-legale ul { padding-left: 20px; margin: 8px 0; }
+.carte-legale a { color: var(--bleu-kekeli); }
+.carte-legale .encadre-legale { background: var(--bg-light); border-left: 4px solid var(--accent-cyan); border-radius: 8px; padding: 14px 18px; margin: 20px 0; font-size: 13.5px; color: var(--text-gris); }
+
+/* Thème rose pour les élèves filles (session du 4 septembre 2026, demande
+   explicite : "je veux que si l'enfant est une fille que le bleu soit
+   remplacé par une couleur rose"). La classe .theme-fille est ajoutée sur
+   <body> par requireRole() dans js/auth-utilisateur.js, uniquement pour les
+   profils élève avec sexe = 'F'. Comme presque tout le thème classique
+   consomme --bleu-kekeli/--bleu-kekeli-fonce/--accent-cyan, une simple
+   redéfinition de ces variables suffit à propager le rose partout. */
+body.theme-fille {
+  --bleu-kekeli: #D6006F;
+  --bleu-kekeli-fonce: #99004E;
+  --accent-cyan: #FF8FC7;
+}
+
+/* Cartes de suivi (devoirs : rendu/en cours/en retard/corrigé — 11 septembre
+   2026) — mêmes noms de classe et même mise en page que .grille-taches-admin/
+   .pastille-tache-admin (css/style.css, tableau de bord admin), pour rester
+   cohérent visuellement, mais avec les variables de CETTE feuille de style
+   (--bleu-kekeli/--text-gris/--bordure plutôt que --bleu-principal/--accent,
+   qui n'existent pas ici) — voir js/devoirs-notes-rendu.js, html_cartesStatutsDevoirs(). */
+.grille-taches-admin { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.pastille-tache-admin {
+  background: var(--blanc, #ffffff); border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  border-left: 4px solid var(--bleu-kekeli, #0000D1); display: flex; flex-direction: column; gap: 2px;
+}
+.pastille-tache-admin.a-traiter { border-left-color: #B91C1C; }
+.pastille-tache-admin .chiffre-tache { font-size: 24px; font-weight: 800; color: var(--bleu-kekeli-fonce, var(--bleu-kekeli, #0000D1)); }
+.pastille-tache-admin .libelle-tache { font-size: 12px; color: var(--text-gris, #64748B); }
+
+/* Cartes de suivi cliquables (11 septembre 2026) — html_cartesStatutsDevoirs()
+   rend chaque carte en <button>, il faut donc annuler le style de bouton par
+   défaut du navigateur ; la version <div> (tableau de bord admin) n'est pas
+   concernée par ce sélecteur. */
+button.pastille-tache-admin {
+  border: none; text-align: left; font: inherit; width: 100%; cursor: pointer;
+  transition: box-shadow .15s, transform .1s;
+}
+button.pastille-tache-admin:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.09); }
+button.pastille-tache-admin:active { transform: translateY(1px); }
+button.pastille-tache-admin.carte-statut-active { outline: 2px solid var(--bleu-kekeli, #0000D1); outline-offset: -1px; }
+.fleche-carte-statut { display: inline-block; transition: transform .15s; font-size: 10px; }
+button.pastille-tache-admin.carte-statut-active .fleche-carte-statut { transform: rotate(180deg); }
+.zone-detail-carte-statut { animation: apparitionCarteStatut .15s ease-out; }
+@keyframes apparitionCarteStatut { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+/* Résumé des notes par matière, dépliable (11 septembre 2026) — voir
+   html_resumeNotesParMatiere(), js/devoirs-notes-rendu.js. */
+.liste-resume-notes { display: flex; flex-direction: column; gap: 8px; }
+.details-resume-notes { background: var(--blanc, #fff); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); overflow: hidden; }
+.details-resume-notes summary {
+  list-style: none; cursor: pointer; padding: 10px 14px; display: flex; justify-content: space-between;
+  align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.details-resume-notes summary::-webkit-details-marker { display: none; }
+.details-resume-notes summary::after { content: '▾'; font-size: 11px; color: var(--text-gris, #64748B); margin-left: 6px; }
+.details-resume-notes[open] summary::after { content: '▴'; }
+.resume-notes-apercu { display: flex; align-items: center; gap: 8px; }
+.resume-notes-compte { font-size: 11px; color: var(--text-gris, #64748B); }
+.resume-notes-detail { padding: 0 10px 10px; }

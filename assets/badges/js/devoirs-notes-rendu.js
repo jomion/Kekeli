@@ -1,0 +1,825 @@
+// Rendu partagé pour l'affichage des devoirs et des notes
+// (utilisé par pages/eleve/devoirs-notes.html et pages/parent/devoirs-notes.html,
+// et par les panneaux de gestion admin/enseignant)
+
+const LIBELLES_STATUT_DEVOIR = { a_faire: 'À faire', rendu: 'Rendu', en_retard: 'En retard', corrige: 'Corrigé' };
+const LIBELLES_APPRECIATION = { acquis: 'Acquis', en_cours: 'En cours d\'acquisition', non_acquis: 'Non acquis' };
+const LIBELLES_MEDAILLE_DN = { bronze: '🥉', argent: '🥈', or: '🥇', diamant: '💎' };
+
+function echapperTexte(v) {
+  return (v || '').toString().replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+// Même logique que contenuRicheInitial() dans js/editeur/blocs.js (11
+// septembre 2026, "ajoute le formatage au devoir libre") — dupliquée ici
+// volontairement plutôt qu'importée : ce fichier est aussi chargé sur des
+// pages qui n'incluent PAS blocs.js (pages/eleve/devoirs-notes.html,
+// pages/parent/devoirs-notes.html), donc pas de dépendance dure possible.
+// devoirs.consigne est du texte brut pour un devoir "à blocs" (jamais
+// modifié en formatage riche) et peut être du HTML pour un devoir "texte
+// libre" : la détection du "<" permet d'afficher correctement les deux dans
+// le même rendu, sans avoir besoin de savoir lequel c'est.
+function contenuRicheInitialTexte(texte) {
+  const v = (texte || '').toString();
+  if (v.includes('<')) return v;
+  return echapperTexte(v).replace(/\n/g, '<br>');
+}
+
+function formaterDate(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+// Résume la réponse d'UN élève à UN devoir "à blocs" (exercice/quiz/évaluation/
+// activité — voir js/editeur/devoir-blocs.js), pour affichage compact (liste,
+// panneau enseignant) sans avoir à ré-analyser le détail de chaque bloc partout.
+// blocs : lignes blocs_seance (devoir_id = ce devoir) — TOUS les blocs, y
+// compris un éventuel bloc "correction" (11 septembre 2026), volontairement
+// exclu du calcul ci-dessous : il ne recueille jamais de réponse (voir
+// js/pages/eleve-devoir-rendu.js), le compter viendrait fausser nbBlocs/
+// toutCorrige pour toujours.
+// reponses : lignes reponses_exercices de CET élève pour ces blocs (tous essais).
+// rendus : lignes rendus_activites de CET élève pour ces blocs (tous essais).
+// La note retenue par bloc est celle du DERNIER essai (les essais sont
+// illimités — c'est la réponse la plus récente qui compte pour la note).
+function resumerDevoirBlocs(blocs, reponses, rendus) {
+  const blocsNotables = (blocs || []).filter(b => b.type_bloc !== 'correction');
+  if (!blocsNotables.length) return null;
+
+  const dernierParBloc = (lignes) => {
+    const m = {};
+    (lignes || []).forEach(l => {
+      if (!m[l.bloc_id] || l.numero_essai > m[l.bloc_id].numero_essai) m[l.bloc_id] = l;
+    });
+    return m;
+  };
+  const dernieresReponses = dernierParBloc(reponses);
+  const dernieresActivites = dernierParBloc(rendus);
+
+  let fractionsCumulees = 0;
+  let nbNotes = 0;
+  let nbRepondus = 0;
+  let toutCorrige = true;
+
+  // "exercice" (11 septembre 2026) rejoint "activite" : réponse libre notée
+  // à la main (rendus_activites), plutôt que des questions auto-corrigées.
+  // "probleme" (même jour, remplacement v2) rejoint le même groupe : grille
+  // de calcul soumise par l'élève, notée à la main (Solution/Équation/
+  // Résultat sommés — voir js/editeur/blocs.js, sommeNotesDetailleesProbleme).
+  blocsNotables.forEach(b => {
+    if (b.type_bloc === 'activite' || b.type_bloc === 'exercice' || b.type_bloc === 'probleme') {
+      const r = dernieresActivites[b.id];
+      if (!r) { toutCorrige = false; return; }
+      nbRepondus++;
+      if (!r.corrige_le || r.note == null || !r.bareme) { toutCorrige = false; return; }
+      fractionsCumulees += r.note / r.bareme;
+      nbNotes++;
+    } else {
+      const r = dernieresReponses[b.id];
+      if (!r) { toutCorrige = false; return; }
+      nbRepondus++;
+      if (r.statut === 'en_attente_ia' || r.score_max == null || r.score_max <= 0) { toutCorrige = false; return; }
+      fractionsCumulees += r.score / r.score_max;
+      nbNotes++;
+    }
+  });
+
+  return {
+    nbBlocs: blocsNotables.length,
+    nbRepondus,
+    noteSur20: nbNotes ? Math.round((fractionsCumulees / nbNotes) * 20 * 10) / 10 : null,
+    toutCorrige: toutCorrige && nbNotes === blocsNotables.length,
+  };
+}
+
+// devoirs: [{...devoir, champs_formation:{nom}, rendu: {...}|null, resumeBlocs: {...}|null}]
+// - rendu : ligne devoirs_rendus (devoir "texte" historique, sans bloc).
+// - resumeBlocs : résultat de resumerDevoirBlocs (devoir "à blocs" — voir plus haut).
+// Un devoir n'a jamais les deux à la fois. Affiché en tableau, groupé par
+// matière, pour rester lisible même avec plusieurs matières et devoirs à la fois.
+function html_listeDevoirs(devoirs, options = {}) {
+  if (!devoirs || devoirs.length === 0) return '<p style="color:var(--text-gris);font-size:14px">Aucun devoir pour l\'instant.</p>';
+
+  const parMatiere = {};
+  devoirs.forEach(d => { (parMatiere[d.champs_formation?.nom || 'Autre'] ??= []).push(d); });
+
+  return Object.entries(parMatiere).map(([matiere, liste]) => `
+    <div class="groupe-matiere-devoirs" style="margin-bottom:22px">
+      <div style="font-size:13px;font-weight:800;color:var(--bleu-kekeli,var(--bleu-principal,#0000D1));text-transform:uppercase;letter-spacing:.3px;margin-bottom:8px">${echapperTexte(matiere)}</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="text-align:left;border-bottom:2px solid var(--bordure,#E2E8F0)">
+              <th style="padding:6px 8px">Devoir</th>
+              <th style="padding:6px 8px">À rendre le</th>
+              <th style="padding:6px 8px">Statut</th>
+              <th style="padding:6px 8px">Note</th>
+              <th style="padding:6px 8px"></th>
+            </tr>
+          </thead>
+          <tbody>${liste.map(d => html_ligneDevoirTableau(d, options)).join('')}</tbody>
+        </table>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Calcule le statut d'UN devoir (parmi LIBELLES_STATUT_DEVOIR) — extrait de
+// html_ligneDevoirTableau le 11 septembre 2026 pour être réutilisable par
+// compterStatutsDevoirs() (cartes de suivi élève/parent) sans dupliquer la
+// logique. d : un élément de la liste "devoirsAvecStatut" déjà construite
+// par les pages appelantes (voir js/pages/eleve-devoirs-notes.js et
+// js/pages/parent-devoirs-notes.js) — d.resumeBlocs pour un devoir "à
+// blocs", d.rendu pour un devoir "texte libre" (jamais les deux à la fois).
+function calculerStatutDevoir(d) {
+  const maintenant = new Date();
+  const resume = d.resumeBlocs;
+  if (resume) {
+    const enRetard = resume.nbRepondus < resume.nbBlocs && new Date(d.date_limite) < maintenant;
+    return resume.nbRepondus === 0 ? (enRetard ? 'en_retard' : 'a_faire') : (resume.toutCorrige ? 'corrige' : 'rendu');
+  }
+  const enRetard = !d.rendu && new Date(d.date_limite) < maintenant;
+  return d.rendu ? d.rendu.statut : (enRetard ? 'en_retard' : 'a_faire');
+}
+
+// Cartes de suivi (11 septembre 2026, demande explicite : "cré des cartes
+// pour devoir rendu, en cours, en retard") — compte, pour une liste de
+// devoirs déjà enrichie (même forme que celle passée à html_listeDevoirs),
+// combien sont dans chaque statut. Toujours les 4 clés de LIBELLES_STATUT_DEVOIR,
+// même à 0, pour un affichage de cartes stable.
+function compterStatutsDevoirs(devoirs) {
+  const compte = { a_faire: 0, rendu: 0, en_retard: 0, corrige: 0 };
+  (devoirs || []).forEach(d => { compte[calculerStatutDevoir(d)]++; });
+  return compte;
+}
+
+// Regroupe une liste de devoirs déjà enrichie par statut (mêmes clés que
+// LIBELLES_STATUT_DEVOIR) — sert de base aux cartes cliquables ci-dessous.
+function grouperDevoirsParStatut(devoirs) {
+  const groupes = { a_faire: [], rendu: [], en_retard: [], corrige: [] };
+  (devoirs || []).forEach(d => { groupes[calculerStatutDevoir(d)].push(d); });
+  return groupes;
+}
+
+// Cartes de suivi CLIQUABLES (11 septembre 2026, demande explicite : "chaque
+// carte pour devoir doit être cliquable et contenir ce qu'il renseigne au
+// lieu de présenter juste des statistiques [...] les devoirs doivent être
+// organisés par matière"). Un clic sur une carte déplie, juste en dessous,
+// la vraie liste des devoirs dans ce statut — déjà groupée par matière par
+// html_listeDevoirs() (aucune réutilisation de rendu à écrire deux fois).
+// Une seule carte ouverte à la fois (accordéon) ; aucun rechargement réseau,
+// tout le HTML est déjà présent, seul l'attribut "hidden" est basculé — voir
+// attacherEcouteursCartesStatutsDevoirs().
+// devoirsAvecStatut : même forme que celle passée à html_listeDevoirs.
+// titreCarte : libellé affiché à la place de "À faire" pour ce statut, quand
+// on veut le mot "En cours" plutôt que "À faire" côté élève/parent (même
+// donnée, juste un intitulé plus parlant pour ce contexte précis).
+function html_cartesStatutsDevoirs(devoirsAvecStatut, options = {}) {
+  const libelleAFaire = options.libelleEnCours || LIBELLES_STATUT_DEVOIR.a_faire;
+  const groupes = grouperDevoirsParStatut(devoirsAvecStatut);
+  const cartes = [
+    { cle: 'a_faire', libelle: `📌 ${libelleAFaire}` },
+    { cle: 'rendu', libelle: '📤 Rendus' },
+    { cle: 'en_retard', libelle: '⏰ En retard', alerte: groupes.en_retard.length > 0 },
+    { cle: 'corrige', libelle: '✅ Corrigés' }
+  ];
+  return `<div data-zone-cartes-statuts style="margin-bottom:18px">
+    <div class="grille-taches-admin" style="margin-bottom:0">
+      ${cartes.map(c => `
+        <button type="button" class="pastille-tache-admin ${c.alerte ? 'a-traiter' : ''}" data-carte-statut="${c.cle}">
+          <span class="chiffre-tache">${groupes[c.cle].length}</span>
+          <span class="libelle-tache">${c.libelle} <span class="fleche-carte-statut">▾</span></span>
+        </button>`).join('')}
+    </div>
+    ${cartes.map(c => `
+      <div class="zone-detail-carte-statut" data-zone-carte-statut="${c.cle}" hidden style="margin-top:12px">
+        ${html_listeDevoirs(groupes[c.cle], { ...options, prefixeId: `carte-${c.cle}-` })}
+      </div>`).join('')}
+  </div>`;
+}
+
+// À appeler après avoir inséré le HTML de html_cartesStatutsDevoirs() dans le
+// DOM : bascule l'affichage (accordéon — une seule carte ouverte à la fois,
+// re-cliquer la referme) sans aucun rechargement réseau.
+function attacherEcouteursCartesStatutsDevoirs(conteneurEl) {
+  conteneurEl.querySelectorAll('[data-carte-statut]').forEach(carte => {
+    carte.addEventListener('click', () => {
+      const cle = carte.dataset.carteStatut;
+      const zone = conteneurEl.querySelector(`[data-zone-carte-statut="${cle}"]`);
+      if (!zone) return;
+      const etaitOuverte = !zone.hidden;
+      conteneurEl.querySelectorAll('[data-zone-carte-statut]').forEach(z => { z.hidden = true; });
+      conteneurEl.querySelectorAll('[data-carte-statut]').forEach(c => c.classList.remove('carte-statut-active'));
+      if (!etaitOuverte) { zone.hidden = false; carte.classList.add('carte-statut-active'); }
+    });
+  });
+}
+
+function html_ligneDevoirTableau(d, options) {
+  const resume = d.resumeBlocs;
+  const statut = calculerStatutDevoir(d);
+  const note = resume
+    ? (resume.toutCorrige && resume.noteSur20 != null ? `${resume.noteSur20}/20` : '—')
+    : (d.rendu?.note != null ? `${d.rendu.note}/20` : '—');
+
+  // prefixeId : un même devoir peut apparaître à la fois dans la liste
+  // principale ET dans une carte de suivi dépliée (voir
+  // html_cartesStatutsDevoirs) — sans préfixe, deux lignes porteraient le
+  // même id DOM "detail-devoir-X" et document.getElementById() ne trouverait
+  // jamais la bonne. Chaque appelant passe un préfixe qui lui est propre
+  // (vide pour la liste principale, "carte-<statut>-" pour une carte).
+  const idDetail = `detail-devoir-${options?.prefixeId || ''}${d.id}`;
+  let actionCell;
+  if (resume) {
+    actionCell = options.interactif
+      ? `<a href="devoir.html?id=${d.id}" class="btn btn-discret" style="padding:4px 10px;font-size:12px;white-space:nowrap">${resume.nbRepondus === 0 ? '📝 Faire' : (resume.toutCorrige ? '👁️ Revoir' : '✏️ Continuer')}</a>`
+      : (resume.nbRepondus > 0 ? `<button type="button" class="btn btn-discret" data-toggle-detail="${idDetail}" style="padding:4px 10px;font-size:12px">Détails</button>` : '');
+  } else {
+    actionCell = (options.interactif && !d.rendu)
+      ? `<button class="btn btn-discret" data-rendre-devoir="${d.id}" data-titre-devoir="${echapperTexte(d.titre)}" style="padding:4px 10px;font-size:12px;white-space:nowrap">📤 Rendre</button>`
+      : (d.consigne || d.rendu ? `<button type="button" class="btn btn-discret" data-toggle-detail="${idDetail}" style="padding:4px 10px;font-size:12px">Détails</button>` : '');
+  }
+
+  return `
+    <tr style="border-bottom:1px solid var(--bordure,#E2E8F0)">
+      <td style="padding:8px">${echapperTexte(d.titre)}</td>
+      <td style="padding:8px;white-space:nowrap">${formaterDate(d.date_limite)}</td>
+      <td style="padding:8px"><span class="pastille-statut pastille-${statut}">${LIBELLES_STATUT_DEVOIR[statut]}</span></td>
+      <td style="padding:8px;font-weight:700">${note}</td>
+      <td style="padding:8px;text-align:right">${actionCell}</td>
+    </tr>
+    <tr class="ligne-detail-devoir" id="${idDetail}" style="display:none">
+      <td colspan="5" style="padding:0 8px 12px;background:#F9FAFB">
+        ${d.consigne ? `<div style="margin:8px 0;font-size:13px"><strong>Consigne :</strong><div class="contenu-riche-lecture" style="margin-top:4px">${contenuRicheInitialTexte(d.consigne)}</div></div>` : ''}
+        ${resume ? `<p style="margin:8px 0 0;font-size:12px;color:var(--text-gris,var(--texte-gris,#64748B))">${resume.nbRepondus}/${resume.nbBlocs} bloc${resume.nbBlocs > 1 ? 's' : ''} répondu${resume.nbRepondus > 1 ? 's' : ''}${resume.nbRepondus > 0 && !resume.toutCorrige ? ' — en attente de correction' : ''}</p>` : ''}
+        ${!resume && d.rendu?.contenu_reponse ? `<div style="background:white;border-radius:8px;padding:8px 10px;margin-bottom:6px">
+          <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:var(--text-gris,var(--texte-gris,#64748B));text-transform:uppercase">Réponse rendue</p>
+          <p style="margin:0;font-size:13px;white-space:pre-wrap">${echapperTexte(d.rendu.contenu_reponse)}</p>
+        </div>` : ''}
+        ${!resume && d.rendu?.piece_jointe_url ? `<a href="${echapperTexte(d.rendu.piece_jointe_url)}" target="_blank" rel="noopener" style="font-size:12px">📎 Voir la pièce jointe rendue</a>` : ''}
+        ${!resume && d.rendu && !d.rendu.corrige_le ? `<p style="margin:6px 0 0;font-size:12px;color:#B8860B">⏳ En attente de correction</p>` : ''}
+        ${!resume && d.rendu?.corrige_le && d.rendu.commentaire_correction ? `<div style="background:#E6FBFF;border-radius:8px;padding:8px 10px;margin-top:6px">
+          <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:var(--bleu-kekeli,var(--bleu-principal,#0000D1));text-transform:uppercase">Appréciation du maître</p>
+          <p style="margin:0;font-size:13px">${echapperTexte(d.rendu.commentaire_correction)}</p>
+        </div>` : ''}
+      </td>
+    </tr>`;
+}
+
+// À appeler après avoir inséré le HTML de html_listeDevoirs dans le DOM, pour
+// activer les boutons "Détails" (dépliage de la ligne). Les boutons "Rendre"
+// restent gérés par la page appelante (elle seule connaît le profil élève).
+function attacherEcouteursDetailsDevoirs(conteneurEl) {
+  conteneurEl.querySelectorAll('[data-toggle-detail]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const ligne = document.getElementById(btn.dataset.toggleDetail);
+      if (ligne) ligne.style.display = ligne.style.display === 'none' ? 'table-row' : 'none';
+    });
+  });
+}
+
+// Point d'entrée unique pour une page élève/parent : attache en un seul appel
+// les boutons "Détails" (y compris ceux à l'intérieur des cartes de suivi
+// dépliées), l'accordéon des cartes de suivi, et — si fourni — le bouton
+// "Rendre" (élève uniquement, absent côté parent qui n'a pas ce bouton).
+// conteneurEl : le conteneur englobant TOUT (cartes + liste de devoirs), les
+// ids/attributs data-* étant uniques sur la page, un seul appel suffit même
+// si le même devoir apparaît à la fois dans la liste principale et dans une
+// carte dépliée (peu probable mais sans risque : chaque bouton a son propre
+// data-toggle-detail ciblant un id de ligne spécifique).
+function attacherEcouteursListeDevoirs(conteneurEl, onRendre) {
+  attacherEcouteursDetailsDevoirs(conteneurEl);
+  attacherEcouteursCartesStatutsDevoirs(conteneurEl);
+  if (onRendre) {
+    conteneurEl.querySelectorAll('[data-rendre-devoir]').forEach(btn => {
+      btn.addEventListener('click', () => onRendre(parseInt(btn.dataset.rendreDevoir, 10), btn.dataset.titreDevoir));
+    });
+  }
+}
+
+// Calcule automatiquement, pour une classe et une matière (champ de formation)
+// données, la liste des séances déjà publiées dans le parcours — permet à
+// l'enseignant/admin de choisir la séance à évaluer sans jamais taper un ID.
+// Parcours : noeuds_parcours (classe+champ) -> sa -> seances (statut publié).
+async function chargerSeancesPourMatiere(classeId, champId) {
+  const { data: noeuds } = await supabaseClient.from('noeuds_parcours').select('id')
+    .eq('classe_id', classeId).eq('champ_formation_id', champId);
+  const idsNoeuds = (noeuds || []).map(n => n.id);
+  if (!idsNoeuds.length) return [];
+
+  const { data: sas } = await supabaseClient.from('sa').select('id, titre, ordre').in('noeud_id', idsNoeuds);
+  const idsSA = (sas || []).map(s => s.id);
+  if (!idsSA.length) return [];
+
+  const { data: seances } = await supabaseClient.from('seances').select('id, titre, ordre, sa_id')
+    .in('sa_id', idsSA).eq('statut', 'publie');
+
+  const saParId = {};
+  (sas || []).forEach(s => { saParId[s.id] = s; });
+
+  return (seances || [])
+    .map(se => ({
+      id: se.id,
+      label: `${saParId[se.sa_id]?.titre || ''} — ${se.titre}`,
+      ordreSA: saParId[se.sa_id]?.ordre ?? 0,
+      ordreSeance: se.ordre
+    }))
+    .sort((a, b) => a.ordreSA - b.ordreSA || a.ordreSeance - b.ordreSeance);
+}
+
+// Calcule resumerDevoirBlocs() pour chaque devoir "à blocs" d'une liste, à
+// partir des blocs/réponses/rendus de TOUS ces devoirs déjà chargés en une
+// seule fois (évite une requête par devoir) — utilisé côté élève et parent
+// pour construire le tableau html_listeDevoirs sans N+1 requêtes.
+function resumerDevoirsBlocsEnLot(idsDevoirsBlocs, blocsTous, reponsesTous, rendusTous) {
+  const blocsParDevoir = {};
+  (blocsTous || []).forEach(b => { (blocsParDevoir[b.devoir_id] ??= []).push(b); });
+  const idsBlocsParDevoir = {};
+  Object.entries(blocsParDevoir).forEach(([devoirId, blocs]) => { idsBlocsParDevoir[devoirId] = new Set(blocs.map(b => b.id)); });
+
+  const resumes = {};
+  (idsDevoirsBlocs || []).forEach(devoirId => {
+    const blocs = blocsParDevoir[devoirId] || [];
+    const idsBlocs = idsBlocsParDevoir[devoirId] || new Set();
+    const reponses = (reponsesTous || []).filter(r => idsBlocs.has(r.bloc_id));
+    const rendus = (rendusTous || []).filter(r => idsBlocs.has(r.bloc_id));
+    resumes[devoirId] = resumerDevoirBlocs(blocs, reponses, rendus);
+  });
+  return resumes;
+}
+
+// Charge les blocs d'un devoir "à blocs" ainsi que les réponses/rendus déjà
+// donnés par les élèves suivis, pour construire le panneau de gestion.
+async function donneesPanneauDevoirBlocs(devoirId, idsEleves) {
+  const { data: blocs } = await supabaseClient.from('blocs_seance').select('*').eq('devoir_id', devoirId).order('ordre');
+  const idsBlocs = (blocs || []).map(b => b.id);
+  if (!idsBlocs.length || !idsEleves || !idsEleves.length) {
+    return { blocs: blocs || [], reponsesExercices: [], rendusActivites: [] };
+  }
+  const [{ data: reponsesExercices }, { data: rendusActivites }] = await Promise.all([
+    supabaseClient.from('reponses_exercices').select('*').in('bloc_id', idsBlocs).in('eleve_id', idsEleves),
+    supabaseClient.from('rendus_activites').select('*').in('bloc_id', idsBlocs).in('eleve_id', idsEleves)
+  ]);
+  return { blocs: blocs || [], reponsesExercices: reponsesExercices || [], rendusActivites: rendusActivites || [] };
+}
+
+// Panneau affiché sous un devoir "à blocs" (seance_id renseigné) dans les
+// espaces enseignant/admin : bascule brouillon/publié, zone d'édition des
+// blocs (à monter séparément avec initEditeurBlocsDevoir sur le conteneur
+// data-editeur-blocs-devoir), puis — une fois publié — le panneau des
+// rendus/corrections (htmlRendus, déjà construit par html_gestionRendusDevoir).
+function html_panneauGestionDevoirBlocs(devoir, htmlRendus) {
+  const grisRepli = 'var(--text-gris,var(--texte-gris,#64748B))';
+  const bleuRepli = 'var(--bleu-kekeli,var(--bleu-principal,#0000D1))';
+  const estPublie = devoir.statut === 'publie';
+
+  return `<div style="margin:8px 0 16px;padding:12px 14px;background:#F9FAFB;border-radius:8px;border:1px solid ${grisRepli}22">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <div style="font-size:12px;color:${grisRepli}">
+        <strong>Séance évaluée :</strong> ${devoir.seances ? echapperTexte(devoir.seances.titre) : '—'}
+      </div>
+      <button type="button" class="btn ${estPublie ? 'btn-discret' : ''}" data-toggle-statut-devoir="${devoir.id}" data-nouveau-statut="${estPublie ? 'brouillon' : 'publie'}"
+        style="${estPublie ? '' : `background:${bleuRepli};color:white;`}padding:6px 14px;font-size:12px;border:none;border-radius:8px;cursor:pointer">
+        ${estPublie ? '↩️ Repasser en brouillon' : '🚀 Publier ce devoir'}
+      </button>
+    </div>
+    ${!estPublie ? `<p style="margin:0 0 10px;font-size:12px;color:#B8860B">⚠️ En brouillon : les élèves ne voient pas encore ce devoir. Ajoutez vos blocs (exercices, quiz, évaluation, activité) puis publiez.</p>` : ''}
+    ${devoir.consigne ? `<div style="margin:0 0 10px;font-size:13px;color:${grisRepli}"><strong>Consigne générale :</strong><div class="contenu-riche-lecture" style="margin-top:4px">${contenuRicheInitialTexte(devoir.consigne)}</div></div>` : ''}
+    <div data-editeur-blocs-devoir="${devoir.id}" style="margin-bottom:12px"></div>
+    ${estPublie ? (htmlRendus || '') : ''}
+  </div>`;
+}
+
+// ===== Gestion / correction (enseignant & admin) =====
+// Panneau affiché sous un devoir dans les espaces enseignant/admin, listant
+// chaque élève concerné avec sa réponse rendue et un accès à la correction.
+// Écrit avec des styles en ligne (et des var() à repli en cascade) car ce
+// fichier est partagé entre des pages qui n'utilisent pas la même feuille
+// de style (css/style.css côté admin, css/style-public.css côté enseignant).
+//
+// blocs/reponsesExercices/rendusActivites ne sont fournis que pour un devoir
+// "à blocs" (sinon undefined/vide, et on retombe sur l'ancien panneau texte).
+function html_gestionRendusDevoir(devoir, eleves, rendusLegacy, blocs, reponsesExercices, rendusActivites) {
+  const grisRepli = 'var(--text-gris,var(--texte-gris,#64748B))';
+  const bleuRepli = 'var(--bleu-kekeli,var(--bleu-principal,#0000D1))';
+
+  if (blocs && blocs.length) {
+    return html_gestionRendusDevoirBlocs(devoir, eleves, blocs, reponsesExercices, rendusActivites, grisRepli, bleuRepli);
+  }
+
+  const rendusParEleve = {};
+  (rendusLegacy || []).forEach(r => { rendusParEleve[r.eleve_id] = r; });
+
+  return `<div style="margin:8px 0 16px;padding:12px 14px;background:#F9FAFB;border-radius:8px;border:1px solid ${grisRepli}22">
+    ${devoir.consigne ? `<div style="margin:0 0 10px;font-size:13px;color:${grisRepli}"><strong>Consigne :</strong><div class="contenu-riche-lecture" style="margin-top:4px">${contenuRicheInitialTexte(devoir.consigne)}</div></div>` : ''}
+    ${(eleves && eleves.length) ? eleves.map(e => {
+      const r = rendusParEleve[e.id];
+      const nomEleve = `${echapperTexte(e.profils?.prenom || '')} ${echapperTexte(e.profils?.nom || '')}`;
+      return `<div style="padding:8px 0;border-top:1px solid ${grisRepli}22;display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+          <strong style="font-size:13px">${nomEleve}</strong>
+          ${!r
+            ? `<span style="font-size:11px;color:${grisRepli}">Pas encore rendu</span>`
+            : r.corrige_le
+              ? `<span style="font-size:11px;font-weight:700;color:${bleuRepli}">${r.note != null ? `${r.note}/20` : 'Corrigé'}</span>`
+              : `<button type="button" class="btn" data-corriger-devoir="${r.id}" style="background:${bleuRepli};color:white;padding:5px 12px;font-size:12px">✏️ Corriger</button>`}
+        </div>
+        ${r?.contenu_reponse ? `<p style="margin:0;font-size:13px;background:white;padding:8px;border-radius:6px;white-space:pre-wrap">${echapperTexte(r.contenu_reponse)}</p>` : ''}
+        ${r?.piece_jointe_url ? `<a href="${echapperTexte(r.piece_jointe_url)}" target="_blank" rel="noopener" style="font-size:12px">📎 Pièce jointe</a>` : ''}
+        ${r?.commentaire_correction ? `<p style="margin:0;font-size:12px;color:${grisRepli}">💬 ${echapperTexte(r.commentaire_correction)}</p>` : ''}
+      </div>`;
+    }).join('') : `<p style="font-size:12px;color:${grisRepli};margin:0">Aucun élève dans cette classe pour l'instant.</p>`}
+  </div>`;
+}
+
+function html_gestionRendusDevoirBlocs(devoir, eleves, blocs, reponsesExercices, rendusActivites, grisRepli, bleuRepli) {
+  const reponsesParEleve = {}; // eleveId -> blocId -> [essais]
+  (reponsesExercices || []).forEach(r => { ((reponsesParEleve[r.eleve_id] ??= {})[r.bloc_id] ??= []).push(r); });
+  const activitesParEleve = {};
+  (rendusActivites || []).forEach(r => { ((activitesParEleve[r.eleve_id] ??= {})[r.bloc_id] ??= []).push(r); });
+  const dernier = (map, blocId) => { const l = map[blocId]; return l && l.length ? l[l.length - 1] : null; };
+
+  return `<div style="margin:8px 0 16px;padding:12px 14px;background:#F9FAFB;border-radius:8px;border:1px solid ${grisRepli}22">
+    ${devoir.consigne ? `<div style="margin:0 0 10px;font-size:13px;color:${grisRepli}"><strong>Consigne générale :</strong><div class="contenu-riche-lecture" style="margin-top:4px">${contenuRicheInitialTexte(devoir.consigne)}</div></div>` : ''}
+    ${(eleves && eleves.length) ? eleves.map(e => {
+      const reponsesBloc = reponsesParEleve[e.id] || {};
+      const activitesBloc = activitesParEleve[e.id] || {};
+      const resume = resumerDevoirBlocs(blocs, Object.values(reponsesBloc).flat(), Object.values(activitesBloc).flat());
+      const nomEleve = `${echapperTexte(e.profils?.prenom || '')} ${echapperTexte(e.profils?.nom || '')}`;
+      const aCorriger = blocs.some(b => (b.type_bloc === 'activite' || b.type_bloc === 'exercice' || b.type_bloc === 'probleme') && dernier(activitesBloc, b.id) && !dernier(activitesBloc, b.id).corrige_le);
+      const couleurBadge = resume.nbRepondus === 0 ? grisRepli : (aCorriger ? '#B8860B' : bleuRepli);
+      const texteBadge = resume.nbRepondus === 0
+        ? 'Pas encore rendu'
+        : `${resume.nbRepondus}/${resume.nbBlocs} bloc${resume.nbBlocs > 1 ? 's' : ''}${resume.toutCorrige && resume.noteSur20 != null ? ` · ${resume.noteSur20}/20` : (aCorriger ? ' · à corriger' : '')}`;
+
+      return `<details style="padding:8px 0;border-top:1px solid ${grisRepli}22">
+        <summary style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;cursor:pointer">
+          <strong style="font-size:13px">${nomEleve}</strong>
+          <span style="font-size:11px;font-weight:700;color:${couleurBadge}">${texteBadge}</span>
+        </summary>
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
+          ${blocs.filter(b => b.type_bloc !== 'correction').map(b => {
+            const info = infoType(b.type_bloc);
+            const c = b.contenu || {};
+            const libelleBloc = `${info.icone} ${echapperTexte(c.libelle || info.label)}`;
+            if (b.type_bloc === 'probleme') {
+              const r = dernier(activitesBloc, b.id);
+              if (!r) return `<div style="font-size:12px;color:${grisRepli}">${libelleBloc} — pas encore rendu</div>`;
+              return `<div style="background:white;padding:8px;border-radius:6px">
+                <div style="font-size:11px;font-weight:700;color:${grisRepli};text-transform:uppercase">${libelleBloc}${r.numero_essai > 1 ? ` (essai ${r.numero_essai})` : ''}</div>
+                ${r.corrige_le
+                  ? `<p style="margin:4px 0 0;font-size:12px;color:${bleuRepli};font-weight:700">✅ ${r.note != null ? `${r.note}/${r.bareme}` : 'Corrigé'}${r.appreciation ? ` — ${LIBELLES_APPRECIATION[r.appreciation] || ''}` : ''}</p>
+                    ${r.commentaire ? `<p style="margin:2px 0 0;font-size:12px;color:${grisRepli}">💬 ${echapperTexte(r.commentaire)}</p>` : ''}`
+                  : `<button type="button" class="btn" data-corriger-probleme-devoir="${r.id}" style="background:${bleuRepli};color:white;padding:4px 10px;font-size:11px;margin-top:4px">✏️ Corriger</button>`}
+              </div>`;
+            }
+            if (b.type_bloc === 'activite' || b.type_bloc === 'exercice') {
+              const r = dernier(activitesBloc, b.id);
+              if (!r) return `<div style="font-size:12px;color:${grisRepli}">${libelleBloc} — pas encore rendu</div>`;
+              return `<div style="background:white;padding:8px;border-radius:6px">
+                <div style="font-size:11px;font-weight:700;color:${grisRepli};text-transform:uppercase">${libelleBloc}${r.numero_essai > 1 ? ` (essai ${r.numero_essai})` : ''}</div>
+                ${r.reponse_texte ? `<p style="margin:4px 0;font-size:13px;white-space:pre-wrap">${echapperTexte(r.reponse_texte)}</p>` : ''}
+                ${r.piece_jointe_url ? `<a href="${echapperTexte(r.piece_jointe_url)}" target="_blank" rel="noopener" style="font-size:12px">📎 Pièce jointe</a>` : ''}
+                ${r.corrige_le
+                  ? `<p style="margin:4px 0 0;font-size:12px;color:${bleuRepli};font-weight:700">✅ ${r.note != null ? `${r.note}/${r.bareme}` : 'Corrigé'}${r.appreciation ? ` — ${LIBELLES_APPRECIATION[r.appreciation] || ''}` : ''}</p>
+                    ${r.commentaire ? `<p style="margin:2px 0 0;font-size:12px;color:${grisRepli}">💬 ${echapperTexte(r.commentaire)}</p>` : ''}`
+                  : `<button type="button" class="btn" data-corriger-activite-devoir="${r.id}" style="background:${bleuRepli};color:white;padding:4px 10px;font-size:11px;margin-top:4px">✏️ Corriger</button>`}
+              </div>`;
+            }
+            const r = dernier(reponsesBloc, b.id);
+            if (!r) return `<div style="font-size:12px;color:${grisRepli}">${libelleBloc} — pas encore répondu</div>`;
+            return `<div style="background:white;padding:8px;border-radius:6px;font-size:12px">
+              <div style="font-weight:700;color:${grisRepli};text-transform:uppercase;font-size:11px">${libelleBloc}${r.numero_essai > 1 ? ` (essai ${r.numero_essai})` : ''}</div>
+              ${r.statut === 'en_attente_ia' ? '⏳ En attente de correction (IA indisponible)' : `📊 ${r.score}/${r.score_max}${r.medaille ? ` · ${LIBELLES_MEDAILLE_DN[r.medaille] || ''}` : ''}`}
+            </div>`;
+          }).join('')}
+        </div>
+      </details>`;
+    }).join('') : `<p style="font-size:12px;color:${grisRepli};margin:0">Aucun élève dans cette classe pour l'instant.</p>`}
+  </div>`;
+}
+
+// Résume le ciblage d'un devoir pour affichage compact dans les panneaux
+// enseignant/admin (ex. "🎯 Tous les élèves" ou "🎯 3 élève(s) sélectionné(s)").
+// nbDestinataires : nombre de lignes dans devoirs_destinataires pour ce devoir
+// (0 = pas de ciblage précis = visible par toute la classe).
+function libelleDestinatairesDevoir(nbDestinataires, nbElevesClasse) {
+  return nbDestinataires > 0
+    ? `🎯 ${nbDestinataires} élève${nbDestinataires > 1 ? 's' : ''} sélectionné${nbDestinataires > 1 ? 's' : ''}`
+    : `🎯 Tous les élèves${nbElevesClasse ? ` (${nbElevesClasse})` : ''}`;
+}
+
+// Ouvre la sélection des destinataires d'un devoir : soit tous les élèves de
+// la classe (comportement historique, aucune ligne stockée), soit une liste
+// précise (voir table devoirs_destinataires et devoir_cible_eleve() côté
+// base — RLS + edge function corriger-exercice appliquent le même ciblage).
+// eleves : lignes { id, profils:{prenom,nom} } de la classe concernée.
+async function ouvrirSelectionDestinatairesDevoir(devoirId, eleves, onValide) {
+  const { data: destinatairesActuels, error: erreurLecture } = await supabaseClient
+    .from('devoirs_destinataires').select('eleve_id').eq('devoir_id', devoirId);
+  if (erreurLecture) { alert(erreurLecture.message); return; }
+  const idsActuels = (destinatairesActuels || []).map(d => d.eleve_id);
+  const tousParDefaut = idsActuels.length === 0;
+
+  ouvrirModal({
+    titre: '🎯 Destinataires du devoir',
+    champs: [{
+      nom: 'destinataires', label: 'Élèves concernés', type: 'checkboxes',
+      toutCocherLabel: 'Tous les élèves de la classe',
+      options: eleves.map(e => ({ valeur: e.id, label: `${e.profils?.prenom || ''} ${e.profils?.nom || ''}`.trim() || '(sans nom)' })),
+      valeur: tousParDefaut ? eleves.map(e => e.id) : idsActuels
+    }],
+    texteValider: 'Enregistrer',
+    onValider: async ({ destinataires }) => {
+      if (!destinataires.length) {
+        alert('Sélectionnez au moins un élève, ou cochez "Tous les élèves de la classe".');
+        return;
+      }
+      const tousCoches = destinataires.length === eleves.length;
+      const { error: erreurSuppr } = await supabaseClient.from('devoirs_destinataires').delete().eq('devoir_id', devoirId);
+      if (erreurSuppr) { alert(erreurSuppr.message); return; }
+      if (!tousCoches) {
+        const { error } = await supabaseClient.from('devoirs_destinataires')
+          .insert(destinataires.map(eleveId => ({ devoir_id: devoirId, eleve_id: eleveId })));
+        if (error) { alert(error.message); return; }
+      }
+      onValide();
+    }
+  });
+}
+
+// Avant de créer un devoir, l'enseignant/admin choisit son mode — l'ancien
+// mode "texte libre" a été restauré (lot 3, partie 3, volet 2) à côté du
+// mode "à blocs" :
+// - texte_libre : l'élève écrit sa réponse (et peut joindre un fichier) via
+//   devoirs_rendus, corrigée à la main par l'enseignant — gratuit, jamais
+//   soumis au système d'abonnements.
+// - blocs : exercices/quiz/évaluation/activité avec correction automatique
+//   (js/editeur/devoir-blocs.js), réservé aux élèves/familles abonnées ou en
+//   essai gratuit — la vérification se fait au moment même où l'élève valide
+//   chaque bloc (etat_acces_service / consommer_usage_service côté
+//   corriger-exercice), exactement comme pour les exercices d'une séance :
+//   aucune vérification supplémentaire n'est nécessaire à la création.
+// onChoisi(mode) est appelé avec 'texte_libre' ou 'blocs'.
+function ouvrirChoixModeNouveauDevoir(onChoisi) {
+  const grisRepli = 'var(--text-gris,var(--texte-gris,#64748B))';
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-boite">
+      <h3>Nouveau devoir</h3>
+      <p style="font-size:13px;color:${grisRepli};margin-top:-8px">Choisissez le mode de ce devoir.</p>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px">
+        <button type="button" class="btn" data-mode-devoir="texte_libre" style="text-align:left;padding:14px;border:1px solid var(--bordure,#E2E8F0);border-radius:10px;background:white;cursor:pointer">
+          <div style="font-weight:800;font-size:14px">📝 Mode simple (texte libre)</div>
+          <div style="font-size:12px;color:${grisRepli};margin-top:2px">L'élève écrit sa réponse (et peut joindre un fichier) ; vous la corrigez vous-même. Gratuit, aucun abonnement requis.</div>
+        </button>
+        <button type="button" class="btn" data-mode-devoir="blocs" style="text-align:left;padding:14px;border:1px solid var(--bordure,#E2E8F0);border-radius:10px;background:white;cursor:pointer">
+          <div style="font-weight:800;font-size:14px">🧩 Mode à blocs (exercices, quiz, évaluation, activité)</div>
+          <div style="font-size:12px;color:${grisRepli};margin-top:2px">Correction automatique dès que l'élève valide. Réservé aux élèves/familles abonnées (ou en essai gratuit) — vérifié au moment de la correction, comme pour les exercices d'une séance.</div>
+        </button>
+      </div>
+      <div class="modal-actions" style="margin-top:14px">
+        <button type="button" class="btn btn-discret" data-fermer-modal>Annuler</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const fermer = () => overlay.remove();
+  overlay.querySelector('[data-fermer-modal]').addEventListener('click', fermer);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) fermer(); });
+  document.addEventListener('keydown', function echap(e) { if (e.key === 'Escape') { fermer(); document.removeEventListener('keydown', echap); } });
+
+  overlay.querySelectorAll('[data-mode-devoir]').forEach(btn => {
+    btn.addEventListener('click', () => { fermer(); onChoisi(btn.dataset.modeDevoir); });
+  });
+}
+
+// Ouvre le formulaire de correction pour un rendu "texte" (devoir sans bloc),
+// puis appelle onValide() (généralement pour rafraîchir l'affichage).
+function ouvrirCorrectionDevoir(renduId, correcteurId, onValide) {
+  ouvrirModal({
+    titre: 'Corriger ce devoir',
+    champs: [
+      { nom: 'note', label: 'Note (optionnelle, sur 20)', type: 'number', requis: false },
+      { nom: 'commentaire_correction', label: 'Appréciation (optionnelle)', type: 'textarea', requis: false, placeholder: "Retour pour l'élève..." }
+    ],
+    texteValider: 'Enregistrer la correction',
+    onValider: async ({ note, commentaire_correction }) => {
+      const { error } = await supabaseClient.from('devoirs_rendus').update({
+        note: note ? parseFloat(note) : null,
+        commentaire_correction: commentaire_correction || null,
+        statut: 'corrige',
+        corrige_par: correcteurId,
+        corrige_le: new Date().toISOString()
+      }).eq('id', renduId);
+      if (error) return alert(error.message);
+      onValide();
+    }
+  });
+}
+
+// Ouvre le formulaire de correction d'un bloc "activité" appartenant à un
+// devoir "à blocs" (même table rendus_activites que les activités de séance).
+function ouvrirCorrectionActiviteDevoir(renduId, correcteurId, onValide) {
+  ouvrirModal({
+    titre: 'Corriger cette activité',
+    champs: [
+      { nom: 'note', label: 'Note (optionnelle, sur 20)', type: 'number', requis: false },
+      { nom: 'appreciation', label: 'Appréciation (optionnelle)', type: 'select', requis: false,
+        options: [{ valeur: '', label: '— Aucune —' }, { valeur: 'acquis', label: 'Acquis' }, { valeur: 'en_cours', label: 'En cours' }, { valeur: 'non_acquis', label: 'Non acquis' }] },
+      { nom: 'commentaire', label: 'Commentaire (optionnel)', type: 'textarea', requis: false, placeholder: "Retour pour l'élève..." }
+    ],
+    texteValider: 'Enregistrer la correction',
+    onValider: async ({ note, appreciation, commentaire }) => {
+      const { error } = await supabaseClient.from('rendus_activites').update({
+        note: note ? parseFloat(note) : null,
+        appreciation: appreciation || null,
+        commentaire: commentaire || null,
+        corrige_par: correcteurId,
+        corrige_le: new Date().toISOString()
+      }).eq('id', renduId);
+      if (error) return alert(error.message);
+      onValide();
+    }
+  });
+}
+
+// Ouvre la correction détaillée d'un rendu de bloc "Problème" (v2, 11
+// septembre 2026) appartenant à un devoir "à blocs" — même principe que
+// ouvrirCorrectionProbleme dans js/pages/activites-correction.js (contexte
+// séance) : note libre par étape/colonne (Solution/Équation/Résultat, sans
+// maximum fixe), sommées automatiquement pour la note finale (voir
+// sommeNotesDetailleesProbleme dans js/editeur/blocs.js). Modale bespoke,
+// pas ouvrirModal (liste de champs dynamique). Contrairement à
+// ouvrirCorrectionActiviteDevoir, a besoin du contenu du bloc (les étapes à
+// noter) : on le récupère ici via rendu.bloc_id plutôt que de faire porter
+// cette responsabilité aux pages appelantes (js/pages/admin-devoirs-notes.js,
+// js/pages/enseignant-devoirs-notes.js), qui n'ont que l'id du rendu.
+async function ouvrirCorrectionProblemeDevoir(renduId, correcteurId, onValide) {
+  const { data: rendu, error: erreurRendu } = await supabaseClient.from('rendus_activites').select('*').eq('id', renduId).single();
+  if (erreurRendu || !rendu) { alert(erreurRendu?.message || 'Rendu introuvable.'); return; }
+  const { data: bloc, error: erreurBloc } = await supabaseClient.from('blocs_seance').select('id, contenu').eq('id', rendu.bloc_id).single();
+  if (erreurBloc || !bloc) { alert(erreurBloc?.message || 'Bloc introuvable.'); return; }
+
+  const c = bloc.contenu || {};
+  const lignes = Array.isArray(c.lignes) ? c.lignes.filter(l => l && (l.description || l.equation)) : [];
+  const reponseLignes = lireReponseProbleme(rendu.reponse_texte);
+  const detailsExistants = rendu.details_notation || {};
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-boite modal-boite-large">
+      <h3>Corriger le problème</h3>
+      <form id="formCorrectionProblemeDevoir">
+        ${html_formulaireCorrectionProbleme(c, reponseLignes, detailsExistants)}
+        <label class="champ-modal">Appréciation (optionnelle)
+          <select name="appreciation">
+            <option value="" ${!rendu.appreciation ? 'selected' : ''}>— Aucune —</option>
+            <option value="acquis" ${rendu.appreciation === 'acquis' ? 'selected' : ''}>Acquis</option>
+            <option value="en_cours" ${rendu.appreciation === 'en_cours' ? 'selected' : ''}>En cours</option>
+            <option value="non_acquis" ${rendu.appreciation === 'non_acquis' ? 'selected' : ''}>Non acquis</option>
+          </select>
+        </label>
+        <label class="champ-modal">Commentaire (optionnel)
+          <textarea name="commentaire" placeholder="Retour pour l'élève...">${echapperTexte(rendu.commentaire || '')}</textarea>
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-discret" data-fermer-modal>Annuler</button>
+          <button type="submit" class="btn btn-primaire">Enregistrer la correction</button>
+        </div>
+      </form>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const fermer = () => overlay.remove();
+  overlay.querySelector('[data-fermer-modal]').addEventListener('click', fermer);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) fermer(); });
+
+  const form = overlay.querySelector('#formCorrectionProblemeDevoir');
+  attacherMiseAJourTotalCorrectionProbleme(form);
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const details = collecterDetailsNotationProbleme(form, lignes.length);
+    const note = sommeNotesDetailleesProbleme(details);
+    const appreciation = form.querySelector('[name="appreciation"]').value;
+    const commentaire = form.querySelector('[name="commentaire"]').value;
+    const { error } = await supabaseClient.from('rendus_activites').update({
+      note,
+      details_notation: details,
+      appreciation: appreciation || null,
+      commentaire: commentaire || null,
+      corrige_par: correcteurId,
+      corrige_le: new Date().toISOString()
+    }).eq('id', renduId);
+    if (error) return alert(error.message);
+    fermer();
+    onValide();
+  });
+}
+
+// Supprime un devoir, quel que soit son statut (11 septembre 2026, demande
+// explicite : "Ajoute la possibilité de supprimer un devoir [...] même si
+// c'est déjà publié") — une confirmation est demandée car l'opération est
+// irréversible. Toutes les tables qui dépendent de devoirs.id (destinataires,
+// blocs, et via les blocs : réponses/rendus/corrigés/compétences liées) sont
+// déclarées en ON DELETE CASCADE côté base : une seule suppression suffit,
+// pas besoin de nettoyer les tables enfants une à une côté client.
+function supprimerDevoir(devoirId, titreDevoir, onValide) {
+  confirmerAction(
+    `Supprimer définitivement le devoir « ${echapperTexte(titreDevoir || '')} » ?<br><br>Toutes les réponses déjà données par les élèves pour ce devoir seront supprimées avec lui. Cette action est irréversible.`,
+    async () => {
+      const { error } = await supabaseClient.from('devoirs').delete().eq('id', devoirId);
+      if (error) { alert(error.message); return; }
+      onValide();
+    }
+  );
+}
+
+// Modifie le titre/la consigne/la date limite d'un devoir déjà créé, quel que
+// soit son statut (11 septembre 2026, même demande que ci-dessus : "ou de le
+// modifier même si c'est déjà publié" — jusqu'ici, aucun champ du devoir
+// n'était modifiable après création, brouillon ou publié). La classe, la
+// matière et la séance liée (pour un devoir "à blocs") restent volontairement
+// figées : les changer romprait la cohérence des réponses déjà données —
+// mieux vaut alors créer un nouveau devoir.
+function ouvrirModificationDevoir(devoir, onValide) {
+  ouvrirModal({
+    titre: 'Modifier ce devoir',
+    champs: [
+      { nom: 'titre', label: 'Titre', valeur: devoir.titre },
+      // Formatage riche uniquement pour un devoir "texte libre" (seance_id
+      // nul) — un devoir "à blocs" garde sa consigne générale en texte brut,
+      // demande explicite du porteur du projet scopée au mode texte libre.
+      { nom: 'consigne', label: `Consigne${devoir.seance_id ? ' générale' : ''} (optionnelle)`, type: devoir.seance_id ? 'textarea' : 'richtext', requis: false, valeur: devoir.consigne || '' },
+      { nom: 'date_limite', label: 'À rendre pour le', type: 'date', valeur: devoir.date_limite ? devoir.date_limite.slice(0, 10) : '' }
+    ],
+    texteValider: 'Enregistrer',
+    onValider: async ({ titre, consigne, date_limite }) => {
+      const { error } = await supabaseClient.from('devoirs').update({
+        titre, consigne: consigne || null, date_limite: new Date(date_limite).toISOString()
+      }).eq('id', devoir.id);
+      if (error) return alert(error.message);
+      onValide();
+    }
+  });
+}
+
+// evaluations: [{...evaluation, champs_formation:{nom}}]
+// Ancien rendu, gardé pour compatibilité (une seule ligne par évaluation,
+// sans regroupement) — remplacé côté élève/parent par
+// html_resumeNotesParMatiere() ci-dessous (11 septembre 2026, demande
+// explicite : "réduire l'affichage des notes par défaut pour que ça ne soit
+// pas encombrant").
+function html_listeEvaluations(evaluations) {
+  if (!evaluations || evaluations.length === 0) return '<p style="color:var(--text-gris);font-size:14px">Aucune note pour l\'instant.</p>';
+
+  return `<div class="liste-lignes-pub">${evaluations.map(e => html_ligneEvaluation(e)).join('')}</div>`;
+}
+
+function html_ligneEvaluation(e) {
+  const valeurAffichee = e.type === 'appreciation'
+    ? `<span class="pastille-statut pastille-${e.appreciation}">${LIBELLES_APPRECIATION[e.appreciation]}</span>`
+    : `<span class="pastille-note">${e.valeur} / ${e.type === 'note_20' ? '20' : '10'}</span>`;
+  return `<div class="ligne-pub">
+    <div>
+      <div class="titre-ligne-pub">${e.champs_formation ? echapperTexte(e.champs_formation.nom) : 'Évaluation'}</div>
+      <div class="sous-ligne-pub">${formaterDate(e.cree_le)}${e.commentaire ? ' · ' + echapperTexte(e.commentaire) : ''}</div>
+    </div>
+    ${valeurAffichee}
+  </div>`;
+}
+
+// Résumé compact des notes, une ligne PAR MATIÈRE, dépliable pour voir le
+// détail (11 septembre 2026, demande explicite : "réduire l'affichage des
+// note par défaut pour qu ça ne soit pas encombrant" — choix retenu, validé
+// avec le porteur du projet : résumé par matière avec la note/appréciation
+// la plus récente affichée d'un coup d'œil, le détail complet caché derrière
+// un simple clic). Implémenté avec <details>/<summary> natif (déjà utilisé
+// ailleurs dans ce fichier pour le panneau enseignant/admin des devoirs à
+// blocs) : aucun JavaScript de bascule à écrire ni à attacher.
+// evaluations : même forme que html_listeEvaluations, déjà triées de la plus
+// récente à la plus ancienne (.order('cree_le', {ascending:false})).
+function html_resumeNotesParMatiere(evaluations) {
+  if (!evaluations || evaluations.length === 0) return '<p style="color:var(--text-gris);font-size:14px">Aucune note pour l\'instant.</p>';
+
+  const parMatiere = {};
+  evaluations.forEach(e => { (parMatiere[e.champs_formation?.nom || 'Autre'] ??= []).push(e); });
+
+  return `<div class="liste-resume-notes">${Object.entries(parMatiere).map(([matiere, liste]) => {
+    // liste[0] = la plus récente (l'ordre de tri est conservé par ??=/push).
+    const derniere = liste[0];
+    const valeurRecente = derniere.type === 'appreciation'
+      ? `<span class="pastille-statut pastille-${derniere.appreciation}">${LIBELLES_APPRECIATION[derniere.appreciation]}</span>`
+      : `<span class="pastille-note">${derniere.valeur} / ${derniere.type === 'note_20' ? '20' : '10'}</span>`;
+    return `<details class="details-resume-notes">
+      <summary>
+        <span class="titre-ligne-pub">${echapperTexte(matiere)}</span>
+        <span class="resume-notes-apercu">${valeurRecente}${liste.length > 1 ? `<span class="resume-notes-compte">${liste.length} notes</span>` : ''}</span>
+      </summary>
+      <div class="liste-lignes-pub resume-notes-detail">${liste.map(e => html_ligneEvaluation(e)).join('')}</div>
+    </details>`;
+  }).join('')}</div>`;
+}

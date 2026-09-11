@@ -1,0 +1,785 @@
+/* ============================================================
+   Éditeur de blocs de devoir (partagé enseignant + admin)
+   Voir js/editeur/devoir-blocs.js — sous-ensemble des styles de
+   l'éditeur de séance (pages/editeur-seance.html), sans glisser-déposer
+   ni palette de couleurs.
+   ============================================================ */
+.bloc { background: white; border-radius: 10px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border-left: 5px solid var(--bleu-principal); }
+.bloc-entete { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.bloc-type { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; color: var(--bleu-principal); flex: 1; min-width: 0; }
+/* Badge fixe (icône + nom du type) : toujours visible même si le champ à
+   côté (repère personnalisé) est renommé par l'admin — c'est ce qui rend
+   chaque bloc immédiatement reconnaissable dans la liste d'édition. */
+.badge-type-bloc { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .3px; white-space: nowrap; flex-shrink: 0; }
+.bloc-type input.libelle-bloc-editable { text-transform: none; font-weight: 700; }
+.bloc-actions { display: flex; gap: 6px; align-items: center; }
+.bloc-actions button { background: none; border: none; cursor: pointer; font-size: 15px; padding: 3px 6px; border-radius: 6px; }
+.bloc-actions button:hover { background: var(--bordure); }
+.bloc textarea, .bloc input[type=text], .bloc input[type=url] { width: 100%; border: 1px solid var(--bordure); border-radius: 6px; padding: 8px; font-size: 14px; font-family: inherit; box-sizing: border-box; }
+.bloc textarea { min-height: 70px; resize: vertical; }
+.champ-ligne { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+.champ-ligne label { font-size: 12px; color: var(--texte-gris); min-width: 70px; }
+.note-future { font-size: 12px; color: var(--texte-gris); font-style: italic; margin-top: 6px; }
+.editeur-questions { margin-top: 10px; border-top: 1px dashed var(--bordure); padding-top: 10px; }
+.question-editeur { background: var(--bleu-clair); border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+.question-editeur textarea { min-height: 44px; }
+.question-entete { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+.question-entete select { padding: 5px 8px; border-radius: 6px; border: 1px solid var(--bordure); font-size: 12px; }
+.question-entete label { font-size: 12px; color: var(--texte-gris); display: flex; align-items: center; gap: 4px; }
+.question-entete input[type=number] { width: 60px; border: 1px solid var(--bordure); border-radius: 6px; padding: 4px 6px; }
+.question-entete .bouton-supprimer-question { background: none; border: none; cursor: pointer; font-size: 14px; margin-left: auto; }
+.options-qcm { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+.option-qcm { display: flex; align-items: center; gap: 6px; }
+.option-qcm input[type=text] { flex: 1; margin: 0; width: auto; }
+.option-qcm button { background: none; border: none; cursor: pointer; color: var(--rouge); font-size: 13px; }
+.vrai-faux-choix { display: flex; gap: 16px; margin-top: 6px; font-size: 13px; }
+.reponse-courte-champ, .bareme-champ { margin-top: 6px; }
+.reponse-courte-champ label, .bareme-champ label { font-size: 12px; color: var(--texte-gris); display: block; margin-bottom: 3px; }
+.reponse-courte-champ input { width: 100%; border: 1px solid var(--bordure); border-radius: 6px; padding: 6px 8px; box-sizing: border-box; }
+.trous-champ { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+.trous-champ label { font-size: 12px; color: var(--texte-gris); display: block; }
+.trous-champ input[type=text] { width: 100%; border: 1px solid var(--bordure); border-radius: 6px; padding: 6px 8px; box-sizing: border-box; margin-top: 3px; }
+.options-ordre { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+.options-ordre .option-qcm input[type=number] { flex: none; width: auto; }
+.options-association, .categories-classement, .items-classement { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+.items-classement .option-qcm select { border: 1px solid var(--bordure); border-radius: 6px; padding: 4px 6px; }
+.question-editeur input[data-question-champ="consigne"] { width: 100%; box-sizing: border-box; margin: 4px 0 0; font-size: 12px; border: 1px solid var(--bordure); border-radius: 6px; padding: 4px 8px; }
+.item-type-devoir:hover { background: var(--bleu-clair); }
+
+:root {
+  --bleu-principal: #003366;
+  --bleu-fonce: #001F3F;
+  --bleu-nuit: #001A33;
+  --bleu-clair: #F4F7F9;
+  --accent: #FFCC00;
+  --accent-fonce: #e6b800;
+  --accent-clair: #FFF9E6;
+  --texte-fonce: #1E293B;
+  --texte-gris: #64748B;
+  --blanc: #ffffff;
+  --bordure: #E2E8F0;
+  --radius: 10px;
+  --vert: #2ECC71;
+  --orange: #E67E22;
+  --violet: #9B59B6;
+  --rouge: #c0392b;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, Arial, sans-serif;
+  color: var(--texte-fonce);
+  /* Fond ciel demandé le 4 septembre 2026, pour toutes les pages sauf
+     connexion/inscription (voir css/style-public.css, qui gère ces deux
+     pages à part). background-color de secours si l'image ne charge pas. */
+  background-color: var(--bleu-clair);
+  background-image: url('../assets/fond/fond-ciel.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  margin: 0;
+  line-height: 1.5;
+}
+a { text-decoration: none; color: inherit; }
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  background: var(--blanc);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header .logo { font-size: 20px; font-weight: 800; color: var(--bleu-principal); display: flex; align-items: center; gap: 8px; }
+.header .logo img { height: 32px; width: auto; display: block; }
+.header .zone-droite { display: flex; align-items: center; gap: 12px; }
+.badge-utilisateur { background: var(--bleu-clair); color: var(--bleu-principal); padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+.btn-deconnexion { background: none; border: 1px solid var(--bordure); color: var(--texte-gris); padding: 6px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; }
+
+/* ===== En-tête fixe + navigation partagés (js/entete-navigation.js) =====
+   S'applique à tout <header> une fois réécrit par initEnteteNavigation() :
+   remplace l'ancien header sticky ci-dessus sur les pages qui l'utilisent. */
+header.entete-kekeli {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 500;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 24px; background: var(--blanc); box-shadow: 0 2px 14px rgba(0,0,0,0.08);
+}
+body.avec-entete-fixe { padding-top: 68px; }
+
+/* Bannière dynamique du super admin — voir js/banniere-site.js. */
+.banniere-site {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 700;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px;
+  padding: 10px 44px 10px 16px; text-align: center;
+  font-size: 13.5px; font-weight: 600; line-height: 1.4; color: white;
+}
+.banniere-site a { color: inherit; text-decoration: underline; font-weight: 800; white-space: nowrap; }
+.banniere-site-fermer {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: inherit; opacity: .75; cursor: pointer;
+  font-size: 15px; line-height: 1; padding: 4px;
+}
+.banniere-site-fermer:hover { opacity: 1; }
+.banniere-site--info    { background: #2563EB; }
+.banniere-site--succes  { background: #16A34A; }
+.banniere-site--alerte  { background: #D97706; }
+.banniere-site--urgence { background: #DC2626; }
+/* Pousse le contenu (et l'en-tête fixe/sticky) sous la bannière quand elle
+   est affichée — hauteur réelle mesurée en JS (--hauteur-banniere-site). */
+body.avec-banniere-site { padding-top: var(--hauteur-banniere-site, 0px); }
+body.avec-entete-fixe.avec-banniere-site { padding-top: calc(68px + var(--hauteur-banniere-site, 0px)); }
+body.avec-banniere-site .entete-kekeli,
+body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px); }
+/* Pour qu'un lien d'ancre (#...) ne cache pas sa cible sous l'en-tête fixe. */
+.ancre-scroll-entete { scroll-margin-top: 84px; }
+.entete-kekeli-logo { display: flex; align-items: center; gap: 8px; font-size: 19px; font-weight: 800; color: var(--bleu-principal); }
+.entete-kekeli-logo img { height: 30px; width: auto; }
+.entete-kekeli-hamburger { display: none; flex-direction: column; justify-content: center; align-items: center; gap: 4px; width: 34px; height: 34px; background: none; border: none; cursor: pointer; flex-shrink: 0; }
+.entete-kekeli-hamburger span { display: block; width: 20px; height: 2.5px; border-radius: 2px; background: var(--bleu-principal); transition: transform .2s ease, opacity .2s ease; }
+.entete-kekeli-hamburger[aria-expanded="true"] span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+.entete-kekeli-hamburger[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+.entete-kekeli-hamburger[aria-expanded="true"] span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+.entete-kekeli-zone { display: flex; align-items: center; gap: 22px; }
+.entete-kekeli-liens { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.entete-kekeli-liens a { padding: 8px 13px; border-radius: 20px; font-size: 13.5px; font-weight: 700; color: var(--texte-gris); transition: background .15s, color .15s; white-space: nowrap; }
+.entete-kekeli-liens a:hover { background: var(--bleu-clair); color: var(--bleu-principal); }
+.entete-kekeli-actions { display: flex; align-items: center; gap: 10px; }
+.entete-kekeli-badge { background: var(--bleu-clair); color: var(--bleu-principal); padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.entete-kekeli-icone-btn { background: none; border: 1px solid var(--bordure); color: var(--texte-gris); width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; cursor: pointer; transition: background .15s, border-color .15s, color .15s; text-decoration: none; }
+.entete-kekeli-icone-btn:hover { background: var(--bleu-clair); border-color: var(--bleu-principal); color: var(--bleu-principal); }
+.entete-kekeli-overlay { display: none; }
+
+/* Catégories de liens regroupés en menu déroulant (ex: admin — "Pédagogie",
+   "Comptes", "Finances") — désencombre la barre quand un rôle a beaucoup de
+   liens. Ouverture au survol (souris) ET au clic (tactile/clavier) — voir
+   initCategoriesNavEntete() dans js/entete-navigation.js. */
+.entete-kekeli-categorie { position: relative; }
+.entete-kekeli-categorie-btn {
+  background: none; border: none; font: inherit; cursor: pointer;
+  padding: 8px 13px; border-radius: 20px; font-size: 13.5px; font-weight: 700; color: var(--texte-gris);
+  transition: background .15s, color .15s; display: inline-flex; align-items: center; gap: 4px;
+}
+.entete-kekeli-categorie-btn:hover { background: var(--bleu-clair); color: var(--bleu-principal); }
+.entete-kekeli-caret { font-size: 10px; transition: transform .15s; }
+.entete-kekeli-categorie.ouvert .entete-kekeli-caret { transform: rotate(180deg); }
+/* La zone de survol va du bouton JUSQU'À l'intérieur visible du sous-menu,
+   sans aucune coupure : l'écart visuel de 6px est un padding-top (donc
+   toujours "survolé"), pas un vrai espace vide entre deux boîtes — sinon la
+   souris "sort" du survol en traversant cet espace et le menu se referme
+   avant que le clic sur un lien (surtout le premier, juste sous le bouton)
+   n'ait eu lieu. C'est ce qui causait le bug "le menu se ferme quand
+   j'essaie de cliquer". */
+.entete-kekeli-sousmenu {
+  position: absolute; top: 100%; left: 0; padding-top: 6px;
+  opacity: 0; visibility: hidden; transition: opacity .15s ease, transform .15s ease;
+  transform: translateY(-6px); z-index: 40;
+}
+.entete-kekeli-sousmenu-inner {
+  min-width: 210px; background: var(--blanc); border-radius: 12px; box-shadow: 0 12px 28px rgba(0,0,0,0.16);
+  padding: 6px; display: flex; flex-direction: column; gap: 2px;
+}
+.entete-kekeli-sousmenu a { padding: 9px 12px; border-radius: 8px; white-space: nowrap; }
+.entete-kekeli-categorie:hover .entete-kekeli-sousmenu,
+.entete-kekeli-categorie.ouvert .entete-kekeli-sousmenu { opacity: 1; visibility: visible; transform: translateY(0); }
+
+@media (max-width: 860px) {
+  .entete-kekeli-hamburger { display: flex; }
+  .entete-kekeli-zone {
+    position: fixed; top: 0; right: 0; height: 100vh; width: min(78vw, 320px);
+    background: var(--blanc); flex-direction: column; align-items: stretch; justify-content: flex-start;
+    padding: 78px 22px 22px; gap: 18px; box-shadow: -10px 0 30px rgba(0,0,0,0.18); overflow-y: auto;
+    transform: translateX(100%); transition: transform .28s cubic-bezier(.22,.9,.35,1); z-index: 600;
+  }
+  .entete-kekeli-zone.ouvert { transform: translateX(0); }
+  .entete-kekeli-liens { flex-direction: column; align-items: stretch; gap: 4px; }
+  .entete-kekeli-liens a { padding: 12px 14px; border-radius: 10px; }
+  .entete-kekeli-actions { flex-direction: column; align-items: stretch; gap: 10px; }
+  .entete-kekeli-badge { text-align: center; }
+  .entete-kekeli-overlay {
+    display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+    opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 550;
+  }
+  .entete-kekeli-overlay.visible { opacity: 1; pointer-events: auto; }
+
+  /* Dans le tiroir mobile, une catégorie se déplie SUR PLACE (colonne),
+     plutôt qu'en bulle flottante qui n'aurait pas de sens dans un panneau
+     déjà étroit. */
+  .entete-kekeli-categorie-btn { width: 100%; justify-content: space-between; padding: 12px 14px; border-radius: 10px; }
+  .entete-kekeli-sousmenu {
+    position: static; opacity: 1; visibility: visible; transform: none; padding: 0 0 0 14px;
+    max-height: 0; overflow: hidden; transition: max-height .2s ease;
+  }
+  .entete-kekeli-sousmenu-inner { background: none; box-shadow: none; border-radius: 0; padding: 0; }
+  .entete-kekeli-categorie.ouvert .entete-kekeli-sousmenu { max-height: 400px; }
+}
+
+/* ===== Page d'accueil publique ===== */
+.hero {
+  text-align: center; padding: 70px 20px 60px;
+  background: linear-gradient(135deg, var(--bleu-principal) 0%, var(--bleu-nuit) 100%);
+  color: white;
+}
+.hero img.logo-hero { height: 64px; width: auto; margin-bottom: 16px; }
+.hero h1 { font-size: 36px; font-weight: 800; margin: 0 0 12px; }
+.hero p { font-size: 16px; color: #CBD5E1; max-width: 520px; margin: 0 auto 28px; line-height: 1.6; }
+.hero .boutons-hero { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.btn-cta { padding: 13px 26px; border-radius: 8px; font-weight: 800; font-size: 15px; }
+.btn-cta-primaire { background: var(--accent); color: var(--bleu-principal); }
+.btn-cta-primaire:hover { background: var(--accent-fonce); }
+.btn-cta-secondaire { background: rgba(255,255,255,0.12); color: white; border: 1px solid rgba(255,255,255,0.4); }
+.btn-cta-secondaire:hover { background: rgba(255,255,255,0.2); }
+
+.section-accueil { max-width: 1100px; margin: 0 auto; padding: 50px 20px; }
+.section-accueil h2 { text-align: center; font-size: 24px; font-weight: 800; color: var(--bleu-principal); margin-bottom: 8px; }
+.section-accueil .sous-titre-page { text-align: center; margin: 0 auto 30px; max-width: 500px; }
+
+.grille-roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; }
+.carte-role {
+  background: white; border-radius: 12px; padding: 22px; text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-top: 4px solid var(--bleu-principal);
+}
+.carte-role .icone-role { font-size: 32px; margin-bottom: 10px; }
+.carte-role h3 { font-size: 15px; color: var(--bleu-principal); margin: 0 0 6px; }
+.carte-role p { font-size: 13px; color: var(--texte-gris); line-height: 1.5; margin: 0; }
+
+.grille-paliers { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+.puce-palier {
+  display: flex; align-items: center; gap: 8px; background: white; border-radius: 30px;
+  padding: 10px 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); font-size: 13px; font-weight: 700; color: var(--bleu-principal);
+}
+
+.pied-de-page-public { background: var(--bleu-fonce); color: #CBD5E1; text-align: center; padding: 24px 20px; font-size: 13px; }
+
+.conteneur { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
+
+.fil-ariane { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; color: var(--texte-gris); margin-bottom: 20px; }
+.fil-ariane .segment { cursor: pointer; padding: 4px 10px; border-radius: 14px; transition: background .12s; }
+.fil-ariane .segment[data-fil-action]:hover { background: var(--bleu-clair); color: var(--bleu-principal); text-decoration: underline; }
+.fil-ariane .segment.actif { color: white; font-weight: 700; background: var(--bleu-principal); cursor: default; }
+.fil-ariane .sep { color: var(--bordure); font-weight: 700; }
+
+.grille-cartes { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+.carte {
+  background: var(--blanc); border-radius: var(--radius); padding: 18px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-top: 4px solid var(--bleu-principal);
+  cursor: pointer; transition: transform .15s, box-shadow .15s;
+}
+.carte:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,51,102,0.12); }
+.carte .titre-carte { font-weight: 700; color: var(--bleu-principal); font-size: 15px; margin-bottom: 4px; }
+.carte .sous-titre-carte { font-size: 12px; color: var(--texte-gris); }
+
+.liste-lignes { display: flex; flex-direction: column; gap: 8px; }
+.ligne {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: var(--blanc); border-radius: 8px; padding: 12px 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.ligne .titre-ligne { font-weight: 600; font-size: 14px; }
+.statut-pill { font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: 700; }
+.statut-brouillon { background: #F1F5F9; color: var(--texte-gris); }
+.statut-publie { background: #E6F9EF; color: #0F7A45; }
+.statut-archive { background: #FCEBEB; color: var(--rouge); }
+
+/* ===== Tableau de bord admin : raccourcis, tâches, liste de séances ===== */
+.grille-actions-tb { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.carte-action-tb {
+  background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  border: 2px solid transparent; text-decoration: none; color: inherit; display: block;
+}
+.carte-action-tb.disponible { border-color: var(--bleu-clair); cursor: pointer; transition: transform .15s, border-color .15s; }
+.carte-action-tb.disponible:hover { transform: translateY(-2px); border-color: var(--bleu-principal); }
+.carte-action-tb .icone-action-tb { font-size: 26px; margin-bottom: 8px; }
+.carte-action-tb h3 { margin: 0 0 4px; font-size: 15px; color: var(--bleu-principal); }
+.carte-action-tb p { margin: 0; font-size: 12px; color: var(--texte-gris); line-height: 1.4; }
+
+.grille-taches-admin { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.pastille-tache-admin {
+  background: white; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  border-left: 4px solid var(--bleu-clair); display: flex; flex-direction: column; gap: 2px;
+}
+.pastille-tache-admin.a-traiter { border-left-color: var(--accent); }
+.pastille-tache-admin .chiffre-tache { font-size: 24px; font-weight: 800; color: var(--bleu-principal); }
+.pastille-tache-admin .libelle-tache { font-size: 12px; color: var(--texte-gris); }
+
+.barre-filtres-admin { display: flex; gap: 10px; flex-wrap: wrap; margin: 18px 0; align-items: center; }
+.barre-filtres-admin select, .barre-filtres-admin input[type="search"] {
+  padding: 9px 12px; border-radius: 8px; border: 1px solid var(--bordure); font-size: 13px; background: white;
+}
+.barre-filtres-admin input[type="search"] { flex-grow: 1; min-width: 180px; }
+
+/* ===== pages/seances.html — liste partagée par tous les rôles ===== */
+.barre-filtres-seances { display: flex; gap: 10px; flex-wrap: wrap; margin: 18px 0; align-items: center; }
+.barre-filtres-seances select, .barre-filtres-seances input[type="search"] {
+  padding: 9px 12px; border-radius: 8px; border: 1px solid var(--bordure); font-size: 13px; background: var(--blanc);
+}
+.barre-filtres-seances input[type="search"] { flex-grow: 1; min-width: 180px; }
+.case-epingles-sea { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.liste-lignes-seances { display: flex; flex-direction: column; gap: 8px; }
+.ligne-seance-partagee {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  background: var(--blanc); border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.details-ligne-seance-partagee { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.titre-ligne-seance-partagee { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* Le titre de la séance doit ressortir nettement plus que les badges
+   (discipline, repère, statut) à côté de lui sur la même ligne — demande
+   explicite : mettre le titre "plus en avant", sans regrouper les lignes
+   par SA (juste ce texte-là, sur sa propre ligne). */
+.texte-titre-seance-partagee { font-weight: 800; font-size: 17px; color: var(--bleu-principal); }
+.chemin-ligne-seance-partagee { font-size: 12px; color: var(--texte-gris); }
+.actions-ligne-seance-partagee { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.bouton-epingler-sea { background: none; border: 1px solid var(--bordure); border-radius: 50%; width: 34px; height: 34px; font-size: 15px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: background .15s, border-color .15s; }
+.bouton-epingler-sea:hover { background: var(--bleu-clair); border-color: var(--bleu-principal); }
+.bouton-epingler-sea.epinglee { border-color: var(--accent); background: var(--accent-clair); }
+/* Aperçu bloc par bloc du contenu d'une séance (5 septembre 2026, 3e passe) :
+   déplié directement sous la ligne, dans une carte visuellement rattachée. */
+.apercu-contenu-seance-partagee:not([hidden]) {
+  background: var(--blanc); border-radius: 8px; margin-top: -4px; padding: 2px 14px 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+
+.groupe-matiere-admin { margin-bottom: 22px; }
+.groupe-matiere-admin .titre-groupe-matiere {
+  font-size: 14px; font-weight: 800; color: var(--bleu-principal); text-transform: uppercase; letter-spacing: .4px;
+  margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid var(--bleu-clair);
+}
+.ligne-seance-admin { flex-wrap: wrap; }
+.ligne-seance-admin .details-seance-admin { display: flex; flex-direction: column; gap: 3px; }
+.ligne-seance-admin .meta-seance-admin { font-size: 12px; color: var(--texte-gris); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.badge-classe-admin { font-size: 10px; background: var(--bleu-clair); color: var(--bleu-principal); padding: 1px 8px; border-radius: 8px; font-weight: 700; }
+
+/* ===== Gestion des administrateurs & messagerie interne ===== */
+.formulaire-admin { background: var(--blanc); border-radius: 10px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); margin: 16px 0; }
+.formulaire-admin .rangee-champs { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 14px; }
+.formulaire-admin > label, .formulaire-admin .rangee-champs label { display: block; font-size: 12px; font-weight: 700; color: var(--texte-gris); margin-bottom: 5px; }
+.formulaire-admin input[type="text"], .formulaire-admin input[type="email"] {
+  width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--bordure); font-size: 14px; margin-top: 4px;
+}
+/* Ajouté pour pages/admin/section-accueil.html (blocs du bandeau d'accueil) :
+   mêmes champs texte/email ci-dessus, étendus aux textarea/fichier/nombre. */
+.formulaire-admin textarea, .formulaire-admin input[type="file"], .formulaire-admin input[type="number"] {
+  width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--bordure); font-size: 14px; margin-top: 4px; font-family: inherit; box-sizing: border-box;
+}
+.miniature-bloc-accueil {
+  width: 48px; height: 48px; border-radius: 8px; object-fit: cover; background: var(--bleu-clair);
+  display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;
+}
+.apercu-image-accueil { width: 220px; max-width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-top: 8px; display: block; }
+.ligne-case { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--texte-fonce); font-weight: 600; margin: 14px 0; }
+.ligne-case input { width: 16px; height: 16px; flex-shrink: 0; }
+.grille-cases { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-top: 6px; }
+.grille-cases label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--texte-fonce); font-weight: 400; margin: 0; }
+.grille-cases input { width: 15px; height: 15px; }
+.encadre-perimetre { border: 1px dashed var(--bordure); border-radius: 8px; padding: 12px; margin-top: 4px; }
+.badge-droit { font-size: 10px; background: var(--bleu-clair); color: var(--bleu-principal); padding: 2px 8px; border-radius: 8px; font-weight: 700; margin-right: 4px; }
+.encadre-succes-admin { background: var(--accent-clair); border: 1px solid var(--accent); border-radius: 8px; padding: 14px; margin: 14px 0; font-size: 13px; }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 8px; font-size: 13px; font-weight: 700; border: none; cursor: pointer; }
+.btn-primaire { background: var(--bleu-principal); color: white; }
+.btn-primaire:hover { background: var(--bleu-nuit); }
+.btn-accent { background: var(--accent); color: var(--bleu-principal); }
+.btn-accent:hover { background: var(--accent-fonce); }
+.btn-discret { background: var(--bordure); color: var(--texte-fonce); }
+.btn-danger { background: #FCEBEB; color: var(--rouge); }
+.btn-danger:hover { background: #f8d0d0; }
+
+.message-erreur { color: var(--rouge); font-size: 13px; margin: 8px 0; }
+.chargement { padding: 60px 20px; text-align: center; color: var(--texte-gris); }
+
+/* ===== Cloche de notifications ===== */
+.cloche-notif { position: relative; cursor: pointer; font-size: 18px; }
+.badge-notif { position: absolute; top: -6px; right: -8px; background: var(--rouge); color: white; font-size: 10px; font-weight: 800; border-radius: 10px; padding: 1px 6px; min-width: 16px; text-align: center; }
+.liste-notif {
+  display: none; position: absolute; right: 0; top: 130%; width: 300px; max-height: 380px; overflow-y: auto;
+  background: white; border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,0.25); z-index: 200;
+}
+.liste-notif.ouverte { display: block; }
+.item-notif { display: block; padding: 12px 16px; border-bottom: 1px solid var(--bordure); text-decoration: none; color: var(--texte-fonce); }
+.item-notif:last-child { border-bottom: none; }
+.item-notif.non-lue { background: var(--bleu-clair); }
+.item-notif .titre-notif { font-weight: 700; font-size: 13px; color: var(--bleu-principal); }
+.item-notif .msg-notif { font-size: 12px; color: var(--texte-gris); margin-top: 2px; }
+.item-notif .date-notif { font-size: 11px; color: var(--texte-gris); margin-top: 4px; }
+
+/* ===== Modales (formulaires dynamiques) ===== */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,26,51,0.5); z-index: 1000;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.modal-boite { background: white; border-radius: 12px; padding: 24px; width: 100%; max-width: 420px; box-shadow: 0 12px 32px rgba(0,0,0,0.25); }
+.modal-boite h3 { margin: 0 0 16px; color: var(--bleu-principal); font-size: 17px; }
+.modal-boite.modal-confirmation p { font-size: 14px; color: var(--texte-fonce); margin-bottom: 18px; }
+.champ-modal { display: block; font-size: 12px; font-weight: 700; color: var(--texte-gris); margin-bottom: 12px; }
+.champ-modal input, .champ-modal select, .champ-modal textarea {
+  display: block; width: 100%; margin-top: 5px; padding: 9px; border: 1px solid var(--bordure); border-radius: 7px;
+  font-size: 14px; font-family: inherit; color: var(--texte-fonce);
+}
+.champ-modal textarea { min-height: 60px; resize: vertical; }
+.champ-modal-checkboxes-titre { display: block; margin-bottom: 6px; }
+/* Champ 'richtext' d'une modale dynamique (js/modal.js) — même barre d'outils
+   que l'éditeur de bloc (.barre-outils-texte/.editeur-riche), juste un peu
+   d'espace sous le libellé du champ pour ne pas coller à la barre d'outils. */
+.champ-modal-richtext .barre-outils-texte { margin-top: 6px; }
+.liste-checkboxes-modal { max-height: 190px; overflow-y: auto; border: 1px solid var(--bordure); border-radius: 7px; padding: 4px 8px; background: #FAFBFF; }
+.checkbox-modal { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--texte-fonce); padding: 6px 2px; text-transform: none; }
+.checkbox-modal input { width: auto; margin: 0; }
+.checkbox-modal-tout { font-weight: 700; padding-bottom: 8px; margin-bottom: 4px; border-bottom: 1px solid var(--bordure); }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+
+/* ===== Vue arborescente ===== */
+.arborescence { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+.noeud-arbo { margin: 2px 0; }
+.ligne-arbo {
+  display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 6px; font-size: 14px;
+}
+.ligne-arbo:hover { background: var(--bleu-clair); }
+.ligne-arbo .bascule { width: 18px; text-align: center; cursor: pointer; color: var(--texte-gris); font-size: 11px; user-select: none; }
+.ligne-arbo .libelle-arbo { flex-grow: 1; cursor: pointer; }
+.ligne-arbo .type-arbo { font-size: 10px; color: var(--texte-gris); background: var(--bordure); padding: 1px 7px; border-radius: 8px; margin-left: 6px; }
+.ligne-arbo .actions-arbo { display: none; gap: 4px; }
+.ligne-arbo:hover .actions-arbo { display: flex; }
+.ligne-arbo .actions-arbo button { background: none; border: none; cursor: pointer; font-size: 12px; padding: 2px 5px; border-radius: 4px; }
+.ligne-arbo .actions-arbo button:hover { background: var(--bordure); }
+.enfants-arbo { margin-left: 22px; border-left: 1px dashed var(--bordure); padding-left: 10px; }
+.ligne-arbo.type-seance .libelle-arbo { color: var(--bleu-principal); font-weight: 600; }
+.ligne-arbo.type-sa .libelle-arbo { font-style: italic; }
+
+/* ===== Barre d'outils de formatage riche (blocs texte) ===== */
+/* .barre-outils-texte-question : même barre, réutilisée pour l'énoncé riche
+   de CHAQUE question (5 septembre 2026, 8e lot) — classe distincte de
+   .barre-outils-texte exprès, pour que le sélecteur de câblage du bloc
+   (:scope > .bloc-corps .barre-outils-texte) ne capture jamais aussi les
+   barres d'outils imbriquées dans .editeur-questions (voir wirerQuestions
+   dans js/pages/editeur-seance.js et js/editeur/devoir-blocs.js). */
+.barre-outils-texte, .barre-outils-texte-question {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap;
+  background: #F8FAFC; border: 1px solid var(--bordure); border-radius: 8px; padding: 6px 8px;
+}
+.barre-outils-texte .groupe-outils, .barre-outils-texte-question .groupe-outils { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.barre-outils-texte .separateur-outils, .barre-outils-texte-question .separateur-outils { width: 1px; align-self: stretch; min-height: 20px; background: var(--bordure); }
+.barre-outils-texte button, .barre-outils-texte-question button {
+  border: 1px solid var(--bordure); background: white; border-radius: 6px; padding: 5px 10px;
+  cursor: pointer; font-size: 13px; color: var(--texte-fonce); min-width: 30px;
+}
+.barre-outils-texte button:hover, .barre-outils-texte-question button:hover { background: var(--bleu-clair); border-color: var(--bleu-principal); }
+.barre-outils-texte button.actif, .barre-outils-texte-question button.actif { background: var(--bleu-principal); border-color: var(--bleu-principal); color: white; }
+.barre-outils-texte .bouton-effacer-format, .barre-outils-texte-question .bouton-effacer-format { font-size: 12px; color: var(--texte-gris); }
+.barre-outils-texte select, .barre-outils-texte-question select {
+  border: 1px solid var(--bordure); border-radius: 6px; padding: 4px 6px; font-size: 12px; background: white; color: var(--texte-fonce);
+}
+.barre-outils-texte .groupe-couleurs, .barre-outils-texte-question .groupe-couleurs { gap: 5px; }
+.barre-outils-texte .pastille-couleur, .barre-outils-texte-question .pastille-couleur { align-self: center; }
+.barre-outils-texte .etiquette-outils, .barre-outils-texte-question .etiquette-outils { font-size: 11px; color: var(--texte-gris); margin-right: 2px; white-space: nowrap; }
+.editeur-riche {
+  border: 1px solid var(--bordure); border-radius: 6px; padding: 10px; min-height: 70px;
+  font-size: 14px; font-family: inherit; line-height: 1.5; color: var(--texte-fonce);
+  /* Explicite exprès (et pas juste "hérité par défaut") : un texte déclaré ici
+     bloque tout héritage d'un centrage venu d'un ancêtre, quelle qu'en soit
+     l'origine — c'est ce qui causait le centrage par défaut constaté. */
+  text-align: left;
+}
+.editeur-riche:focus { outline: none; border-color: var(--bleu-principal); }
+.editeur-riche ul, .editeur-riche ol { margin: 6px 0 6px 20px; }
+
+/* ===== Formatage riche appliqué aux blocs d'exercice/activité (8e lot) ===== */
+/* Consigne générale du bloc (exercice/quiz/évaluation/activité) et énoncé de
+   chaque question passent tous deux par html_zoneTexteRiche (blocs.js) :
+   .champ-consigne-riche est juste le wrapper label+zone pour la consigne,
+   la zone riche elle-même reprend .editeur-riche + la barre ci-dessus. */
+.champ-consigne-riche { margin-bottom: 10px; }
+.champ-consigne-riche .etiquette-outils { display: block; margin-bottom: 4px; }
+
+/* Case "HTML brut" du bloc Exercice (11 septembre 2026) — voir
+   html_editeurExerciceLibre(), js/editeur/blocs.js. */
+.case-html-brut-exercice {
+  display: flex; align-items: center; gap: 6px; font-size: 12px; margin-bottom: 8px;
+  color: var(--texte-gris); cursor: pointer;
+}
+
+/* ===== Bloc "HTML libre" (11 septembre 2026, reconstruit) ===== */
+.champ-code-html {
+  width: 100%; font-family: 'Courier New', Consolas, monospace; font-size: 12.5px;
+  line-height: 1.5; white-space: pre; overflow-x: auto; min-height: 220px;
+}
+/* Cadre isolé (iframe srcdoc) affichant le document HTML complet collé par
+   l'admin — hauteur généreuse par défaut, redimensionnable à la main par
+   qui la consulte (aucun moyen de connaître à l'avance la hauteur idéale
+   d'un contenu HTML arbitraire). */
+.cadre-html-libre {
+  width: 100%; min-height: 420px; height: 480px; border: 1px solid var(--bordure);
+  border-radius: 8px; resize: vertical; overflow: auto; display: block; background: #fff;
+}
+
+/* ===== Bloc "Problème" v2 (11 septembre 2026 — remplacement complet du
+   bloc "Problème" d'origine par un moteur de grille de calcul posé unique,
+   partagé avec la lecture élève/la correction — voir js/editeur/blocs.js).
+   Réglages de l'éditeur (mode d'affichage, préparation, position de
+   l'explication, "poser soi-même l'opération"). ===== */
+.reglages-probleme { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 10px 0 14px; background: #F8FAFC; border-radius: 10px; padding: 12px 14px; }
+.champ-reglage-probleme { display: flex; flex-direction: column; gap: 4px; }
+.champ-reglage-probleme label { font-size: 12px; color: var(--texte-gris); font-weight: 700; }
+.case-pose-par-eleve-probleme { grid-column: 1 / -1; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; background: #FFF7E6; border: 1px solid #F5D48A; border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+.case-pose-par-eleve-probleme input { margin-top: 3px; }
+
+/* Boîtes "Données connues / Inconnues à trouver" (éditeur ET lecture). */
+.prep-grille-probleme, .prep-grille-probleme-lecture { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 10px 0; }
+.prep-boite-probleme, .prep-boite-probleme-lecture { background: #F8FAFC; border-radius: 8px; padding: 10px 12px; border: 1px solid var(--bordure); }
+.prep-boite-probleme h4, .prep-boite-probleme-lecture h4 { margin: 0 0 6px; font-size: 12px; color: var(--texte-gris); text-transform: uppercase; letter-spacing: .3px; }
+.prep-boite-probleme textarea { width: 100%; resize: vertical; }
+.liste-auto-probleme, .prep-boite-probleme-lecture ul { margin: 0; padding-left: 18px; font-size: 13px; }
+.liste-auto-probleme li, .prep-boite-probleme-lecture li { margin-bottom: 3px; }
+.nature-donnee-probleme { font-weight: 700; color: var(--bleu-principal); }
+
+/* Tableau de résolution (éditeur) : une ligne par étape, solution à gauche,
+   opération posée à droite — même disposition en lecture/formulaire élève. */
+.lignes-probleme, .lignes-probleme-eleve { display: flex; flex-direction: column; gap: 12px; margin: 10px 0; }
+.ligne-probleme, .ligne-probleme-eleve { display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 14px; border: 1px solid var(--bordure); border-radius: 10px; padding: 12px; background: white; }
+.colonne-solution-probleme, .colonne-solution-probleme-eleve { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.colonne-operation-probleme, .colonne-operation-probleme-eleve { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; overflow-x: auto; }
+/* Colonne "Résultats" (tâche du 11 septembre 2026 : "ça manque la colonne de
+   résultat") — 3ᵉ colonne du modèle de référence, entre Solution/Équation et
+   Opérations posées. Voir problemeResultatBoiteHtml dans js/editeur/blocs.js. */
+.colonne-resultat-probleme, .colonne-resultat-probleme-eleve {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-width: 0;
+}
+.etiquette-colonne-probleme-eleve { font-size: 11px; color: var(--texte-gris); font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
+.boite-resultat-probleme {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 10px 8px; background: #F8FAFC; border: 1px solid var(--bordure); border-radius: 8px;
+}
+.case-calcul-probleme.case-resultat-final-probleme { width: 74px; height: 36px; font-size: 16px; }
+.case-unite-probleme {
+  width: 74px; height: 26px; text-align: center; font-size: 12px;
+  border: 1px solid var(--bordure); border-radius: 6px; padding: 0;
+}
+.case-unite-probleme[readonly] { background: #F1F5F9; color: var(--texte-gris); }
+.champ-description-probleme { border: 1px solid var(--bordure); border-radius: 6px; padding: 6px 8px; font-size: 13px; min-height: 20px; background: #FAFAFA; }
+.champ-description-probleme:focus { outline: 2px solid var(--bleu-principal); background: white; }
+.champ-equation-probleme { font-family: 'Courier New', Consolas, monospace; }
+.explication-probleme { width: 100%; resize: vertical; font-size: 12.5px; }
+.bouton-supprimer-ligne-probleme { margin-top: 2px; align-self: flex-start; color: #B91C1C; }
+.lignes-probleme-relecture .ligne-probleme-eleve { background: #F9FAFB; }
+
+/* Grille de calcul posé — utilisée partout (aperçu éditeur, corrigé,
+   formulaire élève, relecture, correction) : chaque case est un
+   <input maxlength=1> pour un alignement identique dans les 4 contextes. */
+.conteneur-calcul-probleme { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; }
+.grille-calcul-probleme { display: grid; gap: 2px; }
+.case-calcul-probleme {
+  width: 32px; height: 32px; text-align: center; font-family: 'Courier New', Consolas, monospace;
+  font-size: 16px; font-weight: 700; border: 1px solid var(--bordure); border-radius: 4px; padding: 0;
+}
+.case-calcul-probleme:focus { outline: 2px solid var(--bleu-principal); }
+.case-calcul-probleme[readonly] { background: #F1F5F9; color: var(--texte-fonce); cursor: default; }
+.case-retenue-probleme { height: 20px; font-size: 12px; border-style: dashed; color: #B8860B; }
+.case-bordure-basse-probleme { border-bottom: 2px solid #1E293B; }
+.badge-unite-probleme { font-size: 11px; color: var(--texte-gris); background: #F1F5F9; border-radius: 999px; padding: 2px 10px; }
+.operation-vide { color: #94A3B8; font-style: italic; margin: 0; }
+
+/* Lecture / corrigé (tableau à 2 colonnes, une ligne par étape). */
+.enonce-probleme { margin-bottom: 10px; }
+.tableau-probleme-lecture-v2 { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.tableau-probleme-lecture-v2 td { border: 1px solid var(--bordure); padding: 10px; vertical-align: top; }
+.cellule-solution-probleme-lecture { width: 38%; font-size: 13px; }
+.cellule-resultat-probleme-lecture { width: 18%; text-align: center; vertical-align: middle; }
+.cellule-operation-probleme-lecture { width: 44%; text-align: center; }
+.equation-lecture-probleme { font-family: 'Courier New', Consolas, monospace; color: var(--texte-gris); margin: 4px 0 0; font-size: 13px; }
+.explication-lecture-probleme { margin-top: 6px; font-size: 12.5px; background: #FFF9E6; border-radius: 6px; padding: 6px 8px; }
+.explications-dessous-probleme { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+
+/* Correction détaillée (js/pages/activites-correction.js, js/devoirs-notes-rendu.js) :
+   grille de relecture + 3 notes libres par étape, sommées en direct. */
+.lignes-correction-probleme { display: flex; flex-direction: column; gap: 14px; margin: 10px 0; }
+.ligne-correction-probleme { display: grid; grid-template-columns: 2fr 1fr 2fr auto; gap: 14px; align-items: start; border: 1px solid var(--bordure); border-radius: 10px; padding: 12px; }
+.notes-correction-probleme { display: flex; flex-direction: column; gap: 8px; min-width: 120px; }
+.champ-note-probleme { display: flex; flex-direction: column; gap: 3px; font-size: 11px; font-weight: 700; color: var(--texte-gris); }
+.champ-note-probleme input { width: 90px; padding: 5px 6px; border: 1px solid var(--bordure); border-radius: 6px; font-size: 13px; }
+.total-note-correction-probleme { margin: 10px 0 4px; font-size: 14px; text-align: right; }
+.modal-boite-large { max-width: 760px; max-height: 85vh; overflow-y: auto; }
+@media (max-width: 640px) {
+  .ligne-probleme, .ligne-probleme-eleve, .ligne-correction-probleme { grid-template-columns: 1fr; }
+}
+
+/* Intrus lexical : une ligne par série (mots + choix de l'intrus). */
+.series-intrus { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.serie-intrus-ligne { border: 1px solid var(--bordure); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.serie-intrus-choix { display: flex; flex-wrap: wrap; gap: 10px; font-size: 13px; }
+.serie-intrus-choix label { display: flex; align-items: center; gap: 4px; }
+
+/* Sélection de mots dans un texte : mots de l'énoncé affichés en chips
+   cliquables, celui cliqué (bonne réponse) mis en évidence en vert. */
+.mots-selectionnables-editeur, .mots-selectionnables { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chip-mot {
+  border: 1px solid var(--bordure); background: white; border-radius: 999px; padding: 4px 12px;
+  cursor: pointer; font-size: 13px; color: var(--texte-fonce);
+}
+.chip-mot:hover { border-color: var(--bleu-principal); }
+.chip-mot-correct { background: #DCFCE7; border-color: #16A34A; color: #15803D; font-weight: 700; }
+
+/* Glisser-déposer les mots dans le texte : configuration de la banque de
+   mots proposée + un select "bon mot" par trou détecté dans l'énoncé. */
+.trous-glisser-champ { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.trous-glisser-champ .champ-ligne select { flex: 1; }
+
+/* ===== En-tête de page (ex: "Champs de Formation (CM2)") ===== */
+.titre-page { font-size: 24px; font-weight: 800; color: var(--bleu-principal); margin-bottom: 4px; }
+.sous-titre-page { font-size: 14px; color: var(--texte-gris); margin-bottom: 22px; }
+
+/* ===== Cartes de champs de formation ===== */
+.grille-champs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 18px;
+  align-items: stretch;
+}
+.carte-champ {
+  background: white;
+  border-left: 5px solid var(--bleu-principal);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: border-color .2s, transform .2s, box-shadow .2s;
+  position: relative;
+}
+.carte-champ:hover { border-left-color: var(--accent); transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,51,102,0.14); z-index: 5; }
+
+/* Bulle au survol : montre "ses fils" (thèmes/unités/dossiers, ou SA pour un
+   champ à un seul niveau) sans avoir à cliquer sur "Accéder". Cachée par
+   défaut, apparaît avec un léger fondu+glissement au survol de la carte. */
+.survol-enfants-champ {
+  position: absolute; left: 12px; right: 12px; top: calc(100% - 8px);
+  background: var(--bleu-fonce); color: white; border-radius: 10px; padding: 12px 14px;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.28);
+  opacity: 0; visibility: hidden; transform: translateY(-6px);
+  transition: opacity .16s ease, transform .16s ease;
+  pointer-events: none; z-index: 20;
+}
+.carte-champ:hover .survol-enfants-champ { opacity: 1; visibility: visible; transform: translateY(0); }
+.survol-enfants-titre { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--accent); margin-bottom: 6px; }
+.survol-enfants-champ ul { list-style: none; margin: 0; padding: 0; max-height: 168px; overflow: hidden; }
+.survol-enfants-champ li { font-size: 13px; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.survol-enfants-champ li:last-child { border-bottom: none; }
+.entete-carte-champ { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.icone-champ {
+  flex-shrink: 0; width: 48px; height: 48px; border-radius: 8px;
+  background: #F1F5F9; display: flex; align-items: center; justify-content: center; font-size: 28px;
+}
+.titre-carte-champ { font-size: 17px; font-weight: 800; color: var(--bleu-principal); line-height: 1.25; margin: 0; }
+.description-carte-champ { font-size: 13px; color: var(--texte-gris); line-height: 1.4; margin-bottom: 15px; flex-grow: 1; }
+.pied-carte-champ {
+  display: flex; align-items: center; justify-content: space-between; margin-top: auto;
+  border-top: 1px solid #F1F5F9; padding-top: 10px; font-size: 12px; font-weight: 800; color: var(--bleu-principal);
+}
+.nb-unites-champ { font-size: 12px; font-weight: 800; color: var(--bleu-principal); }
+.bouton-acceder-champ {
+  background: var(--bleu-principal); color: white; font-size: 12px; font-weight: 700;
+  padding: 6px 12px; border-radius: 6px; border: none; display: inline-flex; align-items: center; gap: 4px;
+}
+
+/* Panneau "Structure" déplié sous une carte champ (pages/navigation.html) :
+   liste indentée Thème/Unité/.../SA, chargée à la demande — voir
+   basculerPanneauStructureChamp() dans js/pages/navigation.js. */
+.panneau-structure-champ { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--bordure); max-height: 260px; overflow-y: auto; cursor: default; }
+.structure-champ-liste { font-size: 13px; }
+.ligne-structure-champ { padding: 3px 0; color: var(--texte-fonce); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ligne-structure-champ .type-arbo { font-size: 10px; color: var(--texte-gris); background: var(--bordure); padding: 1px 7px; border-radius: 8px; margin-left: 6px; }
+
+/* ===== Panneau LATÉRAL "🗂️ Structure" (déployable/repliable, cliquable) —
+   voir js/structure-laterale.js. Remplace l'ancien panneau inline
+   ci-dessus (classes .panneau-structure-champ/.structure-champ-liste/
+   .ligne-structure-champ, laissées telles quelles mais plus générées). */
+.structure-laterale { position: fixed; inset: 0; z-index: 900; visibility: hidden; }
+.structure-laterale.ouvert { visibility: visible; }
+.structure-laterale-overlay { position: absolute; inset: 0; background: rgba(15,23,42,.35); opacity: 0; transition: opacity .2s ease; }
+.structure-laterale.ouvert .structure-laterale-overlay { opacity: 1; }
+.structure-laterale-panneau {
+  position: absolute; top: 0; right: 0; bottom: 0; width: min(420px, 92vw); background: var(--blanc);
+  box-shadow: -8px 0 30px rgba(15,23,42,.18); display: flex; flex-direction: column;
+  transform: translateX(100%); transition: transform .25s ease;
+}
+.structure-laterale.ouvert .structure-laterale-panneau { transform: translateX(0); }
+.structure-laterale-entete { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid var(--bordure); flex-shrink: 0; }
+.structure-laterale-titre { font-weight: 700; font-size: 15px; color: var(--texte-fonce); }
+.structure-laterale-fermer { background: none; border: none; font-size: 16px; cursor: pointer; color: var(--texte-gris); padding: 4px 8px; }
+.structure-laterale-corps { flex: 1; overflow-y: auto; padding: 10px 12px 24px; }
+.structure-laterale-ligne { display: flex; align-items: center; gap: 6px; padding: 6px 4px; border-radius: 6px; }
+.structure-laterale-ligne:hover { background: var(--bleu-clair); }
+.structure-laterale-bascule { background: none; border: none; cursor: pointer; font-size: 12px; width: 18px; flex-shrink: 0; color: var(--texte-gris); }
+.structure-laterale-bascule-vide { display: inline-block; width: 18px; flex-shrink: 0; }
+.structure-laterale-icone { flex-shrink: 0; }
+.structure-laterale-libelle { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--texte-fonce); font-size: 13.5px; }
+.structure-laterale-libelle.cliquable { cursor: pointer; }
+.structure-laterale-libelle.cliquable:hover { text-decoration: underline; color: var(--bleu-principal); }
+.structure-laterale-ligne-sa .structure-laterale-libelle { color: var(--texte-gris); }
+.structure-laterale .type-arbo { font-size: 10px; color: var(--texte-gris); background: var(--bordure); padding: 1px 7px; border-radius: 8px; flex-shrink: 0; }
+
+/* Puce du filtre "Structure" actif sur pages/seances.html */
+.puce-filtre-structure-sea {
+  display: inline-flex; align-items: center; gap: 8px; background: var(--bleu-clair); border: 1px solid var(--bordure);
+  border-radius: 20px; padding: 6px 8px 6px 14px; font-size: 12.5px; color: var(--texte-fonce); margin: 0 0 14px;
+}
+.puce-filtre-structure-sea button { background: none; border: none; cursor: pointer; color: var(--texte-gris); font-size: 13px; padding: 2px 6px; }
+
+/* ===== Page "Choisissez votre Classe" (groupée par cycle) ===== */
+.titre-page.centre, .sous-titre-page.centre { text-align: center; }
+.titre-page.centre { font-size: 28px; }
+
+.titre-cycle {
+  font-size: 18px; font-weight: 800; color: var(--bleu-principal);
+  border-bottom: 2px solid var(--bordure); padding-bottom: 8px; margin: 34px 0 20px;
+}
+.titre-cycle:first-of-type { margin-top: 10px; }
+
+.grille-classes { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 22px; }
+
+.carte-classe-detail {
+  background: white; border-radius: 14px; padding: 24px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-top: 6px solid var(--bleu-principal);
+  display: flex; flex-direction: column; justify-content: space-between; transition: transform .2s; cursor: pointer;
+}
+.carte-classe-detail:hover { transform: translateY(-4px); }
+.entete-carte-classe { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.badge-classe {
+  background: var(--accent-clair); color: var(--bleu-principal); border: 1px solid var(--accent);
+  padding: 6px 14px; border-radius: 8px; font-weight: 800; font-size: 20px;
+}
+.age-classe { font-size: 13px; color: var(--texte-gris); font-weight: 600; }
+.titre-classe-detail { font-size: 20px; color: var(--bleu-principal); margin: 5px 0 10px; }
+.description-classe-detail { font-size: 14px; color: #475569; line-height: 1.5; margin-bottom: 15px; }
+.liste-infos-classe {
+  list-style: none; padding: 0; margin: 0 0 20px; border-top: 1px dashed var(--bordure); padding-top: 10px;
+}
+.liste-infos-classe li { font-size: 13px; color: var(--texte-gris); padding: 4px 0; }
+.bouton-explorer-classe {
+  display: block; width: 100%; padding: 12px; background-color: var(--bleu-principal); color: white;
+  text-align: center; border-radius: 8px; font-weight: bold; border: none; box-sizing: border-box; font-size: 14px;
+}
+
+/* ===== Espace enseignant / admin — activités & classes assignées ===== */
+.carte-plan { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border-left: 4px solid var(--bleu-principal); }
+
+.carte-demande { background: white; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+.table-enseignants { width: 100%; border-collapse: collapse; }
+.table-enseignants th, .table-enseignants td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--bordure); font-size: 13px; }
+.pastille-classe-ens { display: inline-block; background: var(--bleu-clair); color: var(--bleu-principal); border-radius: 20px; padding: 2px 10px; font-size: 11px; font-weight: 700; margin: 2px 3px 2px 0; }
+.pastille-classe-ens button { background: none; border: none; cursor: pointer; color: inherit; font-size: 10px; margin-left: 4px; }
+
+/* Aperçu générique au survol d'une carte (tableau de bord admin) — même
+   principe que .carte-champ/.survol-enfants-champ ci-dessus, réutilisable
+   sur d'autres cartes. Voir js/apercu-survol.js. */
+.carte-apercu-hover { position: relative; }
+/* z-index explicite : dès qu'une carte voisine applique un transform au
+   survol (ex. translateY), elle forme un nouveau contexte d'empilement et
+   peut sinon passer devant la bulle d'une carte précédente survolée. */
+.carte-apercu-hover:hover { z-index: 5; }
+.bulle-apercu-hover { position: absolute; left: 12px; right: 12px; top: calc(100% - 8px); background: var(--bleu-fonce); color: white; border-radius: 10px; padding: 12px 14px; box-shadow: 0 12px 28px rgba(0,0,0,0.28); opacity: 0; visibility: hidden; transform: translateY(-6px); transition: opacity .16s ease, transform .16s ease; pointer-events: none; z-index: 30; }
+.carte-apercu-hover:hover .bulle-apercu-hover { opacity: 1; visibility: visible; transform: translateY(0); }
+.bulle-apercu-hover-titre { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--accent); margin-bottom: 6px; }
+.bulle-apercu-hover ul { list-style: none; margin: 0; padding: 0; max-height: 168px; overflow: hidden; }
+.bulle-apercu-hover li { font-size: 13px; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.bulle-apercu-hover li:last-child { border-bottom: none; }

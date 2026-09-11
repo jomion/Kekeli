@@ -1,0 +1,71 @@
+KEKELI — Livraison : colonne "Résultats" du bloc Problème, formatage
+riche du devoir texte libre, zone de texte d'exercice plus visible
+(11 septembre 2026)
+================================================================
+
+Ce zip est une LIVRAISON DIFFÉRENTIELLE : il ne contient que les fichiers
+créés ou modifiés depuis la dernière livraison (kekeli-pierres-rouges-
+images-badges-2026-09-11.zip). Aucun fichier inchangé n'est inclus — pour
+installer, décompressez ce zip par-dessus votre copie actuelle du site, en
+conservant l'arborescence des dossiers.
+
+1) Colonne "Résultats" restaurée dans le tableau du bloc "Problème"
+   ------------------------------------------------------------------
+   Fichiers : js/editeur/blocs.js, js/pages/editeur-seance.js,
+   js/editeur/devoir-blocs.js, css/style.css, css/style-public.css
+   Comme signalé ("ça manque la colonne de résultat"), le tableau du bloc
+   "Problème" avait perdu, lors du portage depuis votre modèle de référence,
+   sa 3e colonne dédiée au résultat final (valeur + unité), distincte de la
+   grille de calcul posé. Elle est maintenant restaurée à l'identique du
+   modèle (case du résultat + case d'unité, entre "Solutions & Équations" et
+   "Opérations posées"), et ce dans TOUS les affichages du bloc :
+     - aperçu de l'enseignant dans l'éditeur (séance ET devoir),
+     - corrigé en lecture seule,
+     - formulaire interactif de l'élève (case à remplir),
+     - relecture par l'enseignant de la copie d'un élève,
+     - écran de correction détaillée.
+   La saisie de l'élève dans cette nouvelle case (résultat + unité) est
+   automatiquement enregistrée avec le reste de sa copie, sans changement
+   côté base de données.
+
+2) Formatage riche pour la consigne d'un devoir "texte libre"
+   ------------------------------------------------------------------
+   Fichiers : js/modal.js, js/pages/enseignant-devoirs-notes.js,
+   js/pages/admin-devoirs-notes.js, js/devoirs-notes-rendu.js,
+   js/pages/eleve-devoir-rendu.js, css/style.css
+   La consigne d'un devoir "texte libre" (création ET modification) dispose
+   maintenant de la même barre d'outils de mise en forme que partout
+   ailleurs sur le site (gras, italique, souligné, couleurs, listes,
+   alignement...), au lieu d'une simple zone de texte brut. L'affichage de
+   cette consigne (élève, parent, enseignant, admin) a été mis à jour en
+   conséquence pour respecter la mise en forme choisie. La consigne d'un
+   devoir "à blocs" reste volontairement en texte brut (non demandé).
+
+3) Zone de texte de l'exercice (bloc "exercice") rendue plus visible
+   ------------------------------------------------------------------
+   Fichiers : css/style-public.css, css/theme-premium-eleve.css
+   Comme signalé ("c'est presque invisible"), la zone où l'élève rédige sa
+   réponse à un bloc "exercice" (texte libre corrigé à la main) avait une
+   bordure trop pâle, à peine perceptible sur fond blanc. Elle a maintenant
+   une bordure plus marquée, un fond légèrement teinté pour bien délimiter
+   la zone de saisie, et un halo net au focus (clic dedans) — aussi bien
+   dans le thème gratuit que dans le thème premium. Cette zone est partagée
+   entre les devoirs et les séances : le correctif s'applique aux deux.
+
+Vérifications effectuées
+-------------------------
+- node --check sur les 11 fichiers JS modifiés : aucune erreur de syntaxe.
+- Vérification de l'équilibre des accolades sur les 3 fichiers CSS modifiés.
+- Rendu de test (script Node isolé, hors navigateur) des 5 contextes
+  d'affichage du bloc "Problème" avec une équation de multiplication :
+  colonne Résultats correcte (valeur/unité) en aperçu enseignant, formulaire
+  élève (case vide, capturable), et relecture (valeur saisie par l'élève
+  correctement réaffichée).
+- Relecture manuelle du câblage du nouveau type de champ "richtext" dans
+  js/modal.js (génération du HTML, validation d'un champ requis, lecture de
+  la valeur à la soumission) contre le mécanisme déjà utilisé ailleurs sur
+  le site pour la mise en forme riche (js/editeur/blocs.js).
+
+Comme convenu, ce zip ne contient que les fichiers créés ou modifiés depuis
+la dernière livraison (livraison différentielle) — aucun fichier inchangé
+n'est inclus.
