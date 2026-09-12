@@ -35,12 +35,35 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
 }
 .cadran-page * { box-sizing: border-box; }
 /* Si une bannière du super admin est affichée (js/banniere-site.js), le corps
    de la page gagne du padding-top supplémentaire (voir style-public.css) :
    on réduit la hauteur du jeu d'autant pour ne jamais dépasser l'écran. */
 body.avec-banniere-site .cadran-page { height: calc(100vh - 68px - var(--hauteur-banniere-site, 0px)); }
+/* Correction du 12 septembre 2026 (signalement : "l'affichage sur mobile ne
+   rend pas le jeu facile à cause du clavier de saisie qui prend une place
+   importante") : là où le navigateur le permet, 100dvh (hauteur de
+   viewport DYNAMIQUE) remplace 100vh — elle se réduit réellement quand le
+   clavier virtuel apparaît, contrairement à 100vh qui reste figée sur la
+   hauteur "sans clavier" dans la plupart des navigateurs mobiles, ce qui
+   poussait la zone de saisie sous le clavier sans pouvoir défiler pour la
+   voir (overflow: hidden ci-dessus). Repli silencieux sur 100vh pour les
+   navigateurs qui ne connaissent pas dvh. */
+@supports (height: 100dvh) {
+  .cadran-page { height: calc(100dvh - 68px); }
+  body.avec-banniere-site .cadran-page { height: calc(100dvh - 68px - var(--hauteur-banniere-site, 0px)); }
+}
+/* En plus de dvh, le jeu est désormais forcé en plein écran (API Fullscreen)
+   au lancement d'une série sur mobile (voir cadranDemanderPleinEcran() dans
+   eleve-jeu-calcul-mental.js) : l'en-tête du site (68px réservés ci-dessus)
+   disparaît alors complètement de l'écran (l'élément mis en plein écran
+   remplace tout), donc plus besoin de lui réserver de la place. */
+.cadran-page.cadran-plein-ecran-actif { height: 100dvh; }
+@supports not (height: 100dvh) {
+  .cadran-page.cadran-plein-ecran-actif { height: 100vh; }
+}
 
 .cadran-app {
   background: var(--cadran-panel-bg);
@@ -224,4 +247,23 @@ body.avec-banniere-site .cadran-page { height: calc(100vh - 68px - var(--hauteur
 
 @media (max-width: 480px) {
   .cadran-app { padding: 10px 12px; }
+}
+
+/* Bouton de retour flottant, toujours accessible sur mobile (session du 12
+   septembre 2026) : posé DANS .cadran-page (et non en dehors) pour rester
+   visible même une fois le jeu passé en plein écran via l'API Fullscreen —
+   un élément mis en plein écran masque tout ce qui n'est pas l'un de ses
+   descendants, y compris l'en-tête du site. position: fixed le maintient
+   atteignable quel que soit le défilement ou l'état du clavier virtuel. */
+.cadran-btn-quitter-flottant {
+  display: none;
+  position: fixed; top: 10px; left: 10px; z-index: 99999;
+  width: 42px; height: 42px; border-radius: 50%;
+  background: rgba(15,23,42,0.88); color: #fff; border: 2px solid #475569;
+  font-size: 1.2rem; line-height: 1; align-items: center; justify-content: center;
+  cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.45);
+}
+.cadran-btn-quitter-flottant:hover { background: #334155; border-color: #64748b; }
+@media (max-width: 768px) {
+  .cadran-btn-quitter-flottant { display: flex; }
 }

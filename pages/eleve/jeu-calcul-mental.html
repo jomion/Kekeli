@@ -22,6 +22,10 @@
        exact (chaque niveau règle le temps, l'intervalle des nombres et la
        disposition du cadran). Tient sur un seul écran, sans défilement. -->
   <div class="cadran-page">
+    <!-- Bouton de retour flottant : placé ici, dans .cadran-page, pour
+         rester visible même une fois le jeu passé en plein écran (voir
+         css/jeu-cadran-operatoire.css et eleve-jeu-calcul-mental.js). -->
+    <button type="button" class="cadran-btn-quitter-flottant" id="cadranBtnQuitterFlottant" title="Quitter le jeu" aria-label="Quitter le jeu">✕</button>
     <div class="cadran-app" id="cadranApp">
       <div class="cadran-countdown-overlay" id="cadranCountdown">3</div>
 

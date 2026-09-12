@@ -141,6 +141,60 @@ function cadranInitJeu() {
   const elBtnModeDial = document.getElementById('cadranBtnModeDial');
   const elBtnModeMental = document.getElementById('cadranBtnModeMental');
   const elBtnRevoir = document.getElementById('cadranBtnRevoir');
+  const elCadranPage = document.querySelector('.cadran-page');
+  const elBtnQuitterFlottant = document.getElementById('cadranBtnQuitterFlottant');
+  const elLienRetourEntete = document.querySelector('.cadran-btn-lien-retour');
+
+  // ----- Plein écran forcé sur mobile (session du 12 septembre 2026) -----
+  //
+  // Signalement : "l'affichage sur mobile ne rend pas le jeu facile à cause
+  // du clavier de saisie qui prend une place importante". En plus du
+  // passage à 100dvh (voir css/jeu-cadran-operatoire.css, qui réagit déjà
+  // à l'ouverture du clavier), le jeu demande désormais le plein écran
+  // (API Fullscreen) au lancement d'une série sur mobile : l'en-tête du
+  // site disparaît alors complètement, libérant encore plus de hauteur
+  // utile. Le bouton flottant "✕" (posé DANS .cadran-page, donc visible
+  // même en plein écran) garantit un retour possible à tout moment.
+  function cadranEstMobile() {
+    return window.matchMedia('(max-width: 768px)').matches;
+  }
+
+  function cadranDemanderPleinEcran() {
+    if (!cadranEstMobile() || !elCadranPage) return;
+    if (document.fullscreenElement) return;
+    const demander = elCadranPage.requestFullscreen
+      || elCadranPage.webkitRequestFullscreen
+      || elCadranPage.msRequestFullscreen;
+    if (typeof demander !== 'function') return;
+    // Sans conséquence si refusé/non supporté (Safari iOS ancien, etc.) :
+    // le jeu reste pleinement jouable en mode normal, juste sans le
+    // supplément de hauteur du plein écran.
+    Promise.resolve(demander.call(elCadranPage)).catch(() => {});
+  }
+
+  function cadranQuitterPleinEcran() {
+    const sortir = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+    if (document.fullscreenElement && typeof sortir === 'function') {
+      Promise.resolve(sortir.call(document)).catch(() => {});
+    }
+  }
+
+  ['fullscreenchange', 'webkitfullscreenchange', 'msfullscreenchange'].forEach((evenement) => {
+    document.addEventListener(evenement, () => {
+      elCadranPage?.classList.toggle('cadran-plein-ecran-actif', !!document.fullscreenElement);
+    });
+  });
+
+  if (elBtnQuitterFlottant) {
+    elBtnQuitterFlottant.addEventListener('click', () => {
+      cadranQuitterPleinEcran();
+      window.location.href = 'jeux-educatifs.html';
+    });
+  }
+  // Le lien de retour de l'en-tête déclenche déjà sa navigation via son
+  // href — on sort simplement du plein écran en plus, par prudence (la
+  // plupart des navigateurs le font déjà seuls en quittant la page).
+  elLienRetourEntete?.addEventListener('click', () => cadranQuitterPleinEcran());
 
   function cadranOpenSettings() { elSettingsModal.classList.add('active'); }
   function cadranCloseSettings() { elSettingsModal.classList.remove('active'); }
@@ -515,7 +569,7 @@ function cadranInitJeu() {
   elShuffleModeSelect.addEventListener('change', cadranUpdateDialLayout);
   elValBtn.addEventListener('click', cadranValidateAnswer);
   elUserAnswer.addEventListener('keydown', e => { if (e.key === 'Enter') cadranValidateAnswer(); });
-  elBtnStart.addEventListener('click', cadranStartSeries);
+  elBtnStart.addEventListener('click', () => { cadranDemanderPleinEcran(); cadranStartSeries(); });
   elBtnRejouer.addEventListener('click', cadranCloseSummary);
 
   // Niveau de difficulté par défaut : Azɔ̀ví (comme le fichier de référence

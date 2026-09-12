@@ -1,148 +1,69 @@
 ========================================================================
-KEKELI — Inscription simplifiée + vérification d'e-mail (lien et code)
+KEKELI — Nouveau design de l'inscription + plein écran mobile pour le
+Cadran opératoire
 Livraison du 12 septembre 2026
 ========================================================================
 
-⚠️ ACTION MANUELLE OBLIGATOIRE AVANT MISE EN LIGNE (3 réglages, une seule
-fois, dans le tableau de bord Supabase — je n'ai pas d'accès outillé à ces
-réglages, ils ne peuvent pas être faits automatiquement) :
-========================================================================
-
-Sans ces 3 étapes, les nouveaux comptes seront créés mais l'e-mail de
-vérification ne sera JAMAIS envoyé (ou le lien ne fonctionnera pas).
-
---- ÉTAPE 1 — Activer la confirmation d'e-mail ------------------------
-
-Tableau de bord Supabase → Authentication → Sign In / Providers → Email
-→ activer le bouton "Confirm email".
-
---- ÉTAPE 2 — Personnaliser l'e-mail "Confirm signup" -----------------
-
-Tableau de bord Supabase → Authentication → Email Templates → onglet
-"Confirm signup" → remplacer le contenu par le HTML ci-dessous (il
-affiche À LA FOIS le lien de confirmation ET le code à 6 chiffres, dans
-le même e-mail — l'utilisateur peut utiliser l'un ou l'autre) :
-
------------------------- COPIER À PARTIR D'ICI ------------------------
-<h2>Confirmez votre adresse e-mail</h2>
-
-<p>Bonjour,</p>
-
-<p>Merci de vous être inscrit(e) sur KEKELI. Pour activer votre compte,
-cliquez sur le bouton ci-dessous :</p>
-
-<p>
-  <a href="{{ .ConfirmationURL }}"
-     style="display:inline-block;padding:12px 24px;background-color:#2563eb;
-            color:#ffffff;text-decoration:none;border-radius:8px;
-            font-weight:bold;">
-    Confirmer mon adresse e-mail
-  </a>
-</p>
-
-<p>Le bouton ne fonctionne pas ? Copiez ce code à 6 chiffres dans
-l'application, sur la page « Vérifier mon e-mail » :</p>
-
-<p style="font-size:28px;font-weight:bold;letter-spacing:6px;
-          text-align:center;background:#f4f7f9;padding:14px;
-          border-radius:8px;">
-  {{ .Token }}
-</p>
-
-<p style="font-size:12px;color:#6b7280;">
-  Si vous n'êtes pas à l'origine de cette inscription, ignorez simplement
-  cet e-mail.
-</p>
-------------------------- COPIER JUSQU'ICI -----------------------------
-
---- ÉTAPE 3 — Vérifier la liste blanche des URLs de redirection --------
-
-Tableau de bord Supabase → Authentication → URL Configuration →
-"Redirect URLs" → s'assurer que l'URL du site en production (par ex.
-https://votre-domaine.tld/pages/verifier-email.html, ou plus simplement
-https://votre-domaine.tld/* en wildcard) y figure bien. Sans cela,
-Supabase refusera de rediriger vers la page de vérification après un
-clic sur le lien reçu par e-mail.
+Aucune action manuelle n'est requise côté Supabase pour cette livraison
+(aucun changement de base de données).
 
 ========================================================================
-CE QUI A CHANGÉ POUR L'UTILISATEUR
+1) NOUVEAU DESIGN DE LA PAGE D'INSCRIPTION
 ========================================================================
 
-INSCRIPTION (pages/inscription.html) — nettement simplifiée :
-  - Ne demande plus que : type de compte (Parent ou Enseignant),
-    prénom, nom, identifiant (nouveau — voir plus bas), e-mail, mot de
-    passe (+ confirmation), et l'acceptation des conditions.
-  - Sexe et toute la localisation (Département / Commune /
-    Arrondissement / Circonscription / Zone) ont été retirés du
-    formulaire : facultatifs, à renseigner plus tard depuis
-    « Mon profil » (voir plus bas).
-  - Cas particulier ENSEIGNANT : École et Classe restent OBLIGATOIRES
-    dès l'inscription (demande explicite) — la classe choisie lui est
-    attribuée automatiquement, comme avant.
-  - Le rôle « 🏛️ Autorité Pédagogique » a été retiré (temporairement)
-    de la liste déroulante d'inscription, le temps que sa navigation
-    dédiée soit finalisée. Les comptes déjà créés avec ce rôle
-    continuent de se connecter normalement — rien n'est cassé pour eux.
-    Il suffira de rajouter l'option dans le <select> du formulaire
-    quand vous serez prêts.
+pages/inscription.html reprend maintenant fidèlement la maquette que vous
+avez envoyée : carte blanche arrondie sur fond clair, logo (image + texte
+« KEKELI ») centré en haut, champs aux coins arrondis, bouton bleu plein.
+Toute la logique déjà en place est conservée à l'identique : type de
+compte (Parent/Enseignant), École et Classe obligatoires pour
+l'enseignant, identifiant avec vérification de disponibilité en direct,
+e-mail à vérifier, mot de passe + confirmation, conditions d'utilisation.
 
-NOUVEAU CHAMP « IDENTIFIANT » :
-  - Choisi librement à l'inscription (3 à 30 caractères : lettres,
-    chiffres, points, tirets, underscores), vérifié en direct pendant
-    la saisie (disponible / déjà pris).
-  - Permet ensuite de se connecter avec l'identifiant OU l'e-mail, au
-    choix (le formulaire de connexion n'a pas changé de forme).
-
-VÉRIFICATION D'E-MAIL (lien ET code) :
-  - Après inscription, l'utilisateur est envoyé sur une nouvelle page
-    « Vérifier mon e-mail » (pages/verifier-email.html).
-  - Il peut soit cliquer sur le lien reçu par e-mail (le compte
-    s'active automatiquement et il est redirigé vers son espace), soit
-    saisir directement le code à 6 chiffres reçu dans le même e-mail.
-  - Un bouton « Renvoyer l'e-mail de vérification » est disponible en
-    cas de non-réception.
-  - Tant que l'e-mail n'est pas confirmé, la connexion (login.html)
-    affiche désormais un message clair avec un lien direct vers cette
-    page de vérification, au lieu d'un message d'erreur générique.
-
-« MON PROFIL » — nouvelle page volontaire (pas un blocage) :
-  - pages/completer-profil.html n'est plus une étape obligatoire
-    imposée après connexion : elle devient une page « Mon profil »,
-    accessible à tout moment depuis Paramètres → « 👤 Mon profil »
-    (nouvelle carte, visible pour Parent/Enseignant/Autorité).
-  - Elle affiche toujours tous les champs applicables au rôle
-    (sexe, localisation, et pour l'enseignant école/circonscription/
-    zone/classe si pas encore attribuée), pré-remplis avec ce qui est
-    déjà connu, modifiables à volonté.
-  - Plus aucune redirection forcée vers cette page après connexion.
+Pour garder un look cohérent, le MÊME style (mêmes couleurs, mêmes
+arrondis) a été étendu aux 3 autres pages qui partagent déjà les mêmes
+briques visuelles : la connexion (login.html), la vérification d'e-mail
+(verifier-email.html) et « Mon profil » (completer-profil.html, dont la
+carte est désormais un peu plus large pour ses nombreux champs). Ces 3
+pages n'ont pas eu besoin d'être réécrites : seule la feuille de style
+partagée (css/style-public.css) a été mise à jour, sans toucher à leur
+fonctionnement.
 
 ========================================================================
-CHANGEMENTS TECHNIQUES (pour information)
+2) CADRAN OPÉRATOIRE — AFFICHAGE MOBILE AMÉLIORÉ (clavier qui prenait
+   trop de place)
 ========================================================================
 
-  - Nouvelle fonction Supabase identifiant_disponible(p_identifiant)
-    (SECURITY DEFINER, déployée en base — déjà en ligne, aucune action
-    requise de votre part) : vérifie la disponibilité d'un identifiant,
-    utilisée à la fois pour le contrôle en direct sur le formulaire et
-    en pré-vérification avant la création du compte (évite les comptes
-    orphelins en cas d'identifiant déjà pris).
-  - Fichiers modifiés : js/auth-utilisateur.js, pages/inscription.html,
-    pages/login.html, pages/completer-profil.html,
-    js/pages/completer-profil.js, js/pages/parametres.js.
-  - Nouveau fichier : pages/verifier-email.html.
-  - Tous les fichiers JavaScript modifiés ont été revérifiés
-    (node --check) sans erreur. Aucun fichier CSS n'a été touché dans
-    cette livraison.
-  - Vérification de sécurité (RLS + advisors Supabase) effectuée après
-    la migration : aucune nouvelle alerte, la nouvelle fonction est
-    correctement restreinte et accessible aux rôles anon/authenticated
-    comme prévu (même modèle que les fonctions existantes du projet).
+Signalement : sur mobile, le clavier de saisie de la réponse prenait une
+place importante et rendait le jeu difficile à utiliser.
+
+Deux correctifs complémentaires :
+  - Le jeu utilise désormais une hauteur d'écran "dynamique" (100dvh) qui
+    réagit réellement à l'ouverture du clavier virtuel, au lieu de rester
+    figée comme avant.
+  - En plus, sur mobile, le jeu se met automatiquement en PLEIN ÉCRAN dès
+    que l'élève appuie sur « Lancer l'entraînement » — cela libère encore
+    plus d'espace en masquant la barre du site. Un bouton de retour (✕),
+    toujours visible en haut à gauche, permet de quitter le jeu à tout
+    moment, y compris pendant le plein écran.
+
+Sur les téléphones ou navigateurs qui ne prennent pas en charge le plein
+écran (cas rare), le jeu reste entièrement utilisable comme avant — ce
+correctif est un simple bonus, jamais un blocage.
 
 ========================================================================
-PROCHAINE ÉTAPE (déjà convenue)
+FICHIERS MODIFIÉS
 ========================================================================
 
-Une fois cette livraison validée, le prochain chantier sera la refonte
-de la page d'accueil (cartes de classe CM2, paliers cliquables avec
-totaux réels, image d'accueil générée par IA à valider avant
-intégration).
+  - pages/inscription.html (nouveau design)
+  - css/style-public.css (style partagé étendu à login/vérification/profil)
+  - pages/completer-profil.html (carte élargie)
+  - pages/eleve/jeu-calcul-mental.html (bouton de retour flottant)
+  - css/jeu-cadran-operatoire.css (100dvh + style du bouton flottant)
+  - js/pages/eleve-jeu-calcul-mental.js (demande de plein écran + retour)
+
+Vérifications effectuées : node --check sur les fichiers JavaScript
+modifiés, équilibre des accolades sur les fichiers CSS modifiés, capture
+d'écran réelle (Chromium, largeurs mobile et desktop) confirmant le
+nouveau design de l'inscription/connexion/profil et le bon comportement
+du Cadran opératoire (bouton flottant visible sur mobile uniquement,
+aucun changement sur desktop).
