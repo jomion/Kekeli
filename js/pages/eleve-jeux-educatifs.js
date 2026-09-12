@@ -3,10 +3,14 @@
 // indépendante) : cette page devient le LANCEUR des 3 jeux d'arcade
 // (pages/eleve/jeu-atelier-francais.html, jeu-calcul-mental.html,
 // jeu-es-est.html) — elle ne liste plus les séances à palier une par une
-// (l'ancienne version de ce fichier), puisque chaque jeu choisit maintenant
-// lui-même sa matière et propose le choix du niveau (palier) sur son propre
-// écran d'accueil. Voir js/jeux/moteur-jeu-arcade.js et
-// js/jeux/coquille-jeu-arcade.js pour le moteur commun aux 3 jeux.
+// (l'ancienne version de ce fichier). Voir js/jeux/moteur-jeu-arcade.js et
+// js/jeux/coquille-jeu-arcade.js pour le moteur commun encore utilisé par
+// jeu-es-est.html. **Depuis le 12 septembre 2026 (treizième requête, second
+// lot), jeu-atelier-francais.html a rejoint jeu-calcul-mental.html comme
+// port quasi-verbatim et autonome d'un fichier de référence fourni par le
+// porteur du projet — il ne partage plus ce moteur commun ni le choix de
+// palier lié aux vraies séances, sur le même principe (voir
+// eleve-jeu-atelier-francais.js et la leçon retenue n°13).
 
 let profilJeux = null;
 

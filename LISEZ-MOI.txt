@@ -1,84 +1,67 @@
-KEKELI — Audit mobile (2 bugs trouvés et corrigés, avec captures d'écran)
+KEKELI — Portage fidèle de « L'Atelier du Français » à son nouveau fichier de référence
 (12 septembre 2026)
 ================================================================
 
 Ce zip est une LIVRAISON DIFFÉRENTIELLE : il ne contient que les fichiers
-créés ou modifiés depuis la dernière livraison (kekeli-correction-activites-
-cadran-epinglage-2026-09-12.zip). Aucun fichier inchangé n'est inclus — pour
-installer, décompressez ce zip par-dessus votre copie actuelle du site, en
-conservant l'arborescence des dossiers. Aucune migration de base de données
-cette fois-ci : uniquement 3 fichiers CSS.
+créés ou modifiés depuis la dernière livraison (kekeli-audit-mobile-lot1-
+2026-09-12.zip). Aucun fichier inchangé n'est inclus — pour installer,
+décompressez ce zip par-dessus votre copie actuelle du site, en conservant
+l'arborescence des dossiers. Aucune migration de base de données cette
+fois-ci.
 
-Vous avez insisté sur ce point précis, donc je le dis clairement : cette
-fois, je n'ai pas seulement relu le code, j'ai fait tourner votre site dans
-un vrai navigateur (Chromium) réglé sur des largeurs d'écran de téléphone
-(320 à 414 px) et j'ai regardé les captures d'écran obtenues, exactement
-comme le ferait quelqu'un qui teste sur son propre téléphone. C'est comme ça
-que les deux bugs ci-dessous ont été trouvés — pas par simple lecture du
-CSS.
+Ce que j'ai fait
+-----------------
+Vous m'avez fourni un nouveau fichier de référence pour "L'Atelier du
+Français" (un mini-site HTML/JS autonome et complet), avec la demande de le
+porter fidèlement — exactement le même principe déjà appliqué au jeu
+"Cadran opératoire" il y a quelques jours, quand vous aviez signalé que je
+m'étais trop éloigné du fichier fourni. J'ai donc repris cette même leçon :
+plutôt que d'adapter ce nouveau fichier à l'ancien moteur de jeu partagé du
+site (qui piochait ses questions dans vos vraies séances), j'ai reproduit le
+fichier de référence presque à l'identique, comme un jeu autonome avec sa
+propre banque de questions intégrée.
 
-1) Bouton "Déconnexion" invisible/inatteignable sur mobile (élève)
-   ------------------------------------------------------------------
-   Sur le nouveau look premium (celui que tout le monde voit actuellement,
-   voir le réglage temporaire du 11 septembre), le menu mobile (tiroir qui
-   s'ouvre avec le ☰) et la barre de navigation du bas (Accueil / Parcours /
-   Jeux éducatifs / Favoris / Profil) sont recouverts au même niveau visuel
-   l'un par rapport à l'autre : concrètement, la barre du bas passait
-   TOUJOURS par-dessus les ~70 derniers pixels du tiroir de menu, quel que
-   soit le défilement à l'intérieur du tiroir. Or le bouton "Déconnexion"
-   est tout en bas de ce tiroir (après les liens de navigation et la petite
-   carte "Apprendre avec plaisir") : il restait donc recouvert et impossible
-   à atteindre, même en essayant de faire défiler le menu jusqu'au bout.
-   Corrigé en réservant, en bas du tiroir, une marge égale à la hauteur de
-   la barre du bas — le bouton "Déconnexion" redevient entièrement visible
-   et cliquable une fois le tiroir déroulé jusqu'en bas. Vérifié par
-   capture d'écran avant/après (le "avant" montre le bouton coupé par la
-   barre du bas, le "après" le montre entièrement dégagé).
+1) Le jeu est maintenant un port quasi-verbatim du fichier fourni.
+   La page "L'Atelier du Français" (accessible depuis "Jeux éducatifs")
+   reproduit désormais fidèlement : les 6 catégories (Tout / Conjugaison /
+   Grammaire / Orthographe / Vocabulaire / Expression), les 3 niveaux de
+   difficulté (Débutant / Intermédiaire / Avancé), les 30 questions exactes
+   du fichier fourni (QCM et réponses à taper au clavier selon la
+   question), le décompte avant chaque question, le chronomètre par
+   question, les sons de réussite/erreur, et le bilan de fin de partie
+   (mascotte dansante et confettis à 100% de réussite, sinon un tableau
+   récapitulatif des erreurs avec la bonne réponse). Comme pour le Cadran
+   opératoire, ce jeu ne pioche donc plus dans le contenu réel de vos
+   séances publiées — il fonctionne de façon autonome, exactement comme le
+   fichier que vous m'avez transmis.
 
-2) Cartes qui débordaient légèrement de l'écran sur les téléphones étroits
-   ------------------------------------------------------------------
-   Deux grilles de cartes du site (celle des matières et celle des classes,
-   utilisées par exemple sur la page de navigation des classes et sur la
-   page "Matière" de l'élève) avaient une largeur minimale par carte fixée
-   en dur (300 et 320 pixels). Sur un téléphone étroit (320-360 px de large,
-   par exemple un iPhone SE), une fois les marges de la page retirées, il ne
-   restait plus assez de place pour respecter ce minimum : les cartes
-   débordaient donc légèrement à droite de l'écran au lieu de se réduire
-   proprement à la largeur disponible — un léger défilement horizontal
-   indésirable, invisible au premier coup d'œil mais bien réel. Corrigé :
-   ces grilles se réduisent maintenant correctement à la largeur de l'écran
-   sur les téléphones les plus étroits, sans rien changer à leur
-   présentation actuelle sur ordinateur ou tablette. Vérifié par capture
-   d'écran avant (cartes coupées à droite) / après (cartes bien cadrées).
+2) Toujours affiché sur un seul écran, sans défilement.
+   Comme pour le Cadran opératoire, la page garde l'en-tête fixe habituel du
+   site et occupe le reste de l'écran sans jamais nécessiter de défilement,
+   quelle que soit la taille de l'écran.
 
 Vérifications effectuées
 -------------------------
-- Site chargé dans un vrai navigateur Chromium, réglé successivement sur
-  320, 375 et 390 px de large (tailles de téléphone courantes), pour repérer
-  les deux bugs ci-dessus par capture d'écran plutôt que par simple lecture
-  du code.
-- Correctif du bouton "Déconnexion" revérifié de la même façon après coup
-  (capture d'écran confirmant qu'il est bien dégagé de la barre du bas).
-- Correctif des cartes revérifié de la même façon après coup (capture
-  d'écran confirmant l'absence de débordement).
-- Équilibre des accolades vérifié sur les 3 fichiers CSS modifiés.
-- Aucun fichier JavaScript touché dans ce lot (uniquement du CSS) — pas de
-  node --check nécessaire.
-
-Important : ceci n'est qu'un PREMIER lot de l'audit mobile, pas l'audit
-complet. Le site est très large (plus de 40 pages), certaines parties
-nécessitent d'être connecté avec un vrai compte pour être testées en
-conditions réelles, et je vais continuer à vérifier l'affichage mobile de
-chaque nouvelle page au fur et à mesure des prochains lots (en particulier
-la refonte de la page d'accueil, qui touche justement les bannières/cartes
-que vous avez signalées comme trop grandes sur mobile).
+- `node --check` sur le fichier JavaScript réécrit — aucune erreur.
+- Équilibre des accolades vérifié sur la nouvelle feuille de style.
+- Relecture ligne à ligne du fichier de référence pour confirmer que chaque
+  question, chaque catégorie, chaque comportement (décompte, minuteur,
+  validation, bilan) est bien reproduit.
+- Test réel dans un navigateur (comme pour l'audit mobile précédent) :
+  écran d'accueil, lancement d'une partie, réponse à une question QCM
+  (bonne réponse mise en évidence en vert, score mis à jour), confirmation
+  qu'aucun défilement n'apparaît sur un écran de téléphone (390px de large).
+- Recherche exhaustive de toute référence résiduelle à l'ancien moteur de
+  jeu commun pour cette page précise (aucune trouvée) ; confirmation que les
+  2 autres jeux (Cadran opératoire, Défi ES & EST) n'ont pas été touchés.
 
 La suite
 --------
-Je continue sur les points suivants de votre message : refonte de la page
-d'accueil avec l'image héros que je vais générer pour votre validation,
-portage du jeu de l'Atelier du Français à son fichier de référence, éditeur
-de devoirs, compétences par séance, ordre hiérarchique du mode lecture,
-accès élargi aux comptes connectés, profil modifiable, nettoyage des menus,
-vérification d'email, analyse finale, puis — seulement après votre accord
-explicite en fin de parcours — la suppression des comptes de test.
+Je continue sur les points suivants de votre message du 12 septembre 2026 :
+refonte de la page d'accueil avec l'image héros que je vais générer pour
+votre validation, poursuite de l'audit mobile sur le reste du site, mode
+lecture pour l'admin sur certaines séances, éditeur de devoirs, compétences
+par séance, ordre hiérarchique du mode lecture, accès élargi aux comptes
+connectés, profil modifiable, nettoyage des menus, vérification d'email,
+analyse finale, puis — seulement après votre accord explicite en fin de
+parcours — la suppression des comptes de test.

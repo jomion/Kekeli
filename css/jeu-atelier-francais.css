@@ -1,0 +1,411 @@
+/* Jeu "L'Atelier du Français" (treizième requête, 12 septembre 2026, second
+   lot — voir claude/etat-des-lieux-kekeli.md, section 7 puis 0quaterdecies+).
+
+   Ce fichier est un PORT QUASI-VERBATIM du <style> du nouveau fichier de
+   référence "atelier_français.html" fourni par le porteur du projet : mêmes
+   couleurs, mêmes classes (renommées avec un préfixe "atelier-" pour ne
+   jamais entrer en collision avec le reste du site), même disposition,
+   même jeu de couleurs néon. Sur le même principe déjà appliqué au jeu
+   "Cadran opératoire" (voir css/jeu-cadran-operatoire.css et la leçon
+   retenue n°13 dans le document d'état des lieux) : reproduction fidèle du
+   fichier fourni plutôt qu'intégration dans le moteur d'arcade commun
+   (js/jeux/). Les seules différences volontaires par rapport au fichier de
+   référence sont : 1) tout est scopé sous .atelier-page pour cohabiter avec
+   le CSS du reste du site ; 2) la page garde l'en-tête fixe standard du
+   site (68px, voir body.avec-entete-fixe dans style-public.css) — le jeu
+   occupe donc le reste de l'écran (calc(100vh - 68px)) au lieu de 100vh,
+   sans barre de défilement, sur le même principe que le Cadran opératoire. */
+
+.atelier-page {
+  --atelier-bg-dark: #0f172a;
+  --atelier-panel-bg: #1e293b;
+  --atelier-gold: #f59e0b;
+  --atelier-neon-blue: #06b6d4;
+  --atelier-neon-green: #10b981;
+  --atelier-neon-red: #ef4444;
+  --atelier-purple: #8b5cf6;
+  --atelier-pink: #ec4899;
+
+  height: calc(100vh - 68px);
+  overflow: hidden;
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: var(--atelier-bg-dark);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.atelier-page * { box-sizing: border-box; }
+/* Si une bannière du super admin est affichée (js/banniere-site.js), le corps
+   de la page gagne du padding-top supplémentaire (voir style-public.css) :
+   on réduit la hauteur du jeu d'autant pour ne jamais dépasser l'écran. */
+body.avec-banniere-site .atelier-page { height: calc(100vh - 68px - var(--hauteur-banniere-site, 0px)); }
+
+.atelier-app {
+  background: var(--atelier-panel-bg);
+  border: 3px solid #334155;
+  border-radius: 20px;
+  padding: 15px 20px;
+  box-shadow: 0 15px 30px rgba(0,0,0,0.6);
+  text-align: center;
+  width: 95vw;
+  max-width: 600px;
+  height: 95%;
+  max-height: 660px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+}
+
+/* En-tête */
+.atelier-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.atelier-app h1 {
+  margin: 0;
+  color: var(--atelier-gold);
+  font-size: 1.2rem;
+  text-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+}
+.atelier-btn-lien-retour {
+  background: #334155;
+  border: none;
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+.atelier-btn-settings {
+  background: #334155;
+  border: none;
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 0.85rem;
+  transition: background 0.2s;
+}
+.atelier-btn-settings:hover { background: #475569; }
+
+/* Contrôles du haut : Catégories & Difficulté */
+.atelier-top-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 4px 0;
+}
+.atelier-category-selector {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.atelier-difficulty-selector {
+  display: flex;
+  gap: 5px;
+  margin-top: 2px;
+}
+.atelier-cat-btn {
+  flex: 1 1 30%;
+  padding: 4px 2px;
+  border-radius: 6px;
+  border: 1px solid #475569;
+  background: #0f172a;
+  color: #94a3b8;
+  font-weight: bold;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.atelier-diff-btn {
+  flex: 1;
+  padding: 4px;
+  border-radius: 6px;
+  border: 1px solid #475569;
+  background: #0f172a;
+  color: #94a3b8;
+  font-weight: bold;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.atelier-cat-btn.active {
+  border-color: var(--atelier-neon-blue);
+  color: #fff;
+  background: var(--atelier-purple);
+}
+.atelier-diff-btn.active {
+  border-color: var(--atelier-gold);
+  color: #000;
+  background: var(--atelier-gold);
+}
+
+/* Zone de jeu centrale */
+.atelier-game-zone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin: 4px 0;
+  background: #0f172a;
+  border: 2px solid var(--atelier-neon-blue);
+  border-radius: 12px;
+  padding: 12px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.atelier-question-category-tag {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  font-size: 0.7rem;
+  background: var(--atelier-purple);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: bold;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+.atelier-question-text {
+  font-size: 1.05rem;
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 12px;
+  margin-top: 14px;
+}
+
+/* Options QCM */
+.atelier-options-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  width: 100%;
+}
+.atelier-option-btn {
+  background: #1e293b;
+  border: 2px solid #475569;
+  border-radius: 8px;
+  padding: 9px;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+.atelier-option-btn:hover:not(:disabled) {
+  background: #334155;
+  border-color: var(--atelier-neon-blue);
+}
+.atelier-option-btn.correct {
+  background: var(--atelier-neon-green) !important;
+  color: #000 !important;
+  border-color: #fff !important;
+}
+.atelier-option-btn.incorrect {
+  background: var(--atelier-neon-red) !important;
+  color: #fff !important;
+  border-color: #fff !important;
+}
+
+/* Zone de saisie texte (orthographe / conjugaison / vocabulaire) */
+.atelier-input-answer-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  align-items: center;
+}
+.atelier-input-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  justify-content: center;
+}
+.atelier-app input[type="text"] {
+  font-size: 1.05rem;
+  width: 70%;
+  text-align: center;
+  padding: 8px;
+  border-radius: 8px;
+  border: 2px solid #475569;
+  background: #1e293b;
+  color: #fff;
+}
+.atelier-btn-validate {
+  font-size: 0.95rem;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: var(--atelier-neon-blue);
+  color: #000;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.atelier-feedback {
+  height: 18px;
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+
+/* Timer */
+.atelier-timer-bar-container {
+  width: 100%;
+  height: 6px;
+  background: #0f172a;
+  border-radius: 3px;
+  margin: 4px 0;
+  overflow: hidden;
+}
+.atelier-timer-bar {
+  height: 100%;
+  background: var(--atelier-neon-red);
+  width: 0%;
+  transition: width 0.1s linear;
+}
+
+.atelier-btn-start {
+  font-size: 0.95rem;
+  padding: 8px 15px;
+  border: none;
+  border-radius: 10px;
+  background: var(--atelier-neon-green);
+  color: #000;
+  cursor: pointer;
+  font-weight: bold;
+  width: 100%;
+  margin-top: 4px;
+  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+}
+
+.atelier-score-board {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+/* Modal Paramètres */
+.atelier-modal-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(15, 23, 42, 0.95);
+  border-radius: 20px;
+  z-index: 100;
+  display: none;
+  flex-direction: column;
+  padding: 20px;
+  text-align: left;
+}
+.atelier-modal-overlay.active { display: flex; }
+.atelier-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.atelier-modal-header h2 { margin: 0; color: var(--atelier-gold); font-size: 1.1rem; }
+.atelier-close-btn {
+  background: var(--atelier-neon-red);
+  border: none;
+  color: #fff;
+  font-weight: bold;
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.atelier-config-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  font-size: 0.8rem;
+}
+.atelier-config-group { display: flex; flex-direction: column; }
+.atelier-config-group label { color: #94a3b8; font-weight: bold; margin-bottom: 3px; }
+.atelier-app select {
+  width: 100%;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid #475569;
+  background: #1e293b;
+  color: #fff;
+  font-weight: bold;
+}
+
+/* Décompte superposé */
+.atelier-countdown-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(15, 23, 42, 0.85);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 4rem;
+  font-weight: bold;
+  color: var(--atelier-gold);
+  z-index: 30;
+  visibility: hidden;
+}
+
+/* Écran de Bilan */
+.atelier-summary-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(15, 23, 42, 0.98);
+  border-radius: 20px;
+  z-index: 90;
+  display: none;
+  flex-direction: column;
+  padding: 15px;
+  overflow-y: auto;
+}
+.atelier-summary-overlay.active { display: flex; }
+.atelier-summary-title { color: var(--atelier-gold); margin: 0; }
+.atelier-success-badge { font-size: 1.5rem; font-weight: bold; margin: 4px 0; }
+.atelier-summary-message { font-size: 0.85rem; font-weight: bold; margin-bottom: 6px; }
+
+.atelier-dancer-container { display: none; height: 60px; margin: 4px auto; }
+.atelier-dancer {
+  width: 40px; height: 40px;
+  background: var(--atelier-gold);
+  border-radius: 50%;
+  margin: 0 auto;
+  position: relative;
+  animation: atelier-dance 0.6s infinite alternate ease-in-out;
+  box-shadow: 0 0 12px var(--atelier-gold);
+}
+.atelier-dancer::before, .atelier-dancer::after {
+  content: ''; position: absolute; top: 10px; width: 6px; height: 6px; background: #000; border-radius: 50%;
+}
+.atelier-dancer::before { left: 8px; } .atelier-dancer::after { right: 8px; }
+.atelier-dancer-smile {
+  position: absolute; bottom: 6px; left: 10px; width: 18px; height: 6px; border-bottom: 3px solid #000; border-radius: 0 0 6px 6px;
+}
+@keyframes atelier-dance {
+  0% { transform: translateY(0) rotate(-10deg); }
+  100% { transform: translateY(-10px) rotate(10deg); }
+}
+
+.atelier-error-section { }
+.atelier-error-title { color: var(--atelier-neon-red); margin: 4px 0; }
+.atelier-error-table {
+  width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 0.7rem;
+}
+.atelier-error-table th, .atelier-error-table td { border: 1px solid #334155; padding: 4px; text-align: center; }
+.atelier-error-table th { background: #1e293b; color: var(--atelier-gold); }
