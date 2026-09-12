@@ -1,69 +1,80 @@
-========================================================================
-KEKELI — Nouveau design de l'inscription + plein écran mobile pour le
-Cadran opératoire
-Livraison du 12 septembre 2026
-========================================================================
+KEKELI — Correction du formatage de texte dans l'éditeur de devoir (tâche #174)
+================================================================================
 
-Aucune action manuelle n'est requise côté Supabase pour cette livraison
-(aucun changement de base de données).
+CE QUI A ÉTÉ CORRIGÉ
+---------------------
 
-========================================================================
-1) NOUVEAU DESIGN DE LA PAGE D'INSCRIPTION
-========================================================================
+Vous aviez signalé : « Les deux [types de devoirs] ne donnent pas la main
+d'ajouter un bloc. Pour le devoir libre je veux que l'enseignant puisse au
+moins formater le texte qu'il va envoyer même si c'est devoir simple. »
 
-pages/inscription.html reprend maintenant fidèlement la maquette que vous
-avez envoyée : carte blanche arrondie sur fond clair, logo (image + texte
-« KEKELI ») centré en haut, champs aux coins arrondis, bouton bleu plein.
-Toute la logique déjà en place est conservée à l'identique : type de
-compte (Parent/Enseignant), École et Classe obligatoires pour
-l'enseignant, identifiant avec vérification de disponibilité en direct,
-e-mail à vérifier, mot de passe + confirmation, conditions d'utilisation.
+Après investigation complète, voici ce qui se passait réellement et ce qui a
+été corrigé :
 
-Pour garder un look cohérent, le MÊME style (mêmes couleurs, mêmes
-arrondis) a été étendu aux 3 autres pages qui partagent déjà les mêmes
-briques visuelles : la connexion (login.html), la vérification d'e-mail
-(verifier-email.html) et « Mon profil » (completer-profil.html, dont la
-carte est désormais un peu plus large pour ses nombreux champs). Ces 3
-pages n'ont pas eu besoin d'être réécrites : seule la feuille de style
-partagée (css/style-public.css) a été mise à jour, sans toucher à leur
-fonctionnement.
+1. Un devoir « à blocs » (rattaché à une séance) et un devoir « texte libre »
+   (consigne unique) sont deux modes VOULUS, différents dès la conception :
+   le premier propose des blocs structurés (exercice, quiz, etc.), le second
+   une simple zone de texte à formater. Aucun des deux n'a jamais eu de bouton
+   « ajouter un bloc » côté enseignant pour le mode texte libre — ce n'est
+   pas un bug, c'est le fonctionnement prévu de ce mode. En revanche, pour le
+   mode « à blocs », le bouton d'ajout fonctionne bel et bien (vérifié dans
+   un navigateur réel, sur les 6 types de blocs, sans aucune erreur).
 
-========================================================================
-2) CADRAN OPÉRATOIRE — AFFICHAGE MOBILE AMÉLIORÉ (clavier qui prenait
-   trop de place)
-========================================================================
+2. LE VRAI PROBLÈME, confirmé et corrigé : la feuille de style utilisée par
+   les pages ENSEIGNANT (css/style-public.css) avait pris du retard sur celle
+   de l'administration (css/style.css) depuis la refonte du 11 septembre.
+   Résultat concret : toute la barre d'outils de formatage (Gras, Italique,
+   couleurs, alignement, listes...) et la zone de texte riche s'affichaient
+   SANS AUCUN STYLE chez l'enseignant — probablement perçues comme cassées
+   ou inutilisables. Corrigé : les 24 règles de style manquantes ont été
+   ajoutées à css/style-public.css, avec les bonnes couleurs de ce thème.
 
-Signalement : sur mobile, le clavier de saisie de la réponse prenait une
-place importante et rendait le jeu difficile à utiliser.
+3. UN VRAI BUG DE FOND, également trouvé et corrigé : dans la fenêtre de
+   création d'un devoir « texte libre », le champ de consigne était enveloppé
+   dans une balise <label> (au lieu d'un simple <div>). Or un <label> HTML,
+   quand on clique dedans, transfère automatiquement le clic vers le premier
+   bouton qu'il contient — ici, le bouton « Gras » de la barre d'outils. Donc
+   dès qu'un enseignant cliquait dans le champ pour commencer à écrire, le
+   gras s'activait tout seul, et TOUT le texte tapé ressortait en gras dès la
+   première lettre, avec un bouton Gras qui semblait inversé. Corrigé en
+   remplaçant ce <label> par un <div> : plus aucune activation parasite.
+   Vérifié avec un test automatisé reproduisant exactement la saisie d'un
+   enseignant : le texte normal reste normal, et cliquer sur « Gras » avant
+   un mot puis re-cliquer après l'active et le désactive correctement, comme
+   attendu.
 
-Deux correctifs complémentaires :
-  - Le jeu utilise désormais une hauteur d'écran "dynamique" (100dvh) qui
-    réagit réellement à l'ouverture du clavier virtuel, au lieu de rester
-    figée comme avant.
-  - En plus, sur mobile, le jeu se met automatiquement en PLEIN ÉCRAN dès
-    que l'élève appuie sur « Lancer l'entraînement » — cela libère encore
-    plus d'espace en masquant la barre du site. Un bouton de retour (✕),
-    toujours visible en haut à gauche, permet de quitter le jeu à tout
-    moment, y compris pendant le plein écran.
+En résumé : un enseignant peut maintenant, pour un devoir « texte libre »,
+écrire sa consigne et la mettre réellement en forme (gras, italique,
+couleurs, alignement, listes...) — ce qui était votre demande précise.
 
-Sur les téléphones ou navigateurs qui ne prennent pas en charge le plein
-écran (cas rare), le jeu reste entièrement utilisable comme avant — ce
-correctif est un simple bonus, jamais un blocage.
+FICHIERS MODIFIÉS DANS CETTE LIVRAISON
+----------------------------------------
+- css/style.css            (petite correction de robustesse, gras hérité)
+- css/style-public.css     (les 24 règles de style manquantes + corrections)
+- js/modal.js              (le vrai correctif : <div> à la place de <label>)
+- js/editeur/blocs.js      (amélioration : le bouton Gras n'affiche plus
+                             « actif » par erreur avant que l'enseignant ait
+                             cliqué dans le champ)
 
-========================================================================
-FICHIERS MODIFIÉS
-========================================================================
+VÉRIFICATIONS EFFECTUÉES
+--------------------------
+- Test automatisé (navigateur réel) : saisie de texte normal → reste normal ;
+  bascule Gras → applique puis retire correctement le gras au bon endroit.
+- Test automatisé : ajout des 6 types de blocs (exercice, correction,
+  problème, quiz, évaluation, activité) sur un devoir « à blocs » → aucune
+  erreur, fonctionne comme avant.
+- Vérification visuelle (capture d'écran) de la fenêtre de création d'un
+  devoir texte libre côté enseignant : barre d'outils correctement stylée,
+  texte tapé correctement formaté.
+- `node --check` sur tous les fichiers JS modifiés, vérification de
+  l'équilibre des accolades CSS sur les deux feuilles de style.
 
-  - pages/inscription.html (nouveau design)
-  - css/style-public.css (style partagé étendu à login/vérification/profil)
-  - pages/completer-profil.html (carte élargie)
-  - pages/eleve/jeu-calcul-mental.html (bouton de retour flottant)
-  - css/jeu-cadran-operatoire.css (100dvh + style du bouton flottant)
-  - js/pages/eleve-jeu-calcul-mental.js (demande de plein écran + retour)
-
-Vérifications effectuées : node --check sur les fichiers JavaScript
-modifiés, équilibre des accolades sur les fichiers CSS modifiés, capture
-d'écran réelle (Chromium, largeurs mobile et desktop) confirmant le
-nouveau design de l'inscription/connexion/profil et le bon comportement
-du Cadran opératoire (bouton flottant visible sur mobile uniquement,
-aucun changement sur desktop).
+LA SUITE (backlog restant, sans changement par rapport à avant)
+-------------------------------------------------------------------
+- Refonte de la page d'accueil (en attente de l'image générée par IA que je
+  dois vous soumettre pour validation).
+- Compétences par séance, accès élargi aux rôles connectés + inscription
+  enfant, tri hiérarchique strict des séances, édition du profil cliquable,
+  nettoyage du menu non-élève avec déplacement de la déconnexion, polissage
+  final, vérification d'email (code + lien), et suppression de compte finale
+  (uniquement après votre feu vert explicite, en tout dernier).
