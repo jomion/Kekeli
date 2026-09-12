@@ -111,13 +111,24 @@ body.avec-banniere-site .cadran-page { height: calc(100vh - 68px - var(--hauteur
 .cadran-op-mult { top: 102px; right: 45px; }
 .cadran-op-div { top: 102px; left: 45px; }
 
+/* Correction du 11 septembre 2026 (v2) : dans le fichier de référence comme
+   dans le port initial, chaque chiffre était positionné par son coin
+   haut-gauche (style.left/top = le point trigonométrique exact du cercle),
+   sans le recentrer sur ce point — le chiffre "débordait" donc de 15px vers
+   le bas ET vers la droite par rapport à sa position théorique sur le
+   cadran. transform: translate(-50%,-50%) fait désormais coïncider le
+   CENTRE du chiffre (et non son coin) avec le point du cercle calculé en JS
+   (voir centerOffset dans eleve-jeu-calcul-mental.js, réajusté en
+   conséquence) — les chiffres sont maintenant parfaitement centrés sur le
+   cadran, sans débordement. */
 .cadran-outer-num {
   position: absolute; width: 30px; height: 30px; line-height: 30px; border-radius: 50%;
   font-size: 0.9rem; font-weight: bold; color: #64748b; transition: all 0.3s ease-in-out;
   display: flex; align-items: center; justify-content: center;
+  transform: translate(-50%, -50%);
 }
 .cadran-outer-num.cadran-active {
-  background: var(--cadran-neon-green); color: #000; transform: scale(1.3);
+  background: var(--cadran-neon-green); color: #000; transform: translate(-50%, -50%) scale(1.3);
   box-shadow: 0 0 20px var(--cadran-neon-green); z-index: 5;
 }
 

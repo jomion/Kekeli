@@ -105,6 +105,34 @@ function initCategoriesNavEntete(header) {
 // consulte. N'a pas besoin de js/modal.js (pas garanti chargé partout) : les
 // classes .modal-overlay/.modal-boite/.champ-modal/.modal-actions sont de
 // simples classes CSS, définies dans les deux thèmes.
+// Calcule le chemin de la page COURANTE relatif à la RACINE DU SITE Kekeli
+// (ex: "pages/eleve/tableau-de-bord.html"), et non à la racine du serveur
+// qui l'héberge. Correction du 11 septembre 2026 : ouvrirEpinglagePageEntete
+// stockait auparavant window.location.pathname tel quel (ex:
+// "/pages/eleve/tableau-de-bord.html") comme adresse ABSOLUE, réutilisée
+// telle quelle depuis n'importe quelle page. Ça fonctionne tant que le site
+// est servi exactement à la racine du domaine — mais dès qu'il est servi
+// depuis un sous-dossier (hébergement mutualisé, aperçu de déploiement,
+// serveur de test local ouvrant un dossier parent...), ce chemin absolu
+// contient ce préfixe de sous-dossier ; si la page est ensuite rouverte
+// depuis un autre point de montage (notamment la mise en ligne finale après
+// une phase de test), le raccourci pointe vers un chemin qui n'existe plus
+// -> 404. C'est exactement le bug signalé : "quand on épingle une page au
+// menu quand on clic sur ça elle envoie 404".
+//
+// On utilise à la place RACINE_SITE (déjà défini par chaque page, ex: "../"
+// ou "../../") pour connaître la PROFONDEUR de la page courante sous la
+// racine du site, puis on ne garde que les derniers segments correspondants
+// du chemin réel — ce qui élimine tout préfixe de déploiement. Le résultat
+// est stocké SANS "/" au début, avec la même convention que les raccourcis
+// ajoutés depuis la page Paramètres (voir raccourcisPerso plus bas).
+function cheminRelatifSiteActuel() {
+  const racineActuelle = typeof RACINE_SITE === 'string' ? RACINE_SITE : '';
+  const profondeur = (racineActuelle.match(/\.\.\//g) || []).length;
+  const segments = window.location.pathname.split('/').filter(Boolean);
+  return segments.slice(-(profondeur + 1)).join('/');
+}
+
 async function ouvrirEpinglagePageEntete(utilisateurId) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -136,7 +164,7 @@ async function ouvrirEpinglagePageEntete(utilisateurId) {
     fermer();
     if (!label) return;
 
-    const href = window.location.pathname + window.location.search;
+    const href = cheminRelatifSiteActuel() + window.location.search;
     const { data: prefsActuelles } = await supabaseClient.from('preferences_navigation').select('raccourcis').eq('utilisateur_id', utilisateurId).maybeSingle();
     const raccourcisActuels = prefsActuelles?.raccourcis || [];
     if (raccourcisActuels.some(r => r.href === href)) { alert('Cette page est déjà dans vos raccourcis.'); return; }

@@ -267,12 +267,18 @@ function rendre() {
     : '';
 
   // Quand cette séance n'a aucun exercice "général" (hors paliers) à afficher
-  // dans la colonne de droite, cette colonne resterait vide alors que la
-  // grille réserve quand même la moitié de la largeur pour elle — ce qui
-  // rétrécit la colonne de lecture par rapport à la section "Paliers" plus
-  // bas (qui, elle, prend toute la largeur). On repasse alors sur une seule
-  // colonne pleine largeur pour que tout s'aligne au même niveau.
-  const colonneExerciceVide = blocsTravail.length === 0 && (aDesPaliers || !activitesVisibles);
+  // dans la colonne de droite, cette colonne resterait vide (ou ne contient
+  // qu'un message "Aucun exercice ni activité") alors que la grille réserve
+  // quand même la moitié de la largeur pour elle — ce qui rétrécit la
+  // colonne de lecture, et rend la mise en page bancale, par rapport à la
+  // section "Paliers" plus bas (qui, elle, prend toute la largeur). On
+  // repasse alors sur une seule colonne pleine largeur pour que tout
+  // s'aligne au même niveau. Avant le 11 septembre 2026, ce repli ne se
+  // déclenchait pas quand la séance n'avait NI palier NI exercice général
+  // (cas exact d'une séance "sans activité") — c'était précisément la
+  // séance qui "s'affiche mal" signalée : colonne de droite orpheline,
+  // réduisant la colonne de lecture de moitié pour un simple message.
+  const colonneExerciceVide = blocsTravail.length === 0;
 
   // Bouton "Passer aux activités" (masquage par défaut) : tant qu'il n'a pas
   // été cliqué (et qu'au moins un bloc à faire existe), on n'affiche ni la

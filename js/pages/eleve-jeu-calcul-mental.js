@@ -181,9 +181,15 @@ function cadranInitJeu() {
   }
 
   // ----- Configuration du cadran -----
+  // centerOffset = centre exact du cadran (230px / 2 = 115), et non plus 99 :
+  // depuis la correction CSS du 11 septembre 2026 (v2), chaque chiffre est
+  // recentré sur son point via transform: translate(-50%,-50%) (voir
+  // .cadran-outer-num), donc x/y doivent maintenant viser le vrai centre du
+  // cercle plutôt qu'un centre approché compensant l'ancien positionnement
+  // par coin haut-gauche.
   const totalNumbers = 13;
   const radius = 95;
-  const centerOffset = 99;
+  const centerOffset = 115;
   let currentNumbers = Array.from({ length: 13 }, (_, i) => i);
 
   for (let i = 0; i < totalNumbers; i++) {

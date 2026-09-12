@@ -1,86 +1,101 @@
-KEKELI — Correction du jeu "Cadran opératoire — Calcul mental" (11 septembre 2026)
+KEKELI — Corrections critiques : activités disparues, cadran, page épinglée
+(12 septembre 2026)
 ================================================================
 
 Ce zip est une LIVRAISON DIFFÉRENTIELLE : il ne contient que les fichiers
-créés ou modifiés depuis la dernière livraison (kekeli-livraison-jeux-
-educatifs-2026-09-11.zip, les 3 jeux éducatifs). Aucun fichier inchangé
-n'est inclus — pour installer, décompressez ce zip par-dessus votre copie
-actuelle du site, en conservant l'arborescence des dossiers.
+créés ou modifiés depuis la dernière livraison (kekeli-correction-cadran-
+operatoire-2026-09-11.zip). Aucun fichier inchangé n'est inclus — pour
+installer, décompressez ce zip par-dessus votre copie actuelle du site, en
+conservant l'arborescence des dossiers.
 
-Aucune migration de base de données pour cette livraison.
+Une migration de base de données a été appliquée directement sur votre
+projet Supabase (comme toujours pour ce type de correctif) : rien à faire
+de votre côté, c'est déjà en ligne.
 
-1) Pourquoi cette correction
+Ceci est le premier lot de corrections issu de votre dernier message (celui
+qui commence par "Les chiffres du cadran débordent..."). C'est un message
+très riche, avec une vingtaine de demandes différentes ; plutôt que
+d'attendre d'avoir tout traité pour vous livrer quoi que ce soit, je vous
+envoie déjà ce qui est terminé, vérifié et prêt, et je continue sur le
+reste (page d'accueil, audit mobile complet, éditeur de devoirs, menus,
+vérification d'email, etc.) dans les prochains lots.
+
+1) Les activités qui ne s'affichaient plus côté élève — RÉGRESSION CRITIQUE
    ------------------------------------------------------------------
-   Après la précédente livraison, vous avez signalé, en renvoyant votre
-   fichier "Cadran opératoire.html" : "Pourquoi quand je t'envoie les
-   fichiers tu fais ce que tu veux sans prendre en compte ce que j'ai
-   envoyé [...] c'est un cadran opératoire avec des fonctionnalités bien
-   définies, tout est dans le fichier [...] Reproduis-moi exactement tout
-   ce qui est dans ce fichier. Il suffit de placer chaque code à son
-   endroit", puis "et surtout fais en sorte que ça s'affiche sur un
-   écran". Vous avez raison : la première version de ce jeu piochait ses
-   questions dans vos vraies séances et réduisait votre cadran à un simple
-   décor. Ce n'était pas ce que votre fichier décrivait. Cette correction
-   NE CONCERNE QUE ce jeu — l'Atelier du Français et le Défi ES & EST
-   n'ont pas été touchés, ils fonctionnent toujours comme livré.
+   Vous aviez signalé : "Les activités ne s'affichent plus du côté élève et
+   j'ai aussi remarqué que toute séance qui n'a pas d'activité s'affiche
+   mal." C'était la correction la plus urgente de votre message — un élève
+   pouvait perdre l'accès à des activités bien réelles et déjà publiées.
 
-2) Ce qui a changé : une reproduction fidèle de votre fichier
+   La cause : une fonction technique introduite le 11 septembre (le nouveau
+   système de Paliers/Badges) comptait mal le nombre de tâches d'un palier
+   tant que l'élève n'avait ENCORE RIEN tenté dedans — résultat, un palier
+   jamais commencé semblait "vide" et disparaissait complètement de
+   l'affichage, avec toutes ses activités. Si TOUS les paliers d'une séance
+   étaient dans ce cas (le cas le plus fréquent : une séance que l'élève
+   n'a pas encore ouverte), la séance entière semblait n'avoir aucune
+   activité.
+
+   Corrigé à la source (fonction Supabase), donc effectif immédiatement
+   pour tout le monde, sans rien à réinstaller.
+
+   Le second symptôme — "toute séance qui n'a pas d'activité s'affiche
+   mal" — avait une cause distincte, purement visuelle : quand une séance
+   n'a réellement ni palier ni exercice, la mise en page réservait quand
+   même la moitié de l'écran à une colonne vide à droite, écrasant la
+   colonne de lecture. Corrigé : ces séances passent maintenant
+   naturellement sur une seule colonne pleine largeur, comme les séances
+   verrouillées ou à paliers le faisaient déjà.
+
+2) Cadran opératoire : chiffres recentrés
    ------------------------------------------------------------------
-   Le jeu "Calcul mental" a été entièrement réécrit pour reproduire, quasi
-   à l'identique, votre fichier "Cadran opératoire.html" :
-     - Les 2 modes d'origine : "🎯 Cadran" (le cadran animé, avec son
-       chiffre central, ses 4 opérateurs et sa séquence lumineuse) et
-       "💡 Problèmes & Calculs" (calculs directs et petits problèmes
-       "Léa a des bonbons", "un bus", "Paul et ses gâteaux").
-     - Les 8 réglages avancés de votre fichier, à l'identique (série de
-       calculs, temps de réponse, chiffre central, opération du cadran,
-       vitesse d'affichage, disposition des nombres, intervalle des
-       nombres, type d'exercices).
-     - Les mêmes sons et la même fanfare de victoire, et le même écran de
-       bilan (mascotte qui danse et confettis à 100%, sinon tableau de vos
-       erreurs pour progresser).
-     - Seule différence volontaire, comme vous l'avez précisé : 4 niveaux
-       de difficulté (Azɔ̀ví, Dèví, Ògán, Axɔ́sú) au lieu de 3, sur le même
-       principe exact que votre fichier (chaque niveau règle le temps, les
-       nombres et la disposition du cadran).
+   Vous aviez signalé : "Les chiffres du cadran débordent légèrement vers
+   le bas. Faut bien recentrer." Chaque chiffre était positionné par son
+   coin (et non son centre), ce qui le décalait systématiquement de
+   quelques pixels vers le bas et la droite par rapport à sa position
+   exacte sur le cadran. Chaque chiffre est maintenant recentré exactement
+   sur son point du cercle.
 
-   Ce jeu ne pioche donc plus dans vos séances : il génère lui-même ses
-   calculs et ses problèmes, exactement comme votre fichier le faisait.
-
-3) "ça s'affiche sur un écran"
+3) Page épinglée au menu → erreur 404
    ------------------------------------------------------------------
-   Comme demandé, le jeu tient maintenant entièrement sur l'écran, sans
-   aucun défilement, quelle que soit la taille de l'écran de l'élève.
+   Vous aviez signalé : "Dans paramètre quand on épingle une page au menu
+   quand on clic sur ça elle envoie 404." Confirmé et corrigé : la fonction
+   "Épingler une page" de vos Paramètres construisait une adresse
+   incomplète (il manquait le dossier "pages/" dans le chemin enregistré),
+   donc absolument toutes les pages épinglées depuis cette liste tombaient
+   en erreur 404 au clic. Corrigé — les nouvelles pages épinglées
+   fonctionnent normalement. (Vérification faite : aucun raccourci existant
+   n'était enregistré en base à corriger, donc rien à réparer côté
+   utilisateurs.)
 
-4) Le réglage "masquer l'opération" (Paramètres) — conservé
-   ------------------------------------------------------------------
-   Le réglage ajouté lors de la précédente livraison (case à cocher dans
-   Paramètres pour flouter le calcul affiché, avec un bouton "Revoir")
-   fonctionne toujours exactement pareil sur ce jeu, sans que vous ayez
-   rien à refaire.
+   Au passage, la même faiblesse existait dans le bouton 📌 "Épingler cette
+   page" disponible en haut de chaque page : il enregistrait l'adresse
+   exacte de votre navigateur au moment du clic plutôt qu'un chemin
+   toujours valable quel que soit l'endroit où le site est hébergé — réglé
+   de la même façon, pour que vos raccourcis restent valables même après la
+   mise en ligne définitive.
 
 Vérifications effectuées
 -------------------------
-- node --check sur le fichier JavaScript réécrit : aucune erreur de
+- node --check sur chaque fichier JavaScript modifié : aucune erreur de
   syntaxe.
-- Vérification de l'équilibre des accolades sur la nouvelle feuille de
-  style dédiée à ce jeu.
-- Relecture ligne par ligne de votre fichier de référence pour confirmer
-  que chaque mécanique (moteur audio, positionnement du cadran, modèles de
-  problèmes, écran de bilan) a bien été reproduite.
-- Recherche exhaustive de toute référence oubliée aux anciens fichiers
-  (moteur commun des jeux) dans la page corrigée : aucune trouvée.
-- Vérification qu'aucun identifiant de la page n'est en double et que
-  chaque élément attendu par le script est bien présent dans la page.
-- Confirmation que les 2 autres jeux et leur feuille de style commune
-  n'ont subi aucune modification.
+- Vérification de l'équilibre des accolades du CSS modifié.
+- Reproduction du bug des activités confirmée par une requête directe sur
+  la base AVANT correction (une séance avec des activités bien réelles et
+  publiées, mais où le calcul renvoyait 0 tâche), puis re-testée APRÈS
+  correction pour confirmer que les mêmes activités remontent maintenant
+  correctement.
+- get_advisors (sécurité) relancé après la migration : aucune nouvelle
+  alerte par rapport à l'état déjà connu du projet.
+- Relecture de la construction des adresses de raccourcis sur l'ensemble du
+  site pour m'assurer qu'aucune autre page ne reproduit la même erreur.
 
-Un point non bloquant, pour votre information
--------------------------
-Comme dans votre fichier d'origine, ce jeu a son propre écran de bilan
-(score sur la série) et ne déclenche pas les badges/paliers habituels du
-site : votre fichier ne le prévoyait pas, et votre instruction précisait
-que seul le nombre de niveaux avait changé. Si vous préférez malgré tout
-que ce jeu accorde aussi les mêmes récompenses que les 2 autres jeux
-(comme c'était le cas dans la version précédente), faites-le moi savoir et
-je l'ajoute sans toucher au reste.
+La suite
+--------
+Je continue directement sur les points suivants de votre message (dans cet
+ordre : audit mobile complet, refonte de la page d'accueil avec l'image
+héros que je vais générer pour votre validation, éditeur de devoirs,
+compétences par séance, ordre hiérarchique du mode lecture, accès élargi
+aux comptes connectés, profil modifiable, nettoyage des menus, vérification
+d'email, analyse finale, puis — seulement après votre accord explicite en
+fin de parcours — la suppression des comptes de test).

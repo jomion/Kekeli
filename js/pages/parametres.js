@@ -223,11 +223,19 @@ async function ajouterRaccourciDepuisListeParam(e) {
   const lienChoisi = LIENS_PAR_ROLE[roleParametres].find(l => l.id === select.value);
   if (!lienChoisi) return;
 
-  // Les liens de LIENS_PAR_ROLE sont soit `racine: true` (chemin relatif à
-  // la racine du site), soit relatifs au dossier du rôle (ex. "eleve/") —
-  // on garde ici la même convention que le reste du fichier (pas de
-  // préfixe "/" -> sera préfixé par RACINE_SITE côté entete-navigation.js).
-  const href = lienChoisi.racine ? lienChoisi.href : `${roleParametres}/${lienChoisi.href}`;
+  // Les liens de LIENS_PAR_ROLE sont soit `racine: true` (chemin déjà écrit
+  // depuis la racine du site, ex. "pages/seances.html"), soit relatifs au
+  // DOSSIER DU RÔLE (ex. "tableau-de-bord.html" veut dire
+  // "pages/eleve/tableau-de-bord.html") — pas juste "eleve/xxx.html" comme
+  // l'ancien code le construisait ici. RACINE_SITE (préfixé côté
+  // entete-navigation.js) pointe vers la racine RÉELLE du site (là où vivent
+  // index.html, css/, js/, assets/ ET pages/ — voir son usage pour
+  // assets/badges/... dans js/pages/eleve-seance.js par exemple), donc il
+  // manquait le segment "pages/" : le raccourci enregistré pointait vers un
+  // chemin inexistant ("eleve/tableau-de-bord.html" au lieu de
+  // "pages/eleve/tableau-de-bord.html") -> 404 au clic. C'est exactement le
+  // bug signalé : "quand on épingle une page au menu ... elle envoie 404".
+  const href = lienChoisi.racine ? lienChoisi.href : `pages/${roleParametres}/${lienChoisi.href}`;
   if (raccourcisActuelsParam.some(r => r.href === href)) { alert('Cette page est déjà dans vos raccourcis.'); return; }
 
   const nouveauRaccourci = { id: 'r' + Date.now().toString(36), href, icone: lienChoisi.icone || '📌', label: lienChoisi.label };
