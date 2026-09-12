@@ -856,7 +856,18 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .pied-carte-champ { display: flex; align-items: center; justify-content: space-between; margin-top: auto; border-top: 1px solid var(--bg-light); padding-top: 10px; font-size: 12px; font-weight: 800; color: var(--bleu-kekeli); }
 .nb-unites-champ { font-size: 12px; font-weight: 800; color: var(--bleu-kekeli); }
 .bouton-acceder-champ { background: var(--bleu-kekeli); color: white; font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 6px; border: none; display: inline-flex; align-items: center; gap: 4px; }
-.grille-champs { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; align-items: stretch; }
+/* minmax(min(300px, 100%), 1fr) plutôt que minmax(300px, 1fr) — corrige un
+   débordement horizontal sur mobile signalé le 12 septembre 2026 (audit
+   mobile) : avec une largeur minimale fixe de 300px, une grille en une
+   seule colonne (cas d'un petit écran) reste quand même contrainte à au
+   moins 300px de large, débordant du conteneur sur un téléphone étroit
+   (320-360px de large, une fois les marges retirées) au lieu de se
+   réduire à sa largeur réelle. Le min(300px, 100%) plafonne la largeur
+   minimale à celle du conteneur quand il est plus étroit que 300px — la
+   grille reste identique sur desktop, mais ne déborde plus jamais sur
+   mobile. Même correctif appliqué à .grille-classes ci-dessous, et à
+   leurs équivalents dans css/style.css (admin). */
+.grille-champs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 18px; align-items: stretch; }
 
 /* Panneau "Structure" déplié sous une carte champ (pages/navigation.html) :
    liste indentée Thème/Unité/.../SA, chargée à la demande — voir
@@ -904,7 +915,7 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 
 .titre-cycle { font-size: 18px; font-weight: 800; color: var(--bleu-kekeli); border-bottom: 2px solid var(--bordure); padding-bottom: 8px; margin: 34px 0 20px; }
 .titre-cycle:first-of-type { margin-top: 10px; }
-.grille-classes { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 22px; }
+.grille-classes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 22px; }
 .carte-classe-detail { background: white; border-radius: 14px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); border-top: 6px solid var(--bleu-kekeli); display: flex; flex-direction: column; justify-content: space-between; transition: transform .2s; cursor: pointer; }
 .carte-classe-detail:hover { transform: translateY(-4px); }
 .entete-carte-classe { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }

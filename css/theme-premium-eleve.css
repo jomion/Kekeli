@@ -117,6 +117,19 @@ body.theme-premium-actif.prem-sidebar-repliee .prem-sidebar { width: 84px; paddi
 @media (max-width: 900px) {
   .prem-sidebar { transform: translateX(-100%); width: min(80vw, 280px) !important; }
   .prem-sidebar.ouvert { transform: translateX(0); box-shadow: 12px 0 30px rgba(20,20,50,.18); }
+  /* Corrige un bug d'affichage signalé le 12 septembre 2026 : le tiroir de
+     menu mobile (.prem-sidebar) et la nav basse (.prem-bottom-nav) sont tous
+     deux en position fixed avec le même z-index (520) — sans marge de
+     dégagement, la nav basse (ajoutée après dans le DOM, donc au-dessus)
+     recouvre en permanence les ~70px du bas du tiroir, quel que soit le
+     défilement interne du tiroir. Le pied du tiroir (bouton "Déconnexion",
+     après la carte publicitaire "Apprendre avec plaisir") tombait
+     précisément dans cette zone recouverte et restait donc invisible et
+     inutilisable sur mobile, même en faisant défiler le tiroir jusqu'au
+     bout. Une marge basse égale à la hauteur de la nav basse (70px, voir
+     .prem-bottom-nav ci-dessous) permet au défilement interne de faire
+     réellement remonter tout le pied du tiroir au-dessus de cette zone. */
+  .prem-sidebar { padding-bottom: 70px; }
 }
 
 .prem-sidebar-entete { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 4px 6px 20px; }

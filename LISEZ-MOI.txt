@@ -1,101 +1,84 @@
-KEKELI — Corrections critiques : activités disparues, cadran, page épinglée
+KEKELI — Audit mobile (2 bugs trouvés et corrigés, avec captures d'écran)
 (12 septembre 2026)
 ================================================================
 
 Ce zip est une LIVRAISON DIFFÉRENTIELLE : il ne contient que les fichiers
-créés ou modifiés depuis la dernière livraison (kekeli-correction-cadran-
-operatoire-2026-09-11.zip). Aucun fichier inchangé n'est inclus — pour
+créés ou modifiés depuis la dernière livraison (kekeli-correction-activites-
+cadran-epinglage-2026-09-12.zip). Aucun fichier inchangé n'est inclus — pour
 installer, décompressez ce zip par-dessus votre copie actuelle du site, en
-conservant l'arborescence des dossiers.
+conservant l'arborescence des dossiers. Aucune migration de base de données
+cette fois-ci : uniquement 3 fichiers CSS.
 
-Une migration de base de données a été appliquée directement sur votre
-projet Supabase (comme toujours pour ce type de correctif) : rien à faire
-de votre côté, c'est déjà en ligne.
+Vous avez insisté sur ce point précis, donc je le dis clairement : cette
+fois, je n'ai pas seulement relu le code, j'ai fait tourner votre site dans
+un vrai navigateur (Chromium) réglé sur des largeurs d'écran de téléphone
+(320 à 414 px) et j'ai regardé les captures d'écran obtenues, exactement
+comme le ferait quelqu'un qui teste sur son propre téléphone. C'est comme ça
+que les deux bugs ci-dessous ont été trouvés — pas par simple lecture du
+CSS.
 
-Ceci est le premier lot de corrections issu de votre dernier message (celui
-qui commence par "Les chiffres du cadran débordent..."). C'est un message
-très riche, avec une vingtaine de demandes différentes ; plutôt que
-d'attendre d'avoir tout traité pour vous livrer quoi que ce soit, je vous
-envoie déjà ce qui est terminé, vérifié et prêt, et je continue sur le
-reste (page d'accueil, audit mobile complet, éditeur de devoirs, menus,
-vérification d'email, etc.) dans les prochains lots.
-
-1) Les activités qui ne s'affichaient plus côté élève — RÉGRESSION CRITIQUE
+1) Bouton "Déconnexion" invisible/inatteignable sur mobile (élève)
    ------------------------------------------------------------------
-   Vous aviez signalé : "Les activités ne s'affichent plus du côté élève et
-   j'ai aussi remarqué que toute séance qui n'a pas d'activité s'affiche
-   mal." C'était la correction la plus urgente de votre message — un élève
-   pouvait perdre l'accès à des activités bien réelles et déjà publiées.
+   Sur le nouveau look premium (celui que tout le monde voit actuellement,
+   voir le réglage temporaire du 11 septembre), le menu mobile (tiroir qui
+   s'ouvre avec le ☰) et la barre de navigation du bas (Accueil / Parcours /
+   Jeux éducatifs / Favoris / Profil) sont recouverts au même niveau visuel
+   l'un par rapport à l'autre : concrètement, la barre du bas passait
+   TOUJOURS par-dessus les ~70 derniers pixels du tiroir de menu, quel que
+   soit le défilement à l'intérieur du tiroir. Or le bouton "Déconnexion"
+   est tout en bas de ce tiroir (après les liens de navigation et la petite
+   carte "Apprendre avec plaisir") : il restait donc recouvert et impossible
+   à atteindre, même en essayant de faire défiler le menu jusqu'au bout.
+   Corrigé en réservant, en bas du tiroir, une marge égale à la hauteur de
+   la barre du bas — le bouton "Déconnexion" redevient entièrement visible
+   et cliquable une fois le tiroir déroulé jusqu'en bas. Vérifié par
+   capture d'écran avant/après (le "avant" montre le bouton coupé par la
+   barre du bas, le "après" le montre entièrement dégagé).
 
-   La cause : une fonction technique introduite le 11 septembre (le nouveau
-   système de Paliers/Badges) comptait mal le nombre de tâches d'un palier
-   tant que l'élève n'avait ENCORE RIEN tenté dedans — résultat, un palier
-   jamais commencé semblait "vide" et disparaissait complètement de
-   l'affichage, avec toutes ses activités. Si TOUS les paliers d'une séance
-   étaient dans ce cas (le cas le plus fréquent : une séance que l'élève
-   n'a pas encore ouverte), la séance entière semblait n'avoir aucune
-   activité.
-
-   Corrigé à la source (fonction Supabase), donc effectif immédiatement
-   pour tout le monde, sans rien à réinstaller.
-
-   Le second symptôme — "toute séance qui n'a pas d'activité s'affiche
-   mal" — avait une cause distincte, purement visuelle : quand une séance
-   n'a réellement ni palier ni exercice, la mise en page réservait quand
-   même la moitié de l'écran à une colonne vide à droite, écrasant la
-   colonne de lecture. Corrigé : ces séances passent maintenant
-   naturellement sur une seule colonne pleine largeur, comme les séances
-   verrouillées ou à paliers le faisaient déjà.
-
-2) Cadran opératoire : chiffres recentrés
+2) Cartes qui débordaient légèrement de l'écran sur les téléphones étroits
    ------------------------------------------------------------------
-   Vous aviez signalé : "Les chiffres du cadran débordent légèrement vers
-   le bas. Faut bien recentrer." Chaque chiffre était positionné par son
-   coin (et non son centre), ce qui le décalait systématiquement de
-   quelques pixels vers le bas et la droite par rapport à sa position
-   exacte sur le cadran. Chaque chiffre est maintenant recentré exactement
-   sur son point du cercle.
-
-3) Page épinglée au menu → erreur 404
-   ------------------------------------------------------------------
-   Vous aviez signalé : "Dans paramètre quand on épingle une page au menu
-   quand on clic sur ça elle envoie 404." Confirmé et corrigé : la fonction
-   "Épingler une page" de vos Paramètres construisait une adresse
-   incomplète (il manquait le dossier "pages/" dans le chemin enregistré),
-   donc absolument toutes les pages épinglées depuis cette liste tombaient
-   en erreur 404 au clic. Corrigé — les nouvelles pages épinglées
-   fonctionnent normalement. (Vérification faite : aucun raccourci existant
-   n'était enregistré en base à corriger, donc rien à réparer côté
-   utilisateurs.)
-
-   Au passage, la même faiblesse existait dans le bouton 📌 "Épingler cette
-   page" disponible en haut de chaque page : il enregistrait l'adresse
-   exacte de votre navigateur au moment du clic plutôt qu'un chemin
-   toujours valable quel que soit l'endroit où le site est hébergé — réglé
-   de la même façon, pour que vos raccourcis restent valables même après la
-   mise en ligne définitive.
+   Deux grilles de cartes du site (celle des matières et celle des classes,
+   utilisées par exemple sur la page de navigation des classes et sur la
+   page "Matière" de l'élève) avaient une largeur minimale par carte fixée
+   en dur (300 et 320 pixels). Sur un téléphone étroit (320-360 px de large,
+   par exemple un iPhone SE), une fois les marges de la page retirées, il ne
+   restait plus assez de place pour respecter ce minimum : les cartes
+   débordaient donc légèrement à droite de l'écran au lieu de se réduire
+   proprement à la largeur disponible — un léger défilement horizontal
+   indésirable, invisible au premier coup d'œil mais bien réel. Corrigé :
+   ces grilles se réduisent maintenant correctement à la largeur de l'écran
+   sur les téléphones les plus étroits, sans rien changer à leur
+   présentation actuelle sur ordinateur ou tablette. Vérifié par capture
+   d'écran avant (cartes coupées à droite) / après (cartes bien cadrées).
 
 Vérifications effectuées
 -------------------------
-- node --check sur chaque fichier JavaScript modifié : aucune erreur de
-  syntaxe.
-- Vérification de l'équilibre des accolades du CSS modifié.
-- Reproduction du bug des activités confirmée par une requête directe sur
-  la base AVANT correction (une séance avec des activités bien réelles et
-  publiées, mais où le calcul renvoyait 0 tâche), puis re-testée APRÈS
-  correction pour confirmer que les mêmes activités remontent maintenant
-  correctement.
-- get_advisors (sécurité) relancé après la migration : aucune nouvelle
-  alerte par rapport à l'état déjà connu du projet.
-- Relecture de la construction des adresses de raccourcis sur l'ensemble du
-  site pour m'assurer qu'aucune autre page ne reproduit la même erreur.
+- Site chargé dans un vrai navigateur Chromium, réglé successivement sur
+  320, 375 et 390 px de large (tailles de téléphone courantes), pour repérer
+  les deux bugs ci-dessus par capture d'écran plutôt que par simple lecture
+  du code.
+- Correctif du bouton "Déconnexion" revérifié de la même façon après coup
+  (capture d'écran confirmant qu'il est bien dégagé de la barre du bas).
+- Correctif des cartes revérifié de la même façon après coup (capture
+  d'écran confirmant l'absence de débordement).
+- Équilibre des accolades vérifié sur les 3 fichiers CSS modifiés.
+- Aucun fichier JavaScript touché dans ce lot (uniquement du CSS) — pas de
+  node --check nécessaire.
+
+Important : ceci n'est qu'un PREMIER lot de l'audit mobile, pas l'audit
+complet. Le site est très large (plus de 40 pages), certaines parties
+nécessitent d'être connecté avec un vrai compte pour être testées en
+conditions réelles, et je vais continuer à vérifier l'affichage mobile de
+chaque nouvelle page au fur et à mesure des prochains lots (en particulier
+la refonte de la page d'accueil, qui touche justement les bannières/cartes
+que vous avez signalées comme trop grandes sur mobile).
 
 La suite
 --------
-Je continue directement sur les points suivants de votre message (dans cet
-ordre : audit mobile complet, refonte de la page d'accueil avec l'image
-héros que je vais générer pour votre validation, éditeur de devoirs,
-compétences par séance, ordre hiérarchique du mode lecture, accès élargi
-aux comptes connectés, profil modifiable, nettoyage des menus, vérification
-d'email, analyse finale, puis — seulement après votre accord explicite en
-fin de parcours — la suppression des comptes de test).
+Je continue sur les points suivants de votre message : refonte de la page
+d'accueil avec l'image héros que je vais générer pour votre validation,
+portage du jeu de l'Atelier du Français à son fichier de référence, éditeur
+de devoirs, compétences par séance, ordre hiérarchique du mode lecture,
+accès élargi aux comptes connectés, profil modifiable, nettoyage des menus,
+vérification d'email, analyse finale, puis — seulement après votre accord
+explicite en fin de parcours — la suppression des comptes de test.

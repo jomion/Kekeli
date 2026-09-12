@@ -639,9 +639,12 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .sous-titre-page { font-size: 14px; color: var(--texte-gris); margin-bottom: 22px; }
 
 /* ===== Cartes de champs de formation ===== */
+/* minmax(min(300px, 100%), 1fr) : corrige un débordement horizontal sur
+   mobile (audit du 12 septembre 2026) — voir le même correctif, expliqué en
+   détail, sur .grille-champs dans css/style-public.css. */
 .grille-champs {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
   gap: 18px;
   align-items: stretch;
 }
@@ -746,7 +749,7 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 }
 .titre-cycle:first-of-type { margin-top: 10px; }
 
-.grille-classes { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 22px; }
+.grille-classes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 22px; }
 
 .carte-classe-detail {
   background: white; border-radius: 14px; padding: 24px;
