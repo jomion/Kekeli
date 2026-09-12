@@ -563,6 +563,55 @@ function problemeGenererGrilleHtml(analyse, opts) {
   return enveloppe;
 }
 
+// Boîte "Résultats" distincte de la grille de calcul posé — 3ᵉ colonne du
+// tableau du fichier de référence (outil_math.html : .result-container /
+// .result-box) qui n'avait pas été reprise lors du premier portage ("ça
+// manque la colonne de résultat", demande explicite du porteur du projet le
+// 11 septembre 2026). Contient la valeur finale ET son unité, séparément des
+// cases de la grille (qui montrent le calcul posé chiffre par chiffre).
+// Mêmes conventions d'options que problemeGenererGrilleHtml : `interactif`
+// (élève, cases vides à remplir), `revision` (relecture en lecture seule de
+// ce que l'élève a réellement écrit, via `valeurs`), sinon lecture seule avec
+// le résultat correct (aperçu éditeur / mode corrigé). Les deux cases portent
+// data-cellule-probleme="resultat-final"/"unite-finale" quand éditables : le
+// scanner générique collecterReponseProbleme() les capture automatiquement,
+// dans le même conteneur [data-ligne-probleme-eleve] que la grille.
+function problemeResultatBoiteHtml(analyse, opts) {
+  const o = opts || {};
+  const interactif = !!o.interactif;
+  const revision = !!o.revision;
+  const valeurs = o.valeurs || null;
+  const lire = (cle, defaut) => (valeurs && Object.prototype.hasOwnProperty.call(valeurs, cle)) ? valeurs[cle] : defaut;
+
+  if (!analyse) return '<div class="boite-resultat-probleme"><span class="operation-vide">—</span></div>';
+
+  const editable = interactif && !revision;
+  const correcteValeur = String(analyse.resultat);
+  const correcteUnite = analyse.uniteDetectee || '';
+  const valeurAffichee = revision ? lire('resultat-final', '') : (editable ? lire('resultat-final', '') : correcteValeur);
+  const uniteAffichee = revision ? lire('unite-finale', '') : (editable ? lire('unite-finale', '') : correcteUnite);
+
+  const attrsValeur = [
+    'type="text"', 'inputmode="decimal"', 'class="case-calcul-probleme case-resultat-final-probleme"',
+    editable ? 'data-cellule-probleme="resultat-final"' : '',
+    editable ? '' : 'readonly tabindex="-1"',
+    `placeholder="?"`,
+    `value="${echapper(String(valeurAffichee == null ? '' : valeurAffichee))}"`
+  ].filter(Boolean).join(' ');
+  const attrsUnite = [
+    'type="text"', 'class="case-unite-probleme"', 'placeholder="unité"',
+    editable ? 'data-cellule-probleme="unite-finale"' : '',
+    editable ? '' : 'readonly tabindex="-1"',
+    `value="${echapper(String(uniteAffichee == null ? '' : uniteAffichee))}"`
+  ].filter(Boolean).join(' ');
+
+  return `
+    <div class="boite-resultat-probleme">
+      <input ${attrsValeur}>
+      <input ${attrsUnite}>
+    </div>`;
+}
+
 function problemeLigneParDefaut() {
   return { description: '<strong>Étape 1 :</strong> ', equation: '', explication: '' };
 }
@@ -579,6 +628,8 @@ function html_ligneEditeurProbleme(bloc, ligne, i, ctx) {
     : `<p class="operation-vide">Saisissez une équation avec deux nombres et un opérateur (ex : 15 * 24 =) pour générer la grille.</p>`;
   const explicationChamp = `<textarea data-probleme-champ="explication" data-probleme-ligne="${i}" class="explication-probleme" rows="2" placeholder="💡 Explication pour l'élève (optionnelle)...">${echapper(l.explication)}</textarea>`;
 
+  const resultatHtml = problemeResultatBoiteHtml(analyse, { prefixeId: idPrefixe });
+
   return `
     <div class="ligne-probleme" data-ligne-probleme="${i}">
       <div class="colonne-solution-probleme">
@@ -587,6 +638,7 @@ function html_ligneEditeurProbleme(bloc, ligne, i, ctx) {
         ${ctx.explicationPos === 'solution' ? explicationChamp : ''}
         <button type="button" class="btn btn-discret bouton-supprimer-ligne-probleme" data-action-probleme="supprimer-ligne" data-probleme-ligne="${i}">🗑️ Supprimer cette étape</button>
       </div>
+      <div class="colonne-resultat-probleme" data-apercu-resultat-probleme="${i}">${resultatHtml}</div>
       <div class="colonne-operation-probleme">
         <div class="apercu-grille-probleme" data-apercu-grille-probleme="${i}">${grilleHtml}</div>
         ${ctx.explicationPos === 'operation' ? explicationChamp : ''}
@@ -705,6 +757,7 @@ function html_lectureProbleme(c, blocId) {
       ? problemeGenererGrilleHtml(analyse, { interactif: false, prefixeId: `probleme-lect-${blocId || 'x'}-${i}` })
       : '<p class="operation-vide">—</p>';
     if (explicationPos === 'dessous' && l.explication) explicationsDessous.push(l.explication);
+    const resultat = analyse ? problemeResultatBoiteHtml(analyse, { prefixeId: `probleme-lect-res-${blocId || 'x'}-${i}` }) : '';
     return `
       <tr>
         <td class="cellule-solution-probleme-lecture">
@@ -712,6 +765,7 @@ function html_lectureProbleme(c, blocId) {
           ${l.equation ? `<p class="equation-lecture-probleme">${echapper(l.equation)}</p>` : ''}
           ${explicationPos === 'solution' ? explicationHtml(l.explication) : ''}
         </td>
+        <td class="cellule-resultat-probleme-lecture">${resultat}</td>
         <td class="cellule-operation-probleme-lecture">
           ${grille}
           ${explicationPos === 'operation' ? explicationHtml(l.explication) : ''}
@@ -752,12 +806,17 @@ function html_formulaireProbleme(bloc, c) {
       : '<p class="operation-vide">—</p>';
     if (explicationPos === 'dessous' && l.explication) explicationsDessous.push(l.explication);
     const equationVisible = !poseParEleve && l.equation ? `<p class="equation-lecture-probleme">${echapper(l.equation)}</p>` : '';
+    const resultat = analyse ? problemeResultatBoiteHtml(analyse, { interactif: true, prefixeId: idPrefixe }) : '';
     return `
       <div class="ligne-probleme-eleve" data-ligne-probleme-eleve="${i}">
         <div class="colonne-solution-probleme-eleve">
           <div>${l.description || ''}</div>
           ${equationVisible}
           ${explicationPos === 'solution' ? explicationLectureProbleme(l.explication) : ''}
+        </div>
+        <div class="colonne-resultat-probleme-eleve">
+          <div class="etiquette-colonne-probleme-eleve">🎯 Résultat</div>
+          ${resultat}
         </div>
         <div class="colonne-operation-probleme-eleve">
           ${grille}
@@ -789,11 +848,16 @@ function html_relectureProbleme(c, reponseLignes) {
     const grille = analyse
       ? problemeGenererGrilleHtml(analyse, { interactif: false, revision: true, prefixeId: `probleme-rev-${i}`, valeurs })
       : '<p class="operation-vide">—</p>';
+    const resultat = analyse ? problemeResultatBoiteHtml(analyse, { revision: true, prefixeId: `probleme-rev-res-${i}`, valeurs }) : '';
     return `
       <div class="ligne-probleme-eleve">
         <div class="colonne-solution-probleme-eleve">
           <div>${l.description || ''}</div>
           ${l.equation ? `<p class="equation-lecture-probleme">${echapper(l.equation)}</p>` : ''}
+        </div>
+        <div class="colonne-resultat-probleme-eleve">
+          <div class="etiquette-colonne-probleme-eleve">🎯 Résultat</div>
+          ${resultat}
         </div>
         <div class="colonne-operation-probleme-eleve">${grille}</div>
       </div>`;
@@ -878,11 +942,16 @@ function html_formulaireCorrectionProbleme(c, reponseLignes, detailsExistants) {
     const grille = analyse
       ? problemeGenererGrilleHtml(analyse, { interactif: false, revision: true, prefixeId: `probleme-correction-${i}`, valeurs })
       : '<p class="operation-vide">—</p>';
+    const resultat = analyse ? problemeResultatBoiteHtml(analyse, { revision: true, prefixeId: `probleme-correction-res-${i}`, valeurs }) : '';
     return `
       <div class="ligne-correction-probleme" data-ligne-correction-probleme="${i}">
         <div class="colonne-solution-probleme-eleve">
           <div>${l.description || ''}</div>
           ${l.equation ? `<p class="equation-lecture-probleme">${echapper(l.equation)}</p>` : ''}
+        </div>
+        <div class="colonne-resultat-probleme-eleve">
+          <div class="etiquette-colonne-probleme-eleve">🎯 Résultat (copie de l'élève)</div>
+          ${resultat}
         </div>
         <div class="colonne-operation-probleme-eleve">${grille}</div>
         <div class="notes-correction-probleme">
@@ -989,11 +1058,29 @@ function configurerZoneRiche(zoneRiche, barresOutils, onChange) {
   const commandesAlignement = { justifyLeft: 'left', justifyCenter: 'center', justifyRight: 'right', justifyFull: 'justify' };
   const boutonsCommande = [];
   const mettreAJourEtatBarreOutils = () => {
+    // queryCommandState('bold'/'italic'/'underline'/...) n'a de sens que si
+    // la sélection courante est RÉELLEMENT à l'intérieur de CETTE zone
+    // éditable — sinon (notamment lors de l'appel initial ci-dessous, avant
+    // tout focus, où la sélection du document peut être n'importe où
+    // ailleurs sur la page) il répond au hasard selon ce contexte étranger.
+    // Constaté concrètement (12 septembre 2026, tâche #174) : le bouton
+    // "Gras" s'affichait actif dès l'ouverture d'une zone de texte riche
+    // totalement vide, et le premier gras tapé par l'enseignant sortait
+    // inversé (texte normal en <b>, texte voulu en gras laissé en clair) —
+    // même famille de problème que le centrage par défaut déjà neutralisé
+    // ci-dessus (alignementActuel), simplement jamais étendue à ces
+    // commandes-ci jusqu'ici.
+    const sel = window.getSelection();
+    const selectionDansZone = !!(sel && sel.rangeCount && zoneRiche.contains(sel.anchorNode));
     const align = alignementActuel();
     boutonsCommande.forEach(b => {
       const cmd = b.dataset.cmd;
       if (commandesEtatSimple.includes(cmd)) {
-        try { b.classList.toggle('actif', document.queryCommandState(cmd)); } catch (_e) { /* ignoré */ }
+        let actif = false;
+        if (selectionDansZone) {
+          try { actif = document.queryCommandState(cmd); } catch (_e) { /* ignoré */ }
+        }
+        b.classList.toggle('actif', actif);
       } else if (commandesAlignement[cmd]) {
         b.classList.toggle('actif', commandesAlignement[cmd] === align);
       }

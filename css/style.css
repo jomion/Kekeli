@@ -433,6 +433,16 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
    que l'éditeur de bloc (.barre-outils-texte/.editeur-riche), juste un peu
    d'espace sous le libellé du champ pour ne pas coller à la barre d'outils. */
 .champ-modal-richtext .barre-outils-texte { margin-top: 6px; }
+/* Annule le font-weight:700 hérité de .champ-modal sur CE conteneur précis
+   (12 septembre 2026, tâche #174) : la zone .editeur-riche est ici une
+   descendante directe du <label>, et un ancêtre en gras fait taper tout le
+   texte en gras dans Chrome/Chromium dès la première frappe, même quand
+   .editeur-riche reçoit elle-même font-weight:400 (le "typing style" interne
+   du navigateur suit l'ancêtre, pas le style final de la zone). Le libellé
+   du champ (ex. "Consigne") garde son apparence grasse via le <span> dédié
+   ci-dessous — voir js/modal.js, champHtmlModal(). */
+.champ-modal-richtext { font-weight: 400; }
+.etiquette-champ-modal-richtext { font-weight: 700; }
 .liste-checkboxes-modal { max-height: 190px; overflow-y: auto; border: 1px solid var(--bordure); border-radius: 7px; padding: 4px 8px; background: #FAFBFF; }
 .checkbox-modal { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--texte-fonce); padding: 6px 2px; text-transform: none; }
 .checkbox-modal input { width: auto; margin: 0; }
@@ -490,6 +500,16 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
      bloque tout héritage d'un centrage venu d'un ancêtre, quelle qu'en soit
      l'origine — c'est ce qui causait le centrage par défaut constaté. */
   text-align: left;
+  /* Idem pour le gras (12 septembre 2026, tâche #174) : quand cette zone est
+     utilisée dans une modale (type "richtext" de js/modal.js — consigne d'un
+     devoir "texte libre"), elle est enveloppée dans un <label class="champ-modal">
+     qui met tout son contenu en gras (font-weight:700) pour styliser le libellé
+     du champ — sans cette ligne, .editeur-riche héritait ce gras par défaut, ce
+     qui faisait apparaître TOUT le texte tapé en gras d'entrée de jeu et rendait
+     le bouton "Gras" incohérent (le navigateur le detectait déjà "actif" et
+     insérait des <span style="font-weight:normal"> au lieu du texte normal
+     attendu). Même famille de bug que le centrage par défaut ci-dessus. */
+  font-weight: 400;
 }
 .editeur-riche:focus { outline: none; border-color: var(--bleu-principal); }
 .editeur-riche ul, .editeur-riche ol { margin: 6px 0 6px 20px; }

@@ -1,85 +1,80 @@
-KEKELI — Livraison du 12 septembre 2026
-Treizième requête, quatrième lot : mode lecture seule pour l'administrateur sur certaines séances (tâche #173)
+KEKELI — Correction du formatage de texte dans l'éditeur de devoir (tâche #174)
 ================================================================================
 
-CE QUI CHANGE
---------------
+CE QUI A ÉTÉ CORRIGÉ
+---------------------
 
-Jusqu'ici, une fois qu'une séance était publiée, rien n'empêchait un
-administrateur de continuer à la modifier (titre, statut, blocs de contenu,
-exercices...) — y compris par mégarde. Ce lot ajoute un mode « lecture
-seule » que vous pouvez activer vous-même, séance par séance, une fois que
-vous jugez son contenu finalisé.
+Vous aviez signalé : « Les deux [types de devoirs] ne donnent pas la main
+d'ajouter un bloc. Pour le devoir libre je veux que l'enseignant puisse au
+moins formater le texte qu'il va envoyer même si c'est devoir simple. »
 
-Vous m'avez indiqué vouloir un réglage MANUEL (plutôt qu'automatique selon
-le statut ou le rôle) : c'est exactement ce qui a été construit.
+Après investigation complète, voici ce qui se passait réellement et ce qui a
+été corrigé :
 
-Concrètement :
+1. Un devoir « à blocs » (rattaché à une séance) et un devoir « texte libre »
+   (consigne unique) sont deux modes VOULUS, différents dès la conception :
+   le premier propose des blocs structurés (exercice, quiz, etc.), le second
+   une simple zone de texte à formater. Aucun des deux n'a jamais eu de bouton
+   « ajouter un bloc » côté enseignant pour le mode texte libre — ce n'est
+   pas un bug, c'est le fonctionnement prévu de ce mode. En revanche, pour le
+   mode « à blocs », le bouton d'ajout fonctionne bel et bien (vérifié dans
+   un navigateur réel, sur les 6 types de blocs, sans aucune erreur).
 
-- Dans l'éditeur d'une séance, un nouveau bouton « 🔒 Verrouiller en lecture
-  seule » apparaît à côté du bouton « Aperçu élève ». Un clic dessus demande
-  confirmation, puis verrouille la séance.
-- Une fois verrouillée : un bandeau orange apparaît en haut de l'éditeur
-  (« 🔒 Cette séance est verrouillée en lecture seule... »), tous les champs
-  et boutons d'édition (titre, discipline, statut, blocs, ajout de contenu,
-  glisser-déposer...) sont grisés et désactivés, et un bouton
-  « 🔓 Déverrouiller » permet de repasser en mode édition normal à tout
-  moment.
-- Dans la liste des séances (back-office admin), une pastille discrète
-  « 🔒 Lecture seule » apparaît sur les séances verrouillées, et les
-  boutons rapides « Publier »/« Archiver » n'apparaissent plus dessus (pour
-  éviter une action qui échouerait de toute façon).
+2. LE VRAI PROBLÈME, confirmé et corrigé : la feuille de style utilisée par
+   les pages ENSEIGNANT (css/style-public.css) avait pris du retard sur celle
+   de l'administration (css/style.css) depuis la refonte du 11 septembre.
+   Résultat concret : toute la barre d'outils de formatage (Gras, Italique,
+   couleurs, alignement, listes...) et la zone de texte riche s'affichaient
+   SANS AUCUN STYLE chez l'enseignant — probablement perçues comme cassées
+   ou inutilisables. Corrigé : les 24 règles de style manquantes ont été
+   ajoutées à css/style-public.css, avec les bonnes couleurs de ce thème.
 
-IMPORTANT — protection réelle côté serveur
--------------------------------------------
+3. UN VRAI BUG DE FOND, également trouvé et corrigé : dans la fenêtre de
+   création d'un devoir « texte libre », le champ de consigne était enveloppé
+   dans une balise <label> (au lieu d'un simple <div>). Or un <label> HTML,
+   quand on clique dedans, transfère automatiquement le clic vers le premier
+   bouton qu'il contient — ici, le bouton « Gras » de la barre d'outils. Donc
+   dès qu'un enseignant cliquait dans le champ pour commencer à écrire, le
+   gras s'activait tout seul, et TOUT le texte tapé ressortait en gras dès la
+   première lettre, avec un bouton Gras qui semblait inversé. Corrigé en
+   remplaçant ce <label> par un <div> : plus aucune activation parasite.
+   Vérifié avec un test automatisé reproduisant exactement la saisie d'un
+   enseignant : le texte normal reste normal, et cliquer sur « Gras » avant
+   un mot puis re-cliquer après l'active et le désactive correctement, comme
+   attendu.
 
-Comme pour tous les contrôles sensibles de ce site, le verrouillage n'est
-PAS qu'une apparence côté écran : la base de données elle-même refuse
-désormais toute tentative de modification d'une séance verrouillée (titre,
-statut, discipline...) ou de ses blocs de contenu (ajout, modification,
-suppression), même si quelqu'un contournait l'interface. Seul le
-déverrouillage lui-même reste toujours possible, pour ne jamais rester
-bloqué. Ce comportement a été testé et vérifié directement en base avant
-cette livraison (verrouillage, tentative de modification bloquée, tentative
-d'ajout de bloc bloquée, déverrouillage, modification à nouveau possible).
+En résumé : un enseignant peut maintenant, pour un devoir « texte libre »,
+écrire sa consigne et la mettre réellement en forme (gras, italique,
+couleurs, alignement, listes...) — ce qui était votre demande précise.
 
-FICHIERS MODIFIÉS DANS CE LOT
--------------------------------
+FICHIERS MODIFIÉS DANS CETTE LIVRAISON
+----------------------------------------
+- css/style.css            (petite correction de robustesse, gras hérité)
+- css/style-public.css     (les 24 règles de style manquantes + corrections)
+- js/modal.js              (le vrai correctif : <div> à la place de <label>)
+- js/editeur/blocs.js      (amélioration : le bouton Gras n'affiche plus
+                             « actif » par erreur avant que l'enseignant ait
+                             cliqué dans le champ)
 
-- js/pages/editeur-seance.js       (bandeau, boutons verrou/déverrou,
-                                     désactivation des champs pendant le
-                                     verrouillage)
-- js/pages/admin-gestion-seances.js (pastille "Lecture seule" dans la liste,
-                                      masquage des boutons Publier/Archiver
-                                      sur une séance verrouillée)
+VÉRIFICATIONS EFFECTUÉES
+--------------------------
+- Test automatisé (navigateur réel) : saisie de texte normal → reste normal ;
+  bascule Gras → applique puis retire correctement le gras au bon endroit.
+- Test automatisé : ajout des 6 types de blocs (exercice, correction,
+  problème, quiz, évaluation, activité) sur un devoir « à blocs » → aucune
+  erreur, fonctionne comme avant.
+- Vérification visuelle (capture d'écran) de la fenêtre de création d'un
+  devoir texte libre côté enseignant : barre d'outils correctement stylée,
+  texte tapé correctement formaté.
+- `node --check` sur tous les fichiers JS modifiés, vérification de
+  l'équilibre des accolades CSS sur les deux feuilles de style.
 
-Une migration de base de données a également été appliquée directement
-(comme toujours sur ce projet, sans étape de déploiement séparée) : elle
-ajoute la colonne verrouillee_lecture_seule sur les séances et les
-protections décrites ci-dessus. Elle est déjà active, rien à faire de votre
-côté.
-
-LA SUITE
---------
-
-Il reste, dans votre message groupé du 12 septembre 2026, les points
-suivants à traiter :
-
-- Audit et correctifs mobile (priorité haute, travail en cours par lots)
-- Cartes matière : afficher le nombre de séances plutôt que "unité"
-  (lié à la refonte de la page d'accueil)
-- Refonte de la page d'accueil (nécessite une image d'accueil générée par
-  IA, que je vous soumettrai avant intégration définitive)
-- Réparer l'ajout de blocs dans l'éditeur de devoir
-- Calcul des compétences par séance liée
-- Ordre hiérarchique strict en mode lecture + liste complète
-- Accès en lecture élargi à tous les comptes connectés + inscription d'un
-  enfant
-- Profil cliquable pour modifier ses informations personnelles / sa photo
-- Nettoyer les menus des rôles non-élève + déplacer la déconnexion
-- Vérification email à l'inscription (code ET lien, sans Google)
-- Analyse approfondie finale et polish général
-- Suppression finale de tous les comptes sauf le super admin — UNIQUEMENT
-  après votre accord explicite, en tout dernier lieu
-
-Comme convenu, je continue à avancer lot par lot sur cette liste.
+LA SUITE (backlog restant, sans changement par rapport à avant)
+-------------------------------------------------------------------
+- Refonte de la page d'accueil (en attente de l'image générée par IA que je
+  dois vous soumettre pour validation).
+- Compétences par séance, accès élargi aux rôles connectés + inscription
+  enfant, tri hiérarchique strict des séances, édition du profil cliquable,
+  nettoyage du menu non-élève avec déplacement de la déconnexion, polissage
+  final, vérification d'email (code + lien), et suppression de compte finale
+  (uniquement après votre feu vert explicite, en tout dernier).

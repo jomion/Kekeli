@@ -41,6 +41,89 @@
 .options-ordre .option-qcm input[type=number] { flex: none; width: auto; }
 .item-type-devoir:hover { background: #F1F5F9; }
 
+/* --- Rattrapage du 12 septembre 2026 (tâche #174) --------------------------
+   Ce fichier avait pris du retard sur css/style.css : les classes ajoutées
+   par les remaniements du 11 septembre (formatage riche, bloc "Exercice" en
+   texte libre + bloc "Correction", bloc "HTML libre", nouveaux types de
+   question — classement/association/intrus lexical/texte à trous glissé/
+   sélection de mots) n'avaient jamais été reportées ici. Résultat concret
+   sur les pages enseignant (qui chargent CE fichier, alors que l'admin
+   charge css/style.css) : la zone de texte riche elle-même (.editeur-riche)
+   et sa barre d'outils (.barre-outils-texte) n'avaient AUCUN style — bordure,
+   hauteur minimale, alignement/graisse par défaut — ce qui rendait la mise
+   en forme d'un devoir "texte libre" (et le contenu de n'importe quel bloc
+   de devoir) pratiquement inutilisable côté enseignant, même quand l'ajout
+   du bloc réussissait bien en base. Ci-dessous : les mêmes règles que
+   css/style.css, traduites vers les variables de ce thème (--bleu-kekeli au
+   lieu de --bleu-principal, --text-gris/--text-dark au lieu de --texte-gris/
+   --texte-fonce ; --bleu-clair n'existe pas ici, valeur de repli identique à
+   css/style.css fournie en 2e paramètre de var()). */
+.barre-outils-texte, .barre-outils-texte-question {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap;
+  background: #F8FAFC; border: 1px solid var(--bordure); border-radius: 8px; padding: 6px 8px;
+}
+.barre-outils-texte .groupe-outils, .barre-outils-texte-question .groupe-outils { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.barre-outils-texte .separateur-outils, .barre-outils-texte-question .separateur-outils { width: 1px; align-self: stretch; min-height: 20px; background: var(--bordure); }
+.barre-outils-texte button, .barre-outils-texte-question button {
+  border: 1px solid var(--bordure); background: white; border-radius: 6px; padding: 5px 10px;
+  cursor: pointer; font-size: 13px; color: var(--text-dark); min-width: 30px;
+}
+.barre-outils-texte button:hover, .barre-outils-texte-question button:hover { background: var(--bleu-clair, #F4F7F9); border-color: var(--bleu-kekeli); }
+.barre-outils-texte button.actif, .barre-outils-texte-question button.actif { background: var(--bleu-kekeli); border-color: var(--bleu-kekeli); color: white; }
+.barre-outils-texte .bouton-effacer-format, .barre-outils-texte-question .bouton-effacer-format { font-size: 12px; color: var(--text-gris); }
+.barre-outils-texte select, .barre-outils-texte-question select {
+  border: 1px solid var(--bordure); border-radius: 6px; padding: 4px 6px; font-size: 12px; background: white; color: var(--text-dark);
+}
+.barre-outils-texte .groupe-couleurs, .barre-outils-texte-question .groupe-couleurs { gap: 5px; }
+.barre-outils-texte .pastille-couleur, .barre-outils-texte-question .pastille-couleur { align-self: center; }
+.barre-outils-texte .etiquette-outils, .barre-outils-texte-question .etiquette-outils { font-size: 11px; color: var(--text-gris); margin-right: 2px; white-space: nowrap; }
+.champ-modal-richtext .barre-outils-texte { margin-top: 6px; }
+.editeur-riche {
+  border: 1px solid var(--bordure); border-radius: 6px; padding: 10px; min-height: 70px;
+  font-size: 14px; font-family: inherit; line-height: 1.5; color: var(--text-dark);
+  /* Explicite exprès (voir le même commentaire dans css/style.css) : bloque
+     l'héritage d'un centrage et d'un gras venus d'un ancêtre (le <label
+     class="champ-modal"> d'une modale met tout son contenu en gras). */
+  text-align: left;
+  font-weight: 400;
+}
+.editeur-riche:focus { outline: none; border-color: var(--bleu-kekeli); }
+.editeur-riche ul, .editeur-riche ol { margin: 6px 0 6px 20px; }
+.champ-consigne-riche { margin-bottom: 10px; }
+.champ-consigne-riche .etiquette-outils { display: block; margin-bottom: 4px; }
+.bloc-corps { }
+/* Case "HTML brut" du bloc Exercice + bloc "HTML libre" (11 septembre 2026). */
+.case-html-brut-exercice {
+  display: flex; align-items: center; gap: 6px; font-size: 12px; margin-bottom: 8px;
+  color: var(--text-gris); cursor: pointer;
+}
+.champ-code-html {
+  width: 100%; font-family: 'Courier New', Consolas, monospace; font-size: 12.5px;
+  line-height: 1.5; white-space: pre; overflow-x: auto; min-height: 220px;
+}
+.cadre-html-libre {
+  width: 100%; min-height: 420px; height: 480px; border: 1px solid var(--bordure);
+  border-radius: 8px; resize: vertical; overflow: auto; display: block; background: #fff;
+}
+/* Sélection de mots dans un texte : mots de l'énoncé en chips cliquables. */
+.mots-selectionnables-editeur, .mots-selectionnables { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chip-mot {
+  border: 1px solid var(--bordure); background: white; border-radius: 999px; padding: 4px 12px;
+  cursor: pointer; font-size: 13px; color: var(--text-dark);
+}
+.chip-mot:hover { border-color: var(--bleu-kekeli); }
+.chip-mot-correct { background: #DCFCE7; border-color: #16A34A; color: #15803D; font-weight: 700; }
+/* Association / classement / intrus lexical / texte à trous glissé (types de
+   question ajoutés le 11 septembre 2026). */
+.options-association, .categories-classement, .items-classement { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+.items-classement .option-qcm select { border: 1px solid var(--bordure); border-radius: 6px; padding: 4px 6px; }
+.series-intrus { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.serie-intrus-ligne { border: 1px solid var(--bordure); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.serie-intrus-choix { display: flex; flex-wrap: wrap; gap: 10px; font-size: 13px; }
+.serie-intrus-choix label { display: flex; align-items: center; gap: 4px; }
+.trous-glisser-champ { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.trous-glisser-champ .champ-ligne select { flex: 1; }
+
 :root {
   --bleu-kekeli: #0000D1;
   --bleu-kekeli-fonce: #080696;
@@ -444,6 +527,17 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
   font-size: 14px; font-family: inherit; color: var(--text-dark);
 }
 .champ-modal textarea { min-height: 60px; resize: vertical; }
+/* Annule le font-weight:700 hérité de .champ-modal sur CE conteneur précis
+   (12 septembre 2026, tâche #174 — voir le même commentaire dans
+   css/style.css et js/modal.js, champHtmlModal()) : la zone .editeur-riche
+   est une descendante directe du <label>, et un ancêtre en gras fait taper
+   tout le texte en gras dans Chrome/Chromium dès la première frappe, même
+   quand .editeur-riche reçoit elle-même font-weight:400. Doit rester APRÈS
+   la règle .champ-modal ci-dessus dans ce fichier (spécificité égale : c'est
+   l'ordre qui tranche). Le libellé garde son apparence grasse via le <span>
+   dédié ci-dessous. */
+.champ-modal-richtext { font-weight: 400; }
+.etiquette-champ-modal-richtext { font-weight: 700; }
 .champ-modal-checkboxes-titre { display: block; margin-bottom: 6px; }
 .liste-checkboxes-modal { max-height: 190px; overflow-y: auto; border: 1px solid var(--bordure,#E2E8F0); border-radius: 7px; padding: 4px 8px; background: #FAFBFF; }
 .checkbox-modal { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--text-dark); padding: 6px 2px; text-transform: none; }
