@@ -1,14 +1,22 @@
-// Page pages/completer-profil.html
+// Page pages/completer-profil.html — "Mon profil"
 //
-// Rattrape les comptes créés AVANT l'ajout de la localisation (et, pour
-// l'enseignant, de l'École/Circonscription Scolaire/Zone Pédagogique/Classe) :
-// tant que les champs obligatoires du rôle ne sont pas renseignés,
-// requireRole() (js/auth-utilisateur.js) renvoie systématiquement ici, avec
-// un paramètre ?retour=... pointant vers la page initialement demandée.
+// Depuis le 12 septembre 2026 : ce n'est plus une page de blocage. L'inscription
+// (pages/inscription.html) ne demande plus que l'essentiel (nom, prénom,
+// identifiant, e-mail, mot de passe — et, pour l'enseignant, école + classe) ;
+// le sexe et la localisation (Département/Commune/Arrondissement...) sont
+// optionnels et se renseignent ICI, à tout moment, volontairement — la page
+// est accessible depuis pages/parametres.html ("👤 Mon profil"), jamais
+// imposée par une redirection forcée (requireRole() ne redirige plus ici).
 //
-// Cette page ne demande PAS de mot de passe ni les champs habituels
-// (nom/prénom/e-mail) : la session est déjà ouverte, on ne complète que
-// les nouveaux champs.
+// Elle affiche TOUJOURS l'ensemble des champs applicables au rôle (pré-remplis
+// avec ce qui est déjà enregistré), plutôt que seulement les champs manquants
+// comme avant cette date — l'utilisateur peut aussi bien compléter que
+// corriger une information déjà saisie.
+//
+// Cette page ne demande PAS de mot de passe ni les champs de l'inscription
+// (nom/prénom/e-mail/identifiant) : la session est déjà ouverte, on ne
+// modifie que sexe/localisation (et, pour l'enseignant, l'école/la classe
+// s'il n'en a pas encore).
 
 let profilCP = null;
 let autoriteCP = null;
@@ -18,8 +26,8 @@ let enseignantCP = null;
   profilCP = await chargerSessionEtProfil();
   if (!profilCP) return;
 
-  // Un compte déjà complet (ou d'un rôle non concerné) n'a rien à faire ici.
-  if (!ROLES_AVEC_LOCALISATION_OBLIGATOIRE.includes(profilCP.role)) {
+  // Rôles sans ces champs (élève, admin...) : rien à faire ici.
+  if (!ROLES_AVEC_LOCALISATION.includes(profilCP.role)) {
     window.location.href = urlTableauDeBord(profilCP.role);
     return;
   }
@@ -39,20 +47,12 @@ let enseignantCP = null;
 })();
 
 async function initialiserFormulaireCP() {
-  // Sexe ajouté le 4 septembre 2026 — n'est montré ici que pour les comptes
-  // créés avant l'ajout de ce champ (les autres ne repassent pas par cette
-  // page pour si peu, voir profilEstIncomplet dans js/auth-utilisateur.js).
-  // Phrase d'intro reconstruite dynamiquement pour rester correcte quelle
-  // que soit la combinaison de champs manquants.
-  const sexeManquant = !profilCP.sexe;
-  document.getElementById('champSexe').style.display = sexeManquant ? '' : 'none';
-  if (!sexeManquant) document.getElementById('sexe').value = profilCP.sexe;
+  // Depuis le 12 septembre 2026 : le champ Sexe est toujours affiché (et
+  // pré-rempli s'il est déjà connu) — cette page n'est plus limitée aux
+  // seuls champs manquants, elle permet de compléter ET de corriger.
+  document.getElementById('sexe').value = profilCP.sexe || '';
 
-  const elementsAttendus = ['localisation'];
-  if (sexeManquant) elementsAttendus.push('sexe');
-  if (profilCP.role === 'enseignant') elementsAttendus.push('établissement', 'classe');
-  const derniere = elementsAttendus.pop();
-  document.getElementById('texteComplement').textContent = elementsAttendus.length ? `${elementsAttendus.join(', ')} et ${derniere}` : derniere;
+  document.getElementById('texteComplement').textContent = 'localisation, sexe' + (profilCP.role === 'enseignant' ? ', établissement et classe' : '');
 
   initialiserCascadeGeoBenin(document.getElementById('departement'), document.getElementById('commune'), document.getElementById('arrondissement'), document.getElementById('circonscriptionScolaire'));
   document.getElementById('departement').value = profilCP.departement || '';

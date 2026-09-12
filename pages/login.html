@@ -75,7 +75,11 @@
       );
 
       if (error) {
-        messageErreur.textContent = error.message;
+        if (error.nonConfirme) {
+          messageErreur.innerHTML = `${error.message} <a href="verifier-email.html?email=${encodeURIComponent(error.email)}">Vérifier mon e-mail →</a>`;
+        } else {
+          messageErreur.textContent = error.message;
+        }
         btn.disabled = false; btn.textContent = 'Se connecter';
         return;
       }

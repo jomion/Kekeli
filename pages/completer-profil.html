@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KEKELI - Compléter mon profil</title>
+<title>KEKELI - Mon profil</title>
 <link rel="icon" type="image/png" href="../assets/logo/logo.png">
 <link rel="stylesheet" href="../css/style-public.css">
 </head>
@@ -11,17 +11,17 @@
   <div class="page-auth">
     <div class="carte-auth">
       <div class="logo"><img src="../assets/logo/logo.png" alt="KEKELI"> KEKELI</div>
-      <div class="sous-titre">Bonjour <span id="badgeUtilisateur"></span> — encore une étape</div>
+      <div class="sous-titre">Bonjour <span id="badgeUtilisateur"></span> — Mon profil</div>
       <p style="font-size:13px;color:var(--text-gris);margin:-8px 0 16px">
-        KEKELI vous demande maintenant quelques informations complémentaires
-        (<span id="texteComplement"></span>). Merci de les renseigner
-        pour continuer à utiliser votre espace.
+        Ces informations (<span id="texteComplement"></span>) sont facultatives —
+        renseignez-les quand vous le souhaitez, ou laissez-les de côté.
       </p>
 
       <form id="formCompleterProfil">
-        <div class="champ-auth" id="champSexe" style="display:none">
+        <div class="champ-auth" id="champSexe">
           <label>Sexe</label>
           <select id="sexe">
+            <option value="">— Non précisé —</option>
             <option value="M">Masculin</option>
             <option value="F">Féminin</option>
           </select>

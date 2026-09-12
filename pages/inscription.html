@@ -9,9 +9,14 @@
 </head>
 <body class="page-sans-fond-ciel">
   <div class="page-auth">
-    <div class="carte-auth carte-auth-large">
+    <div class="carte-auth">
       <div class="logo"><img src="../assets/logo/logo.png" alt="KEKELI"> KEKELI</div>
       <div class="sous-titre">Créez votre compte</div>
+      <p style="font-size:13px;color:var(--text-gris);margin:-8px 0 16px">
+        Quelques informations suffisent pour démarrer — vous pourrez renseigner
+        le reste (localisation, école, classe...) quand vous le souhaiterez,
+        depuis <strong>« Mon profil »</strong> une fois connecté.
+      </p>
 
       <form id="formInscription">
         <div class="champ-auth">
@@ -19,19 +24,12 @@
           <select id="role" required>
             <option value="parent">👨‍👩‍👧 Parent</option>
             <option value="enseignant">🧑‍🏫 Enseignant</option>
-            <option value="autorite_pedagogique">🏛️ Autorité Pédagogique</option>
           </select>
           <p id="noteRole" style="font-size:12px;color:var(--text-gris);margin:6px 0 0"></p>
-        </div>
-
-        <div class="champ-auth" id="champFonction" style="display:none">
-          <label>Fonction</label>
-          <select id="fonction">
-            <option value="directeur">Directeur</option>
-            <option value="conseiller_pedagogique">Conseiller Pédagogique</option>
-            <option value="inspecteur">Inspecteur</option>
-            <option value="directeur_departemental">Directeur Départemental</option>
-          </select>
+          <!-- L'inscription "🏛️ Autorité Pédagogique" est temporairement
+               retirée (12 septembre 2026, demande explicite) le temps que sa
+               navigation dédiée soit bien définie — les comptes déjà créés
+               continuent de fonctionner normalement (connexion inchangée). -->
         </div>
 
         <div class="rangee-champs-auth">
@@ -45,18 +43,28 @@
           </div>
         </div>
 
-        <div class="rangee-champs-auth">
+        <div id="champsEnseignant" style="display:none">
           <div class="champ-auth">
-            <label>E-mail</label>
-            <input type="email" id="email" placeholder="nom@exemple.com" required>
+            <label>École</label>
+            <input type="text" id="ecole" placeholder="Nom de votre école">
           </div>
           <div class="champ-auth">
-            <label>Sexe</label>
-            <select id="sexe" required>
-              <option value="M">Masculin</option>
-              <option value="F">Féminin</option>
-            </select>
+            <label>Classe</label>
+            <select id="classe"></select>
+            <p style="font-size:12px;color:var(--text-gris);margin:6px 0 0">Cette classe vous sera attribuée directement. Pour une classe supplémentaire, vous pourrez ensuite en faire la demande depuis votre espace (validée par l'administration).</p>
           </div>
+        </div>
+
+        <div class="champ-auth">
+          <label>Identifiant</label>
+          <input type="text" id="identifiant" placeholder="Ex: kokou.d" required minlength="3" maxlength="30" pattern="[a-zA-Z0-9._-]{3,30}">
+          <p style="font-size:12px;margin:6px 0 0" id="noteIdentifiant">Lettres, chiffres, points, tirets — 3 caractères minimum. Servira à vous connecter, en plus de votre e-mail.</p>
+        </div>
+
+        <div class="champ-auth">
+          <label>E-mail</label>
+          <input type="email" id="email" placeholder="nom@exemple.com" required>
+          <p style="font-size:12px;color:var(--text-gris);margin:6px 0 0">Un e-mail de vérification (lien + code) vous sera envoyé — votre compte ne sera actif qu'une fois l'adresse confirmée.</p>
         </div>
 
         <div class="rangee-champs-auth">
@@ -74,49 +82,6 @@
               <button type="button" class="btn-afficher-mdp" data-cible="motDePasseConfirmation" aria-label="Afficher le mot de passe">👁️</button>
             </div>
           </div>
-        </div>
-
-        <!-- Localisation : les champs affichés dépendent du rôle (et, pour
-             l'Autorité Pédagogique, de la fonction) — voir majChampsLocalisation()
-             plus bas. Département, Commune, Arrondissement et Circonscription
-             Scolaire sont des listes déroulantes en cascade (js/geo-benin.js).
-             Regroupés par deux (rangee-champs-auth) pour une saisie moins
-             verticale — chaque bloc peut être masqué indépendamment par
-             majChampsLocalisation() sans casser la mise en page de l'autre. -->
-        <div class="rangee-champs-auth">
-          <div class="champ-auth" id="champDepartement">
-            <label>Département</label>
-            <select id="departement"></select>
-          </div>
-          <div class="champ-auth" id="champCommune">
-            <label>Commune</label>
-            <select id="commune"></select>
-          </div>
-        </div>
-        <div class="rangee-champs-auth">
-          <div class="champ-auth" id="champArrondissement">
-            <label>Arrondissement</label>
-            <select id="arrondissement"></select>
-          </div>
-          <div class="champ-auth" id="champCirconscription">
-            <label>Circonscription Scolaire</label>
-            <select id="circonscriptionScolaire"></select>
-          </div>
-        </div>
-        <div class="rangee-champs-auth">
-          <div class="champ-auth" id="champZone">
-            <label>Zone Pédagogique</label>
-            <select id="zonePedagogique"></select>
-          </div>
-          <div class="champ-auth" id="champEcole">
-            <label>École</label>
-            <input type="text" id="ecole">
-          </div>
-        </div>
-        <div class="champ-auth" id="champClasse" style="display:none">
-          <label>Classe</label>
-          <select id="classe"></select>
-          <p style="font-size:12px;color:var(--text-gris);margin:6px 0 0">Cette classe vous sera attribuée directement. Pour une classe supplémentaire, vous pourrez ensuite en faire la demande depuis votre espace (validée par l'administration).</p>
         </div>
 
         <label class="case-consentement">
@@ -140,94 +105,49 @@
   <script src="../js/supabaseClient.js"></script>
   <script>const RACINE_SITE = "../";</script>
   <script src="../js/auth-utilisateur.js"></script>
-  <script src="../js/geo-benin.js"></script>
   <script>
     const selectRole = document.getElementById('role');
-    const selectFonction = document.getElementById('fonction');
     const noteRole = document.getElementById('noteRole');
+    const champsEnseignant = document.getElementById('champsEnseignant');
+    const champEcole = document.getElementById('ecole');
+    const champClasse = document.getElementById('classe');
+    const champIdentifiant = document.getElementById('identifiant');
+    const noteIdentifiant = document.getElementById('noteIdentifiant');
 
-    const champFonction = document.getElementById('champFonction');
-    const champDepartement = document.getElementById('champDepartement');
-    const champCommune = document.getElementById('champCommune');
-    const champArrondissement = document.getElementById('champArrondissement');
-    const champCirconscription = document.getElementById('champCirconscription');
-    const champZone = document.getElementById('champZone');
-    const champEcole = document.getElementById('champEcole');
-    const champClasse = document.getElementById('champClasse');
-
-    initialiserCascadeGeoBenin(document.getElementById('departement'), document.getElementById('commune'), document.getElementById('arrondissement'), document.getElementById('circonscriptionScolaire'));
-    document.getElementById('zonePedagogique').innerHTML = ZONES_PEDAGOGIQUES.map(z => `<option value="${z}">${z}</option>`).join('');
-
-    // Liste des classes, pour que l'enseignant en choisisse une à l'inscription
-    // (elle lui est attribuée directement — voir majChampsLocalisation ci-dessous).
+    // Liste des classes, pour que l'enseignant en choisisse une à
+    // l'inscription (elle lui est attribuée directement).
     (async function chargerClasses() {
-      // Une classe masquée par l'admin (mise à jour en cours) n'est pas
-      // proposée pour une nouvelle inscription — sans être supprimée pour
-      // autant, elle réapparaîtra dès qu'elle sera démasquée.
       const { data: classes } = await supabaseClient.from('classes').select('*').eq('visible', true).order('ordre');
-      document.getElementById('classe').innerHTML = (classes || []).map(c => `<option value="${c.id}">${c.nom}</option>`).join('');
+      champClasse.innerHTML = (classes || []).map(c => `<option value="${c.id}">${c.nom}</option>`).join('');
     })();
 
-    // Pour chaque rôle/fonction, quels champs de localisation afficher.
-    // (Les champs habituels — nom, prénom, e-mail, mot de passe — sont
-    // toujours visibles, en dehors de cette logique.)
-    function majChampsLocalisation() {
-      const role = selectRole.value;
-      const fonction = selectFonction.value;
-      const estAutorite = role === 'autorite_pedagogique';
-      const estEnseignant = role === 'enseignant';
-
-      champFonction.style.display = estAutorite ? '' : 'none';
-
-      // Département : toujours demandé, quel que soit le rôle.
-      champDepartement.style.display = '';
-
-      if (estEnseignant) {
-        // Enseignant : Département, Commune, Arrondissement, Circonscription
-        // Scolaire, Zone Pédagogique, École, Classe (attribuée directement).
-        champCommune.style.display = '';
-        champArrondissement.style.display = '';
-        champCirconscription.style.display = '';
-        champZone.style.display = '';
-        champEcole.style.display = '';
-        champClasse.style.display = '';
-        return;
-      }
-      champClasse.style.display = 'none';
-
-      if (!estAutorite) {
-        // Parent : Département, Commune, Arrondissement.
-        champCommune.style.display = '';
-        champArrondissement.style.display = '';
-        champCirconscription.style.display = 'none';
-        champZone.style.display = 'none';
-        champEcole.style.display = 'none';
-        return;
-      }
-
-      // Autorité Pédagogique : dépend de la fonction choisie. Arrondissement
-      // est exigé pour les fonctions situées dans la structure école
-      // (Directeur, Conseiller Pédagogique, Inspecteur) — pas pour le
-      // Directeur Départemental (voir FONCTIONS_AUTORITE_PEDAGOGIQUE dans
-      // js/auth-utilisateur.js, dont cette liste est le miroir côté affichage).
-      const parFonction = FONCTIONS_AUTORITE_PEDAGOGIQUE[fonction] || {};
-
-      champCommune.style.display = parFonction.commune ? '' : 'none';
-      champArrondissement.style.display = parFonction.arrondissement ? '' : 'none';
-      champCirconscription.style.display = parFonction.circonscriptionScolaire ? '' : 'none';
-      champZone.style.display = parFonction.zonePedagogique ? '' : 'none';
-      champEcole.style.display = parFonction.ecole ? '' : 'none';
-    }
-
     function majNote() {
+      const estEnseignant = selectRole.value === 'enseignant';
       noteRole.textContent = selectRole.value === 'parent'
         ? "Vous pourrez ensuite inscrire votre (vos) enfant(s) depuis votre espace."
         : "";
+      champsEnseignant.style.display = estEnseignant ? '' : 'none';
+      champEcole.required = estEnseignant;
+      champClasse.required = estEnseignant;
     }
-    selectRole.addEventListener('change', () => { majNote(); majChampsLocalisation(); });
-    selectFonction.addEventListener('change', majChampsLocalisation);
+    selectRole.addEventListener('change', majNote);
     majNote();
-    majChampsLocalisation();
+
+    // Vérification en direct de la disponibilité de l'identifiant (au blur),
+    // via la fonction identifiant_disponible() — ne remplace pas le contrôle
+    // final fait par la contrainte d'unicité en base (voir inscrire()).
+    let identifiantValideLocalement = false;
+    champIdentifiant.addEventListener('blur', async () => {
+      const valeur = champIdentifiant.value.trim();
+      if (!valeur || valeur.length < 3) { identifiantValideLocalement = false; return; }
+      noteIdentifiant.textContent = 'Vérification...';
+      noteIdentifiant.style.color = 'var(--text-gris)';
+      const { data: dispo, error } = await supabaseClient.rpc('identifiant_disponible', { p_identifiant: valeur });
+      if (error) { noteIdentifiant.textContent = 'Impossible de vérifier pour le moment — on vérifiera à la création du compte.'; noteIdentifiant.style.color = 'var(--text-gris)'; return; }
+      identifiantValideLocalement = !!dispo;
+      noteIdentifiant.textContent = dispo ? '✅ Identifiant disponible.' : '❌ Cet identifiant est déjà pris, choisissez-en un autre.';
+      noteIdentifiant.style.color = dispo ? 'var(--succes, #16a34a)' : 'var(--danger, #dc2626)';
+    });
 
     // Aperçu du mot de passe : chaque bouton œil bascule le type de SON
     // champ (visé par data-cible) entre password et text, et change
@@ -258,25 +178,25 @@
         messageErreur.textContent = "Vous devez accepter les conditions d'utilisation et la politique de confidentialité pour créer un compte.";
         return;
       }
+      const identifiant = champIdentifiant.value.trim();
+      if (identifiant.length < 3) {
+        messageErreur.textContent = "Choisissez un identifiant d'au moins 3 caractères.";
+        return;
+      }
 
       btn.disabled = true; btn.textContent = 'Création en cours...';
 
       const role = selectRole.value;
-      const { error, avertissement } = await inscrire({
+      const email = document.getElementById('email').value.trim();
+      const { error, avertissement, emailEnvoye } = await inscrire({
         role,
-        fonction: role === 'autorite_pedagogique' ? selectFonction.value : undefined,
         prenom: document.getElementById('prenom').value.trim(),
         nom: document.getElementById('nom').value.trim(),
-        email: document.getElementById('email').value.trim(),
-        sexe: document.getElementById('sexe').value,
+        identifiant,
+        email,
         motDePasse,
-        departement: document.getElementById('departement').value,
-        commune: document.getElementById('commune').value,
-        arrondissement: document.getElementById('arrondissement').value.trim(),
-        circonscriptionScolaire: document.getElementById('circonscriptionScolaire').value.trim(),
-        zonePedagogique: document.getElementById('zonePedagogique').value,
-        ecole: document.getElementById('ecole').value.trim(),
-        classeId: role === 'enseignant' ? document.getElementById('classe').value : undefined
+        ecole: role === 'enseignant' ? champEcole.value.trim() : undefined,
+        classeId: role === 'enseignant' ? champClasse.value : undefined
       });
 
       if (error) {
@@ -285,9 +205,15 @@
         return;
       }
       if (avertissement) {
-        alert("Votre compte a été créé, mais la classe n'a pas pu être attribuée automatiquement (" + avertissement + "). Vous pourrez en faire la demande depuis votre espace.");
+        alert(avertissement);
       }
-      window.location.href = urlTableauDeBord(role);
+      if (emailEnvoye) {
+        window.location.href = `verifier-email.html?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`;
+      } else {
+        // Le projet n'exige pas (ou plus) la confirmation d'e-mail côté
+        // Supabase Auth : la session est déjà ouverte, direction l'espace.
+        window.location.href = urlTableauDeBord(role);
+      }
     });
   </script>
 </body>

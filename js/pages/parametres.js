@@ -85,6 +85,13 @@ function afficherPageParametres() {
     <div class="titre-page-param">⚙️ Paramètres — Navigation</div>
     <div class="sous-titre-page-param">Choisissez les liens à masquer de votre en-tête pour le dégager et faciliter votre navigation. Le tableau de bord et les actions essentielles restent toujours accessibles.</div>
 
+    ${['parent', 'enseignant', 'autorite'].includes(roleParametres) ? `
+    <div class="carte-param">
+      <h2>👤 Mon profil</h2>
+      <p class="desc-param">Renseignez ou mettez à jour vos informations personnelles (sexe, localisation${roleParametres === 'enseignant' ? ', établissement, classe' : ''}...) — entièrement facultatif.</p>
+      <a href="${urlCompleterProfil()}" class="btn-param-enregistrer" style="display:inline-block;text-decoration:none">Ouvrir mon profil</a>
+    </div>` : ''}
+
     ${roleParametres === 'eleve' ? `
     <div class="carte-param">
       <h2>🎨 Nouveau look premium</h2>

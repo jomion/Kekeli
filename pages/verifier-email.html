@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KEKELI - Vérifier mon e-mail</title>
+<link rel="icon" type="image/png" href="../assets/logo/logo.png">
+<link rel="stylesheet" href="../css/style-public.css">
+<style>
+  .champ-code { display: flex; justify-content: center; }
+  .champ-code input {
+    width: 220px; text-align: center; font-size: 26px; font-weight: 800;
+    letter-spacing: 8px; padding: 12px 10px;
+  }
+  .separateur-verif { display: flex; align-items: center; gap: 12px; margin: 20px 0; color: var(--text-gris); font-size: 12px; text-transform: uppercase; font-weight: 700; }
+  .separateur-verif::before, .separateur-verif::after { content: ''; flex: 1; height: 1px; background: var(--bordure); }
+  .lien-renvoyer { background: none; border: none; color: var(--bleu-kekeli); font-weight: 700; font-size: 13px; cursor: pointer; padding: 0; text-decoration: underline; }
+  .lien-renvoyer:disabled { color: var(--text-gris); cursor: default; text-decoration: none; }
+</style>
+</head>
+<body class="page-sans-fond-ciel">
+  <div class="page-auth">
+    <div class="carte-auth">
+      <div class="logo"><img src="../assets/logo/logo.png" alt="KEKELI"> KEKELI</div>
+      <div class="sous-titre" id="sousTitre">Vérifiez votre adresse e-mail</div>
+
+      <div id="zoneChargement" style="text-align:center;color:var(--text-gris);font-size:14px">Vérification en cours...</div>
+
+      <div id="zoneAVerifier" style="display:none">
+        <p style="font-size:13px;color:var(--text-gris);text-align:center;margin:-8px 0 20px">
+          Un e-mail a été envoyé à <strong id="emailAffiche"></strong>. Cliquez sur le
+          lien qu'il contient, <u>ou</u> entrez ci-dessous le code à 6 chiffres reçu dans le même e-mail.
+        </p>
+
+        <form id="formCode">
+          <div class="champ-code">
+            <input type="text" id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••">
+          </div>
+          <p class="message-erreur-auth" id="messageErreur" style="margin-top:14px"></p>
+          <button type="submit" class="btn-auth-principal" id="btnVerifier">Vérifier le code</button>
+        </form>
+
+        <div class="separateur-verif">ou</div>
+        <p style="text-align:center;font-size:13px;color:var(--text-gris)">Vous n'avez rien reçu ?</p>
+        <p style="text-align:center">
+          <button type="button" class="lien-renvoyer" id="btnRenvoyer">Renvoyer l'e-mail de vérification</button>
+        </p>
+        <p class="message-param-succes" id="messageRenvoiOk" style="display:none;text-align:center;color:#16a34a;font-size:13px"></p>
+      </div>
+
+      <div id="zoneReussite" style="display:none;text-align:center">
+        <p class="bandeau-succes">✅ Adresse e-mail confirmée — votre compte est actif !</p>
+      </div>
+
+      <div class="lien-auth-secondaire">
+        <a href="login.html">← Se connecter</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/supabaseClient.js"></script>
+  <script>const RACINE_SITE = "../";</script>
+  <script src="../js/auth-utilisateur.js"></script>
+  <script>
+    const parametres = new URLSearchParams(window.location.search);
+    let emailVerif = parametres.get('email') || '';
+    document.getElementById('emailAffiche').textContent = emailVerif || 'votre adresse';
+
+    function afficherReussite(profil) {
+      document.getElementById('zoneChargement').style.display = 'none';
+      document.getElementById('zoneAVerifier').style.display = 'none';
+      document.getElementById('zoneReussite').style.display = 'block';
+      setTimeout(() => {
+        window.location.href = profil ? urlTableauDeBord(profil.role) : urlLogin();
+      }, 1500);
+    }
+
+    async function finaliserSiSessionValide() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) return false;
+      const profil = await chargerProfil(session.user.id);
+      afficherReussite(profil);
+      return true;
+    }
+
+    (async function initialiserVerification() {
+      // Cas 1 — l'utilisateur arrive ici via le LIEN de l'e-mail : selon le
+      // flux d'authentification du projet (implicite ou PKCE), la session
+      // arrive soit directement dans l'URL (#access_token=..., détecté
+      // automatiquement par le client Supabase au chargement), soit via un
+      // paramètre ?code=... à échanger explicitement.
+      const code = parametres.get('code');
+      if (code) {
+        await supabaseClient.auth.exchangeCodeForSession(window.location.href).catch(() => null);
+      }
+      // Laisse au client Supabase le temps de traiter un éventuel hash
+      // d'authentification présent dans l'URL (#access_token=...).
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      if (await finaliserSiSessionValide()) return;
+
+      // Cas 2 — pas encore de session : l'utilisateur doit saisir le code
+      // à 6 chiffres reçu par e-mail (ou cliquer sur le lien plus tard).
+      document.getElementById('zoneChargement').style.display = 'none';
+      document.getElementById('zoneAVerifier').style.display = 'block';
+
+      supabaseClient.auth.onAuthStateChange((_evenement, session) => {
+        if (session) finaliserSiSessionValide();
+      });
+    })();
+
+    document.getElementById('formCode').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const messageErreur = document.getElementById('messageErreur');
+      const btn = document.getElementById('btnVerifier');
+      messageErreur.textContent = '';
+
+      if (!emailVerif) {
+        messageErreur.textContent = "Adresse e-mail inconnue — revenez depuis la page d'inscription ou de connexion.";
+        return;
+      }
+      const code = document.getElementById('code').value.trim();
+      if (!/^\d{6}$/.test(code)) {
+        messageErreur.textContent = "Le code doit contenir 6 chiffres.";
+        return;
+      }
+
+      btn.disabled = true; btn.textContent = 'Vérification...';
+      const { error } = await verifierCodeEmail(emailVerif, code);
+      if (error) {
+        messageErreur.textContent = error.message;
+        btn.disabled = false; btn.textContent = 'Vérifier le code';
+        return;
+      }
+      await finaliserSiSessionValide();
+    });
+
+    document.getElementById('btnRenvoyer').addEventListener('click', async () => {
+      const messageErreur = document.getElementById('messageErreur');
+      const messageOk = document.getElementById('messageRenvoiOk');
+      const btn = document.getElementById('btnRenvoyer');
+      messageErreur.textContent = ''; messageOk.style.display = 'none';
+
+      if (!emailVerif) {
+        messageErreur.textContent = "Adresse e-mail inconnue — revenez depuis la page d'inscription ou de connexion.";
+        return;
+      }
+      btn.disabled = true; btn.textContent = 'Envoi en cours...';
+      const { error } = await renvoyerEmailVerification(emailVerif);
+      btn.disabled = false; btn.textContent = "Renvoyer l'e-mail de vérification";
+      if (error) { messageErreur.textContent = error.message; return; }
+      messageOk.textContent = '✅ E-mail renvoyé — pensez à vérifier vos courriers indésirables.';
+      messageOk.style.display = 'block';
+    });
+  </script>
+</body>
+</html>

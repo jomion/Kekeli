@@ -35,24 +35,28 @@ async function resoudreEmailConnexion(identifiantOuEmail) {
 
 // --- INSCRIPTION (parent, enseignant ou autorité pédagogique) ------------
 //
-// Champs de localisation (voir js/geo-benin.js pour Département/Commune) :
-//   - parent : departement, commune, arrondissement
-//   - enseignant : departement, commune, arrondissement, + circonscriptionScolaire,
-//     zonePedagogique, ecole, et classeId (une classe lui est attribuée
-//     directement — voir attribuer_classe_initiale_enseignant() côté base ;
-//     toute classe SUPPLÉMENTAIRE repasse par la demande d'accès existante).
-//   - autorite_pedagogique : departement, commune (sauf Directeur Départemental
-//     qui n'a que departement), + selon la fonction : arrondissement (Directeur,
-//     Conseiller Pédagogique, Inspecteur — pas Directeur Départemental),
-//     circonscriptionScolaire, zonePedagogique, ecole (voir
-//     FONCTIONS_AUTORITE_PEDAGOGIQUE ci-dessous).
+// Depuis le 12 septembre 2026 : l'inscription ne demande plus que l'essentiel
+// (type de compte, prénom, nom, identifiant, e-mail à vérifier, mot de passe)
+// — SAUF pour l'enseignant, qui doit toujours indiquer son école et choisir
+// sa classe dès l'inscription (demande explicite, ces deux champs restent
+// obligatoires). La localisation (Département/Commune/Arrondissement...) et
+// le sexe sont, pour tous les rôles, désormais OPTIONNELS et se renseignent
+// depuis "Mon profil" (pages/completer-profil.html — ce n'est plus une page
+// de blocage mais un profil consulté/modifié volontairement, à tout moment).
+//
+// L'inscription "autorite_pedagogique" reste possible techniquement
+// (fonction inscrire() ci-dessous), mais son option a été retirée du
+// formulaire pages/inscription.html le 12 septembre 2026, le temps que sa
+// navigation dédiée soit bien définie — à réactiver dans le <select> quand
+// ce sera fait.
 
 const ROLES_INSCRIPTIBLES = ['parent', 'enseignant', 'autorite_pedagogique'];
 
-// Rôles pour lesquels la localisation (et, pour l'enseignant, l'école/la
-// classe) est obligatoire — utilisé aussi pour la page "compléter mon
-// profil" qui rattrape les comptes créés avant cette mise à jour.
-const ROLES_AVEC_LOCALISATION_OBLIGATOIRE = ['parent', 'enseignant', 'autorite_pedagogique'];
+// Rôles pour lesquels la page "Mon profil" (pages/completer-profil.html)
+// propose des champs de localisation (et, pour l'enseignant, l'école/la
+// classe) — ces champs restent optionnels, cette liste ne sert plus qu'à
+// savoir quels rôles ont accès à cette page (voir js/pages/completer-profil.js).
+const ROLES_AVEC_LOCALISATION = ['parent', 'enseignant', 'autorite_pedagogique'];
 
 // Pour chaque fonction de l'Autorité Pédagogique, la liste des champs
 // supplémentaires à demander et à enregistrer (en plus de departement).
@@ -66,66 +70,125 @@ const FONCTIONS_AUTORITE_PEDAGOGIQUE = {
   directeur_departemental: { commune: false, arrondissement: false, circonscriptionScolaire: false, zonePedagogique: false, ecole: false }
 };
 
-async function inscrire({ role, prenom, nom, email, motDePasse, sexe, fonction, departement, commune, arrondissement, circonscriptionScolaire, zonePedagogique, ecole, classeId }) {
+function urlVerifierEmail() {
+  return `${_racine()}pages/verifier-email.html`;
+}
+
+// URL absolue (indispensable pour emailRedirectTo, qui doit être une URL
+// complète et déjà autorisée dans "Redirect URLs" côté Supabase Auth — voir
+// LISEZ-MOI de cette livraison pour le réglage à faire une fois dans le
+// tableau de bord Supabase). Résolue en relatif depuis la page appelante
+// (inscription.html, login.html ou verifier-email.html elle-même — toutes
+// trois vivent dans le même dossier pages/), plutôt que via RACINE_SITE,
+// pour rester correcte quel que soit le sous-dossier d'hébergement du site.
+function urlAbsolueVerifierEmail() {
+  return new URL('verifier-email.html', window.location.href).toString();
+}
+
+async function inscrire({ role, prenom, nom, identifiant, email, motDePasse, fonction, ecole, classeId }) {
   if (!ROLES_INSCRIPTIBLES.includes(role)) {
     return { error: { message: "Ce type de compte ne peut pas s'inscrire directement." } };
   }
   if (role === 'autorite_pedagogique' && !FONCTIONS_AUTORITE_PEDAGOGIQUE[fonction]) {
     return { error: { message: "Choisissez une fonction valide pour l'Autorité Pédagogique." } };
   }
+  // École et classe sont obligatoires dès l'inscription pour un enseignant
+  // (demande explicite du 12 septembre 2026) — contrairement au reste des
+  // informations (sexe, localisation...), volontairement laissées pour
+  // "Mon profil".
+  if (role === 'enseignant' && (!ecole || !ecole.trim())) {
+    return { error: { message: "Indiquez le nom de votre école." } };
+  }
+  if (role === 'enseignant' && !classeId) {
+    return { error: { message: "Choisissez votre classe." } };
+  }
+  const identifiantNormalise = (identifiant || '').trim().toLowerCase();
+  if (identifiantNormalise.length < 3) {
+    return { error: { message: "Choisissez un identifiant d'au moins 3 caractères." } };
+  }
+  if (!/^[a-z0-9._-]{3,30}$/.test(identifiantNormalise)) {
+    return { error: { message: "L'identifiant ne peut contenir que des lettres, chiffres, points, tirets et underscores." } };
+  }
 
-  const { data, error } = await supabaseClient.auth.signUp({ email, password: motDePasse });
+  // Vérification d'unicité AVANT de créer le compte d'authentification, pour
+  // éviter de créer un compte Supabase Auth "orphelin" (sans ligne profils)
+  // en cas d'identifiant déjà pris — voir identifiant_disponible() en base.
+  const { data: dispo, error: erreurDispo } = await supabaseClient.rpc('identifiant_disponible', { p_identifiant: identifiantNormalise });
+  if (!erreurDispo && dispo === false) {
+    return { error: { message: "Cet identifiant est déjà utilisé. Choisissez-en un autre." } };
+  }
+
+  const { data, error } = await supabaseClient.auth.signUp({
+    email, password: motDePasse,
+    options: { emailRedirectTo: urlAbsolueVerifierEmail() }
+  });
   if (error) return { error };
 
   const userId = data.user?.id;
   if (!userId) return { error: { message: "Le compte n'a pas pu être créé. Réessayez." } };
 
-  const champsFonction = role === 'autorite_pedagogique' ? FONCTIONS_AUTORITE_PEDAGOGIQUE[fonction] : null;
-
   const { error: erreurProfil } = await supabaseClient.from('profils').insert({
-    id: userId, role, nom, prenom, email, sexe: sexe || null,
-    departement: departement || null,
-    commune: role === 'autorite_pedagogique' ? (champsFonction.commune ? (commune || null) : null) : (commune || null),
-    arrondissement: role === 'autorite_pedagogique' ? (champsFonction.arrondissement ? (arrondissement || null) : null) : (arrondissement || null)
+    id: userId, role, nom, prenom, identifiant: identifiantNormalise, email
+    // sexe, departement, commune, arrondissement : laissés vides à dessein —
+    // renseignables ensuite, à tout moment, depuis "Mon profil".
   });
-  if (erreurProfil) return { error: erreurProfil };
+  if (erreurProfil) {
+    // Unicité déjà vérifiée ci-dessus, mais une petite fenêtre de course
+    // reste possible (23505 = violation de contrainte unique) : message
+    // clair plutôt que l'erreur Postgres brute.
+    if (erreurProfil.code === '23505') {
+      return { error: { message: "Cet identifiant vient d'être pris par quelqu'un d'autre. Choisissez-en un autre et réessayez." } };
+    }
+    return { error: erreurProfil };
+  }
 
   if (role === 'autorite_pedagogique') {
-    const { error: erreurRole } = await supabaseClient.from('autorites_pedagogiques').insert({
-      id: userId,
-      fonction,
-      circonscription_scolaire: champsFonction.circonscriptionScolaire ? (circonscriptionScolaire || null) : null,
-      zone_pedagogique: champsFonction.zonePedagogique ? (zonePedagogique || null) : null,
-      ecole: champsFonction.ecole ? (ecole || null) : null
-    });
+    const { error: erreurRole } = await supabaseClient.from('autorites_pedagogiques').insert({ id: userId, fonction });
     if (erreurRole) return { error: erreurRole };
-    return { data };
-  }
-
-  if (role === 'enseignant') {
-    const { error: erreurEns } = await supabaseClient.from('enseignants').insert({
-      id: userId,
-      ecole: ecole || null,
-      circonscription_scolaire: circonscriptionScolaire || null,
-      zone_pedagogique: zonePedagogique || null
-    });
+  } else if (role === 'enseignant') {
+    const { error: erreurEns } = await supabaseClient.from('enseignants').insert({ id: userId, ecole: ecole.trim() });
     if (erreurEns) return { error: erreurEns };
 
-    if (classeId) {
-      // Attribution directe (pas de validation admin) de la classe choisie
-      // à l'inscription — une seule fois par compte. Une éventuelle erreur
-      // ici (ex. classe déjà attribuée par un autre biais) ne doit pas
-      // empêcher la création du compte : elle est juste signalée.
-      const { error: erreurClasse } = await supabaseClient.rpc('attribuer_classe_initiale_enseignant', { p_classe_id: parseInt(classeId, 10) });
-      if (erreurClasse) return { data, avertissement: erreurClasse.message };
-    }
-    return { data };
+    // Attribution directe (pas de validation admin) de la classe choisie à
+    // l'inscription — une seule fois par compte. Une éventuelle erreur ici
+    // (ex. classe déjà attribuée par un autre biais) ne doit pas empêcher la
+    // création du compte : elle est juste signalée.
+    const { error: erreurClasse } = await supabaseClient.rpc('attribuer_classe_initiale_enseignant', { p_classe_id: parseInt(classeId, 10) });
+    if (erreurClasse) return { data, avertissement: "Votre compte a été créé, mais la classe n'a pas pu être attribuée automatiquement (" + erreurClasse.message + "). Vous pourrez en faire la demande depuis votre espace.", emailEnvoye: !data.session };
+  } else {
+    const { error: erreurRole } = await supabaseClient.from('parents').insert({ id: userId });
+    if (erreurRole) return { error: erreurRole };
   }
 
-  const { error: erreurRole } = await supabaseClient.from('parents').insert({ id: userId });
-  if (erreurRole) return { error: erreurRole };
+  // data.session est déjà rempli si le projet Supabase n'exige pas (ou plus)
+  // la confirmation d'e-mail — dans ce cas, aucun e-mail de vérification
+  // n'a été envoyé et l'appelant peut rediriger directement vers l'espace.
+  return { data, emailEnvoye: !data.session };
+}
 
+// --- VÉRIFICATION D'E-MAIL (lien OU code à 6 chiffres) --------------------
+//
+// Un seul e-mail de confirmation est envoyé par Supabase Auth à l'inscription
+// (signUp ci-dessus), contenant à la fois un lien de confirmation et un code
+// à 6 chiffres — voir le modèle d'e-mail "Confirm signup" à personnaliser
+// une fois dans le tableau de bord Supabase (voir LISEZ-MOI de cette
+// livraison). Le lien, une fois cliqué, ramène sur pages/verifier-email.html
+// avec une session déjà valide (voir cette page) ; le code, lui, se vérifie
+// avec verifierCodeEmail() ci-dessous.
+
+async function verifierCodeEmail(email, code) {
+  const { data, error } = await supabaseClient.auth.verifyOtp({ email, token: code.trim(), type: 'signup' });
+  if (error) return { error: { message: "Code incorrect ou expiré. Vérifiez le code reçu par e-mail, ou demandez-en un nouveau." } };
   return { data };
+}
+
+async function renvoyerEmailVerification(email) {
+  const { error } = await supabaseClient.auth.resend({
+    type: 'signup', email,
+    options: { emailRedirectTo: urlAbsolueVerifierEmail() }
+  });
+  if (error) return { error: { message: "Impossible de renvoyer l'e-mail pour le moment. Réessayez dans quelques instants." } };
+  return { ok: true };
 }
 
 // --- CONNEXION (élève, parent ou enseignant) ------------------------------
@@ -135,7 +198,16 @@ async function seConnecter(identifiantOuEmail, motDePasse) {
   if (!email) return { error: { message: "Identifiant ou e-mail introuvable." } };
 
   const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: motDePasse });
-  if (error) return { error: { message: "Identifiant/e-mail ou mot de passe incorrect." } };
+  if (error) {
+    // Supabase Auth refuse la connexion tant que l'e-mail n'est pas confirmé
+    // (voir pages/verifier-email.html) — message dédié avec le nécessaire
+    // pour y retourner, plutôt que le message générique "incorrect".
+    const nonConfirme = error.code === 'email_not_confirmed' || /email.*not.*confirmed/i.test(error.message || '');
+    if (nonConfirme) {
+      return { error: { message: "Votre adresse e-mail n'est pas encore vérifiée.", nonConfirme: true, email } };
+    }
+    return { error: { message: "Identifiant/e-mail ou mot de passe incorrect." } };
+  }
 
   const profil = await chargerProfil(data.user.id);
   if (!profil) return { error: { message: "Profil introuvable pour ce compte." } };
@@ -245,59 +317,12 @@ function memoriserDernierePageVisitee() {
   } catch (_e) { /* stockage indisponible -> tant pis, comportement par défaut conservé */ }
 }
 
-// Détermine si un compte doit passer par "compléter mon profil" avant de
-// continuer — sert à rattraper les comptes créés avant l'ajout de la
-// localisation (Département/Commune/Arrondissement), et pour l'enseignant,
-// de l'École/Circonscription Scolaire/Zone Pédagogique/Classe.
-async function profilEstIncomplet(profil) {
-  if (!ROLES_AVEC_LOCALISATION_OBLIGATOIRE.includes(profil.role)) return false;
-  // Sexe ajouté le 4 septembre 2026 : rattrape aussi les comptes créés avant
-  // l'ajout de ce champ, avec le même mécanisme que la localisation — voir
-  // "compléter mon profil" (pages/completer-profil.html).
-  if (!profil.sexe) return true;
-  if (!profil.departement) return true;
-
-  if (profil.role === 'parent') {
-    return !profil.commune || !profil.arrondissement;
-  }
-
-  if (profil.role === 'enseignant') {
-    if (!profil.commune || !profil.arrondissement) return true;
-    const { data: ens } = await supabaseClient.from('enseignants')
-      .select('ecole, circonscription_scolaire, zone_pedagogique, classes_assignees').eq('id', profil.id).single();
-    if (!ens || !ens.ecole || !ens.circonscription_scolaire || !ens.zone_pedagogique) return true;
-    if ((ens.classes_assignees || []).length === 0) {
-      const { count } = await supabaseClient.from('demandes_classe_enseignant')
-        .select('id', { count: 'exact', head: true }).eq('enseignant_id', profil.id);
-      if (!count) return true;
-    }
-    return false;
-  }
-
-  // autorite_pedagogique : dépend de la fonction (voir FONCTIONS_AUTORITE_PEDAGOGIQUE).
-  const { data: autorite } = await supabaseClient.from('autorites_pedagogiques').select('*').eq('id', profil.id).single();
-  if (!autorite) return true;
-  const champs = FONCTIONS_AUTORITE_PEDAGOGIQUE[autorite.fonction];
-  if (!champs) return false;
-  if (champs.commune && !profil.commune) return true;
-  if (champs.arrondissement && !profil.arrondissement) return true;
-  if (champs.circonscriptionScolaire && !autorite.circonscription_scolaire) return true;
-  if (champs.zonePedagogique && !autorite.zone_pedagogique) return true;
-  if (champs.ecole && !autorite.ecole) return true;
-  return false;
-}
-
-// Redirige vers la page "compléter mon profil" si nécessaire ; renvoie
-// true si une redirection a eu lieu (l'appelant doit alors s'arrêter là).
-async function redirigerSiProfilIncomplet(profil) {
-  if (window.location.pathname.endsWith('completer-profil.html')) return false; // évite la boucle infinie
-  if (await profilEstIncomplet(profil)) {
-    const retour = encodeURIComponent(window.location.pathname + window.location.search);
-    window.location.href = `${urlCompleterProfil()}?retour=${retour}`;
-    return true;
-  }
-  return false;
-}
+// Depuis le 12 septembre 2026 : plus de blocage forcé vers "compléter mon
+// profil" — sexe, localisation et (pour l'enseignant) École/Circonscription/
+// Zone Pédagogique sont optionnels et se renseignent quand l'utilisateur le
+// souhaite, depuis "Mon profil" (pages/completer-profil.html, voir
+// js/pages/completer-profil.js — devenue une page volontaire, plus une
+// page-gate). requireRole() ne redirige donc plus jamais vers cette page.
 
 // À appeler en haut de chaque page réservée à un rôle :
 //   const profil = await requireRole('parent');
@@ -309,7 +334,6 @@ async function requireRole(roleAttendu) {
     window.location.href = urlTableauDeBord(profil.role);
     return null;
   }
-  if (await redirigerSiProfilIncomplet(profil)) return null;
   // Thème rose pour les élèves filles (session du 4 septembre 2026, demande
   // explicite : "je veux que si l'enfant est une fille que le bleu soit
   // remplacé par une couleur rose"). Posé ici, au point d'entrée unique de
