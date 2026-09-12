@@ -32,7 +32,7 @@ async function init() {
     supabaseClient.from('champs_formation').select('id, nom, code, actif').eq('actif', true).order('nom'),
     supabaseClient.from('noeuds_parcours').select('id, classe_id, champ_formation_id, parent_id, type_noeud, titre'),
     supabaseClient.from('sa').select('id, noeud_id, titre, numero'),
-    supabaseClient.from('seances').select('id, sa_id, titre, statut, discipline, titre_contenu, ordre, modifie_le').order('modifie_le', { ascending: false }),
+    supabaseClient.from('seances').select('id, sa_id, titre, statut, discipline, titre_contenu, ordre, modifie_le, verrouillee_lecture_seule').order('modifie_le', { ascending: false }),
     // Sert à repérer, dans la liste, les séances déjà remplies et les
     // paliers qu'elles couvrent déjà — sans ouvrir chaque séance une à une.
     supabaseClient.from('blocs_seance').select('id, seance_id, type_bloc, palier')
@@ -353,20 +353,27 @@ function ligneSeanceHtmlGS(s) {
   // le 4 septembre 2026, rendait indiscernables deux séances d'une même
   // discipline dans cette liste).
   const libelle = `<span>${libelleTitreSeanceGS(s)}</span> ${pastilleDisciplineGS(s.discipline)}`;
+  // Mode lecture seule (tâche #173, 12 septembre 2026) : pastille discrète
+  // pour repérer d'un coup d'œil, dans le listing, les séances verrouillées
+  // — le verrou lui-même se pose/lève depuis l'éditeur (protection réelle
+  // côté base de données, voir la migration ajoute_verrouillage_lecture_seule_seances).
+  const pastilleVerrou = s.verrouillee_lecture_seule
+    ? `<span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;background:#FEF3C7;color:#92400E" title="Verrouillée en lecture seule — déverrouillez-la depuis l'éditeur pour la modifier">🔒 Lecture seule</span>`
+    : '';
 
   return `
     <div class="bloc-ligne-seance-admin">
       <div class="ligne ligne-seance-admin">
         <div class="details-seance-admin">
-          <span class="titre-ligne" style="flex-wrap:wrap">${s.classe ? `<span class="badge-classe-admin">${echapperGS(s.classe.nom)}</span> ` : ''}${libelle} ${pastilleContenuGS(s)}</span>
+          <span class="titre-ligne" style="flex-wrap:wrap">${s.classe ? `<span class="badge-classe-admin">${echapperGS(s.classe.nom)}</span> ` : ''}${libelle} ${pastilleContenuGS(s)} ${pastilleVerrou}</span>
           ${chemin ? `<span class="chemin-ligne-seance-partagee">${chemin}</span>` : ''}
           <span class="meta-seance-admin">${meta}</span>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           ${s.nbBlocs ? `<button type="button" class="btn btn-discret" data-apercu-contenu-gs="${s.id}">👁️ Voir le contenu</button>` : ''}
           <span class="statut-pill statut-${s.statut}">${LIBELLES_STATUT_GS[s.statut] || s.statut}</span>
-          ${s.statut === 'brouillon' ? `<button type="button" class="btn btn-discret" data-publier-seance="${s.id}">📤 Publier</button>` : ''}
-          ${s.statut === 'publie' ? `<button type="button" class="btn btn-discret" data-archiver-seance="${s.id}">🗄️ Archiver</button>` : ''}
+          ${(s.statut === 'brouillon' && !s.verrouillee_lecture_seule) ? `<button type="button" class="btn btn-discret" data-publier-seance="${s.id}">📤 Publier</button>` : ''}
+          ${(s.statut === 'publie' && !s.verrouillee_lecture_seule) ? `<button type="button" class="btn btn-discret" data-archiver-seance="${s.id}">🗄️ Archiver</button>` : ''}
           <a href="../editeur-seance.html?id=${s.id}" class="btn btn-primaire">✏️ Éditer</a>
         </div>
       </div>

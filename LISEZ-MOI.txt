@@ -1,67 +1,85 @@
-KEKELI — Portage fidèle de « L'Atelier du Français » à son nouveau fichier de référence
-(12 septembre 2026)
-================================================================
+KEKELI — Livraison du 12 septembre 2026
+Treizième requête, quatrième lot : mode lecture seule pour l'administrateur sur certaines séances (tâche #173)
+================================================================================
 
-Ce zip est une LIVRAISON DIFFÉRENTIELLE : il ne contient que les fichiers
-créés ou modifiés depuis la dernière livraison (kekeli-audit-mobile-lot1-
-2026-09-12.zip). Aucun fichier inchangé n'est inclus — pour installer,
-décompressez ce zip par-dessus votre copie actuelle du site, en conservant
-l'arborescence des dossiers. Aucune migration de base de données cette
-fois-ci.
+CE QUI CHANGE
+--------------
 
-Ce que j'ai fait
------------------
-Vous m'avez fourni un nouveau fichier de référence pour "L'Atelier du
-Français" (un mini-site HTML/JS autonome et complet), avec la demande de le
-porter fidèlement — exactement le même principe déjà appliqué au jeu
-"Cadran opératoire" il y a quelques jours, quand vous aviez signalé que je
-m'étais trop éloigné du fichier fourni. J'ai donc repris cette même leçon :
-plutôt que d'adapter ce nouveau fichier à l'ancien moteur de jeu partagé du
-site (qui piochait ses questions dans vos vraies séances), j'ai reproduit le
-fichier de référence presque à l'identique, comme un jeu autonome avec sa
-propre banque de questions intégrée.
+Jusqu'ici, une fois qu'une séance était publiée, rien n'empêchait un
+administrateur de continuer à la modifier (titre, statut, blocs de contenu,
+exercices...) — y compris par mégarde. Ce lot ajoute un mode « lecture
+seule » que vous pouvez activer vous-même, séance par séance, une fois que
+vous jugez son contenu finalisé.
 
-1) Le jeu est maintenant un port quasi-verbatim du fichier fourni.
-   La page "L'Atelier du Français" (accessible depuis "Jeux éducatifs")
-   reproduit désormais fidèlement : les 6 catégories (Tout / Conjugaison /
-   Grammaire / Orthographe / Vocabulaire / Expression), les 3 niveaux de
-   difficulté (Débutant / Intermédiaire / Avancé), les 30 questions exactes
-   du fichier fourni (QCM et réponses à taper au clavier selon la
-   question), le décompte avant chaque question, le chronomètre par
-   question, les sons de réussite/erreur, et le bilan de fin de partie
-   (mascotte dansante et confettis à 100% de réussite, sinon un tableau
-   récapitulatif des erreurs avec la bonne réponse). Comme pour le Cadran
-   opératoire, ce jeu ne pioche donc plus dans le contenu réel de vos
-   séances publiées — il fonctionne de façon autonome, exactement comme le
-   fichier que vous m'avez transmis.
+Vous m'avez indiqué vouloir un réglage MANUEL (plutôt qu'automatique selon
+le statut ou le rôle) : c'est exactement ce qui a été construit.
 
-2) Toujours affiché sur un seul écran, sans défilement.
-   Comme pour le Cadran opératoire, la page garde l'en-tête fixe habituel du
-   site et occupe le reste de l'écran sans jamais nécessiter de défilement,
-   quelle que soit la taille de l'écran.
+Concrètement :
 
-Vérifications effectuées
--------------------------
-- `node --check` sur le fichier JavaScript réécrit — aucune erreur.
-- Équilibre des accolades vérifié sur la nouvelle feuille de style.
-- Relecture ligne à ligne du fichier de référence pour confirmer que chaque
-  question, chaque catégorie, chaque comportement (décompte, minuteur,
-  validation, bilan) est bien reproduit.
-- Test réel dans un navigateur (comme pour l'audit mobile précédent) :
-  écran d'accueil, lancement d'une partie, réponse à une question QCM
-  (bonne réponse mise en évidence en vert, score mis à jour), confirmation
-  qu'aucun défilement n'apparaît sur un écran de téléphone (390px de large).
-- Recherche exhaustive de toute référence résiduelle à l'ancien moteur de
-  jeu commun pour cette page précise (aucune trouvée) ; confirmation que les
-  2 autres jeux (Cadran opératoire, Défi ES & EST) n'ont pas été touchés.
+- Dans l'éditeur d'une séance, un nouveau bouton « 🔒 Verrouiller en lecture
+  seule » apparaît à côté du bouton « Aperçu élève ». Un clic dessus demande
+  confirmation, puis verrouille la séance.
+- Une fois verrouillée : un bandeau orange apparaît en haut de l'éditeur
+  (« 🔒 Cette séance est verrouillée en lecture seule... »), tous les champs
+  et boutons d'édition (titre, discipline, statut, blocs, ajout de contenu,
+  glisser-déposer...) sont grisés et désactivés, et un bouton
+  « 🔓 Déverrouiller » permet de repasser en mode édition normal à tout
+  moment.
+- Dans la liste des séances (back-office admin), une pastille discrète
+  « 🔒 Lecture seule » apparaît sur les séances verrouillées, et les
+  boutons rapides « Publier »/« Archiver » n'apparaissent plus dessus (pour
+  éviter une action qui échouerait de toute façon).
 
-La suite
+IMPORTANT — protection réelle côté serveur
+-------------------------------------------
+
+Comme pour tous les contrôles sensibles de ce site, le verrouillage n'est
+PAS qu'une apparence côté écran : la base de données elle-même refuse
+désormais toute tentative de modification d'une séance verrouillée (titre,
+statut, discipline...) ou de ses blocs de contenu (ajout, modification,
+suppression), même si quelqu'un contournait l'interface. Seul le
+déverrouillage lui-même reste toujours possible, pour ne jamais rester
+bloqué. Ce comportement a été testé et vérifié directement en base avant
+cette livraison (verrouillage, tentative de modification bloquée, tentative
+d'ajout de bloc bloquée, déverrouillage, modification à nouveau possible).
+
+FICHIERS MODIFIÉS DANS CE LOT
+-------------------------------
+
+- js/pages/editeur-seance.js       (bandeau, boutons verrou/déverrou,
+                                     désactivation des champs pendant le
+                                     verrouillage)
+- js/pages/admin-gestion-seances.js (pastille "Lecture seule" dans la liste,
+                                      masquage des boutons Publier/Archiver
+                                      sur une séance verrouillée)
+
+Une migration de base de données a également été appliquée directement
+(comme toujours sur ce projet, sans étape de déploiement séparée) : elle
+ajoute la colonne verrouillee_lecture_seule sur les séances et les
+protections décrites ci-dessus. Elle est déjà active, rien à faire de votre
+côté.
+
+LA SUITE
 --------
-Je continue sur les points suivants de votre message du 12 septembre 2026 :
-refonte de la page d'accueil avec l'image héros que je vais générer pour
-votre validation, poursuite de l'audit mobile sur le reste du site, mode
-lecture pour l'admin sur certaines séances, éditeur de devoirs, compétences
-par séance, ordre hiérarchique du mode lecture, accès élargi aux comptes
-connectés, profil modifiable, nettoyage des menus, vérification d'email,
-analyse finale, puis — seulement après votre accord explicite en fin de
-parcours — la suppression des comptes de test.
+
+Il reste, dans votre message groupé du 12 septembre 2026, les points
+suivants à traiter :
+
+- Audit et correctifs mobile (priorité haute, travail en cours par lots)
+- Cartes matière : afficher le nombre de séances plutôt que "unité"
+  (lié à la refonte de la page d'accueil)
+- Refonte de la page d'accueil (nécessite une image d'accueil générée par
+  IA, que je vous soumettrai avant intégration définitive)
+- Réparer l'ajout de blocs dans l'éditeur de devoir
+- Calcul des compétences par séance liée
+- Ordre hiérarchique strict en mode lecture + liste complète
+- Accès en lecture élargi à tous les comptes connectés + inscription d'un
+  enfant
+- Profil cliquable pour modifier ses informations personnelles / sa photo
+- Nettoyer les menus des rôles non-élève + déplacer la déconnexion
+- Vérification email à l'inscription (code ET lien, sans Google)
+- Analyse approfondie finale et polish général
+- Suppression finale de tous les comptes sauf le super admin — UNIQUEMENT
+  après votre accord explicite, en tout dernier lieu
+
+Comme convenu, je continue à avancer lot par lot sur cette liste.

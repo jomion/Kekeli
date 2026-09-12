@@ -15,6 +15,14 @@ let COMPETENCES_DISPONIBLES_EDITEUR = [];
 let profilAdmin = null;
 let peutEditer = false;
 let peutValider = false;
+// Mode lecture seule (treizième requête, 12 septembre 2026, tâche #173) :
+// réglage manuel par séance (seance.verrouillee_lecture_seule), choisi par
+// le porteur du projet parmi 3 options proposées. Protégé côté base de
+// données (triggers sur seances/blocs_seance, voir la migration
+// ajoute_verrouillage_lecture_seule_seances) — ce drapeau côté client ne
+// sert qu'à adapter l'affichage (fieldset désactivés, bannière), jamais de
+// contrôle d'accès réel.
+let verrouilleLectureSeule = false;
 let minuteriesSauvegarde = {}; // debounce par bloc
 
 // Sections dépliées (persiste tant que la page reste ouverte, pour ne pas
@@ -78,6 +86,7 @@ async function chargerSeanceEtContexte() {
   const { data: s, error } = await supabaseClient.from('seances').select('*').eq('id', idSeance).single();
   if (error || !s) return;
   seance = s;
+  verrouilleLectureSeule = !!seance.verrouillee_lecture_seule;
 
   const { data: sa } = await supabaseClient.from('sa').select('*').eq('id', s.sa_id).single();
   const { data: noeud } = await supabaseClient.from('noeuds_parcours').select('*').eq('id', sa.noeud_id).single();
@@ -176,6 +185,13 @@ function rendre() {
   const pillsStatut = { brouillon: 'Brouillon', publie: 'Publié', archive: 'Archivé' };
 
   contenu.innerHTML = `
+    ${verrouilleLectureSeule ? `
+    <div class="bandeau-verrouillage-seance" style="display:flex;align-items:center;gap:10px;justify-content:space-between;background:#fff7e6;border:1px solid #f0c36d;border-radius:8px;padding:8px 14px;margin-bottom:10px">
+      <span>🔒 Cette séance est <strong>verrouillée en lecture seule</strong> — déverrouillez-la pour la modifier.</span>
+      <button class="btn btn-discret" id="btnBasculerVerrouLecture">🔓 Déverrouiller</button>
+    </div>` : ''}
+
+    <fieldset id="fsEnteteSeance" ${verrouilleLectureSeule ? 'disabled' : ''} style="border:0;padding:0;margin:0">
     <div class="barre-editeur">
       <div>
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texte-gris);letter-spacing:.04em;margin-bottom:2px">Titre affiché (élèves, parents, listes...)</div>
@@ -204,10 +220,16 @@ function rendre() {
         <button class="btn btn-discret" onclick="ouvrirGenerationResume()">🗒️ Résumé IA</button>
         <button class="btn btn-discret" id="btnGenererSeanceIA" onclick="ouvrirGenerationSeanceIA()">🧠 Générer avec l'IA</button>
         <button class="btn btn-discret" id="btnPasserActivites" onclick="ouvrirPasserAuxActivites()" title="Génère automatiquement des blocs Activité/Quiz/Évaluation à partir du contenu déjà rédigé">🚀 Passer aux activités</button>
-        <button class="btn btn-accent" onclick="ouvrirApercu()">👁️ Aperçu élève</button>
       </div>
     </div>
+    </fieldset>
 
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin:4px 0 8px">
+      ${!verrouilleLectureSeule ? `<button class="btn btn-discret" id="btnBasculerVerrouLecture">🔒 Verrouiller en lecture seule</button>` : ''}
+      <button class="btn btn-accent" onclick="ouvrirApercu()">👁️ Aperçu élève</button>
+    </div>
+
+    <fieldset id="fsBlocsSeance" ${verrouilleLectureSeule ? 'disabled' : ''} style="border:0;padding:0;margin:0${verrouilleLectureSeule ? ';pointer-events:none;opacity:.65' : ''}">
     <div id="listeBlocs"></div>
 
     <div class="menu-ajout">
@@ -216,7 +238,11 @@ function rendre() {
         ${TYPES_BLOCS.map(t => `<button data-ajouter-type="${t.valeur}">${t.icone} ${t.label} <span style="color:var(--texte-gris);font-size:11px">— ${t.usage}</span></button>`).join('')}
       </div>
     </div>
+    </fieldset>
   `;
+
+  const btnBasculerVerrou = document.getElementById('btnBasculerVerrouLecture');
+  if (btnBasculerVerrou) btnBasculerVerrou.addEventListener('click', basculerVerrouLectureSeule);
 
   document.getElementById('selectStatut').addEventListener('change', gererChangementStatut);
   const btnValider = document.getElementById('btnValider');
@@ -330,7 +356,7 @@ function htmlBloc(b) {
   const verrouilleIA = !!(b.contenu && b.contenu.verrouilleIA);
 
   return `
-    <div class="bloc" draggable="true" data-bloc-id="${b.id}" style="border-left-color:${couleur};background:${teinteClaire(couleur)}">
+    <div class="bloc" draggable="${verrouilleLectureSeule ? 'false' : 'true'}" data-bloc-id="${b.id}" style="border-left-color:${couleur};background:${teinteClaire(couleur)}">
       <div class="bloc-entete">
         <span class="bloc-type" style="color:${couleur}">
           <span class="badge-type-bloc" style="background:${couleur};color:${texteContrastant(couleur)}" title="Type de bloc : ${echapper(info.label)}">${info.icone} ${echapper(info.label)}</span>
@@ -694,13 +720,15 @@ function attacherEcouteursProbleme(el, bloc) {
   const rafraichirApercus = (lignes, iEquationSeule) => {
     if (typeof iEquationSeule === 'number') {
       const apercu = corps.querySelector(`[data-apercu-grille-probleme="${iEquationSeule}"]`);
+      const apercuResultat = corps.querySelector(`[data-apercu-resultat-probleme="${iEquationSeule}"]`);
+      const analyse = problemeAnalyserEquation(lignes[iEquationSeule].equation);
+      const idPrefixe = `probleme-${bloc.id}-${iEquationSeule}`;
       if (apercu) {
-        const analyse = problemeAnalyserEquation(lignes[iEquationSeule].equation);
-        const idPrefixe = `probleme-${bloc.id}-${iEquationSeule}`;
         apercu.innerHTML = analyse
           ? problemeGenererGrilleHtml(analyse, { interactif: false, prefixeId: idPrefixe })
           : `<p class="operation-vide">Saisissez une équation avec deux nombres et un opérateur (ex : 15 * 24 =) pour générer la grille.</p>`;
       }
+      if (apercuResultat) apercuResultat.innerHTML = problemeResultatBoiteHtml(analyse, { prefixeId: idPrefixe });
     }
     if ((c().prepMode || 'auto') !== 'manuel') {
       const { donnees, inconnues } = problemeCalculerDonneesInconnues(lignes);
@@ -2140,6 +2168,7 @@ async function lancerPasserAuxActivites(typesChoisis, palier, nombre, instructio
 // --- AJOUT / DUPLICATION / SUPPRESSION DE BLOCS -----------------------------
 
 async function ajouterBloc(type, parentBlocId) {
+  if (verrouilleLectureSeule) return; // garde-fou : la vraie protection est côté base (trigger)
   document.getElementById('listeTypes').classList.remove('ouvert');
   if (parentBlocId && !typesAutorisesPourParent(parentBlocId).some(t => t.valeur === type)) {
     return alert("Ce type de bloc n'est pas autorisé à l'intérieur d'une section « Contenu » (réservée aux blocs de contenu pédagogique — pas de quiz, évaluation, activité, consigne ou item).");
@@ -2261,6 +2290,29 @@ async function gererChangementStatut(e) {
   if (error) { alert(error.message); e.target.value = seance.statut; return; }
   seance.statut = nouveauStatut;
   afficherSauvegarde();
+}
+
+// --- VERROUILLAGE EN LECTURE SEULE (tâche #173, 12 septembre 2026) --------
+// Réglage manuel par séance : l'update ne porte QUE sur cette colonne, pour
+// rester compatible avec le trigger côté base qui autorise le déverrouillage
+// même quand la séance est verrouillée, mais refuse tout changement combiné
+// à d'autres colonnes dans la même requête (voir la migration
+// ajoute_verrouillage_lecture_seule_seances).
+async function appliquerVerrouLectureSeule(nouvelEtat) {
+  const { error } = await supabaseClient.from('seances')
+    .update({ verrouillee_lecture_seule: nouvelEtat }).eq('id', seance.id);
+  if (error) return alert(error.message);
+  seance.verrouillee_lecture_seule = nouvelEtat;
+  verrouilleLectureSeule = nouvelEtat;
+  rendre();
+}
+
+function basculerVerrouLectureSeule() {
+  if (verrouilleLectureSeule) { appliquerVerrouLectureSeule(false); return; }
+  confirmerAction(
+    'Verrouiller cette séance en lecture seule ? Vous ne pourrez plus la modifier (ni ses blocs) tant que vous ne l\'aurez pas déverrouillée.',
+    () => appliquerVerrouLectureSeule(true)
+  );
 }
 
 // --- DUPLICATION DE SÉANCE ---------------------------------------------------
