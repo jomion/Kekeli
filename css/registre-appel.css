@@ -1,0 +1,219 @@
+/* ===========================================================================
+   Gestion administrative enseignant (12 septembre 2026) : registre d'appel,
+   bilan mensuel, planification mensuelle. Adapté des 3 prototypes fournis
+   (registre_ajour.html, Bilan_registre_garçon.html, plannificatio_export.html)
+   avec les variables de css/style-public.css (--text-dark, --text-gris,
+   --bleu-kekeli, --bordure — jamais --texte-fonce/--bleu-principal, réservées
+   à css/style.css, voir la note de 0septendecies sur la parité des feuilles
+   de style). ========================================================== */
+
+:root {
+  --ga-late-half-bg: #fef08a;
+  --ga-late-full-bg: #fed7aa;
+  --ga-day-odd-bg: #f8fafc;
+  --ga-slot-m-bg: rgba(239, 246, 255, 0.5);
+  --ga-slot-s-bg: rgba(241, 245, 249, 0.5);
+  --ga-active-bg: #fef9c3;
+  --ga-active-border: #eab308;
+  --ga-danger: #ef4444;
+  --ga-success: #16a34a;
+  --ga-warning: #f59e0b;
+  --ga-eval-bg: #fef3c7;
+  --ga-eval-text: #b45309;
+  --ga-conge-bg: #f1f5f9;
+  --ga-conge-text: #64748b;
+}
+
+.ga-carte {
+  background: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  border: 1px solid var(--bordure);
+  margin-bottom: 20px;
+}
+
+.ga-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.ga-top-bar h1, .ga-top-bar h2 { margin: 0; color: var(--bleu-kekeli); }
+
+.ga-onglets {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+  border-bottom: 2px solid var(--bordure);
+}
+.ga-onglet {
+  padding: 9px 18px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-gris);
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+}
+.ga-onglet.actif { color: var(--bleu-kekeli); border-bottom-color: var(--bleu-kekeli); }
+
+.ga-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ga-btn {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+.ga-btn-primary { background-color: var(--bleu-kekeli); color: white; }
+.ga-btn-notify { background-color: var(--ga-warning); color: #1c1300; }
+.ga-btn-excel { background-color: var(--ga-success); color: white; }
+.ga-btn-pdf { background-color: #dc2626; color: white; }
+.ga-btn-word { background-color: #2563eb; color: white; }
+.ga-btn-secondaire { background-color: #fff; color: var(--text-dark); border: 1px solid var(--bordure); }
+
+.ga-badge-active {
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: var(--ga-active-bg);
+  border: 1px solid var(--ga-active-border);
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.ga-entete-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+  padding: 14px;
+  background: var(--bleu-clair, #F4F7F9);
+  border-radius: 8px;
+}
+.ga-champ { display: flex; flex-direction: column; gap: 5px; }
+.ga-champ label { font-size: 0.72rem; font-weight: 700; color: var(--text-gris); text-transform: uppercase; }
+.ga-champ input, .ga-champ select {
+  padding: 7px 10px; border: 1px solid var(--bordure); border-radius: 6px; font-size: 0.9rem; background: white;
+}
+.ga-champ span.ga-valeur { font-weight: 600; font-size: 0.9rem; color: var(--bleu-kekeli); }
+
+.ga-table-scroll { overflow-x: auto; border: 1px solid var(--bordure); border-radius: 8px; max-height: 620px; }
+
+.ga-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.78rem;
+  text-align: center;
+  background: white;
+}
+.ga-table th, .ga-table td {
+  border-right: 1px solid var(--bordure);
+  border-bottom: 1px solid var(--bordure);
+  padding: 4px 3px;
+  white-space: nowrap;
+}
+.ga-table thead th { position: sticky; top: 0; background: #f8fafc; z-index: 10; }
+
+.ga-col-sticky-1 { position: sticky; left: 0; background: white; z-index: 5; width: 28px; }
+.ga-col-sticky-2 { position: sticky; left: 28px; background: white; z-index: 5; min-width: 145px; text-align: left; padding-left: 8px; font-weight: 600; }
+.ga-col-sticky-3 { position: sticky; left: 173px; background: white; z-index: 5; width: 32px; font-weight: 600; }
+.ga-table thead tr th.ga-col-sticky-1, .ga-table thead tr th.ga-col-sticky-2, .ga-table thead tr th.ga-col-sticky-3 { z-index: 15; background: #f8fafc; }
+
+.ga-jour-pair { background: #ffffff; }
+.ga-jour-impair { background: var(--ga-day-odd-bg); }
+.ga-slot-m { background-color: var(--ga-slot-m-bg); }
+.ga-slot-s { background-color: var(--ga-slot-s-bg); }
+.ga-jour-off { background: #e2e8f0 !important; opacity: 0.6; }
+
+.ga-btn-off {
+  font-size: 0.62rem; padding: 2px 4px; margin-top: 3px; border: 1px solid var(--bordure); border-radius: 4px;
+  background: #fff; cursor: pointer; display: block; width: 100%;
+}
+
+.ga-cellule-active { outline: 2px solid var(--ga-active-border); outline-offset: -2px; cursor: pointer; }
+
+.ga-case-att { cursor: pointer; width: 15px; height: 15px; accent-color: var(--ga-danger); vertical-align: middle; }
+.ga-case-att:disabled { cursor: not-allowed; opacity: 0.4; }
+
+.ga-bg-retard-demi { background-color: var(--ga-late-half-bg) !important; }
+.ga-symbole { font-weight: bold; font-size: 0.9rem; margin-left: 2px; vertical-align: middle; }
+
+.ga-manuel-tag { font-size: 0.62rem; color: var(--text-gris); font-weight: 500; margin-left: 3px; }
+
+.ga-stats-table { width: 100%; margin-top: 14px; border-collapse: collapse; background: #fff; }
+.ga-stats-table th, .ga-stats-table td { padding: 8px 12px; border: 1px solid var(--bordure); text-align: center; }
+.ga-stats-table thead th { background: var(--bleu-clair, #F4F7F9); color: var(--bleu-kekeli); font-weight: bold; }
+.ga-stats-table tbody tr:nth-child(even) { background: #f8fafc; }
+
+.ga-recap-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; text-align: center; background: white; }
+.ga-recap-table th, .ga-recap-table td { border: 1px solid #334155; padding: 4px 2px; vertical-align: middle; }
+.ga-recap-table thead th { background: #f1f5f9; font-weight: 700; font-size: 0.7rem; }
+.ga-recap-sub { background: #f8fafc; font-weight: 700; font-size: 0.66rem; }
+.ga-th-g { color: #1d4ed8; }
+.ga-th-f { color: #be185d; }
+.ga-th-t { color: var(--text-dark); background: #e2e8f0; }
+.ga-recap-groupe { background: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+.ga-recap-mois { font-weight: 700; background: #f1f5f9; }
+.ga-recap-total { font-weight: 800; background: #e2e8f0; font-size: 0.78rem; }
+.ga-recap-moyenne { font-weight: 800; background: var(--bleu-clair, #F4F7F9); color: var(--bleu-kekeli); font-size: 0.82rem; }
+
+/* --- Planification --- */
+.ga-plan-champ-cell { background: #f8fafc !important; font-weight: 700; color: var(--bleu-kekeli); text-transform: uppercase; font-size: 0.68rem; }
+.ga-plan-discipline-cell { text-align: left; font-weight: 600; padding-left: 6px; color: var(--text-dark); cursor: default; }
+.ga-plan-seance-item {
+  background: var(--bleu-clair, #F4F7F9); border-left: 2.5px solid var(--bleu-kekeli); margin: 1px 0; padding: 3px 5px;
+  text-align: left; font-size: 0.68rem; border-radius: 3px; color: var(--bleu-kekeli); font-weight: 500; line-height: 1.2; cursor: pointer;
+}
+.ga-plan-seance-item:hover { filter: brightness(0.97); }
+.ga-plan-texte-item { text-align: left; font-size: 0.68rem; color: var(--text-dark); padding: 2px; cursor: pointer; white-space: normal; }
+.ga-plan-cell-vide { cursor: pointer; min-height: 30px; }
+.ga-plan-cell-vide:hover { background: var(--bleu-clair, #F4F7F9); }
+.ga-plan-eval-cell { background: var(--ga-eval-bg) !important; color: var(--ga-eval-text); font-weight: 700; font-size: 0.65rem; }
+.ga-plan-conge-cell { background: var(--ga-conge-bg) !important; color: var(--ga-conge-text); font-weight: 700; font-size: 0.65rem; }
+.ga-plan-info-jours { font-size: 0.6rem; color: var(--text-gris); display: block; font-weight: normal; }
+.ga-col-s5 { display: table-cell; }
+.ga-hide-s5 .ga-col-s5 { display: none !important; }
+
+.ga-dropdown { position: relative; width: 190px; }
+.ga-dropdown-btn { padding: 6px 9px; border: 1px solid var(--bordure); border-radius: 6px; background: white; font-size: 0.8rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+.ga-dropdown-menu {
+  display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--bordure);
+  border-radius: 6px; max-height: 190px; overflow-y: auto; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.12); padding: 4px 0;
+}
+.ga-dropdown-menu.ouvert { display: block; }
+.ga-dropdown-item { padding: 5px 9px; font-size: 0.78rem; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+
+.ga-doc-titre { text-align: center; font-size: 1.25rem; font-weight: 800; letter-spacing: .5px; margin: 0 0 10px; color: var(--bleu-kekeli); text-transform: uppercase; }
+.ga-footer-ligne { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 16px; font-size: 0.8rem; font-weight: 700; padding: 0 8px; }
+.ga-footer-col { text-align: center; flex: 1; }
+.ga-signature-espace { height: 30px; }
+
+@media print {
+  body { background: white; margin: 0; }
+  .ga-carte { box-shadow: none; border: none; padding: 0; }
+  .ga-onglets, .ga-actions, .ga-btn-off, header, footer, .entete-kekeli { display: none !important; }
+  .ga-table-scroll { max-height: none; overflow: visible; }
+  @page { size: landscape; margin: 8mm; }
+}
+
+@media (max-width: 640px) {
+  .ga-entete-grid { grid-template-columns: 1fr 1fr; }
+  .ga-top-bar { flex-direction: column; align-items: stretch; }
+}

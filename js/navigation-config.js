@@ -26,7 +26,12 @@
 const CATEGORIES_NAV = {
   pedagogie: { label: 'Pédagogie', icone: '📚' },
   comptes: { label: 'Comptes', icone: '👥' },
-  finances: { label: 'Finances', icone: '💳' }
+  finances: { label: 'Finances', icone: '💳' },
+  // Espace enseignant, 12 septembre 2026 (tâche "gestion administrative") :
+  // registre d'appel + bilan, planification mensuelle — regroupés ici pour
+  // accueillir les prochains outils du même esprit (évaluation, fiche
+  // pédagogique) sans reproduire le menu à plat.
+  gestionAdministrative: { label: 'Gestion administrative', icone: '🗂️' }
 };
 
 const LIENS_PAR_ROLE = {
@@ -52,6 +57,8 @@ const LIENS_PAR_ROLE = {
     { id: 'tableau-de-bord', href: 'tableau-de-bord.html', icone: '🏠', label: 'Tableau de bord', essentiel: true },
     { id: 'seances', href: 'pages/seances.html', racine: true, icone: '📌', label: 'Séances' },
     { id: 'devoirs-notes', href: 'devoirs-notes.html', icone: '📊', label: 'Devoirs & notes' },
+    { id: 'registre-appel', href: 'registre-appel.html', icone: '📋', label: "Registre d'appel", categorie: 'gestionAdministrative' },
+    { id: 'planification', href: 'planification.html', icone: '🗓️', label: 'Planification mensuelle', categorie: 'gestionAdministrative' },
     { id: 'messagerie', href: 'messagerie.html', icone: '💬', label: 'Messagerie' },
     { id: 'messagerie-admin', href: 'messagerie-admin.html', icone: '📨', label: "Contacter l'administration" }
   ],
