@@ -62,6 +62,41 @@ let messagesApresEssai = {};
 // chargement de séance et après chaque soumission réelle.
 let progressionPalier = {};
 
+// 18 septembre 2026 (3e lot) : "si l'enfant... recharge la page ou quitte,
+// sa progression dans l'activité doit être conservée" — progressionPalier
+// (et formulairesReouverts, dont dépend l'affichage d'une reprise en cours)
+// sont désormais sauvegardés dans localStorage à chaque étape validée et
+// restaurés au chargement de la séance. C'est un simple confort côté
+// navigateur (même mécanisme que le thème/la bannière fermée ailleurs sur
+// le site) : rien n'est jamais envoyé au serveur ni compté comme un essai
+// avant le clic sur "Valider tout le palier"/"Valider mes réponses" — voir
+// soumettreExercice, seule vraie source de vérité. Si le stockage est
+// indisponible (navigation privée, quota dépassé...), on continue sans
+// persistance, exactement comme avant ce lot.
+function cleProgressionPaliersStockee(eleveId, seanceId) {
+  return `kekeli_progression_seance_${eleveId}_${seanceId}`;
+}
+function chargerProgressionPaliersStockee(eleveId, seanceId) {
+  try {
+    const brut = localStorage.getItem(cleProgressionPaliersStockee(eleveId, seanceId));
+    if (!brut) return { progression: {}, reouverts: [] };
+    const parsed = JSON.parse(brut);
+    return {
+      progression: (parsed && typeof parsed.progression === 'object' && parsed.progression) ? parsed.progression : {},
+      reouverts: Array.isArray(parsed?.reouverts) ? parsed.reouverts : [],
+    };
+  } catch (_e) { return { progression: {}, reouverts: [] }; }
+}
+function sauvegarderProgressionPaliersStockee() {
+  if (!profilEleveSeance || !seanceCourante) return;
+  try {
+    localStorage.setItem(
+      cleProgressionPaliersStockee(profilEleveSeance.id, seanceCourante.id),
+      JSON.stringify({ progression: progressionPalier, reouverts: Array.from(formulairesReouverts) }),
+    );
+  } catch (_e) { /* stockage indisponible : pas bloquant, cf. commentaire ci-dessus */ }
+}
+
 // 11 septembre 2026 : 'exercice' retiré de la liste des blocs "travail" —
 // c'est désormais un bloc de texte libre (lecture), voir rendreBlocLecture
 // et le nouveau bloc 'correction' (masqué, révélé par un bouton) juste après.
@@ -170,11 +205,16 @@ async function charger() {
   const idsActivites = blocsCourants.filter(b => b.type_bloc === 'activite' || b.type_bloc === 'probleme').map(b => b.id);
   reponsesExistantes = {};
   rendusActivitesExistants = {};
-  formulairesReouverts.clear();
   activitesDeverrouilleesManuel = false;
   correctionsConsultees = {};
   messagesApresEssai = {};
-  progressionPalier = {};
+  // Restauration de la progression "au fil de l'eau" (voir commentaire sur
+  // progressionPalier plus haut) — au lieu de repartir de zéro à chaque
+  // chargement de séance.
+  const { progression: progressionRestauree, reouverts: reouvertsRestaures } =
+    chargerProgressionPaliersStockee(profilEleveSeance.id, seanceId);
+  progressionPalier = progressionRestauree;
+  formulairesReouverts = new Set(reouvertsRestaures);
 
   if (idsExercices.length) {
     const { data: reponses } = await supabaseClient
@@ -285,6 +325,21 @@ function rendre() {
   // colonne exercices ni la section Paliers — juste ce bouton, sous la
   // lecture. Une fois cliqué, activitesDeverrouilleesManuel reste vrai pour
   // le reste de la visite (jusqu'au prochain chargement de la page).
+  //
+  // 18 septembre 2026 (3e lot) : correctif d'un bug signalé — "le texte
+  // aucun activité s'affiche alors que la séance a une activité". blocsTravail
+  // ne contient QUE les blocs "généraux" (hors palier, voir blocsGeneraux
+  // plus haut) : une séance qui n'a QUE des activités de palier (le cas
+  // signalé) a bien blocsTravail.length === 0, mais aDesPaliers === true —
+  // le message "Aucun exercice ni activité..." ci-dessous ne doit donc
+  // jamais s'afficher dans ce cas, puisque les vraies activités sont déjà
+  // rendues séparément par html_sectionPaliers (voir plus bas). Le
+  // conteneur `colonne-exercice-seance` lui-même est maintenant masqué dans
+  // ce cas (voir la condition sur `aDesPaliers` ligne ~308), ce qui rend
+  // htmlColonneExercice inutilisé pour ce cas précis une fois
+  // activitesVisibles=true — il ne reste utile que pour le bouton "Passer
+  // aux activités" (avant clic) et pour le cas légitime d'une séance sans
+  // palier ET sans bloc général (vraiment rien à faire).
   const htmlColonneExercice = !activitesVisibles
     ? `<div class="bloc-lecture" style="border-left-color:#94A3B8;text-align:center">
         <p style="color:var(--text-gris);margin:0 0 10px">Les exercices et activités de cette séance sont prêts.</p>
@@ -305,7 +360,7 @@ function rendre() {
         ${blocsLecture.length ? blocsLecture.map(b => rendreBlocLecture(b)).join('') : '<p style="color:var(--text-gris)">Aucun support de cours pour cette séance.</p>'}
         ${boutonMarquerTermine}
       </div>
-      ${(blocsTravail.length === 0 && !activitesVisibles && aDesPaliers) ? '' : `<div class="colonne-exercice-seance">${htmlColonneExercice}</div>`}
+      ${(blocsTravail.length === 0 && aDesPaliers) ? '' : `<div class="colonne-exercice-seance">${htmlColonneExercice}</div>`}
     </div>
 
     ${(!activitesVisibles && blocsTravail.length === 0 && aDesPaliers) ? `<div style="margin-top:24px">${htmlColonneExercice}</div>` : ''}
@@ -331,6 +386,46 @@ function rendre() {
   });
 }
 
+// Estimation "en direct" du nombre de tâches/pourcentage d'un palier PAS
+// ENCORE réussi — demande du 18 septembre 2026 (3e lot) : "calculer le
+// pourcentage au fur et à mesure que l'enfant évolue", plutôt que d'attendre
+// la soumission complète d'un bloc pour voir bouger le compteur. On ne
+// touche qu'aux blocs jamais soumis (reponsesExistantes vide) actuellement
+// en cours de réponse progressive (progressionPalier) : le calcul serveur
+// (etat_paliers_seance_v2) compte alors ce bloc comme "1 tâche à faire, 0
+// réussie" tant qu'aucun essai n'existe (placeholder — voir
+// bloc_etat_taches côté base) ; on remplace ce placeholder par le vrai
+// décompte question par question déjà connu côté client (etat.resultats,
+// rempli au fil des appels à l'action 'valider_tache'). Reste purement
+// indicatif côté client : etatPaliersSeance (source serveur) n'est jamais
+// modifié, seul l'AFFICHAGE en tient compte tant que le palier n'est pas
+// soumis. Les blocs en reprise de tâches ratées (etat.sousListe) sont
+// volontairement exclus : un essai existe déjà pour eux côté serveur (pas
+// de placeholder à remplacer), et répartir précisément l'ajustement
+// demanderait un détail par bloc que le serveur ne renvoie pas ici.
+function calculerEtatPalierEnDirect(p, blocs) {
+  let total = p.nb_taches_total;
+  let reussies = p.nb_taches_reussies;
+  let enDirect = false;
+  blocs.forEach(b => {
+    const etat = progressionPalier[b.id];
+    if (!etat || etat.sousListe || (reponsesExistantes[b.id] || []).length > 0) return;
+    let totalConnu = 0, reussiesConnu = 0;
+    Object.values(etat.resultats || {}).forEach(r => {
+      if (r.enAttente) return;
+      totalConnu += r.tachesTotal || 0;
+      reussiesConnu += r.tachesReussies || 0;
+    });
+    if (totalConnu > 0) {
+      total = total - 1 + totalConnu; // remplace le placeholder "1 tâche" de ce bloc
+      reussies += reussiesConnu;
+      enDirect = true;
+    }
+  });
+  const taux = total > 0 ? Math.round((reussies / total) * 1000) / 10 : null;
+  return { total, reussies, taux, enDirect };
+}
+
 function html_sectionPaliers(blocsParPalier) {
   return `
     <div class="section-title-eleve" style="margin-top:24px">🎯 Paliers de cette séance</div>
@@ -338,20 +433,29 @@ function html_sectionPaliers(blocsParPalier) {
       const libelle = LIBELLES_PALIER_ELEVE[p.palier] || p.palier;
       const blocs = (blocsParPalier[p.palier] || []).sort((a, b) => a.ordre - b.ordre);
       if (!p.deverrouille) {
+        // 18 septembre 2026 (3e lot) : le nombre total de tâches est
+        // désormais annoncé EN PREMIER, devant le nom du palier (demande
+        // explicite), plutôt qu'après.
         return `<div class="bloc-lecture" style="border-left-color:#94A3B8;opacity:.7;margin-top:14px">
-          <div class="bloc-lecture-titre">🔒 ${libelle} — ${p.nb_taches_total} tâche${p.nb_taches_total > 1 ? 's' : ''}</div>
+          <div class="bloc-lecture-titre">🔒 ${p.nb_taches_total} tâche${p.nb_taches_total > 1 ? 's' : ''} — ${libelle}</div>
           <p style="margin:0;color:var(--text-gris);font-size:13px">Termine d'abord le palier précédent (au moins 66,7% des tâches réussies) pour débloquer celui-ci.</p>
         </div>`;
       }
       const couleurPalier = COULEURS_PALIER_ELEVE[p.palier] || 'var(--bleu-kekeli)';
-      // Chaque palier affiche, EN HAUT de sa section, le nombre total de
-      // tâches à mener (demande explicite du cahier des charges) suivi du
-      // taux déjà obtenu — pas le nombre de blocs/questions, qui n'est plus
-      // l'unité de calcul depuis ce lot (voir etat_paliers_seance_v2 côté
-      // base : une question peut valoir plusieurs tâches).
+      // Chaque palier affiche, EN PREMIER dans son titre, le nombre total de
+      // tâches à mener (demande explicite du cahier des charges, puis du 18
+      // septembre 2026 pour le placer devant le nom) suivi du taux déjà
+      // obtenu — pas le nombre de blocs/questions, qui n'est plus l'unité de
+      // calcul depuis ce lot (voir etat_paliers_seance_v2 côté base : une
+      // question peut valoir plusieurs tâches). Tant que le palier n'est pas
+      // réussi, le total/taux affichés intègrent la progression EN DIRECT
+      // (voir calculerEtatPalierEnDirect) — un 🔄 signale qu'il s'agit d'une
+      // estimation qui inclut du travail pas encore soumis.
+      const { total: totalAffiche, reussies: reussiesAffiche, taux: tauxAffiche, enDirect } =
+        p.reussi ? { total: p.nb_taches_total, reussies: p.nb_taches_reussies, taux: p.taux, enDirect: false } : calculerEtatPalierEnDirect(p, blocs);
       const etatTexte = p.reussi
-        ? `✅ Réussi — ${p.nb_taches_reussies}/${p.nb_taches_total} tâche${p.nb_taches_total > 1 ? 's' : ''} (${p.taux}%)`
-        : `${p.nb_taches_reussies}/${p.nb_taches_total} tâche${p.nb_taches_total > 1 ? 's' : ''} réussie${p.nb_taches_reussies > 1 ? 's' : ''}${p.taux != null ? ` (${p.taux}%)` : ''}`;
+        ? `✅ Réussi — ${p.nb_taches_reussies}/${p.nb_taches_total} réussie${p.nb_taches_reussies > 1 ? 's' : ''} (${p.taux}%)`
+        : `${reussiesAffiche}/${totalAffiche} réussie${reussiesAffiche > 1 ? 's' : ''}${tauxAffiche != null ? ` (${tauxAffiche}%)` : ''}${enDirect ? ' 🔄' : ''}`;
       // La couleur du palier ne colore QUE la section (bordure + titre), pas
       // un fond plein — retour du 5 septembre 2026 (7e lot), sur demande
       // explicite : "Pour les palier la couleur doit être uniquement pour
@@ -359,7 +463,7 @@ function html_sectionPaliers(blocsParPalier) {
       // sa propre background". Chaque activité à l'intérieur garde donc son
       // propre encadré/fond (rendreBlocTravail/rendreBlocLecture, inchangés).
       return `<div class="bloc-lecture carte-palier-eleve" style="border-left-color:${couleurPalier};background:${teinteClaire(couleurPalier, 0.04)};margin-top:14px">
-        <div class="bloc-lecture-titre" style="color:${couleurPalier}">${libelle} — ${etatTexte}</div>
+        <div class="bloc-lecture-titre" style="color:${couleurPalier}">${totalAffiche} tâche${totalAffiche > 1 ? 's' : ''} — ${libelle} — ${etatTexte}</div>
         ${p.tainted ? `<p style="margin:0 0 10px;color:#92620A;font-size:13px">⚠️ La correction a été consultée avant une réussite à 100% — ce palier ne peut plus être validé, mais tu peux continuer à t'entraîner.</p>` : ''}
         ${blocs.map(b => TYPES_TRAVAIL.includes(b.type_bloc) ? rendreBlocTravail(b) : rendreBlocLecture(b)).join('')}
       </div>`;
@@ -614,6 +718,7 @@ function demarrerRepriseTachesRatees(blocId) {
   questionsRatees.forEach(q => { delete reponsesBase[q.id]; });
   progressionPalier[blocId] = { index: 0, reponses: {}, sousListe: questionsRatees, reponsesBase };
   formulairesReouverts.add(blocId);
+  sauvegarderProgressionPaliersStockee();
   rendre();
 }
 
@@ -1014,8 +1119,16 @@ function rendreResultatExercice(b, c, questions, reponse) {
   // Correction consultable : au 3e essai (dernier essai possible), ou plus
   // tôt si l'élève a déjà tout réussi (cahier des charges : "Les réponses
   // ne seront accessibles qu'au 3e essai à moins pour celui qui a validé à
-  // 100% et veut consulter avant de progresser").
-  const peutVoirCorrection = !enAttente && (reponse.numero_essai >= 3 || (nbTaches > 0 && nbTachesReussies === nbTaches));
+  // 100% et veut consulter avant de progresser"). 18 septembre 2026 (3e
+  // lot) : un bloc tagué d'un palier peut aussi débloquer sa correction dès
+  // que le PALIER entier est validé (seuil 66,7%, voir etat_paliers_seance_v2
+  // et son champ `reussi`) — condition DISTINCTE du 100% de CE bloc utilisé
+  // juste au-dessus, et du 100% "réussite totale" qui déclenche le trophée
+  // plein écran dans soumettreExercice ; sans ce 3e cas, un élève qui valide
+  // son palier sans avoir 100% sur chaque bloc individuel ne voyait jamais
+  // le bouton "Voir la correction" avant son 3e essai.
+  const palierReussi = !!b.palier && !!etatPaliersSeance.find(p => p.palier === b.palier)?.reussi;
+  const peutVoirCorrection = !enAttente && (reponse.numero_essai >= 3 || (nbTaches > 0 && nbTachesReussies === nbTaches) || palierReussi);
   // 18 septembre 2026 (2e lot) : "reprendre uniquement les tâches ratées" —
   // réservé aux blocs de palier (mode progressif), tant qu'il reste au moins
   // une tâche ratée à ce dernier essai.
@@ -1249,6 +1362,7 @@ async function soumettreExercice(blocId, reponses, boutonUi) {
     });
     formulairesReouverts.delete(blocId);
     delete progressionPalier[blocId];
+    sauvegarderProgressionPaliersStockee();
     await rafraichirAccesCorrectionIA();
 
     // Son + message de résultat (cahier des charges : "chaque validation ou
@@ -1352,6 +1466,13 @@ function attacherEcouteursExercices() {
         etat.reponses[q.id] = reponse;
         zoneFeedback.hidden = false;
 
+        // Compteur "au fil de l'eau" par question (18 septembre 2026, 3e
+        // lot) : permet d'afficher un pourcentage de réussite qui avance au
+        // fur et à mesure que l'élève répond, SANS attendre la soumission
+        // finale du palier — voir calculerEtatPalierEnDirect ci-dessous.
+        // Purement indicatif, jamais utilisé pour la vraie notation.
+        etat.resultats ??= {};
+
         // Types corrigés par IA (reponse_longue, vrai_faux_justifie) : pas de
         // notation en direct (coût), on avance dès qu'une réponse est fournie
         // (la vraie note sera calculée à la soumission finale du palier).
@@ -1360,7 +1481,12 @@ function attacherEcouteursExercices() {
             jouerSonReussite();
             zoneFeedback.className = 'feedback-tache-progressive feedback-ok';
             zoneFeedback.textContent = '📝 Réponse enregistrée — elle sera corrigée à la validation finale du palier.';
+            // Note réelle inconnue avant la correction IA de la soumission
+            // finale : exclue du calcul du pourcentage en direct (voir
+            // calculerEtatPalierEnDirect, qui ignore les tâches enAttente).
+            etat.resultats[q.id] = { tachesTotal: 1, tachesReussies: 0, enAttente: true };
             etat.index++;
+            sauvegarderProgressionPaliersStockee();
             setTimeout(rendre, 700);
           } else {
             jouerSonEchec();
@@ -1378,20 +1504,37 @@ function attacherEcouteursExercices() {
           jouerSonReussite();
           zoneFeedback.className = 'feedback-tache-progressive feedback-ok';
           zoneFeedback.textContent = tachesTotal > 1 ? `✅ Bravo — ${tachesReussies}/${tachesTotal} réussies !` : '✅ Bonne réponse !';
+          etat.resultats[q.id] = { tachesTotal, tachesReussies };
           etat.index++;
+          sauvegarderProgressionPaliersStockee();
           setTimeout(rendre, 700);
         } else if (tachesReussies > 0) {
           jouerSonReussite();
           zoneFeedback.className = 'feedback-tache-progressive feedback-partiel';
           zoneFeedback.textContent = `🙂 ${tachesReussies}/${tachesTotal} réussies — bien joué, on continue !`;
+          etat.resultats[q.id] = { tachesTotal, tachesReussies };
           etat.index++;
+          sauvegarderProgressionPaliersStockee();
           setTimeout(rendre, 900);
         } else {
+          // 18 septembre 2026 (3e lot) : "Si une question est fausse dès
+          // validation l'enfant doit continuer vers la question suivante.
+          // C'est après la validation du palier qu'il reprend les questions
+          // ou tâches non réussies et c'est le 2e essai" — une tâche ratée
+          // en direct n'immobilise donc plus l'élève sur la même question
+          // (avant ce lot : bouton réactivé, obligation de réessayer tout de
+          // suite). On avance comme pour une réussite partielle ci-dessus ;
+          // la reprise ciblée des tâches ratées reste gérée après la
+          // soumission complète du palier par demarrerRepriseTachesRatees
+          // (bouton "🔁 Reprendre les tâches ratées"), qui compte bien comme
+          // un essai normal (2e essai) — voir soumettreExercice.
           jouerSonEchec();
           zoneFeedback.className = 'feedback-tache-progressive feedback-echec';
-          zoneFeedback.textContent = "❌ Ce n'est pas encore ça — réessaie !";
-          btn.disabled = false;
-          btn.textContent = texteOriginal;
+          zoneFeedback.textContent = "❌ Ce n'est pas encore ça — tu pourras la reprendre après avoir validé tout le palier.";
+          etat.resultats[q.id] = { tachesTotal, tachesReussies: 0 };
+          etat.index++;
+          sauvegarderProgressionPaliersStockee();
+          setTimeout(rendre, 900);
         }
       } catch (e) {
         alert(e.message || "Une erreur est survenue.");
@@ -1443,6 +1586,7 @@ function attacherEcouteursActivites() {
       }
       (rendusActivitesExistants[blocId] ??= []).push(data);
       formulairesReouverts.delete(blocId);
+      sauvegarderProgressionPaliersStockee();
       rendre();
     });
   });
@@ -1479,6 +1623,7 @@ function attacherEcouteursProblemes() {
       }
       (rendusActivitesExistants[blocId] ??= []).push(data);
       formulairesReouverts.delete(blocId);
+      sauvegarderProgressionPaliersStockee();
       rendre();
     });
   });

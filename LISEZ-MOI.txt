@@ -1,75 +1,83 @@
-KEKELI — Livraison : devoirs (validation/correction/couleurs) + paliers
+KEKELI — Livraison : corrections devoir/paliers + progression conservée
 ================================================================================
 
-Cette livraison répond à votre dernier message : couleur des historiques de
-devoirs côté élève/parent, bug du devoir rendu non reçu par l'enseignant,
-bloc de correction pour les devoirs, et comportement des tâches de palier
-(reprise des ratées, trophée à 100%).
+Cette livraison répond à vos derniers messages (titre du devoir trop large,
+"Aucune activité" affiché à tort, correction non débloquée après un palier
+réussi, enseignant ne recevant pas le contenu du devoir rendu, progression
+perdue au rechargement, affichage du nombre de tâches d'un palier, et
+comportement d'une question fausse en mode progressif).
 
-1. Couleur de fond des historiques de devoirs (élève et parent)
+1. Devoir élève : le titre était plus large que le contenu
 ------------------------------------------------------------------------
-Comme demandé, les listes "Mes devoirs" (élève) et "Devoirs" (parent)
-affichent maintenant le même fond de couleur par type de devoir que côté
-enseignant/admin (bleu clair = Devoir, orange clair = Problème, vert clair =
-Activité, rouge clair = Évaluation, gris clair = ancien devoir texte libre),
-avec la légende au-dessus de la liste. Aucune donnée supplémentaire n'a eu
-besoin d'être chargée pour cela.
+Le titre/fil d'ariane n'avait aucune limite de largeur, alors que la colonne
+d'exercices en dessous était bornée à 720px : le titre s'étirait donc sur
+toute la largeur de l'écran. Tout est maintenant regroupé dans un seul
+conteneur borné à 720px — titre, consigne et exercices ont désormais la même
+largeur.
 
-2. « Le devoir rendu n'est pas reçu par l'enseignant »
+2. "Aucune activité" affiché alors que la séance en a une
 ------------------------------------------------------------------------
-Cause trouvée : un devoir "à blocs" (le seul mode de création depuis le
-18 septembre) n'avait JAMAIS de signal unique disant "ce devoir est fini" —
-chaque bloc (Devoir, Problème, Évaluation...) s'envoyait séparément, et
-l'ancien mécanisme de notification ne concernait que les devoirs "texte
-libre" (aujourd'hui disparus de la création). Résultat : l'enseignant
-n'était jamais prévenu qu'un devoir avait été rendu.
+Cause trouvée : dès que l'élève cliquait sur "Passer aux activités", la
+page vérifiait uniquement les activités "générales" (hors palier) pour
+décider d'afficher "Aucun exercice ni activité pour cette séance" — une
+séance qui n'a QUE des activités rattachées à un palier tombait donc dans ce
+message par erreur, alors que ses activités s'affichaient bien plus bas dans
+la section "Paliers de cette séance". Corrigé : ce message ne s'affiche
+désormais que si la séance n'a vraiment ni activité générale, ni palier.
 
-Corrigé par l'ajout d'un bouton « 📤 Valider mon devoir », en bas de la page
-du devoir côté élève, qui apparaît une fois que tous les blocs ont reçu au
-moins une réponse. En cliquant dessus, l'élève envoie officiellement son
-devoir : l'enseignant (ou l'administrateur si c'est lui qui a créé le
-devoir) reçoit alors une vraie notification "Devoir rendu", avec un lien qui
-pointe désormais correctement vers SA page (nous avons corrigé au passage un
-défaut similaire sur l'ancien système, qui pointait toujours vers la page
-administrateur même pour un devoir créé par un enseignant).
-
-3 et 4. Bloc de correction + les deux options de correction
+3. "Voir la correction" toujours verrouillé après un palier réussi
 ------------------------------------------------------------------------
-Le bloc « Correction » est de nouveau disponible dans le menu "+ Ajouter un
-bloc" d'un devoir (il avait été retiré du menu le 18 septembre, mais son
-fonctionnement existait déjà et n'avait pas besoin d'être reconstruit). Vous
-avez donc bien les deux options, combinables librement sur un même devoir :
-  - Vous ajoutez un bloc "Correction" à côté d'un bloc "Devoir"/"Problème" :
-    une fois que l'élève a validé son devoir (point 2 ci-dessus), un bouton
-    « 🔓 Voir la correction » apparaît pour lui — avant validation, ce bouton
-    reste visible mais verrouillé, pour qu'il sache qu'une correction
-    existe sans pouvoir la lire trop tôt.
-  - Vous laissez l'élève faire et envoyer son devoir normalement, vous le
-    corrigez à la main (note, appréciation, commentaire) via le bouton
-    « 📤 Renvoyer » déjà existant, sans bloc de correction — exactement comme
-    avant.
+Cause trouvée : le bouton ne se débloquait qu'à 100% de réussite sur CE
+bloc précis (ou au 3e essai), sans jamais tenir compte du seuil réel de
+réussite d'un palier (66,7% des tâches, tous ses blocs confondus). Un enfant
+qui validait son palier sans avoir 100% sur chaque exercice individuel ne
+voyait donc jamais le bouton avant son 3e essai. Corrigé : la correction se
+débloque maintenant aussi dès que le palier entier est marqué réussi.
 
-5. Activités des séquences (paliers)
+4. L'enseignant/l'administrateur ne recevait pas le contenu du devoir rendu
 ------------------------------------------------------------------------
-Vérification faite : dès qu'une tâche est ratée au 1er essai, l'élève doit
-la refaire correctement AVANT de passer à la suivante (c'était déjà le
-comportement voulu par le système de paliers — le déverrouillage progressif
-ne fonctionne que dans un sens). En revanche, deux nouveautés :
-  - Après avoir validé un palier sans tout réussir, un nouveau bouton
-    « 🔁 Reprendre les tâches ratées » permet de ne retravailler QUE les
-    questions ratées (les bonnes réponses restent acquises) — cette reprise
-    compte comme un essai normal (essai 2, puis 3, comme avant).
-  - Le bouton « 🔓 Voir la correction » apparaît bien dès le 1er essai si
-    l'enfant réussit le palier à 100% (comportement déjà en place, vérifié).
-  - Nouveauté demandée : à la réussite d'un palier à 100% (y compris au 1er
-    essai), un trophée plein écran animé (confettis, médaille du palier en
-    brillance) s'affiche et doit être fermé par l'enfant ("Continuer") avant
-    de poursuivre — réutilise les médailles déjà existantes, aucune nouvelle
-    image.
+Cause trouvée : le lien de la notification "Devoir rendu" pointait vers la
+page de gestion des devoirs SANS aucune indication du devoir concerné —
+l'enseignant devait le retrouver lui-même, sans que la bonne classe/matière
+soit présélectionnée. Corrigé : le lien contient maintenant l'identifiant du
+devoir ; en cliquant dessus, l'enseignant (ou l'administrateur) arrive
+directement sur SON devoir, classe et matière déjà sélectionnées, panneau de
+correction déjà ouvert avec les réponses de l'élève visibles.
+(Changement appliqué directement en base — rien à configurer.)
+
+5. Progression conservée si l'enfant recharge la page ou la quitte
+------------------------------------------------------------------------
+Avant cette livraison, la progression "question par question" dans un
+palier (déverrouillage progressif) repartait de zéro à chaque rechargement
+ou fermeture accidentelle de la page — uniquement en mémoire du navigateur.
+Elle est maintenant sauvegardée sur l'appareil de l'enfant au fur et à
+mesure : s'il recharge la page, revient en arrière ou ferme puis rouvre la
+séance, il retrouve exactement où il en était. Rien n'est envoyé au serveur
+ni compté comme un essai avant le clic final sur "Valider tout le palier" —
+seul ce clic reste la vraie soumission.
+
+6. Nombre de tâches devant le nom du palier + pourcentage en direct
+------------------------------------------------------------------------
+Comme demandé : chaque palier affiche maintenant son nombre total de tâches
+EN PREMIER, devant son nom (ex. "22 tâches — 🌱 Azɔ̀ví — ..."), plutôt
+qu'après. Le pourcentage de réussite affiché avance également au fur et à
+mesure que l'enfant répond aux questions en mode progressif (plutôt que de
+rester figé jusqu'à la soumission complète du palier) — une petite icône 🔄
+indique quand l'affichage inclut ainsi du travail pas encore soumis
+définitivement.
+
+7. Question fausse en mode progressif : on continue, on ne bloque plus
+------------------------------------------------------------------------
+Changement de comportement demandé explicitement : si l'enfant valide une
+réponse fausse, il passe maintenant directement à la question suivante
+(auparavant, il devait la corriger tout de suite avant de continuer). La
+reprise des questions ratées reste possible, mais seulement après avoir
+validé tout le palier (bouton "🔁 Reprendre les tâches ratées"), et cette
+reprise compte bien comme un 2e essai — comportement inchangé sur ce point.
 
 Rappel important
 ------------------------------------------------------------------------
-Le changement de base de données (nouvelle table de suivi des devoirs
-validés + correctif de notification) a déjà été appliqué directement sur
-votre base Supabase en production. Il ne reste qu'à déployer les fichiers de
-cette livraison sur votre hébergement.
+Le changement de base de données (lien de notification "Devoir rendu" avec
+l'identifiant du devoir) a déjà été appliqué directement sur votre base
+Supabase en production. Il ne reste qu'à déployer les fichiers de cette
+livraison sur votre hébergement.

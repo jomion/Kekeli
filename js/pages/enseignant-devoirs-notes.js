@@ -39,6 +39,27 @@ let devoirOuvertEns = null; // id du devoir dont le panneau de rendus est dépli
   classeSelectionneeEns = classesEnseignant[0]?.id;
   champSelectionneEns = champsFormation[0]?.id;
 
+  // 18 septembre 2026 (3e lot) : "Quand l'élève valide le devoir rendu
+  // l'enseignant ne le reçoit pas pour corriger et apprécier" — le lien de
+  // la notification "Devoir rendu" porte désormais ?devoirId=<id> (voir
+  // notifier_devoir_rendu/notifier_devoir_blocs_valide côté base). On
+  // l'exploite ici pour pré-sélectionner la bonne classe/matière et ouvrir
+  // directement le panneau du devoir concerné, au lieu de forcer
+  // l'enseignant à les retrouver manuellement dans les sélecteurs.
+  const devoirIdParam = parseInt(new URLSearchParams(window.location.search).get('devoirId'), 10);
+  if (devoirIdParam) {
+    const { data: devoirCible } = await supabaseClient
+      .from('devoirs').select('id, classe_id, champ_formation_id').eq('id', devoirIdParam).maybeSingle();
+    // Seulement si ce devoir appartient à une classe réellement suivie par
+    // cet enseignant (idsClasses) — sinon on garde la sélection par défaut ;
+    // la RLS bloque de toute façon tout accès non autorisé aux données.
+    if (devoirCible && idsClasses.includes(devoirCible.classe_id)) {
+      classeSelectionneeEns = devoirCible.classe_id;
+      champSelectionneEns = devoirCible.champ_formation_id;
+      devoirOuvertEns = devoirCible.id;
+    }
+  }
+
   afficherEntete();
   await afficherGestionEns();
 })();
@@ -51,10 +72,10 @@ function afficherEntete() {
     </div>
     <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
       <select id="selectClasseEns" style="padding:9px;border-radius:8px;border:2px solid var(--bordure)">
-        ${classesEnseignant.map(c => `<option value="${c.id}">${c.nom}</option>`).join('')}
+        ${classesEnseignant.map(c => `<option value="${c.id}" ${String(c.id) === String(classeSelectionneeEns) ? 'selected' : ''}>${c.nom}</option>`).join('')}
       </select>
       <select id="selectChampEns" style="padding:9px;border-radius:8px;border:2px solid var(--bordure)">
-        ${champsFormation.map(c => `<option value="${c.id}">${c.nom}</option>`).join('')}
+        ${champsFormation.map(c => `<option value="${c.id}" ${String(c.id) === String(champSelectionneEns) ? 'selected' : ''}>${c.nom}</option>`).join('')}
       </select>
     </div>
     <div id="zoneGestionEns"></div>

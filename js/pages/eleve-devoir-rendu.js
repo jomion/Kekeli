@@ -137,19 +137,28 @@ function rendreDevoir() {
       </div>`
     : '';
 
+  // 18 septembre 2026 (3e lot) : "le titre est plus long que le contenu,
+  // faut harmoniser l'affichage" — l'en-tête (fil d'ariane + titre) n'avait
+  // aucune limite de largeur et s'étirait sur toute la largeur de #contenu,
+  // tandis que seule la colonne d'exercices ci-dessous était bornée à 720px
+  // (style en ligne) : le titre paraissait donc plus "long" que les cartes
+  // de contenu sous lui. Un seul conteneur, borné une fois pour toutes,
+  // harmonise la largeur du titre, de la consigne et des blocs.
   document.getElementById('contenu').innerHTML = `
-    <div class="fil-ariane-eleve"><a href="devoirs-notes.html">← Retour à mes devoirs</a></div>
-    <div class="entete-seance-eleve">
-      ${filAriane ? `<p style="margin:0 0 6px;font-size:12px;color:var(--text-gris)">${echapper(filAriane)}</p>` : ''}
-      <h1 style="margin:0">${echapper(d.titre)}</h1>
-      <p style="margin:6px 0 0;font-size:13px;color:var(--text-gris)">À rendre le ${new Date(d.date_limite).toLocaleDateString('fr-FR')}</p>
+    <div style="max-width:720px;margin:0 auto">
+      <div class="fil-ariane-eleve"><a href="devoirs-notes.html">← Retour à mes devoirs</a></div>
+      <div class="entete-seance-eleve">
+        ${filAriane ? `<p style="margin:0 0 6px;font-size:12px;color:var(--text-gris)">${echapper(filAriane)}</p>` : ''}
+        <h1 style="margin:0">${echapper(d.titre)}</h1>
+        <p style="margin:6px 0 0;font-size:13px;color:var(--text-gris)">À rendre le ${new Date(d.date_limite).toLocaleDateString('fr-FR')}</p>
+      </div>
+      ${d.consigne ? `<div class="bloc-lecture" style="border-left-color:#94A3B8;margin-bottom:16px"><div class="contenu-riche-lecture">${contenuRicheInitial(d.consigne)}</div></div>` : ''}
+      ${enteteNote}
+      <div class="colonne-exercice-seance">
+        ${blocsDevoirCourant.length ? blocsDevoirCourant.map(rendreBlocTravailDevoir).join('') : '<p style="color:var(--text-gris)">Ce devoir n\'a pas encore de contenu — reviens plus tard.</p>'}
+      </div>
+      ${html_zoneValidationDevoir(resume)}
     </div>
-    ${d.consigne ? `<div class="bloc-lecture" style="border-left-color:#94A3B8;margin-bottom:16px"><div class="contenu-riche-lecture">${contenuRicheInitial(d.consigne)}</div></div>` : ''}
-    ${enteteNote}
-    <div class="colonne-exercice-seance" style="max-width:720px">
-      ${blocsDevoirCourant.length ? blocsDevoirCourant.map(rendreBlocTravailDevoir).join('') : '<p style="color:var(--text-gris)">Ce devoir n\'a pas encore de contenu — reviens plus tard.</p>'}
-    </div>
-    ${html_zoneValidationDevoir(resume)}
   `;
 
   attacherEcouteursExercicesDevoir();

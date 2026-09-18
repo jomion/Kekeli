@@ -20,15 +20,34 @@ async function init() {
     supabaseClient.from('champs_formation').select('*').order('nom')
   ]);
 
+  // 18 septembre 2026 (3e lot) : "Quand l'élève valide le devoir rendu
+  // l'admin ne le reçoit pas pour corriger et apprécier" — le lien de la
+  // notification "Devoir rendu" porte désormais ?devoirId=<id> (voir
+  // notifier_devoir_rendu/notifier_devoir_blocs_valide côté base). On
+  // pré-sélectionne ici la bonne classe/matière et on ouvre directement le
+  // devoir visé, au lieu de forcer l'admin à les retrouver manuellement.
+  const devoirIdParam = parseInt(new URLSearchParams(window.location.search).get('devoirId'), 10);
+  let devoirCibleAdmin = null;
+  if (devoirIdParam) {
+    const { data } = await supabaseClient
+      .from('devoirs').select('id, classe_id, champ_formation_id').eq('id', devoirIdParam).maybeSingle();
+    devoirCibleAdmin = data || null;
+    if (devoirCibleAdmin) {
+      classeSelectionnee = devoirCibleAdmin.classe_id;
+      champSelectionne = devoirCibleAdmin.champ_formation_id;
+      devoirOuvertAdmin = devoirCibleAdmin.id;
+    }
+  }
+
   document.getElementById('contenu').innerHTML = `
     <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
       <select id="selectClasse" style="padding:9px;border-radius:8px;border:1px solid var(--bordure)">
         <option value="">— Choisir une classe —</option>
-        ${(classes || []).map(c => `<option value="${c.id}">${c.nom}</option>`).join('')}
+        ${(classes || []).map(c => `<option value="${c.id}" ${String(c.id) === String(classeSelectionnee) ? 'selected' : ''}>${c.nom}</option>`).join('')}
       </select>
       <select id="selectChamp" style="padding:9px;border-radius:8px;border:1px solid var(--bordure)">
         <option value="">— Choisir un champ —</option>
-        ${(champs || []).map(c => `<option value="${c.id}">${c.nom}</option>`).join('')}
+        ${(champs || []).map(c => `<option value="${c.id}" ${String(c.id) === String(champSelectionne) ? 'selected' : ''}>${c.nom}</option>`).join('')}
       </select>
     </div>
     <div id="zoneGestion"></div>
@@ -42,6 +61,8 @@ async function init() {
   };
   document.getElementById('selectClasse').addEventListener('change', majSelection);
   document.getElementById('selectChamp').addEventListener('change', majSelection);
+
+  if (devoirCibleAdmin) await afficherGestion();
 }
 
 async function afficherGestion() {
