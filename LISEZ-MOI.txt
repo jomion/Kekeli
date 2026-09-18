@@ -1,74 +1,84 @@
-LIVRAISON — Correction de 2 bugs signalés sur les devoirs
+LIVRAISON — Refonte de la page d'accueil (index.html)
 ==========================================================
 Date : 18 septembre 2026
 
-Cette livraison corrige les deux bugs que vous avez signalés sur la gestion
-des devoirs côté enseignant.
+Cette livraison correspond à la refonte de la page d'accueil convenue
+ensemble : mise en avant de la classe de CM2, paliers cliquables avec les
+visuels que vous avez envoyés, et un nouveau hero (bandeau du haut) en
+illustration plein écran.
 
 ------------------------------------------------------------
-1. Bug corrigé : notification envoyée trop tôt (avant publication)
+1. Nouvelle section : "La classe de CM2, prête à explorer"
 ------------------------------------------------------------
 
-Ce que vous aviez constaté :
-Quand l'enseignant créait un devoir, l'élève (et son parent) recevait
-immédiatement une notification — même si le devoir était encore en
-brouillon et non publié.
+CM2 est aujourd'hui la seule classe avec du contenu réellement publié sur
+le site (vérifié en base de données) — les autres classes (CI, CP, CE1,
+CE2, CM1) n'ont pas encore de programme construit dessus, même quand
+certaines sont déjà marquées "visibles" en interne.
 
-Cause :
-La fonction de la base de données qui envoie les notifications se
-déclenchait dès la création du devoir, sans vérifier s'il était réellement
-publié.
-
-Correction :
-La notification n'est désormais envoyée QUE lorsque le devoir passe au
-statut « publié » — que ce soit dès sa création (cas d'un devoir en texte
-libre, publié directement) ou plus tard, quand l'enseignant clique sur
-« 🚀 Publier ce devoir » après avoir fini de préparer un devoir à blocs.
-Un devoir laissé en brouillon ne notifie personne.
-
-Cette correction a été appliquée directement sur la base de données (comme
-convenu, les changements de ce type sont mis en ligne immédiatement, sans
-fichier à installer de votre côté). Elle a été testée avec un devoir de
-test : aucune notification en brouillon, notification bien envoyée au
-moment de la publication, aucun doublon si le devoir est modifié une fois
-déjà publié.
+La page d'accueil affiche donc une carte par matière de CM2, avec une
+courte description et le VRAI nombre de séances déjà publiées :
+  - Français — 12 séances publiées
+  - Mathématiques — 5 séances publiées
+  - Éducation Sociale — 5 séances publiées
+  - Éducation Scientifique et Technologique — 2 séances publiées
+Une phrase discrète en bas signale que l'Éducation Artistique et
+l'Éducation Physique et Sportive arrivent bientôt (elles n'ont pas encore
+de séance publiée, donc pas de carte pour l'instant, pour ne rien
+annoncer de faux). Chaque carte mène vers la connexion.
 
 ------------------------------------------------------------
-2. Bug corrigé : les blocs ne s'ajoutent pas / bouton "Ajouter un bloc" absent
+2. Les 4 paliers deviennent cliquables, avec de vrais chiffres
 ------------------------------------------------------------
 
-Ce que vous aviez constaté :
-Sur la page de gestion des devoirs de l'enseignant, en ouvrant un devoir
-« à blocs », le bouton « + Ajouter un bloc » n'apparaissait pas parfois —
-rendant impossible l'ajout de contenu au devoir.
+Les 4 visuels que vous avez envoyés (Azɔ̀ví, Dèví, Ògán, Axɔ́sú) sont
+maintenant intégrés dans la section "Une progression par paliers", sous
+forme de cartes cliquables (vers la connexion). Chacune affiche en
+pastille le VRAI total d'exercices déjà publiés à ce niveau de difficulté,
+toutes matières confondues :
+  - Azɔ̀ví : 18      - Dèví : 18      - Ògán : 11      - Axɔ́sú : 9
 
-Cause :
-Le même devoir était affiché à deux endroits sur la page (dans une carte
-de statut ET dans la liste "Devoirs" plus bas), ce qui créait deux zones
-d'édition en double dans la page. Le code qui initialise l'éditeur de
-blocs se raccrochait toujours à la première des deux zones trouvées —
-généralement celle, cachée, de la carte de statut — laissant vide, sans
-bouton, la zone que l'enseignant voyait réellement dans la liste
-"Devoirs".
+Point technique à noter : le visuel du palier "Azɔ̀ví" que vous avez
+envoyé affichait le texte "Azèví" (orthographe différente de celle
+utilisée partout ailleurs sur le site). Comme convenu, j'ai superposé
+par-dessus une étiquette identique (même couleur, même style) avec la
+bonne orthographe "Azɔ̀ví" — l'icône (la pousse) et le reste du visuel
+sont inchangés.
 
-Correction :
-La zone d'édition des blocs ne s'affiche désormais qu'à un seul endroit —
-dans la liste "Devoirs" — qui est aussi celle que l'enseignant utilise
-naturellement. Le bouton « 📂 Gérer » reste utilisable depuis une carte de
-statut (il ouvre bien le devoir), mais l'édition se fait toujours dans la
-liste "Devoirs" en dessous.
+------------------------------------------------------------
+3. Nouveau hero (bandeau du haut) en illustration plein écran
+------------------------------------------------------------
 
-Ce correctif a été testé de façon approfondie (simulation automatisée du
-comportement réel de la page) avant livraison : le bouton "+ Ajouter un
-bloc" s'affiche maintenant de façon fiable, à chaque fois.
+Je n'ai pas d'outil de génération d'image par IA disponible dans cet
+environnement de travail (pas de "texte → image"). Comme convenu, j'ai
+donc créé une illustration "maison" en CSS qui occupe tout le bandeau :
+dégradés aux couleurs de Kekeli, un livre central, et les 4 pastilles des
+paliers (🌱 🪘 🦁 👑) qui flottent doucement autour, avec quelques
+étincelles. Le texte reste parfaitement lisible grâce à un panneau semi-
+transparent derrière lui. Sur mobile, l'illustration s'adapte (le badge
+central est retiré pour ne pas gêner la lecture du titre).
 
-Fichier modifié dans ce paquet :
-- js/pages/enseignant-devoirs-notes.js
+Cette illustration ne remplace pas le système de blocs personnalisables
+existant (Admin ▸ Section d'accueil) : si vous configurez un jour un bloc
+depuis cette page d'administration, il reprend automatiquement la main et
+s'affiche à la place, sans aucun conflit possible avec cette illustration.
+Si un jour vous préférez malgré tout une vraie photo ou une image générée
+par IA à la place de cette illustration, envoyez-la-moi et je l'intègre.
+
+------------------------------------------------------------
+Fichiers modifiés / ajoutés dans ce paquet
+------------------------------------------------------------
+- index.html
+- css/style-public.css
+- assets/paliers-accueil/azovi.png
+- assets/paliers-accueil/devi.png
+- assets/paliers-accueil/ogan.png
+- assets/paliers-accueil/axosu.png
 
 ------------------------------------------------------------
 Et maintenant ?
 ------------------------------------------------------------
 
-Ces deux corrections sont déjà en ligne (partie base de données) et prêtes
-à être installées (partie fichier, dans ce paquet). La prochaine étape,
-comme convenu, est la refonte de la page d'accueil du site.
+La refonte de la page d'accueil est terminée. Dites-moi si vous voulez des
+ajustements (couleurs, textes, images) ou si on passe au prochain
+chantier.

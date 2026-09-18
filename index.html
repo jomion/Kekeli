@@ -41,13 +41,54 @@
         <a href="pages/login.html" class="btn btn-filled" id="lienAccederEspace" style="padding:15px 30px;font-size:16px">Accéder à mon espace 🚀</a>
         <div class="hero-points" id="heroPoints"></div>
       </div>
-      <div class="hero-image" id="heroImageDynamique">☀️</div>
+      <div class="hero-image hero-image-defaut-plein" id="heroImageDynamique">
+        <span class="bulle-hero-centre" aria-hidden="true">📚</span>
+        <span class="bulle-hero bulle-hero-1" aria-hidden="true">🌱</span>
+        <span class="bulle-hero bulle-hero-2" aria-hidden="true">🪘</span>
+        <span class="bulle-hero bulle-hero-3" aria-hidden="true">🦁</span>
+        <span class="bulle-hero bulle-hero-4" aria-hidden="true">👑</span>
+        <span class="etincelle etincelle-1" aria-hidden="true">✨</span>
+        <span class="etincelle etincelle-2" aria-hidden="true">✨</span>
+        <span class="etincelle etincelle-3" aria-hidden="true">⭐</span>
+      </div>
     </div>
     <!-- Rempli par js/accueil-hero.js uniquement quand la disposition choisie
          par le super admin est "Grille" ou "Sections compactes" (plusieurs
          blocs affichés en même temps, sans défilement) — voir
          pages/admin/section-accueil.html. Masqué et vide sinon. -->
     <div class="hero-blocs-multiples" id="heroBlocsMultiples" style="display:none"></div>
+  </section>
+
+  <section class="features" id="classes">
+    <h2>La classe de CM2, prête à explorer</h2>
+    <p class="sous-titre">Le programme complet de CM2 est déjà en ligne. Choisissez une matière pour voir ce qui vous attend.</p>
+    <div class="grid-features">
+      <a href="pages/login.html" class="feature-card carte-matiere-cm2">
+        <div class="feature-icon">📖</div>
+        <h3>Français</h3>
+        <p>Lecture, grammaire, conjugaison et expression écrite.</p>
+        <span class="badge-nb-seances">12 séances publiées</span>
+      </a>
+      <a href="pages/login.html" class="feature-card carte-matiere-cm2">
+        <div class="feature-icon">🔢</div>
+        <h3>Mathématiques</h3>
+        <p>Nombres, calcul, mesures et résolution de problèmes.</p>
+        <span class="badge-nb-seances">5 séances publiées</span>
+      </a>
+      <a href="pages/login.html" class="feature-card carte-matiere-cm2">
+        <div class="feature-icon">🌍</div>
+        <h3>Éducation Sociale</h3>
+        <p>Histoire, géographie et vie en société.</p>
+        <span class="badge-nb-seances">5 séances publiées</span>
+      </a>
+      <a href="pages/login.html" class="feature-card carte-matiere-cm2">
+        <div class="feature-icon">🔬</div>
+        <h3>Éducation Scientifique et Technologique</h3>
+        <p>Sciences de la vie, de la terre et technologie.</p>
+        <span class="badge-nb-seances">2 séances publiées</span>
+      </a>
+    </div>
+    <p class="note-autres-matieres">D'autres matières (Éducation Artistique, Éducation Physique et Sportive) arrivent bientôt.</p>
   </section>
 
   <section class="features">
@@ -75,11 +116,24 @@
   <section class="features" id="paliers" style="padding-top:0">
     <h2>Une progression par paliers</h2>
     <p class="sous-titre">Chaque activité peut être classée par niveau de difficulté, pour avancer sans se décourager.</p>
-    <div class="grille-paliers">
-      <span class="puce-palier">🌱 Azɔ̀ví — très facile</span>
-      <span class="puce-palier">🪘 Dèví — moyen</span>
-      <span class="puce-palier">🦁 Ògán — difficile</span>
-      <span class="puce-palier">👑 Axɔ́sú — très difficile</span>
+    <div class="grille-paliers-accueil">
+      <a href="pages/login.html" class="carte-palier-accueil" aria-label="Palier Azɔ̀ví, très facile — 18 exercices publiés">
+        <img src="assets/paliers-accueil/azovi.png" alt="Palier Azɔ̀ví, très facile" loading="lazy">
+        <span class="corrige-libelle-azovi">Azɔ̀ví</span>
+        <span class="total-palier-accueil">18</span>
+      </a>
+      <a href="pages/login.html" class="carte-palier-accueil" aria-label="Palier Dèví, moyen facile — 18 exercices publiés">
+        <img src="assets/paliers-accueil/devi.png" alt="Palier Dèví, moyen facile" loading="lazy">
+        <span class="total-palier-accueil">18</span>
+      </a>
+      <a href="pages/login.html" class="carte-palier-accueil" aria-label="Palier Ògán, difficile — 11 exercices publiés">
+        <img src="assets/paliers-accueil/ogan.png" alt="Palier Ògán, difficile" loading="lazy">
+        <span class="total-palier-accueil">11</span>
+      </a>
+      <a href="pages/login.html" class="carte-palier-accueil" aria-label="Palier Axɔ́sú, très difficile — 9 exercices publiés">
+        <img src="assets/paliers-accueil/axosu.png" alt="Palier Axɔ́sú, très difficile" loading="lazy">
+        <span class="total-palier-accueil">9</span>
+      </a>
     </div>
   </section>
 
