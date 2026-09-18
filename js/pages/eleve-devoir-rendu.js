@@ -659,7 +659,17 @@ function noteSur20DepuisScoreDevoir(score, scoreMax) {
 }
 
 function rendreResultatExerciceDevoir(b, c, questions, reponse) {
-  const details = reponse.details || {};
+  // 18 septembre 2026 (4e lot) : `details`/`details_taches` (voir la Edge
+  // Function corriger-exercice, moteur "tâches" depuis le 11 septembre) ne
+  // contient JAMAIS de champ `correct`/`note`/`pointsMax` par question — ces
+  // noms venaient d'un ancien modèle "1 point par question" déjà remplacé
+  // côté séance (voir rendreResultatExercice dans eleve-seance.js). Faute de
+  // ce correctif, `d.correct` restait toujours undefined ici et CHAQUE
+  // question d'un devoir "à blocs" de type Évaluation/Activité affichait
+  // systématiquement "⏳ En attente de correction", quel que soit le vrai
+  // résultat — corrigé en reprenant tachesTotal/tachesReussies, comme côté
+  // séance.
+  const details = reponse.details_taches || reponse.details || {};
   const reponsesDonnees = reponse.reponses || {};
   const enAttente = reponse.statut === 'en_attente_ia';
   const note20 = enAttente ? null : noteSur20DepuisScoreDevoir(reponse.score, reponse.score_max);
@@ -669,7 +679,9 @@ function rendreResultatExerciceDevoir(b, c, questions, reponse) {
     <div class="recap-score">${enAttente ? '⏳ En cours de correction par un enseignant' : `📊 Score : ${reponse.score} / ${reponse.score_max}${note20 !== null ? ` (${note20}/20)` : ''}`}${libelleMedailleDevoir(reponse.medaille, reponse.numero_essai)}</div>
     ${questions.map((q, i) => {
       const d = details[q.id] || {};
-      const classeResultat = d.correct === true ? 'correct' : d.correct === false ? 'incorrect' : 'attente';
+      const tachesTotalQ = typeof d.tachesTotal === 'number' ? d.tachesTotal : 1;
+      const tachesReussiesQ = typeof d.tachesReussies === 'number' ? d.tachesReussies : (d.correct ? 1 : 0);
+      const classeResultat = d.corrigePar === 'en_attente' ? 'attente' : (tachesReussiesQ === tachesTotalQ ? 'correct' : tachesReussiesQ > 0 ? 'partiel' : 'incorrect');
       const donnee = reponsesDonnees[q.id];
       let texteReponse = '(sans réponse)';
       if (q.type === 'qcm') texteReponse = (q.options || [])[Number(donnee)] ?? texteReponse;
@@ -703,13 +715,25 @@ function rendreResultatExerciceDevoir(b, c, questions, reponse) {
         ? `${donnee.reponse === true ? 'Vrai' : donnee.reponse === false ? 'Faux' : '(sans réponse)'} — ${donnee.justification || '(pas de justification)'}`
         : texteReponse;
       else if (donnee) texteReponse = donnee;
+      const libelleTacheDevoir = d.corrigePar === 'en_attente'
+        ? '⏳ En attente de correction'
+        : (tachesTotalQ > 1
+          ? `${tachesReussiesQ === tachesTotalQ ? '✅' : tachesReussiesQ > 0 ? '🟡' : '❌'} ${tachesReussiesQ}/${tachesTotalQ} tâche${tachesTotalQ > 1 ? 's' : ''} réussie${tachesReussiesQ > 1 ? 's' : ''}`
+          : (tachesReussiesQ >= 1 ? '✅ Correct' : '❌ Incorrect'));
+      // 18 septembre 2026 (4e lot) : même principe que côté séance (voir
+      // rendreResultatExercice dans eleve-seance.js) — le commentaire
+      // pédagogique de l'IA ne doit pas être plus permissif que la vraie
+      // correction. Un devoir n'a pas de palier ni de bouton "Voir la
+      // correction" par question : le repli retenu est le dernier essai
+      // possible (ESSAIS_MAX = 3, voir corriger-exercice), au-delà duquel il
+      // n'y a de toute façon plus rien à cacher.
+      const peutVoirCommentaireQuestionDevoir = d.corrigePar === 'en_attente' || tachesReussiesQ === tachesTotalQ || reponse.numero_essai >= 3;
       return `<div class="question-lecture">
         <p class="question-enonce">${i + 1}. ${rendreEnonceDevoir(q)}</p>
         <p>Ta réponse : <strong>${echapper(texteReponse)}</strong></p>
         <div class="resultat-question ${classeResultat}">
-          ${d.correct === true ? '✅ Correct' : d.correct === false ? '❌ Incorrect' : '⏳ En attente de correction'}
-          ${typeof d.note === 'number' ? ` — ${d.note}/${d.pointsMax} point(s)` : (d.pointsMax ? ` (sur ${d.pointsMax} point(s))` : '')}
-          ${d.commentaire ? `<p style="margin:6px 0 0">${echapper(d.commentaire)}</p>` : ''}
+          ${libelleTacheDevoir}
+          ${(peutVoirCommentaireQuestionDevoir && d.commentaire) ? `<p style="margin:6px 0 0">${echapper(d.commentaire)}</p>` : ''}
         </div>
       </div>`;
     }).join('')}

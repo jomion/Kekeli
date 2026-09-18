@@ -1187,12 +1187,24 @@ function rendreResultatExercice(b, c, questions, reponse) {
           ? `${tachesReussiesQ === tachesTotalQ ? '✅' : tachesReussiesQ > 0 ? '🟡' : '❌'} ${tachesReussiesQ}/${tachesTotalQ} tâche${tachesTotalQ > 1 ? 's' : ''} réussie${tachesReussiesQ > 1 ? 's' : ''}`
           : (tachesReussiesQ >= 1 ? '✅ Correct' : '❌ Incorrect'));
       const correctionQuestion = (correctionInfo?.autorise && correctionInfo.corrige) ? correctionInfo.corrige[q.id] : null;
+      // 18 septembre 2026 (4e lot) : "Au premier essai la correction est
+      // affichée pour ce type de question [...] c'est bon de marquer
+      // incorrect mais pas afficher la réponse." Le commentaire pédagogique
+      // renvoyé par l'IA (types reponse_longue/vrai_faux_justifie, voir
+      // corriger-exercice) explique souvent la bonne réponse pour être
+      // constructif — il ne doit donc pas être plus permissif que la vraie
+      // correction (bouton "Voir la correction" / correctionQuestion
+      // ci-dessus) : mêmes conditions de déblocage (question déjà réussie à
+      // 100%, ou correction déjà consultée). Le message système "en attente
+      // de correction (IA indisponible)" n'est pas concerné : il ne révèle
+      // jamais la réponse.
+      const peutVoirCommentaireQuestion = d.corrigePar === 'en_attente' || tachesReussiesQ === tachesTotalQ || !!correctionInfo?.autorise;
       return `<div class="question-lecture">
         <p class="question-enonce">${i + 1}. ${rendreEnonce(q)}</p>
         <p>Ta réponse : <strong>${echapper(texteReponse)}</strong></p>
         <div class="resultat-question ${classeResultat}">
           ${libelleTache}
-          ${d.commentaire ? `<p style="margin:6px 0 0">${echapper(d.commentaire)}</p>` : ''}
+          ${(peutVoirCommentaireQuestion && d.commentaire) ? `<p style="margin:6px 0 0">${echapper(d.commentaire)}</p>` : ''}
           ${correctionQuestion ? `<p class="bonne-reponse-corrigee" style="margin:6px 0 0">🔓 Bonne réponse : <strong>${echapper(texteBonneReponse(q, correctionQuestion))}</strong>${correctionQuestion.commentaire ? ` — ${echapper(correctionQuestion.commentaire)}` : ''}</p>` : ''}
         </div>
       </div>`;
