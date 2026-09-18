@@ -86,6 +86,11 @@
 .ga-btn-pdf { background-color: #dc2626; color: white; }
 .ga-btn-word { background-color: #2563eb; color: white; }
 .ga-btn-secondaire { background-color: #fff; color: var(--text-dark); border: 1px solid var(--bordure); }
+/* 18 septembre 2026 : boutons d'export "verrouillés" (Word/Excel/PDF) — même
+   couleur de fond que d'habitude mais estompée, pour rester visibles/cliquables
+   (le clic affiche "bientôt disponible", voir alerterExportVerrouilleGA /
+   alerterExportVerrouillePL) sans donner l'impression d'une action normale. */
+.ga-btn-verrouille { opacity: 0.55; filter: grayscale(0.3); cursor: not-allowed; }
 
 .ga-badge-active {
   font-size: 0.8rem;
@@ -148,6 +153,7 @@
 }
 
 .ga-cellule-active { outline: 2px solid var(--ga-active-border); outline-offset: -2px; cursor: pointer; }
+.ga-cellule-active-passee { outline: 2px dashed var(--text-gris); }
 
 .ga-case-att { cursor: pointer; width: 15px; height: 15px; accent-color: var(--ga-danger); vertical-align: middle; }
 .ga-case-att:disabled { cursor: not-allowed; opacity: 0.4; }
@@ -156,6 +162,15 @@
 .ga-symbole { font-weight: bold; font-size: 0.9rem; margin-left: 2px; vertical-align: middle; }
 
 .ga-manuel-tag { font-size: 0.62rem; color: var(--text-gris); font-weight: 500; margin-left: 3px; }
+
+/* Bouton de justification d'absence (18 septembre 2026, "différencier les
+   absences simple / justifiée") — posé à côté de la case et du symbole dans
+   chaque cellule marquée absente, voir html_ligneEleveGA. */
+.ga-btn-justifier {
+  border: none; background: none; cursor: pointer; font-size: 0.72rem; padding: 0 2px;
+  vertical-align: middle; line-height: 1;
+}
+.ga-btn-justifier:disabled { cursor: not-allowed; opacity: 0.5; }
 
 .ga-stats-table { width: 100%; margin-top: 14px; border-collapse: collapse; background: #fff; }
 .ga-stats-table th, .ga-stats-table td { padding: 8px 12px; border: 1px solid var(--bordure); text-align: center; }
@@ -173,6 +188,17 @@
 .ga-recap-mois { font-weight: 700; background: #f1f5f9; }
 .ga-recap-total { font-weight: 800; background: #e2e8f0; font-size: 0.78rem; }
 .ga-recap-moyenne { font-weight: 800; background: var(--bleu-clair, #F4F7F9); color: var(--bleu-kekeli); font-size: 0.82rem; }
+
+/* Planification en mode paysage (18 septembre 2026, demande explicite : "Seul
+   la planification sera en mode paysage" — le registre d'appel GARDE son
+   .conteneur-tableau-bord portrait/900px inchangé, voir css/style-public.css
+   ligne 598 ; cette classe supplémentaire, posée uniquement sur le conteneur
+   de pages/enseignant/planification.html, l'élargit sans toucher la règle
+   partagée dont dépendent les autres pages simples). */
+.conteneur-tableau-bord-large { max-width: 1400px; }
+@media (max-width: 1000px) {
+  .conteneur-tableau-bord-large { max-width: 900px; }
+}
 
 /* --- Planification --- */
 .ga-plan-champ-cell { background: #f8fafc !important; font-weight: 700; color: var(--bleu-kekeli); text-transform: uppercase; font-size: 0.68rem; }
@@ -199,6 +225,7 @@
 }
 .ga-dropdown-menu.ouvert { display: block; }
 .ga-dropdown-item { padding: 5px 9px; font-size: 0.78rem; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.pl-candidat-actif { background: var(--bleu-clair, #F4F7F9); border-color: var(--bleu-kekeli) !important; box-shadow: inset 0 0 0 1px var(--bleu-kekeli); }
 
 .ga-doc-titre { text-align: center; font-size: 1.25rem; font-weight: 800; letter-spacing: .5px; margin: 0 0 10px; color: var(--bleu-kekeli); text-transform: uppercase; }
 .ga-footer-ligne { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 16px; font-size: 0.8rem; font-weight: 700; padding: 0 8px; }

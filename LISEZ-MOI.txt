@@ -1,107 +1,108 @@
-LIVRAISON — Palette exacte de votre maquette + déploiement sur les
-espaces parent et enseignant
-==========================================================
-Date : 18 septembre 2026
+KEKELI — Livraison : corrections registre / planification / devoirs (enseignant)
+================================================================================
 
-Cette livraison fait deux choses :
-1. Elle corrige les couleurs/polices/formes de la nouvelle page d'accueil
-   pour qu'elles suivent EXACTEMENT le fichier de référence que vous avez
-   envoyé (KEKELI_template_accueil_responsive.html), au lieu de la palette
-   que j'avais approximée à la main dans la livraison précédente.
-2. Elle applique ce même habillage (fond bleu ciel légèrement nuageux +
-   apparence complète de la maquette) à toutes les pages des espaces
-   parent et enseignant, comme convenu.
+Cette livraison répond à votre message groupé de 12 demandes concernant le
+registre d'appel, la planification et la gestion des devoirs. Voici, point
+par point, ce qui a été fait.
 
-------------------------------------------------------------
-1. Couleurs et polices exactes de votre fichier de référence
-------------------------------------------------------------
+1. « Les pages épinglées n'affichent pas la nouvelle présentation CSS »
+------------------------------------------------------------------------
+Vérification approfondie du code : les liens de raccourci « 📌 Épingler
+cette page » (menu du haut) sont générés EXACTEMENT par le même mécanisme
+que les liens de navigation normaux, avec les mêmes fichiers CSS. Aucune
+cause technique n'a été trouvée pour ce symptôme. C'est très probablement :
+  - soit le cache du navigateur (essayez un rechargement forcé, Ctrl+F5),
+  - soit la livraison précédente (palette/thème clair) pas encore installée
+    sur votre site en ligne.
+Si le problème persiste après un rechargement forcé ET l'installation de
+cette livraison, dites-le-nous avec une capture d'écran précise de la page
+concernée.
 
-J'ai remplacé ma palette bleu marine/or (approximative) par les vraies
-couleurs de votre maquette : bleu #0759b8, vert #14ae70, jaune #ffc400,
-orange, violet, rose — utilisées exactement comme dans votre fichier
-(boutons, badges, icônes de matières, dégradés).
+2. Registre et planification en mode paysage
+------------------------------------------------------------------------
+Suite à votre précision (« garde le registre en mode portrait, seule la
+planification sera en mode paysage ») : SEULE la page Planification est
+maintenant plus large (mode paysage, jusqu'à 1400px). Le Registre d'appel
+garde sa présentation actuelle en portrait, inchangée.
 
-J'ai aussi ajouté les deux polices utilisées dans votre maquette : Nunito
-(texte courant, plus arrondie que la police précédente) et Caveat (police
-manuscrite, utilisée uniquement pour la petite citation "Ensemble pour une
-éducation de qualité !"). Ces polices se chargent automatiquement depuis
-Google Fonts ; si un jour Google Fonts n'est pas joignable (connexion très
-lente ou bloquée), le site retombe simplement sur une police système
-standard, sans rien casser.
+3. Bouton pour modifier une session déjà passée
+------------------------------------------------------------------------
+Dans le Registre d'appel, un nouveau bouton « 🔓 Modifier une séance
+passée » apparaît à côté de « Valider & Notifier ». En l'activant, les
+créneaux déjà écoulés (matin/après-midi de jours précédents) deviennent de
+nouveau modifiables — avec un contour discret en pointillés pour les
+distinguer du créneau réellement en cours (contour jaune). Conformément à
+votre demande, ces corrections rétroactives sont SILENCIEUSES : aucune
+notification n'est envoyée aux parents pour elles (seul le bouton « Valider
+& Notifier » du créneau du jour envoie des notifications, comme avant).
+De plus, à l'ouverture de la page, le tableau se recentre automatiquement
+sur la colonne de la session en cours.
 
-------------------------------------------------------------
-2. Formes des composants, comme sur votre maquette
-------------------------------------------------------------
+4. Différencier les absences (simple / justifiée)
+------------------------------------------------------------------------
+Chaque case cochée « absent » affiche maintenant un petit bouton (❔ absence
+simple, 📩 absence justifiée) permettant de préciser la nature de
+l'absence et, si besoin, un motif libre (« Maladie », « Rendez-vous
+médical »...). Ceci est enregistré en base (nouvelles colonnes dans le
+registre, sans impact sur les données déjà existantes).
 
-- Boutons et badges : forme "pilule" (bords totalement arrondis), comme
-  sur votre fichier, au lieu des coins simplement arrondis d'avant.
-- Icônes des matières (Français, Mathématiques, etc.) : cercles en
-  couleur pleine (comme votre maquette), au lieu de cercles pastel.
-- Section "Pourquoi choisir KEKELI ?" : fond en dégradé bleu très clair,
-  avec le petit trait jaune manuscrit sous la citation, comme sur votre
-  fichier.
-- Section "Actualités et nouveautés" : présentée en carte blanche avec
-  bordure et icônes rondes colorées, comme votre maquette. J'ai volontai-
-  rement conservé le choix déjà fait de ne pas afficher de fausses dates
-  (celles de votre fichier de démonstration ne sont pas de vraies dates
-  KEKELI).
+5. Planification : vrais titres des séquences + édition libre
+------------------------------------------------------------------------
+Les cases de la planification affichent maintenant le VRAI titre de la
+séance liée (en petite police), au lieu du texte générique. Si une séance
+n'a jamais été titrée par l'administration, un petit badge « à titrer »
+l'indique clairement (au lieu de faire croire à un vrai titre). Vous pouvez
+aussi, en plus de la séance liée, saisir un libellé personnalisé qui
+remplace l'affichage dans la case — la séance reste bien reliée en
+arrière-plan pour le suivi.
 
-------------------------------------------------------------
-3. Espaces parent et enseignant : nouveau fond et nouvel en-tête
-------------------------------------------------------------
+6. Export Word / Excel / PDF verrouillés
+------------------------------------------------------------------------
+Les boutons d'export (registre, bilan mensuel, planification) restent
+visibles mais affichent maintenant « 🔒 Cette fonctionnalité arrive
+bientôt — le temps qu'elle soit bien paramétrée » au clic, le temps que ces
+exports soient finalisés avec vous.
 
-Sur les 11 pages ci-dessous, j'ai appliqué :
-- Un fond bleu ciel légèrement nuageux (dégradé doux), au lieu du fond
-  blanc uni actuel.
-- Un en-tête assorti à la nouvelle palette (les liens de menu passent en
-  pilule bleue pleine au survol/à la sélection, au lieu du gris précédent).
-- Les boutons/badges/liens de ces pages utilisent maintenant la même
-  couleur bleue que la page d'accueil.
+7. Bouton « Renvoyer » pour noter le devoir « Devoir » (ex-Exercice)
+------------------------------------------------------------------------
+Dans le panneau de gestion d'un devoir « à blocs », le bloc « Devoir »
+(anciennement « Exercice ») affiche maintenant un bouton « 📤 Renvoyer »
+(au lieu de « ✏️ Corriger ») pour noter la copie de l'élève — même
+fonctionnement, libellé adapté à ce bloc précis.
 
-Pages concernées :
-Espace parent : tableau de bord, devoirs & notes, messagerie, paiements.
-Espace enseignant : bienvenue, tableau de bord, devoirs & notes,
-messagerie, messagerie (administration), planification, registre d'appel.
+8. Vrai titre de séquence à la création d'un devoir
+------------------------------------------------------------------------
+La liste déroulante « Séance à évaluer », lors de la création d'un devoir
+(enseignant et admin), affiche maintenant le vrai titre de la séance
+(au lieu de « Séquence 1 »). Si une séance n'a pas encore de titre saisi,
+elle apparaît suivie de « (à titrer) ».
 
-Le contenu de ces pages n'a pas changé : seuls le fond et l'en-tête
-changent d'apparence. Les espaces élève, administrateur et autorité
-restent inchangés (vérifié : ils ne portent pas cette nouvelle apparence).
+9. Historique des devoirs : fonds de couleur par type
+------------------------------------------------------------------------
+Dans la liste des devoirs (espace enseignant et admin), chaque devoir a
+maintenant un fond de couleur selon son type : bleu clair (Devoir), orange
+clair (Problème), vert clair (Activité), rouge clair (Évaluation), gris
+clair (ancien devoir texte libre). Une légende est affichée au-dessus de
+la liste.
 
-------------------------------------------------------------
-Vérification effectuée avant livraison
-------------------------------------------------------------
+10. Retrait du mode « devoir libre » à la création
+------------------------------------------------------------------------
+Le choix « texte libre / à blocs » a disparu : un nouveau devoir se crée
+maintenant directement en mode « à blocs ». Les devoirs texte libre déjà
+créés avant cette livraison continuent de s'afficher et de se corriger
+normalement, rien n'est perdu.
 
-- Fichier CSS vérifié ligne par ligne (aucune accolade ni aucun
-  commentaire mal fermé).
-- Page d'accueil testée avec un navigateur automatisé sur 3 tailles
-  d'écran (ordinateur, tablette, téléphone) : mise en page correcte
-  partout.
-- Nouvel en-tête des espaces parent/enseignant testé (couleur de fond,
-  couleur des liens au survol) : conforme à la maquette.
-- Vérifié que les espaces élève/administrateur/autorité ne portent pas
-  ce nouveau fond (aucune régression).
+11 et 12. Bloc « Exercice » renommé « Devoir », menu réduit
+------------------------------------------------------------------------
+Dans l'éditeur de blocs d'un devoir, le bloc « Exercice » s'appelle
+maintenant « Devoir » (l'enseignant y écrit librement ce qu'il veut, comme
+avant). Le menu « + Ajouter un bloc » ne propose plus que : Devoir,
+Problème, Activités, Évaluation (Quiz et Correction retirés — aucun devoir
+existant de ces deux types n'est affecté, seule la création est concernée).
 
-------------------------------------------------------------
-Fichiers modifiés dans ce paquet
-------------------------------------------------------------
-- css/style-public.css
-- pages/parent/tableau-de-bord.html
-- pages/parent/devoirs-notes.html
-- pages/parent/messagerie.html
-- pages/parent/paiements.html
-- pages/enseignant/bienvenue.html
-- pages/enseignant/tableau-de-bord.html
-- pages/enseignant/devoirs-notes.html
-- pages/enseignant/messagerie.html
-- pages/enseignant/messagerie-admin.html
-- pages/enseignant/planification.html
-- pages/enseignant/registre-appel.html
-
-------------------------------------------------------------
-Et maintenant ?
-------------------------------------------------------------
-
-La page d'accueil et l'ensemble des espaces parent/enseignant suivent
-maintenant votre maquette de référence. Dites-moi si vous voulez des
-ajustements (une couleur, une police, un espacement précis) ou si je
-peux continuer sur la suite du projet.
+Rappel important
+------------------------------------------------------------------------
+Tous les changements de base de données (nouvelles colonnes d'absence) ont
+déjà été appliqués directement sur votre base Supabase en production — vous
+n'avez rien à faire de ce côté-là. Il ne reste qu'à déployer les fichiers de
+cette livraison sur votre hébergement.

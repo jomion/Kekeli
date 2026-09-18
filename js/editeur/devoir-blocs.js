@@ -38,7 +38,17 @@
 // et attacherEcouteursProblemeDevoir plus bas pour le câblage propre au
 // devoir (mêmes fonctions que côté séance, juste raccordées aux fonctions
 // de sauvegarde/réaffichage de CE fichier).
-const TYPES_BLOCS_DEVOIR = ['exercice', 'correction', 'probleme', 'quiz', 'evaluation', 'activite'];
+// 18 septembre 2026 : "Retire les autres blocs et maintiens uniquement en
+// plus du bloc Devoir, les blocs Problème, Activités et Evaluation" — 'quiz'
+// et 'correction' retirés du menu "+ Ajouter un bloc" (vérifié : 0 bloc
+// devoir existant de ces deux types en production, aucune donnée affectée ;
+// le rendu des blocs EXISTANTS, lui, reste géré par infoType()/html_corpsBlocDevoir
+// indépendamment de cette liste, donc un ancien bloc quiz/correction resterait
+// affichable s'il existait). 'exercice' reste le type réel en base, renommé
+// "Devoir" à l'affichage uniquement — voir infoTypeDevoir() dans
+// js/devoirs-notes-rendu.js, "l'enseignant est libre de proposer ce qu'il veut"
+// avec ce bloc (texte libre, comme avant).
+const TYPES_BLOCS_DEVOIR = ['exercice', 'probleme', 'evaluation', 'activite'];
 // Types de blocs devoir qui utilisent l'éditeur de texte libre (comme un
 // bloc "Texte" de séance) plutôt que l'éditeur de questions structurées.
 const TYPES_BLOCS_DEVOIR_TEXTE_LIBRE = ['exercice', 'correction'];
@@ -96,7 +106,7 @@ function rendreBlocsDevoir(devoirId) {
       <button type="button" class="btn btn-discret" data-toggle-ajout-devoir>+ Ajouter un bloc</button>
       <div class="liste-types-devoir" data-liste-types-devoir style="display:none;position:absolute;background:white;border:1px solid #E2E8F0;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.12);z-index:10;padding:6px;min-width:190px">
         ${TYPES_BLOCS_DEVOIR.map(t => {
-          const info = infoType(t);
+          const info = infoTypeDevoir(t);
           return `<button type="button" class="item-type-devoir" data-ajouter-type-devoir="${t}" style="display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:8px;border:none;background:none;cursor:pointer;border-radius:6px;font-size:13px">${info.icone} ${info.label}</button>`;
         }).join('')}
       </div>
@@ -107,7 +117,7 @@ function rendreBlocsDevoir(devoirId) {
 }
 
 function html_ligneBlocDevoir(b, competencesDisponibles) {
-  const info = infoType(b.type_bloc);
+  const info = infoTypeDevoir(b.type_bloc);
   const couleur = (b.contenu && b.contenu.couleurBloc) || info.couleur;
   return `
     <div class="bloc" data-bloc-devoir-id="${b.id}" style="border-left-color:${couleur};background:${teinteClaire(couleur)};margin-bottom:12px">
@@ -289,13 +299,15 @@ function attacherEcouteursProblemeDevoir(devoirId, el, bloc) {
   const rafraichirApercus = (lignes, iEquationSeule) => {
     if (typeof iEquationSeule === 'number') {
       const apercu = corps.querySelector(`[data-apercu-grille-probleme="${iEquationSeule}"]`);
+      const apercuResultat = corps.querySelector(`[data-apercu-resultat-probleme="${iEquationSeule}"]`);
+      const analyse = problemeAnalyserEquation(lignes[iEquationSeule].equation);
+      const idPrefixe = `probleme-devoir-${bloc.id}-${iEquationSeule}`;
       if (apercu) {
-        const analyse = problemeAnalyserEquation(lignes[iEquationSeule].equation);
-        const idPrefixe = `probleme-devoir-${bloc.id}-${iEquationSeule}`;
         apercu.innerHTML = analyse
           ? problemeGenererGrilleHtml(analyse, { interactif: false, prefixeId: idPrefixe })
           : `<p class="operation-vide">Saisissez une équation avec deux nombres et un opérateur (ex : 15 * 24 =) pour générer la grille.</p>`;
       }
+      if (apercuResultat) apercuResultat.innerHTML = problemeResultatBoiteHtml(analyse, { prefixeId: idPrefixe });
     }
     if ((c().prepMode || 'auto') !== 'manuel') {
       const { donnees, inconnues } = problemeCalculerDonneesInconnues(lignes);

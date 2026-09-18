@@ -80,6 +80,17 @@ async function afficherGestionEns() {
   const { data: destinatairesTous } = devoirs && devoirs.length
     ? await supabaseClient.from('devoirs_destinataires').select('devoir_id, eleve_id').in('devoir_id', devoirs.map(d => d.id))
     : { data: [] };
+  // 18 septembre 2026 : "Pour l'historique les devoir ajoute des fond de
+  // couleur pour permettre de répérer facilement chaque type" — un aller-
+  // retour léger (juste devoir_id + type_bloc, aucun contenu) pour connaître
+  // le type dominant de chaque devoir "à blocs" et le colorer dans la liste
+  // (voir html_ligneDevoirEns / COULEURS_TYPE_DEVOIR_HIST plus bas).
+  const idsDevoirsBlocsEns = (devoirs || []).filter(d => d.seance_id).map(d => d.id);
+  const { data: blocsTypesEns } = idsDevoirsBlocsEns.length
+    ? await supabaseClient.from('blocs_seance').select('devoir_id, type_bloc').in('devoir_id', idsDevoirsBlocsEns).neq('type_bloc', 'correction').order('ordre')
+    : { data: [] };
+  const typePrincipalParDevoirEns = {};
+  (blocsTypesEns || []).forEach(b => { if (!typePrincipalParDevoirEns[b.devoir_id]) typePrincipalParDevoirEns[b.devoir_id] = b.type_bloc; });
 
   const evalParEleve = {};
   (evaluations || []).forEach(e => { (evalParEleve[e.eleve_id] ??= []).push(e); });
@@ -143,13 +154,23 @@ async function afficherGestionEns() {
   // reste cliquable dans une carte de statut (il ouvre bien le devoir), mais
   // le panneau lui-même ne s'affiche que dans la liste "Devoirs", seul
   // endroit où son conteneur existe désormais dans le DOM.
+  // Mêmes couleurs que les blocs devoir (voir infoTypeDevoir/TYPES_BLOCS
+  // dans js/editeur/blocs.js), en fond clair pour rester lisible sur une
+  // ligne entière plutôt qu'un petit badge. 'exercice' = "Devoir" à
+  // l'affichage (renommage du 18 septembre 2026), 'texte_libre' = ancien
+  // mode retiré de la création mais encore présent en historique (item 10).
+  const COULEURS_TYPE_DEVOIR_HIST = {
+    exercice: '#DBEAFE', probleme: '#FFEDD5', activite: '#DCFCE7', evaluation: '#FEE2E2', texte_libre: '#F1F5F9'
+  };
   const html_ligneDevoirEns = (d, avecPanneau) => {
     const estBlocs = !!d.seance_id;
+    const typeDevoir = estBlocs ? (typePrincipalParDevoirEns[d.id] || 'exercice') : 'texte_libre';
+    const fondType = COULEURS_TYPE_DEVOIR_HIST[typeDevoir] || COULEURS_TYPE_DEVOIR_HIST.texte_libre;
     const sousLigne = estBlocs
       ? `${echapperEns2(d.seances?.titre || '')} · ${d.statut === 'publie' ? 'Publié' : 'Brouillon'} · à rendre le ${new Date(d.date_limite).toLocaleDateString('fr-FR')}`
       : `À rendre le ${new Date(d.date_limite).toLocaleDateString('fr-FR')} · ${rendusParDevoir[d.id] || 0}/${(eleves || []).length} rendus`;
     return `
-    <div class="ligne-pub" style="flex-direction:column;align-items:stretch;gap:0">
+    <div class="ligne-pub" style="flex-direction:column;align-items:stretch;gap:0;background:${fondType}">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
         <div><div class="titre-ligne-pub">${echapperEns2(d.titre)}</div><div class="sous-ligne-pub">${sousLigne}</div></div>
         <button type="button" class="btn btn-discret" data-toggle-rendus-ens="${d.id}" style="padding:6px 14px;font-size:12px">${devoirOuvertEns === d.id ? (avecPanneau ? '▲ Fermer' : '👇 Ouvert dans "Devoirs" ci-dessous') : (estBlocs ? '📂 Gérer' : '📋 Voir les rendus')}</button>
@@ -184,6 +205,13 @@ async function afficherGestionEns() {
     <button class="btn btn-filled" id="btnNouveauDevoirEns" style="margin-bottom:20px">+ Nouveau devoir</button>
 
     <div class="titre-section-pub">Devoirs</div>
+    <p style="font-size:11px;color:var(--text-gris);margin:-6px 0 10px;display:flex;gap:12px;flex-wrap:wrap">
+      <span><span style="display:inline-block;width:10px;height:10px;background:${COULEURS_TYPE_DEVOIR_HIST.exercice};border-radius:2px;margin-right:3px;vertical-align:middle"></span>Devoir</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:${COULEURS_TYPE_DEVOIR_HIST.probleme};border-radius:2px;margin-right:3px;vertical-align:middle"></span>Problème</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:${COULEURS_TYPE_DEVOIR_HIST.activite};border-radius:2px;margin-right:3px;vertical-align:middle"></span>Activité</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:${COULEURS_TYPE_DEVOIR_HIST.evaluation};border-radius:2px;margin-right:3px;vertical-align:middle"></span>Évaluation</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:${COULEURS_TYPE_DEVOIR_HIST.texte_libre};border-radius:2px;margin-right:3px;vertical-align:middle"></span>Texte libre</span>
+    </p>
     ${html_listeDevoirsEns(devoirsListe)}
 
     <div class="titre-section-pub">Mes élèves suivis dans cette classe</div>
@@ -266,17 +294,20 @@ async function afficherGestionEns() {
   }
 }
 
+// 18 septembre 2026 : "retire le devoir libre" — le choix de mode a disparu,
+// la création va désormais directement au mode "à blocs" (le seul restant).
+// ouvrirNouveauDevoirTexteLibreEns() reste plus bas, volontairement : les
+// devoirs texte libre déjà créés avant ce changement continuent de s'afficher
+// et de se corriger normalement (voir html_gestionRendusDevoir), seule la
+// CRÉATION d'un nouveau devoir dans ce mode est retirée.
 function ouvrirNouveauDevoirEns(eleves) {
-  ouvrirChoixModeNouveauDevoir((mode) => {
-    if (mode === 'texte_libre') ouvrirNouveauDevoirTexteLibreEns(eleves);
-    else ouvrirNouveauDevoirBlocsEns(eleves);
-  });
+  ouvrirNouveauDevoirBlocsEns(eleves);
 }
 
 async function ouvrirNouveauDevoirBlocsEns(eleves) {
   const seances = await chargerSeancesPourMatiere(classeSelectionneeEns, champSelectionneEns);
   if (!seances.length) {
-    alert("Aucune séance publiée n'existe pour cette matière dans cette classe. Créez (ou faites créer par un admin) une séance dans le parcours avant de donner un devoir à blocs — ou choisissez le mode texte libre.");
+    alert("Aucune séance publiée n'existe pour cette matière dans cette classe. Créez (ou faites créer par un admin) une séance dans le parcours avant de donner un devoir.");
     return;
   }
   ouvrirModal({

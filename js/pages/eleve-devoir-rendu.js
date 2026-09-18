@@ -115,7 +115,7 @@ function rendreDevoir() {
       <h1 style="margin:0">${echapper(d.titre)}</h1>
       <p style="margin:6px 0 0;font-size:13px;color:var(--text-gris)">À rendre le ${new Date(d.date_limite).toLocaleDateString('fr-FR')}</p>
     </div>
-    ${d.consigne ? `<div class="bloc-lecture" style="border-left-color:#94A3B8;margin-bottom:16px"><p style="margin:0">${echapper(d.consigne)}</p></div>` : ''}
+    ${d.consigne ? `<div class="bloc-lecture" style="border-left-color:#94A3B8;margin-bottom:16px"><div class="contenu-riche-lecture">${contenuRicheInitial(d.consigne)}</div></div>` : ''}
     ${enteteNote}
     <div class="colonne-exercice-seance" style="max-width:720px">
       ${blocsDevoirCourant.length ? blocsDevoirCourant.map(rendreBlocTravailDevoir).join('') : '<p style="color:var(--text-gris)">Ce devoir n\'a pas encore de contenu — reviens plus tard.</p>'}
@@ -146,7 +146,7 @@ function attacherEcouteursCorrectionsDevoir() {
 }
 
 function rendreBlocTravailDevoir(b) {
-  const info = infoType(b.type_bloc);
+  const info = infoTypeDevoir(b.type_bloc);
   const c = b.contenu || {};
   // Bordure/texte theme-aware (var(--bleu-kekeli), voir js/pages/eleve-seance.js
   // pour l'explication complète — 5 septembre 2026, 7e lot), teinte de fond

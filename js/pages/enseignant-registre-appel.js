@@ -17,6 +17,10 @@ let presencesParCleGA = {};  // `${eleveKey}|${date}|${creneau}` -> { id, absent
 let evenementsGA = [];       // événements calendrier de la classe sélectionnée
 let creneauActifGA = null;   // `${date}_${M|S}` du créneau réel en cours, ou null
 let demiJoursMoisGA = 0;
+let modeDeverrouilleGA = false; // 18 septembre 2026 : "ajoute le bouton de modification des sessions déjà dépassée"
+let joursOuvresActuelsGA = []; // mémorisé pour ré-afficher sans recharger la base (bascule du mode déverrouillé)
+let anneeAfficheeGA = null;
+let mois0AfficheGA = null;
 
 const MOIS_ANNEE_SCOLAIRE = [
   { m: 9, libelle: 'SEPT.' }, { m: 10, libelle: 'OCT.' }, { m: 11, libelle: 'NOV.' }, { m: 12, libelle: 'DEC.' },
@@ -59,6 +63,15 @@ function moisActuelISO() {
 
 function echapperGA(v) {
   return (v || '').toString().replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+// 18 septembre 2026 : "Verrouille les boutons de conversion en word, excel,
+// pdf et ajoute le message bientôt disponible le temps que ça soit bien
+// paramétré." — les boutons restent visibles mais leur action réelle est
+// remplacée par ce message, jusqu'à nouvel ordre (retirer .ga-btn-verrouille
+// et rebrancher le vrai gestionnaire de clic pour rouvrir chaque export).
+function alerterExportVerrouilleGA() {
+  alert('🔒 Cette fonctionnalité arrive bientôt — le temps qu\'elle soit bien paramétrée.');
 }
 
 function afficherEnteteGA() {
@@ -150,6 +163,34 @@ function detecterCreneauActifGA(anneeAffichee, mois0Affiche) {
   return `${iso}_${creneau}`;
 }
 
+// 18 septembre 2026 : "ajoute le bouton de modification des sessions déjà
+// dépassée" — un créneau est "dépassé" s'il est strictement avant le créneau
+// réel du moment (jour antérieur, ou matin du jour même une fois midi passé).
+// Le créneau S du jour même n'est jamais "dépassé" par cette règle : avant
+// midi il est simplement à venir (verrouillé normalement), après midi il est
+// déjà le créneau ACTIF (couvert par creneauActifGA, pas par ce mode).
+function estCreneauEcouleGA(isoDate, creneau) {
+  const now = new Date();
+  const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  if (isoDate < todayIso) return true;
+  if (isoDate > todayIso) return false;
+  return creneau === 'M' && now.getHours() >= 12;
+}
+
+// Recentre horizontalement le tableau (scroll interne) sur la colonne du
+// créneau actif — demande explicite : "Dès le chargement de la page de
+// registre, présente la page sur la session en cours."
+function scrollVersCreneauActifGA() {
+  if (!creneauActifGA) return;
+  const scrollDiv = document.querySelector('.ga-table-scroll');
+  const cellule = document.querySelector('.ga-cellule-active');
+  if (!scrollDiv || !cellule) return;
+  const rectScroll = scrollDiv.getBoundingClientRect();
+  const rectCellule = cellule.getBoundingClientRect();
+  const decalage = scrollDiv.scrollLeft + (rectCellule.left - rectScroll.left) - scrollDiv.clientWidth / 2 + rectCellule.width / 2;
+  scrollDiv.scrollLeft = Math.max(0, decalage);
+}
+
 async function chargerEtAfficherAppel() {
   const zone = document.getElementById('gaZone');
   zone.innerHTML = '<p style="color:var(--text-gris)">Chargement du registre...</p>';
@@ -168,13 +209,16 @@ async function chargerEtAfficherAppel() {
   evenementsGA = evenements || [];
 
   const { data: presences } = await supabaseClient.from('presences_appel')
-    .select('id, eleve_id, eleve_manuel_id, date_appel, creneau, absent, retard')
+    .select('id, eleve_id, eleve_manuel_id, date_appel, creneau, absent, retard, justifiee, motif_justification')
     .eq('classe_id', classeSelGA).gte('date_appel', premierJour).lte('date_appel', dernierJour);
 
   presencesParCleGA = {};
   (presences || []).forEach(p => {
     const cle = p.eleve_id ? 'r_' + p.eleve_id : 'm_' + p.eleve_manuel_id;
-    presencesParCleGA[`${cle}|${p.date_appel}|${p.creneau}`] = { id: p.id, absent: p.absent, retard: p.retard };
+    presencesParCleGA[`${cle}|${p.date_appel}|${p.creneau}`] = {
+      id: p.id, absent: p.absent, retard: p.retard,
+      justifiee: p.justifiee, motifJustification: p.motif_justification
+    };
   });
 
   creneauActifGA = detecterCreneauActifGA(annee, mois - 1);
@@ -186,9 +230,25 @@ async function chargerEtAfficherAppel() {
   });
   demiJoursMoisGA = demiJours;
 
+  joursOuvresActuelsGA = joursOuvres;
+  anneeAfficheeGA = annee;
+  mois0AfficheGA = mois - 1;
+
   zone.innerHTML = html_onglet_appel(joursOuvres);
   wireOngletAppel(joursOuvres, annee, mois - 1);
   recalculerStatsAppelGA(joursOuvres);
+  scrollVersCreneauActifGA();
+}
+
+// Ré-affiche l'onglet "Appel du jour" avec les données déjà chargées (pas de
+// nouvel aller-retour base) — utilisé uniquement par la bascule du bouton
+// "Modifier une séance passée", pour rester instantané.
+function reafficherAppelSansRechargerGA() {
+  const zone = document.getElementById('gaZone');
+  zone.innerHTML = html_onglet_appel(joursOuvresActuelsGA);
+  wireOngletAppel(joursOuvresActuelsGA, anneeAfficheeGA, mois0AfficheGA);
+  recalculerStatsAppelGA(joursOuvresActuelsGA);
+  scrollVersCreneauActifGA();
 }
 
 function html_onglet_appel(joursOuvres) {
@@ -205,14 +265,16 @@ function html_onglet_appel(joursOuvres) {
       <span id="gaBadgeActif" class="ga-badge-active">Détection du créneau...</span>
       <div class="ga-actions">
         <button type="button" class="ga-btn ga-btn-secondaire" id="gaBtnAjouterEleve">➕ Ajouter un élève</button>
+        <button type="button" class="ga-btn ${modeDeverrouilleGA ? 'ga-btn-notify' : 'ga-btn-secondaire'}" id="gaBtnDeverrouiller">${modeDeverrouilleGA ? '🔒 Verrouiller les séances passées' : '🔓 Modifier une séance passée'}</button>
         <button type="button" class="ga-btn ga-btn-notify" id="gaBtnNotifier">🔔 Valider &amp; Notifier</button>
-        <button type="button" class="ga-btn ga-btn-excel" id="gaBtnExcel">📊 Excel</button>
-        <button type="button" class="ga-btn ga-btn-pdf" id="gaBtnPdf">📄 PDF</button>
+        <button type="button" class="ga-btn ga-btn-excel ga-btn-verrouille" id="gaBtnExcel" title="Bientôt disponible">🔒 Excel</button>
+        <button type="button" class="ga-btn ga-btn-pdf ga-btn-verrouille" id="gaBtnPdf" title="Bientôt disponible">🔒 PDF</button>
       </div>
     </div>
 
     <p style="font-size:0.82rem;color:var(--text-gris);margin-bottom:10px">
       📌 Cochez la case pour signaler l'absence sur le créneau en cours (seul le créneau réel du moment est modifiable). Cliquez sur une cellule active pour basculer le retard (fond jaune). « Jour chômé » grise une journée entière pour la classe.
+      ${modeDeverrouilleGA ? '<br>🔓 Mode déverrouillé : les séances déjà passées sont aussi modifiables (aucune notification n\'est envoyée aux parents pour ces corrections rétroactives).' : ''}
     </p>
 
     <div class="ga-table-scroll">
@@ -291,14 +353,21 @@ function wireOngletAppel(joursOuvres, annee, mois0) {
   tbody.querySelectorAll('.ga-case-att').forEach(cb => {
     cb.addEventListener('change', () => onChangeAbsenceGA(cb));
   });
+  tbody.querySelectorAll('[data-justifier]').forEach(btn => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); ouvrirJustificationAbsenceGA(btn.closest('td')); });
+  });
   tbody.querySelectorAll('.ga-cellule-active').forEach(td => {
-    td.addEventListener('click', (e) => { if (e.target.tagName !== 'INPUT') toggleRetardGA(td); });
+    td.addEventListener('click', (e) => { if (e.target.tagName !== 'INPUT' && !e.target.closest('[data-justifier]')) toggleRetardGA(td); });
   });
 
   document.getElementById('gaBtnAjouterEleve').addEventListener('click', ouvrirModalAjoutEleveGA);
+  document.getElementById('gaBtnDeverrouiller').addEventListener('click', () => {
+    modeDeverrouilleGA = !modeDeverrouilleGA;
+    reafficherAppelSansRechargerGA();
+  });
   document.getElementById('gaBtnNotifier').addEventListener('click', validerEtNotifierGA);
-  document.getElementById('gaBtnExcel').addEventListener('click', () => exporterExcelAppelGA(joursOuvres));
-  document.getElementById('gaBtnPdf').addEventListener('click', () => window.print());
+  document.getElementById('gaBtnExcel').addEventListener('click', alerterExportVerrouilleGA);
+  document.getElementById('gaBtnPdf').addEventListener('click', alerterExportVerrouilleGA);
 }
 
 function html_ligneEleveGA(el, numero, joursOuvres) {
@@ -312,15 +381,35 @@ function html_ligneEleveGA(el, numero, joursOuvres) {
       const cleComplete = `${el.cle}|${j.isoDate}|${creneau}`;
       const donnee = presencesParCleGA[cleComplete] || { absent: false, retard: false };
       const desactive = !!ev || (creneau === 'S' && estMercredi);
-      const estActif = (creneauActifGA === `${j.isoDate}_${creneau}`) && !desactive;
+      // "Modifier une séance passée" (18 septembre 2026) : en mode
+      // déverrouillé, les créneaux déjà écoulés redeviennent modifiables en
+      // plus du créneau réel du moment — silencieusement, sans notification
+      // (validerEtNotifierGA reste la seule voie de notification et reste
+      // gatée sur creneauActifGA, jamais appelée pour ces cellules-ci).
+      const estCreneauReel = creneauActifGA === `${j.isoDate}_${creneau}`;
+      const estActif = !desactive && (estCreneauReel || (modeDeverrouilleGA && estCreneauEcouleGA(j.isoDate, creneau)));
       const slotClass = creneau === 'M' ? 'ga-slot-m' : 'ga-slot-s';
       const symbole = donnee.absent ? (creneau === 'M' ? '-' : '|') : '';
       const classeRetard = donnee.retard ? 'ga-bg-retard-demi' : '';
+      // Distinction visuelle : contour jaune vif pour le créneau réellement en
+      // cours, contour discret gris pour un créneau passé rouvert via le
+      // bouton "Modifier une séance passée" (pour ne jamais confondre les deux).
+      const classeActive = estActif ? (estCreneauReel ? 'ga-cellule-active' : 'ga-cellule-active ga-cellule-active-passee') : '';
 
-      cellulesJours += `<td class="${parite} ${slotClass} ${desactive ? 'ga-jour-off' : ''} ${estActif ? 'ga-cellule-active' : ''} ${classeRetard}"
+      // 18 septembre 2026 : "différencier les absences (absence simple,
+      // absence justifiée comme malade ou autre raison)" — petit bouton
+      // visible uniquement quand la case est cochée absente, pour ouvrir la
+      // saisie du motif ; ❔ = simple (par défaut), 📩 = justifiée. Le clic
+      // est intercepté avant le toggle de retard (voir wireOngletAppel).
+      const boutonJustifier = donnee.absent
+        ? `<button type="button" class="ga-btn-justifier" data-justifier ${!estActif ? 'disabled' : ''} title="${donnee.justifiee ? `Absence justifiée${donnee.motifJustification ? ' : ' + donnee.motifJustification : ''}` : 'Absence simple — cliquer pour justifier'}">${donnee.justifiee ? '📩' : '❔'}</button>`
+        : '';
+
+      cellulesJours += `<td class="${parite} ${slotClass} ${desactive ? 'ga-jour-off' : ''} ${classeActive} ${classeRetard}"
           data-cle="${el.cle}" data-date="${j.isoDate}" data-creneau="${creneau}" data-type="${el.type}" data-id="${el.id}">
         <input type="checkbox" class="ga-case-att" ${donnee.absent ? 'checked' : ''} ${!estActif ? 'disabled' : ''}>
         <span class="ga-symbole">${symbole}</span>
+        ${boutonJustifier}
       </td>`;
     });
   });
@@ -393,10 +482,15 @@ async function onChangeAbsenceGA(cb) {
   const { cle, date, creneau, type, id } = td.dataset;
   const absent = cb.checked;
   const cleComplete = `${cle}|${date}|${creneau}`;
-  const donneePrecedente = presencesParCleGA[cleComplete] || { retard: false };
+  const donneePrecedente = presencesParCleGA[cleComplete] || { retard: false, justifiee: false, motifJustification: null };
+  // Décocher l'absence efface aussi sa justification (elle n'a plus de sens
+  // sans absence) — 18 septembre 2026.
+  const justifiee = absent ? (donneePrecedente.justifiee || false) : false;
+  const motifJustification = absent ? (donneePrecedente.motifJustification || null) : null;
 
   const ligne = {
     classe_id: classeSelGA, date_appel: date, creneau, absent, retard: donneePrecedente.retard,
+    justifiee, motif_justification: motifJustification,
     saisi_par: profilGA.id, modifie_le: new Date().toISOString()
   };
   if (type === 'reel') { ligne.eleve_id = id; }
@@ -406,8 +500,14 @@ async function onChangeAbsenceGA(cb) {
   const { data, error } = await supabaseClient.from('presences_appel').upsert(ligne, { onConflict: conflit }).select('id').single();
   if (error) { alert('Erreur d\'enregistrement : ' + error.message); cb.checked = !absent; return; }
 
-  presencesParCleGA[cleComplete] = { id: data.id, absent, retard: donneePrecedente.retard };
+  presencesParCleGA[cleComplete] = { id: data.id, absent, retard: donneePrecedente.retard, justifiee, motifJustification };
   td.querySelector('.ga-symbole').textContent = absent ? (creneau === 'M' ? '-' : '|') : '';
+  const boutonExistant = td.querySelector('[data-justifier]');
+  if (boutonExistant) boutonExistant.remove();
+  if (absent) {
+    td.insertAdjacentHTML('beforeend', `<button type="button" class="ga-btn-justifier" data-justifier title="Absence simple — cliquer pour justifier">❔</button>`);
+    td.querySelector('[data-justifier]').addEventListener('click', (e) => { e.stopPropagation(); ouvrirJustificationAbsenceGA(td); });
+  }
 
   const [annee, mois] = moisAppelGA.split('-').map(Number);
   recalculerStatsAppelGA(getJoursOuvresGA(annee, mois - 1));
@@ -434,6 +534,50 @@ async function toggleRetardGA(td) {
 
   const [annee, mois] = moisAppelGA.split('-').map(Number);
   recalculerStatsAppelGA(getJoursOuvresGA(annee, mois - 1));
+}
+
+// 18 septembre 2026 : "Ajoute une option pour différencier les absences
+// (absence simple, absence justifiées comme malade ou autre raison)" —
+// modal de saisie du motif, déclenché par le petit bouton ❔/📩 posé sur
+// chaque cellule marquée absente (voir html_ligneEleveGA/onChangeAbsenceGA).
+function ouvrirJustificationAbsenceGA(td) {
+  const { cle, date, creneau, type, id } = td.dataset;
+  const cleComplete = `${cle}|${date}|${creneau}`;
+  const donnee = presencesParCleGA[cleComplete];
+  if (!donnee || !donnee.absent) return;
+
+  ouvrirModal({
+    titre: 'Type d\'absence',
+    texteValider: 'Enregistrer',
+    champs: [
+      {
+        nom: 'justifiee', label: 'Nature de l\'absence', type: 'select',
+        options: [{ valeur: 'non', label: 'Absence simple' }, { valeur: 'oui', label: 'Absence justifiée (maladie, autre motif...)' }],
+        valeur: donnee.justifiee ? 'oui' : 'non'
+      },
+      { nom: 'motif', label: 'Motif (si justifiée)', type: 'text', requis: false, valeur: donnee.motifJustification || '' }
+    ],
+    onValider: async ({ justifiee: choix, motif }) => {
+      const justifiee = choix === 'oui';
+      const motifFinal = justifiee ? (motif || null) : null;
+      const ligne = {
+        classe_id: classeSelGA, date_appel: date, creneau, absent: true, retard: donnee.retard,
+        justifiee, motif_justification: motifFinal,
+        saisi_par: profilGA.id, modifie_le: new Date().toISOString()
+      };
+      if (type === 'reel') { ligne.eleve_id = id; } else { ligne.eleve_manuel_id = Number(id); }
+      const conflit = type === 'reel' ? 'classe_id,eleve_id,date_appel,creneau' : 'classe_id,eleve_manuel_id,date_appel,creneau';
+      const { data, error } = await supabaseClient.from('presences_appel').upsert(ligne, { onConflict: conflit }).select('id').single();
+      if (error) { alert('Erreur d\'enregistrement : ' + error.message); return; }
+
+      presencesParCleGA[cleComplete] = { id: data.id, absent: true, retard: donnee.retard, justifiee, motifJustification: motifFinal };
+      const bouton = td.querySelector('[data-justifier]');
+      if (bouton) {
+        bouton.textContent = justifiee ? '📩' : '❔';
+        bouton.title = justifiee ? `Absence justifiée${motifFinal ? ' : ' + motifFinal : ''}` : 'Absence simple — cliquer pour justifier';
+      }
+    }
+  });
 }
 
 function ouvrirModalAjoutEleveGA() {
@@ -535,8 +679,8 @@ async function chargerEtAfficherBilan() {
   }
 
   zone.innerHTML = html_onglet_bilan(donneesParMois);
-  document.getElementById('gaBtnExcelBilan').addEventListener('click', () => exporterExcelBilanGA(donneesParMois));
-  document.getElementById('gaBtnPdfBilan').addEventListener('click', () => window.print());
+  document.getElementById('gaBtnExcelBilan').addEventListener('click', alerterExportVerrouilleGA);
+  document.getElementById('gaBtnPdfBilan').addEventListener('click', alerterExportVerrouilleGA);
 }
 
 function anneeScolairePourMoisGA(mois) {
@@ -632,8 +776,8 @@ function html_onglet_bilan(donneesParMois) {
     <div class="ga-top-bar">
       <h2>Bilan mensuel par genre (G / F / T) — année scolaire</h2>
       <div class="ga-actions">
-        <button type="button" class="ga-btn ga-btn-excel" id="gaBtnExcelBilan">📊 Excel</button>
-        <button type="button" class="ga-btn ga-btn-pdf" id="gaBtnPdfBilan">📄 PDF</button>
+        <button type="button" class="ga-btn ga-btn-excel ga-btn-verrouille" id="gaBtnExcelBilan" title="Bientôt disponible">🔒 Excel</button>
+        <button type="button" class="ga-btn ga-btn-pdf ga-btn-verrouille" id="gaBtnPdfBilan" title="Bientôt disponible">🔒 PDF</button>
       </div>
     </div>
     <div class="ga-table-scroll">

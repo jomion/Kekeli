@@ -123,6 +123,26 @@ function echapperPL(v) {
   return (v || '').toString().replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
 
+// 18 septembre 2026 : "Verrouille les boutons de conversion en word, excel,
+// pdf et ajoute le message bientôt disponible le temps que ça soit bien
+// paramétré." — même principe que alerterExportVerrouilleGA() côté registre
+// d'appel (js/pages/enseignant-registre-appel.js), dupliqué ici volontairement
+// : ces deux fichiers ne partagent aucune dépendance croisée.
+function alerterExportVerrouillePL() {
+  alert('🔒 Cette fonctionnalité arrive bientôt — le temps qu\'elle soit bien paramétrée.');
+}
+
+// Même convention que libelleTitreSeanceSea() dans js/pages/seances.js (18
+// septembre 2026, "afficher le titre des séquences dans les cases [...] au
+// lieu de séquence") : titre_contenu (le vrai titre saisi par l'admin) si
+// présent, sinon le titre brut générique ("Séance N"), grisé/italique avec
+// une pastille "à titrer" pour ne jamais faire croire que c'est un vrai
+// titre — juste réduite pour tenir dans une case étroite de la grille.
+function libelleTitreSeancePL(titre, titreContenu) {
+  if (titreContenu) return echapperPL(titreContenu);
+  return `<span style="font-style:italic;color:#94A3B8">${echapperPL(titre || 'Séance')}</span> <span style="font-style:normal;font-weight:700;font-size:7px;background:#FEF3C7;color:#92400E;padding:0 4px;border-radius:6px;vertical-align:middle">à titrer</span>`;
+}
+
 function afficherEntetePL() {
   document.getElementById('contenu').innerHTML = `
     <div class="ga-carte">
@@ -209,7 +229,7 @@ async function chargerEtAfficherPlan() {
       .lte('date_debut', dernierJour).gte('date_fin', premierJour).or(`classe_id.eq.${classeSelPL},classe_id.is.null`),
     supabaseClient.from('planification_parametres_mensuels').select('id, semaines_evaluation')
       .eq('classe_id', classeSelPL).eq('annee', annee).eq('mois', mois).maybeSingle(),
-    supabaseClient.from('planification_cellules').select('id, ligne_cle, semaine, seance_id, texte_libre, seances(titre, discipline)')
+    supabaseClient.from('planification_cellules').select('id, ligne_cle, semaine, seance_id, texte_libre, seances(titre, titre_contenu, discipline)')
       .eq('classe_id', classeSelPL).eq('annee', annee).eq('mois', mois)
   ]);
 
@@ -220,7 +240,8 @@ async function chargerEtAfficherPlan() {
   (cellules || []).forEach(c => {
     cellulesParClePL[`${c.ligne_cle}|${c.semaine}`] = {
       id: c.id, seance_id: c.seance_id, texte_libre: c.texte_libre,
-      titreSeance: c.seances?.titre || null, disciplineSeance: c.seances?.discipline || null
+      titreSeance: c.seances?.titre || null, titreContenuSeance: c.seances?.titre_contenu || null,
+      disciplineSeance: c.seances?.discipline || null
     };
   });
 
@@ -264,8 +285,8 @@ function html_zonePlan(annee, mois) {
               </div>`).join('')}
           </div>
         </div>
-        <button type="button" class="ga-btn ga-btn-word" id="plBtnWord">📄 Word</button>
-        <button type="button" class="ga-btn ga-btn-pdf" id="plBtnPdf">📄 PDF</button>
+        <button type="button" class="ga-btn ga-btn-word ga-btn-verrouille" id="plBtnWord" title="Bientôt disponible">🔒 Word</button>
+        <button type="button" class="ga-btn ga-btn-pdf ga-btn-verrouille" id="plBtnPdf" title="Bientôt disponible">🔒 PDF</button>
       </div>
     </div>
 
@@ -308,7 +329,17 @@ function html_tablePlan() {
       let contenu = `<div class="ga-plan-cell-vide" data-ligne="${ligne.id}" data-semaine="${s.numero}">+</div>`;
       if (donnee) {
         if (donnee.seance_id) {
-          contenu = `<div class="ga-plan-seance-item" data-ligne="${ligne.id}" data-semaine="${s.numero}">${echapperPL(donnee.titreSeance || 'Séance')}</div>`;
+          // 18 septembre 2026 : "afficher le titre des séquences [...] et
+          // l'option d'éditer librement" — une case liée à une séance réelle
+          // affiche son vrai titre (titre_contenu, ou le titre brut "à
+          // titrer" à défaut), SAUF si l'enseignant a saisi un libellé
+          // personnalisé (texte_libre en plus du seance_id, désormais
+          // possible ensemble — voir enregistrerCellulePL) qui prend le pas
+          // sur l'affichage sans jamais perdre le lien réel vers la séance.
+          const libelleReel = libelleTitreSeancePL(donnee.titreSeance, donnee.titreContenuSeance);
+          const libelleAffiche = donnee.texte_libre ? echapperPL(donnee.texte_libre) : libelleReel;
+          const info = donnee.texte_libre ? ` title="Séance liée : ${echapperPL(donnee.titreContenuSeance || donnee.titreSeance || '')}"` : '';
+          contenu = `<div class="ga-plan-seance-item" data-ligne="${ligne.id}" data-semaine="${s.numero}"${info}>${libelleAffiche}</div>`;
         } else if (donnee.texte_libre) {
           contenu = `<div class="ga-plan-texte-item" data-ligne="${ligne.id}" data-semaine="${s.numero}">${echapperPL(donnee.texte_libre)}</div>`;
         }
@@ -369,8 +400,8 @@ function wireZonePlan(annee, mois) {
     el.addEventListener('click', () => ouvrirSelecteurCellulePL(el.dataset.ligne, Number(el.dataset.semaine)));
   });
 
-  document.getElementById('plBtnWord').addEventListener('click', exporterWordPlanPL);
-  document.getElementById('plBtnPdf').addEventListener('click', () => window.print());
+  document.getElementById('plBtnWord').addEventListener('click', alerterExportVerrouillePL);
+  document.getElementById('plBtnPdf').addEventListener('click', alerterExportVerrouillePL);
 }
 
 // ===========================================================================
@@ -386,17 +417,25 @@ async function chargerSeancesCandidatesPL(ligne) {
   const { data: sas } = await supabaseClient.from('sa').select('id').in('noeud_id', noeudIds);
   const saIds = (sas || []).map(s => s.id);
   if (!saIds.length) return [];
-  const { data: seances } = await supabaseClient.from('seances').select('id, titre, discipline')
+  const { data: seances } = await supabaseClient.from('seances').select('id, titre, titre_contenu, discipline')
     .in('sa_id', saIds).eq('statut', 'publie').order('titre');
   return (seances || []).filter(s => seanceCorrespondLignePL(s, ligne));
 }
 
+// 18 septembre 2026, refonte : "afficher le titre des séquences [...] et
+// l'option d'éditer librement" — la séance choisie (radio, pas d'enregistrement
+// immédiat au clic) et la note libre sont maintenant enregistrées ENSEMBLE en
+// un seul geste (bouton unique), et ne s'excluent plus mutuellement : la note
+// libre devient un libellé personnalisé qui prend le pas sur l'affichage du
+// titre réel dans la case, sans faire perdre le lien réel vers la séance
+// (utile pour le suivi/la notation) — voir html_tablePlan et enregistrerCellulePL.
 async function ouvrirSelecteurCellulePL(ligneId, semaine) {
   const ligne = PLAN_LIGNES.find(l => l.id === ligneId);
   if (!ligne) return;
   const candidates = await chargerSeancesCandidatesPL(ligne);
   const cleComplete = `${ligneId}|${semaine}`;
   const donnee = cellulesParClePL[cleComplete];
+  let seanceChoisieId = donnee?.seance_id || null;
 
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px';
@@ -404,16 +443,20 @@ async function ouvrirSelecteurCellulePL(ligneId, semaine) {
     <div style="background:#fff;border-radius:10px;padding:20px;max-width:440px;width:100%;max-height:80vh;overflow-y:auto">
       <h3 style="margin-top:0">${echapperPL(ligne.champLabel)} — ${echapperPL(ligne.label)} (S${semaine})</h3>
       ${candidates.length ? `
-        <p style="font-size:0.82rem;color:var(--text-gris)">Séances publiées correspondantes :</p>
-        <div>${candidates.map(s => `<div class="ga-dropdown-item" data-choisir-seance="${s.id}" data-titre="${echapperPL(s.titre)}" style="border:1px solid var(--bordure);border-radius:6px;margin-bottom:5px;cursor:pointer">📘 ${echapperPL(s.titre)} <span style="color:var(--text-gris)">(${echapperPL(s.discipline || '')})</span></div>`).join('')}</div>
+        <p style="font-size:0.82rem;color:var(--text-gris)">Séance à lier (facultatif — cliquez pour sélectionner/désélectionner) :</p>
+        <div id="plListeCandidats">${candidates.map(s => `
+          <div class="ga-dropdown-item pl-item-candidat ${seanceChoisieId === s.id ? 'pl-candidat-actif' : ''}" data-choisir-seance="${s.id}"
+               style="border:1px solid var(--bordure);border-radius:6px;margin-bottom:5px;cursor:pointer">
+            📘 ${libelleTitreSeancePL(s.titre, s.titre_contenu)} <span style="color:var(--text-gris)">(${echapperPL(s.discipline || '')})</span>
+          </div>`).join('')}</div>
       ` : `<p style="font-size:0.82rem;color:var(--text-gris)">Aucune séance publiée ne correspond à cette discipline pour cette classe pour l'instant — utilisez une note libre.</p>`}
-      <label class="champ-modal" style="display:block;margin-top:12px">Note libre (facultatif)
+      <label class="champ-modal" style="display:block;margin-top:12px">Libellé personnalisé (facultatif — remplace l'affichage du titre réel dans la case)
         <input type="text" id="plTexteLibreInput" value="${donnee?.texte_libre ? echapperPL(donnee.texte_libre) : ''}" placeholder="Ex : Petit projet — collecte de déchets">
       </label>
       <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">
         ${donnee ? `<button type="button" class="ga-btn ga-btn-secondaire" id="plBtnEffacerCellule">🗑️ Effacer</button>` : ''}
         <button type="button" class="ga-btn ga-btn-secondaire" id="plBtnAnnulerCellule">Annuler</button>
-        <button type="button" class="ga-btn ga-btn-primary" id="plBtnValiderTexte">Enregistrer la note</button>
+        <button type="button" class="ga-btn ga-btn-primary" id="plBtnValiderTexte">Enregistrer</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -423,16 +466,19 @@ async function ouvrirSelecteurCellulePL(ligneId, semaine) {
   overlay.querySelector('#plBtnAnnulerCellule').addEventListener('click', fermer);
 
   overlay.querySelectorAll('[data-choisir-seance]').forEach(item => {
-    item.addEventListener('click', async () => {
-      await enregistrerCellulePL(ligne, semaine, { seance_id: Number(item.dataset.choisirSeance), texte_libre: null });
-      fermer();
+    item.addEventListener('click', () => {
+      const id = Number(item.dataset.choisirSeance);
+      seanceChoisieId = seanceChoisieId === id ? null : id; // re-cliquer désélectionne
+      overlay.querySelectorAll('.pl-item-candidat').forEach(el => {
+        el.classList.toggle('pl-candidat-actif', Number(el.dataset.choisirSeance) === seanceChoisieId);
+      });
     });
   });
 
   overlay.querySelector('#plBtnValiderTexte').addEventListener('click', async () => {
     const texte = overlay.querySelector('#plTexteLibreInput').value.trim();
-    if (!texte) { alert('Saisissez une note, ou choisissez une séance ci-dessus.'); return; }
-    await enregistrerCellulePL(ligne, semaine, { seance_id: null, texte_libre: texte });
+    if (!seanceChoisieId && !texte) { alert('Sélectionnez une séance, saisissez un libellé personnalisé, ou les deux.'); return; }
+    await enregistrerCellulePL(ligne, semaine, { seance_id: seanceChoisieId, texte_libre: texte || null });
     fermer();
   });
 

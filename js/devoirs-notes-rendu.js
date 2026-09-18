@@ -3,11 +3,43 @@
 // et par les panneaux de gestion admin/enseignant)
 
 const LIBELLES_STATUT_DEVOIR = { a_faire: 'À faire', rendu: 'Rendu', en_retard: 'En retard', corrige: 'Corrigé' };
+
+// 18 septembre 2026 : "Renomme le bloc exercice au niveau des devoir en
+// Devoir. Avec ce bloc l'enseignant est libre de proposer ce qu'il veut."
+// — le type réel en base reste 'exercice' (aucune migration de données), et
+// infoType() dans js/editeur/blocs.js — PARTAGÉ avec l'éditeur de séance, où
+// le bloc doit garder son nom "Exercice" — n'est jamais modifié. Ce wrapper
+// local ne change l'étiquette que dans les contextes "devoir" (création/
+// gestion enseignant-admin dans js/editeur/devoir-blocs.js, remise élève dans
+// js/pages/eleve-devoir-rendu.js, panneau de gestion ci-dessous) : mêmes
+// icône/couleur que le type réel, seul le libellé affiché change. Ce fichier
+// (devoirs-notes-rendu.js) est chargé par toutes les pages devoir — c'est
+// pourquoi le wrapper vit ici plutôt que dans devoir-blocs.js (absent des
+// pages élève/parent "Devoirs & notes").
+function infoTypeDevoir(type) {
+  const info = infoType(type);
+  return type === 'exercice' ? { ...info, label: 'Devoir' } : info;
+}
 const LIBELLES_APPRECIATION = { acquis: 'Acquis', en_cours: 'En cours d\'acquisition', non_acquis: 'Non acquis' };
 const LIBELLES_MEDAILLE_DN = { bronze: '🥉', argent: '🥈', or: '🥇', diamant: '💎' };
 
 function echapperTexte(v) {
   return (v || '').toString().replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+// Même logique que contenuRicheInitial() dans js/editeur/blocs.js (11
+// septembre 2026, "ajoute le formatage au devoir libre") — dupliquée ici
+// volontairement plutôt qu'importée : ce fichier est aussi chargé sur des
+// pages qui n'incluent PAS blocs.js (pages/eleve/devoirs-notes.html,
+// pages/parent/devoirs-notes.html), donc pas de dépendance dure possible.
+// devoirs.consigne est du texte brut pour un devoir "à blocs" (jamais
+// modifié en formatage riche) et peut être du HTML pour un devoir "texte
+// libre" : la détection du "<" permet d'afficher correctement les deux dans
+// le même rendu, sans avoir besoin de savoir lequel c'est.
+function contenuRicheInitialTexte(texte) {
+  const v = (texte || '').toString();
+  if (v.includes('<')) return v;
+  return echapperTexte(v).replace(/\n/g, '<br>');
 }
 
 function formaterDate(iso) {
@@ -235,7 +267,7 @@ function html_ligneDevoirTableau(d, options) {
     </tr>
     <tr class="ligne-detail-devoir" id="${idDetail}" style="display:none">
       <td colspan="5" style="padding:0 8px 12px;background:#F9FAFB">
-        ${d.consigne ? `<p style="margin:8px 0;font-size:13px"><strong>Consigne :</strong> ${echapperTexte(d.consigne)}</p>` : ''}
+        ${d.consigne ? `<div style="margin:8px 0;font-size:13px"><strong>Consigne :</strong><div class="contenu-riche-lecture" style="margin-top:4px">${contenuRicheInitialTexte(d.consigne)}</div></div>` : ''}
         ${resume ? `<p style="margin:8px 0 0;font-size:12px;color:var(--text-gris,var(--texte-gris,#64748B))">${resume.nbRepondus}/${resume.nbBlocs} bloc${resume.nbBlocs > 1 ? 's' : ''} répondu${resume.nbRepondus > 1 ? 's' : ''}${resume.nbRepondus > 0 && !resume.toutCorrige ? ' — en attente de correction' : ''}</p>` : ''}
         ${!resume && d.rendu?.contenu_reponse ? `<div style="background:white;border-radius:8px;padding:8px 10px;margin-bottom:6px">
           <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:var(--text-gris,var(--texte-gris,#64748B));text-transform:uppercase">Réponse rendue</p>
@@ -296,19 +328,30 @@ async function chargerSeancesPourMatiere(classeId, champId) {
   const idsSA = (sas || []).map(s => s.id);
   if (!idsSA.length) return [];
 
-  const { data: seances } = await supabaseClient.from('seances').select('id, titre, ordre, sa_id')
+  const { data: seances } = await supabaseClient.from('seances').select('id, titre, titre_contenu, ordre, sa_id')
     .in('sa_id', idsSA).eq('statut', 'publie');
 
   const saParId = {};
   (sas || []).forEach(s => { saParId[s.id] = s; });
 
+  // 18 septembre 2026 : "Pour l'ajout des devoir affiche le titre des
+  // séquences au lieu de séquence 1" — titre_contenu (le vrai titre saisi
+  // par l'admin) si présent, sinon le titre brut générique avec le suffixe
+  // "(à titrer)" (même convention que libelleTitreSeanceSea() dans
+  // js/pages/seances.js, en texte brut ici : ce libellé alimente un <option>
+  // de <select>, qui n'affiche jamais de HTML). sa.titre n'a pas
+  // d'équivalent titre_contenu (colonne absente de la table sa) — laissé tel
+  // quel, c'est un simple préfixe de regroupement, pas le titre principal.
   return (seances || [])
-    .map(se => ({
-      id: se.id,
-      label: `${saParId[se.sa_id]?.titre || ''} — ${se.titre}`,
-      ordreSA: saParId[se.sa_id]?.ordre ?? 0,
-      ordreSeance: se.ordre
-    }))
+    .map(se => {
+      const titreSeance = se.titre_contenu || `${se.titre} (à titrer)`;
+      return {
+        id: se.id,
+        label: `${saParId[se.sa_id]?.titre || ''} — ${titreSeance}`,
+        ordreSA: saParId[se.sa_id]?.ordre ?? 0,
+        ordreSeance: se.ordre
+      };
+    })
     .sort((a, b) => a.ordreSA - b.ordreSA || a.ordreSeance - b.ordreSeance);
 }
 
@@ -369,7 +412,7 @@ function html_panneauGestionDevoirBlocs(devoir, htmlRendus) {
       </button>
     </div>
     ${!estPublie ? `<p style="margin:0 0 10px;font-size:12px;color:#B8860B">⚠️ En brouillon : les élèves ne voient pas encore ce devoir. Ajoutez vos blocs (exercices, quiz, évaluation, activité) puis publiez.</p>` : ''}
-    ${devoir.consigne ? `<p style="margin:0 0 10px;font-size:13px;color:${grisRepli}"><strong>Consigne générale :</strong> ${echapperTexte(devoir.consigne)}</p>` : ''}
+    ${devoir.consigne ? `<div style="margin:0 0 10px;font-size:13px;color:${grisRepli}"><strong>Consigne générale :</strong><div class="contenu-riche-lecture" style="margin-top:4px">${contenuRicheInitialTexte(devoir.consigne)}</div></div>` : ''}
     <div data-editeur-blocs-devoir="${devoir.id}" style="margin-bottom:12px"></div>
     ${estPublie ? (htmlRendus || '') : ''}
   </div>`;
@@ -396,7 +439,7 @@ function html_gestionRendusDevoir(devoir, eleves, rendusLegacy, blocs, reponsesE
   (rendusLegacy || []).forEach(r => { rendusParEleve[r.eleve_id] = r; });
 
   return `<div style="margin:8px 0 16px;padding:12px 14px;background:#F9FAFB;border-radius:8px;border:1px solid ${grisRepli}22">
-    ${devoir.consigne ? `<p style="margin:0 0 10px;font-size:13px;color:${grisRepli}"><strong>Consigne :</strong> ${echapperTexte(devoir.consigne)}</p>` : ''}
+    ${devoir.consigne ? `<div style="margin:0 0 10px;font-size:13px;color:${grisRepli}"><strong>Consigne :</strong><div class="contenu-riche-lecture" style="margin-top:4px">${contenuRicheInitialTexte(devoir.consigne)}</div></div>` : ''}
     ${(eleves && eleves.length) ? eleves.map(e => {
       const r = rendusParEleve[e.id];
       const nomEleve = `${echapperTexte(e.profils?.prenom || '')} ${echapperTexte(e.profils?.nom || '')}`;
@@ -425,7 +468,7 @@ function html_gestionRendusDevoirBlocs(devoir, eleves, blocs, reponsesExercices,
   const dernier = (map, blocId) => { const l = map[blocId]; return l && l.length ? l[l.length - 1] : null; };
 
   return `<div style="margin:8px 0 16px;padding:12px 14px;background:#F9FAFB;border-radius:8px;border:1px solid ${grisRepli}22">
-    ${devoir.consigne ? `<p style="margin:0 0 10px;font-size:13px;color:${grisRepli}"><strong>Consigne générale :</strong> ${echapperTexte(devoir.consigne)}</p>` : ''}
+    ${devoir.consigne ? `<div style="margin:0 0 10px;font-size:13px;color:${grisRepli}"><strong>Consigne générale :</strong><div class="contenu-riche-lecture" style="margin-top:4px">${contenuRicheInitialTexte(devoir.consigne)}</div></div>` : ''}
     ${(eleves && eleves.length) ? eleves.map(e => {
       const reponsesBloc = reponsesParEleve[e.id] || {};
       const activitesBloc = activitesParEleve[e.id] || {};
@@ -444,7 +487,7 @@ function html_gestionRendusDevoirBlocs(devoir, eleves, blocs, reponsesExercices,
         </summary>
         <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
           ${blocs.filter(b => b.type_bloc !== 'correction').map(b => {
-            const info = infoType(b.type_bloc);
+            const info = infoTypeDevoir(b.type_bloc);
             const c = b.contenu || {};
             const libelleBloc = `${info.icone} ${echapperTexte(c.libelle || info.label)}`;
             if (b.type_bloc === 'probleme') {
@@ -468,7 +511,15 @@ function html_gestionRendusDevoirBlocs(devoir, eleves, blocs, reponsesExercices,
                 ${r.corrige_le
                   ? `<p style="margin:4px 0 0;font-size:12px;color:${bleuRepli};font-weight:700">✅ ${r.note != null ? `${r.note}/${r.bareme}` : 'Corrigé'}${r.appreciation ? ` — ${LIBELLES_APPRECIATION[r.appreciation] || ''}` : ''}</p>
                     ${r.commentaire ? `<p style="margin:2px 0 0;font-size:12px;color:${grisRepli}">💬 ${echapperTexte(r.commentaire)}</p>` : ''}`
-                  : `<button type="button" class="btn" data-corriger-activite-devoir="${r.id}" style="background:${bleuRepli};color:white;padding:4px 10px;font-size:11px;margin-top:4px">✏️ Corriger</button>`}
+                  // 18 septembre 2026 : "Le devoir d'exercice doit avoir le
+                  // bouton renvoyer pour permettre à l'enseignant de noter le
+                  // devoir" — même action/gestionnaire que "Corriger" (ouvre
+                  // ouvrirCorrectionActiviteDevoir, seul le libellé change),
+                  // scopé au bloc 'exercice' (désormais affiché "Devoir",
+                  // voir infoTypeDevoir) : "Renvoyer" = renvoyer la copie
+                  // notée/annotée à l'élève. Le bloc 'activite' garde
+                  // "Corriger", terme déjà en place et non visé par la demande.
+                  : `<button type="button" class="btn" data-corriger-activite-devoir="${r.id}" style="background:${bleuRepli};color:white;padding:4px 10px;font-size:11px;margin-top:4px">${b.type_bloc === 'exercice' ? '📤 Renvoyer' : '✏️ Corriger'}</button>`}
               </div>`;
             }
             const r = dernier(reponsesBloc, b.id);
@@ -546,6 +597,11 @@ async function ouvrirSelectionDestinatairesDevoir(devoirId, eleves, onValide) {
 //   corriger-exercice), exactement comme pour les exercices d'une séance :
 //   aucune vérification supplémentaire n'est nécessaire à la création.
 // onChoisi(mode) est appelé avec 'texte_libre' ou 'blocs'.
+//
+// 18 septembre 2026 : "retire le devoir libre" — plus appelée nulle part
+// (enseignant/admin créent désormais directement en mode "à blocs", voir
+// ouvrirNouveauDevoirEns()/ouvrirNouveauDevoir()) ; gardée ici pour ne pas
+// perdre le code si ce choix redevenait nécessaire un jour.
 function ouvrirChoixModeNouveauDevoir(onChoisi) {
   const grisRepli = 'var(--text-gris,var(--texte-gris,#64748B))';
   const overlay = document.createElement('div');
@@ -735,7 +791,10 @@ function ouvrirModificationDevoir(devoir, onValide) {
     titre: 'Modifier ce devoir',
     champs: [
       { nom: 'titre', label: 'Titre', valeur: devoir.titre },
-      { nom: 'consigne', label: `Consigne${devoir.seance_id ? ' générale' : ''} (optionnelle)`, type: 'textarea', requis: false, valeur: devoir.consigne || '' },
+      // Formatage riche uniquement pour un devoir "texte libre" (seance_id
+      // nul) — un devoir "à blocs" garde sa consigne générale en texte brut,
+      // demande explicite du porteur du projet scopée au mode texte libre.
+      { nom: 'consigne', label: `Consigne${devoir.seance_id ? ' générale' : ''} (optionnelle)`, type: devoir.seance_id ? 'textarea' : 'richtext', requis: false, valeur: devoir.consigne || '' },
       { nom: 'date_limite', label: 'À rendre pour le', type: 'date', valeur: devoir.date_limite ? devoir.date_limite.slice(0, 10) : '' }
     ],
     texteValider: 'Enregistrer',

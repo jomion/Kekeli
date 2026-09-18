@@ -60,6 +60,17 @@ async function afficherGestion() {
   const { data: destinatairesTous } = devoirs && devoirs.length
     ? await supabaseClient.from('devoirs_destinataires').select('devoir_id, eleve_id').in('devoir_id', devoirs.map(d => d.id))
     : { data: [] };
+  // 18 septembre 2026 : "Pour l'historique les devoir ajoute des fond de
+  // couleur" — même principe que côté enseignant (js/pages/enseignant-devoirs-notes.js).
+  const idsDevoirsBlocsAdmin = (devoirs || []).filter(d => d.seance_id).map(d => d.id);
+  const { data: blocsTypesAdmin } = idsDevoirsBlocsAdmin.length
+    ? await supabaseClient.from('blocs_seance').select('devoir_id, type_bloc').in('devoir_id', idsDevoirsBlocsAdmin).neq('type_bloc', 'correction').order('ordre')
+    : { data: [] };
+  const typePrincipalParDevoirAdmin = {};
+  (blocsTypesAdmin || []).forEach(b => { if (!typePrincipalParDevoirAdmin[b.devoir_id]) typePrincipalParDevoirAdmin[b.devoir_id] = b.type_bloc; });
+  const COULEURS_TYPE_DEVOIR_HIST_ADMIN = {
+    exercice: '#DBEAFE', probleme: '#FFEDD5', activite: '#DCFCE7', evaluation: '#FEE2E2', texte_libre: '#F1F5F9'
+  };
 
   const evalParEleve = {};
   (evaluations || []).forEach(e => { (evalParEleve[e.eleve_id] ??= []).push(e); });
@@ -87,13 +98,22 @@ async function afficherGestion() {
   zone.innerHTML = `
     <button class="btn btn-accent" id="btnNouveauDevoir" style="margin-bottom:20px">+ Nouveau devoir</button>
     <div class="titre-cycle" style="margin-top:0">Devoirs</div>
+    <p style="font-size:11px;color:var(--texte-gris);margin:-4px 0 10px;display:flex;gap:12px;flex-wrap:wrap">
+      <span><span style="display:inline-block;width:10px;height:10px;background:${COULEURS_TYPE_DEVOIR_HIST_ADMIN.exercice};border-radius:2px;margin-right:3px;vertical-align:middle"></span>Devoir</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:${COULEURS_TYPE_DEVOIR_HIST_ADMIN.probleme};border-radius:2px;margin-right:3px;vertical-align:middle"></span>Problème</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:${COULEURS_TYPE_DEVOIR_HIST_ADMIN.activite};border-radius:2px;margin-right:3px;vertical-align:middle"></span>Activité</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:${COULEURS_TYPE_DEVOIR_HIST_ADMIN.evaluation};border-radius:2px;margin-right:3px;vertical-align:middle"></span>Évaluation</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:${COULEURS_TYPE_DEVOIR_HIST_ADMIN.texte_libre};border-radius:2px;margin-right:3px;vertical-align:middle"></span>Texte libre</span>
+    </p>
     ${(devoirs && devoirs.length) ? `<div class="liste-lignes">${devoirs.map(d => {
       const estBlocs = !!d.seance_id;
+      const typeDevoirAdmin = estBlocs ? (typePrincipalParDevoirAdmin[d.id] || 'exercice') : 'texte_libre';
+      const fondTypeAdmin = COULEURS_TYPE_DEVOIR_HIST_ADMIN[typeDevoirAdmin] || COULEURS_TYPE_DEVOIR_HIST_ADMIN.texte_libre;
       const sousLigne = estBlocs
         ? `${echapperAdmin(d.seances?.titre || '')} · ${d.statut === 'publie' ? 'Publié' : 'Brouillon'} · à rendre le ${new Date(d.date_limite).toLocaleDateString('fr-FR')}`
         : `À rendre le ${new Date(d.date_limite).toLocaleDateString('fr-FR')} · ${rendusParDevoir[d.id] || 0}/${(eleves || []).length} rendus`;
       return `
-      <div class="ligne" style="flex-direction:column;align-items:stretch;gap:0">
+      <div class="ligne" style="flex-direction:column;align-items:stretch;gap:0;background:${fondTypeAdmin}">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
           <div><div class="titre-ligne">${echapperAdmin(d.titre)}</div><span style="font-size:12px;color:var(--texte-gris)">${sousLigne}</span></div>
           <button type="button" class="btn btn-discret" data-toggle-rendus-admin="${d.id}" style="padding:6px 14px;font-size:12px">${devoirOuvertAdmin === d.id ? '▲ Fermer' : (estBlocs ? '📂 Gérer' : '📋 Voir les rendus')}</button>
@@ -186,17 +206,19 @@ async function afficherGestion() {
   }
 }
 
+// 18 septembre 2026 : "retire le devoir libre" — même changement que côté
+// enseignant (js/pages/enseignant-devoirs-notes.js) : la création va
+// directement au mode "à blocs", le seul restant. ouvrirNouveauDevoirTexteLibre()
+// reste plus bas : les devoirs texte libre déjà créés continuent de
+// s'afficher et de se corriger normalement, seule leur CRÉATION est retirée.
 function ouvrirNouveauDevoir(eleves) {
-  ouvrirChoixModeNouveauDevoir((mode) => {
-    if (mode === 'texte_libre') ouvrirNouveauDevoirTexteLibre(eleves);
-    else ouvrirNouveauDevoirBlocs(eleves);
-  });
+  ouvrirNouveauDevoirBlocs(eleves);
 }
 
 async function ouvrirNouveauDevoirBlocs(eleves) {
   const seances = await chargerSeancesPourMatiere(classeSelectionnee, champSelectionne);
   if (!seances.length) {
-    alert("Aucune séance publiée n'existe pour cette matière dans cette classe. Créez d'abord une séance dans le parcours avant de donner un devoir à blocs — ou choisissez le mode texte libre.");
+    alert("Aucune séance publiée n'existe pour cette matière dans cette classe. Créez d'abord une séance dans le parcours avant de donner un devoir.");
     return;
   }
   ouvrirModal({
@@ -243,7 +265,7 @@ function ouvrirNouveauDevoirTexteLibre(eleves) {
     titre: 'Nouveau devoir (texte libre)',
     champs: [
       { nom: 'titre', label: 'Titre' },
-      { nom: 'consigne', label: 'Consigne', type: 'textarea' },
+      { nom: 'consigne', label: 'Consigne', type: 'richtext' },
       { nom: 'date_limite', label: 'À rendre pour le', type: 'date' },
       {
         nom: 'destinataires', label: 'Destinataires', type: 'checkboxes',
