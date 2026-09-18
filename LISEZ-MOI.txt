@@ -1,84 +1,113 @@
-LIVRAISON — Refonte de la page d'accueil (index.html)
+LIVRAISON — Nouvelle page d'accueil, sur votre maquette (index.html)
 ==========================================================
 Date : 18 septembre 2026
 
-Cette livraison correspond à la refonte de la page d'accueil convenue
-ensemble : mise en avant de la classe de CM2, paliers cliquables avec les
-visuels que vous avez envoyés, et un nouveau hero (bandeau du haut) en
-illustration plein écran.
+Cette livraison remplace entièrement l'apparence de la page d'accueil pour
+suivre, "à chaque détail près", la nouvelle maquette que vous avez envoyée :
+en-tête blanc, héro avec badge et boutons, cartes de classes, matières en
+cercles colorés, paliers, section "Pourquoi choisir KEKELI ?" et
+"Actualités et nouveautés".
 
 ------------------------------------------------------------
-1. Nouvelle section : "La classe de CM2, prête à explorer"
+1. En-tête (haut de page)
 ------------------------------------------------------------
 
-CM2 est aujourd'hui la seule classe avec du contenu réellement publié sur
-le site (vérifié en base de données) — les autres classes (CI, CP, CE1,
-CE2, CM1) n'ont pas encore de programme construit dessus, même quand
-certaines sont déjà marquées "visibles" en interne.
-
-La page d'accueil affiche donc une carte par matière de CM2, avec une
-courte description et le VRAI nombre de séances déjà publiées :
-  - Français — 12 séances publiées
-  - Mathématiques — 5 séances publiées
-  - Éducation Sociale — 5 séances publiées
-  - Éducation Scientifique et Technologique — 2 séances publiées
-Une phrase discrète en bas signale que l'Éducation Artistique et
-l'Éducation Physique et Sportive arrivent bientôt (elles n'ont pas encore
-de séance publiée, donc pas de carte pour l'instant, pour ne rien
-annoncer de faux). Chaque carte mène vers la connexion.
+Fond blanc (au lieu de noir), logo avec la légende "L'éducation qui éclaire
+l'avenir" en dessous, navigation Accueil / Classes / Paliers, boutons
+"Se connecter" (contour) et "S'inscrire" (jaune, plein) — comme sur votre
+maquette. Cette nouvelle apparence est spécifique à la page d'accueil ;
+elle ne touche à aucune autre page du site (vérifié : l'en-tête sombre des
+espaces élève/parent/enseignant/admin reste inchangé).
 
 ------------------------------------------------------------
-2. Les 4 paliers deviennent cliquables, avec de vrais chiffres
+2. Nouveau bandeau du haut (héro)
 ------------------------------------------------------------
 
-Les 4 visuels que vous avez envoyés (Azɔ̀ví, Dèví, Ògán, Axɔ́sú) sont
-maintenant intégrés dans la section "Une progression par paliers", sous
-forme de cartes cliquables (vers la connexion). Chacune affiche en
-pastille le VRAI total d'exercices déjà publiés à ce niveau de difficulté,
-toutes matières confondues :
-  - Azɔ̀ví : 18      - Dèví : 18      - Ògán : 11      - Axɔ́sú : 9
+Fond clair, badge jaune "Bienvenue sur KEKELI", nouveau titre "Apprendre
+aujourd'hui, réussir demain.", et 2 boutons ("Accéder à mon espace" en
+jaune plein, "Découvrir les classes" en contour), exactement comme sur la
+maquette.
 
-Point technique à noter : le visuel du palier "Azɔ̀ví" que vous avez
-envoyé affichait le texte "Azèví" (orthographe différente de celle
-utilisée partout ailleurs sur le site). Comme convenu, j'ai superposé
-par-dessus une étiquette identique (même couleur, même style) avec la
-bonne orthographe "Azɔ̀ví" — l'icône (la pousse) et le reste du visuel
-sont inchangés.
-
-------------------------------------------------------------
-3. Nouveau hero (bandeau du haut) en illustration plein écran
-------------------------------------------------------------
-
-Je n'ai pas d'outil de génération d'image par IA disponible dans cet
-environnement de travail (pas de "texte → image"). Comme convenu, j'ai
-donc créé une illustration "maison" en CSS qui occupe tout le bandeau :
-dégradés aux couleurs de Kekeli, un livre central, et les 4 pastilles des
-paliers (🌱 🪘 🦁 👑) qui flottent doucement autour, avec quelques
-étincelles. Le texte reste parfaitement lisible grâce à un panneau semi-
-transparent derrière lui. Sur mobile, l'illustration s'adapte (le badge
-central est retiré pour ne pas gêner la lecture du titre).
-
-Cette illustration ne remplace pas le système de blocs personnalisables
-existant (Admin ▸ Section d'accueil) : si vous configurez un jour un bloc
-depuis cette page d'administration, il reprend automatiquement la main et
-s'affiche à la place, sans aucun conflit possible avec cette illustration.
-Si un jour vous préférez malgré tout une vraie photo ou une image générée
-par IA à la place de cette illustration, envoyez-la-moi et je l'intègre.
+Concernant la photo de la maquette (les deux enfants avec cartables et le
+drapeau du Bénin) : je n'ai pas d'outil de génération d'image par IA dans
+cet environnement de travail. J'ai bien cherché une photo similaire sur
+Adobe Stock (recherche et "achat" possibles), mais le téléchargement du
+fichier lui-même est bloqué par une restriction réseau de mon
+environnement, indépendante de ma volonté — donc impossible de récupérer
+le fichier pour l'intégrer sur le site. Comme vous l'avez choisi, j'ai
+gardé à cet endroit l'illustration "maison" en CSS déjà utilisée
+précédemment (livre + pastilles des 4 paliers), simplement recadrée dans
+un cadre à coins arrondis pour se rapprocher visuellement de la place
+qu'occupait la photo sur la maquette. Vous pourrez remplacer ce cadre par
+une vraie photo à tout moment en me l'envoyant directement dans la
+conversation.
 
 ------------------------------------------------------------
-Fichiers modifiés / ajoutés dans ce paquet
+3. Nouvelle section "Nos classes"
+------------------------------------------------------------
+
+Les 6 classes du primaire (CI à CM2) apparaissent maintenant en cartes,
+avant les matières. Seule la carte CM2 est cliquable et marquée
+"✅ Disponible maintenant" (vérifié en base : c'est la seule classe avec du
+contenu réellement publié) ; les 5 autres affichent "Bientôt disponible",
+sans lien, pour ne rien annoncer de faux.
+
+------------------------------------------------------------
+4. Matières du CM2, en cercles colorés (comme la maquette)
+------------------------------------------------------------
+
+J'ai suivi votre choix d'utiliser les vraies matières de KEKELI (et non les
+matières génériques de la maquette) : Français, Mathématiques, Éducation
+Sociale, Éducation Scientifique et Technologique, Éducation Artistique,
+Éducation Physique et Sportive — avec, pour chacune, le VRAI nombre de
+séances déjà publiées (12, 5, 5, 2). Les deux matières sans contenu publié
+pour l'instant (Éducation Artistique, Éducation Physique et Sportive)
+restent affichées à titre informatif mais grisées, non cliquables, avec la
+mention "Bientôt disponible".
+
+------------------------------------------------------------
+5. Paliers (inchangés dans le contenu, juste repositionnés)
+------------------------------------------------------------
+
+Les 4 cartes de paliers (Azɔ̀ví, Dèví, Ògán, Axɔ́sú) restent exactement les
+mêmes qu'avant (mêmes visuels, mêmes totaux réels d'exercices publiés : 18,
+18, 11, 9), simplement déplacées après les classes et les matières, comme
+convenu.
+
+------------------------------------------------------------
+6. Nouvelles sections "Pourquoi choisir KEKELI ?" et "Actualités"
+------------------------------------------------------------
+
+Ajout d'une section à deux colonnes (liste d'arguments + carte slogan), et
+d'une section "Actualités et nouveautés" avec 3 informations authentiques
+(programme CM2 disponible, système de paliers, ressources gratuites) — pas
+de fausse date ni d'annonce inventée.
+
+------------------------------------------------------------
+Vérification effectuée avant livraison
+------------------------------------------------------------
+
+Page testée avec un navigateur automatisé sur 3 tailles d'écran (ordinateur,
+tablette, téléphone) : mise en page correcte partout, aucune image cassée,
+aucun élément qui déborde. J'ai aussi retiré du code quelques anciennes
+règles de style devenues inutiles après ce changement (l'ancienne
+présentation des matières en cartes, et l'ancienne illustration plein
+écran), pour garder le fichier propre — sans aucun effet visuel, juste du
+ménage.
+
+------------------------------------------------------------
+Fichiers modifiés dans ce paquet
 ------------------------------------------------------------
 - index.html
 - css/style-public.css
-- assets/paliers-accueil/azovi.png
-- assets/paliers-accueil/devi.png
-- assets/paliers-accueil/ogan.png
-- assets/paliers-accueil/axosu.png
 
 ------------------------------------------------------------
 Et maintenant ?
 ------------------------------------------------------------
 
-La refonte de la page d'accueil est terminée. Dites-moi si vous voulez des
-ajustements (couleurs, textes, images) ou si on passe au prochain
-chantier.
+La page d'accueil correspond maintenant à votre maquette. Prochaine étape
+prévue (déjà convenue) : appliquer ce même style (fond bleu ciel légèrement
+nuageux + apparence complète de la maquette) à toutes les pages des espaces
+parent et enseignant. Dites-moi si vous voulez d'abord des ajustements sur
+cette page d'accueil, ou si je peux continuer directement sur cette
+prochaine étape.

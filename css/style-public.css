@@ -239,31 +239,12 @@ nav.nav-publique a:hover { color: var(--accent-cyan); }
    profite pleinement — occupation "optimale" sur mobile demandée le
    5 septembre 2026, plutôt qu'un pourcentage figé qui n'aurait plus de sens
    sur une seule colonne. */
-/* Illustration plein héro (secours statique, demande explicite du
-   18 septembre 2026 : "une image qui prend tout le héro"). Cette classe est
-   posée UNIQUEMENT dans le HTML statique de secours de index.html — dès
-   qu'un bloc admin réel est actif, js/accueil-hero.js réécrit entièrement
-   le className de #heroImageDynamique (afficherCarrousel()), donc cette
-   classe (et tout ce bloc CSS, via :has()) disparaît automatiquement et ne
-   peut jamais entrer en conflit avec un bloc configuré depuis
-   Admin ▸ Section d'accueil. Pas d'image IA disponible dans cet
-   environnement -> illustration maison en CSS (dégradés + pastilles emoji
-   des 4 paliers + un livre central), dans les couleurs de la marque. */
-.hero-image.hero-image-defaut-plein {
-  position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; flex: none;
-  border: none; border-radius: 0; aspect-ratio: auto;
-  background:
-    radial-gradient(ellipse 60% 55% at 82% 28%, rgba(0,209,255,0.35), transparent 60%),
-    radial-gradient(ellipse 55% 60% at 88% 88%, rgba(16,185,129,0.22), transparent 65%),
-    linear-gradient(135deg, var(--noir-kekeli) 0%, var(--bleu-kekeli) 100%);
-  font-size: initial; overflow: hidden; z-index: 0;
-}
-.hero:has(.hero-image-defaut-plein) { position: relative; overflow: hidden; }
-.hero:has(.hero-image-defaut-plein) .hero-text {
-  position: relative; z-index: 2; max-width: 600px;
-  background: linear-gradient(100deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.32) 100%);
-  padding: 30px 32px; border-radius: 20px;
-}
+/* Pastilles décoratives du héro (dégradés + emoji des 4 paliers + un livre
+   central), dans les couleurs de la marque. Utilisées à l'origine par
+   l'illustration plein-héro du 18 septembre 2026 (classe .hero-image-defaut-
+   plein, retirée le même jour lors du passage à la maquette blanche —
+   voir .hero-clair-photo plus bas, qui reprend ces mêmes pastilles dans un
+   cadre borné plutôt qu'en plein écran). */
 .bulle-hero-centre {
   position: absolute; right: 12%; top: 50%; transform: translateY(-50%);
   width: clamp(90px, 12vw, 150px); height: clamp(90px, 12vw, 150px); border-radius: 50%;
@@ -294,7 +275,6 @@ nav.nav-publique a:hover { color: var(--accent-cyan); }
   .bulle-hero, .bulle-hero-centre, .etincelle { animation: none; }
 }
 @media (max-width: 900px) {
-  .hero:has(.hero-image-defaut-plein) .hero-text { padding: 22px 24px; }
   /* Le badge central (livre) est retiré sur mobile : la colonne de texte
      occupe toute la largeur, il n'y a pas de zone libre pour l'afficher
      sans qu'il ne passe par-dessus le titre. Les 4 pastilles-paliers,
@@ -385,14 +365,6 @@ nav.nav-publique a:hover { color: var(--accent-cyan); }
 
 .grille-paliers { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 10px; }
 .puce-palier { display: flex; align-items: center; gap: 8px; background: white; border-radius: 30px; padding: 10px 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); font-size: 13px; font-weight: 700; color: var(--bleu-kekeli); }
-
-/* Cartes matières CM2 (accueil) — même carte que .feature-card, posée sur un
-   lien plutôt qu'un simple div (voir modèle .action-card-eleve / .palier-card-tb
-   déjà utilisé ailleurs sur le site pour une carte cliquable). */
-.carte-matiere-cm2 { display: block; text-decoration: none; color: inherit; }
-.carte-matiere-cm2:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(0,0,209,0.18), 0 0 0 1px rgba(15,23,42,0.08); transition: transform .15s, box-shadow .15s; }
-.badge-nb-seances { display: inline-block; margin-top: 12px; background: var(--bg-light); color: var(--bleu-kekeli); font-weight: 800; font-size: 12px; padding: 5px 12px; border-radius: 20px; }
-.note-autres-matieres { margin-top: 24px; font-size: 13px; color: var(--text-gris); font-style: italic; }
 
 /* Cartes paliers cliquables (accueil) — remplace les puces .puce-palier par
    les 4 visuels fournis (assets/paliers-accueil/), avec un total réel de
@@ -1267,3 +1239,196 @@ button.pastille-tache-admin.carte-statut-active .fleche-carte-statut { transform
 .resume-notes-apercu { display: flex; align-items: center; gap: 8px; }
 .resume-notes-compte { font-size: 11px; color: var(--text-gris, #64748B); }
 .resume-notes-detail { padding: 0 10px 10px; }
+
+/* ============================================================
+   Refonte de l'accueil (index.html) sur la maquette envoyée le
+   18 septembre 2026 — "Adapte la page d'accueil à cette maquette à
+   chaque détail prêt". Palette claire dédiée (préfixe "clair-" /
+   "-claire"), qui NE remplace PAS les variables globales du site
+   (--bleu-kekeli reste utilisé par les tableaux de bord, l'en-tête
+   sombre partagé js/entete-navigation.js, etc.) — seule la page
+   d'accueil publique (body.page-accueil-claire) et les éléments
+   explicitement marqués "-claire"/"-clair" adoptent ce nouveau look.
+   Photo héro : pas d'outil de génération/récupération d'image
+   disponible dans cet environnement (recherche Adobe Stock : le
+   téléchargement des visuels achetés est bloqué par la politique
+   réseau du bac à sable) — choix explicite du porteur du projet :
+   garder l'illustration CSS existante ("Utilise l'illustration CSS
+   à la place"), simplement recadrée dans le nouveau cadre photo. */
+:root {
+  --clair-navy: #0F1E3D;
+  --clair-navy-texte: #1E293B;
+  --clair-jaune: #FFC72C;
+  --clair-jaune-fonce: #E8A800;
+  --clair-vert: #16A34A;
+  --clair-fond-section: #F8FAFC;
+  --clair-fond-alt: #EFF4FB;
+  --clair-bordure: #E5EAF2;
+}
+
+/* La page d'accueil de la maquette est faite de sections blanches /
+   gris très clair, pas de la photo de ciel utilisée par défaut
+   (voir body.page-sans-fond-ciel plus haut, déjà réservé aux pages
+   de connexion/inscription) — on désactive donc ici aussi le fond
+   ciel, mais scopé à cette seule page plutôt que de toucher à la
+   règle globale "body { background-image: ... }". */
+body.page-accueil-claire {
+  background-image: none;
+  background-color: var(--clair-fond-section);
+}
+
+/* ----- En-tête clair (mockup) ----- */
+header.entete-publique.entete-claire {
+  background-color: #ffffff;
+  border-bottom: 1px solid var(--clair-bordure);
+  box-shadow: 0 2px 10px rgba(15,30,61,0.06);
+}
+.entete-claire .logo { color: var(--clair-navy); flex-direction: column; align-items: flex-start; gap: 0; font-size: 22px; }
+.entete-claire .logo > img { align-self: center; }
+.entete-claire .logo-tagline { display: block; font-size: 11px; font-weight: 600; color: var(--text-gris); letter-spacing: .2px; }
+/* Le logo garde l'image + "KEKELI" sur une ligne, la légende en dessous :
+   on repasse la ligne du haut (image + mot KEKELI) en row via un conteneur
+   flex, tout en laissant .logo lui-même en colonne pour la légende. */
+.entete-claire .logo { flex-direction: row; align-items: center; }
+.entete-claire .logo span { display: flex; flex-direction: column; line-height: 1.15; }
+.entete-claire nav.nav-publique a { color: var(--clair-navy-texte); }
+.entete-claire nav.nav-publique a:hover, .entete-claire nav.nav-publique a.actif { color: var(--clair-jaune-fonce); }
+.entete-claire .btn-outline { border-color: var(--clair-navy); color: var(--clair-navy); }
+.entete-claire .btn-outline:hover { background: var(--clair-fond-alt); }
+.entete-claire .btn-filled { background-color: var(--clair-jaune); color: var(--clair-navy); }
+.entete-claire .btn-filled:hover { background-color: var(--clair-jaune-fonce); }
+
+/* ----- Héro clair (mockup) ----- */
+.hero.hero-clair {
+  background: linear-gradient(160deg, #FFFDF6 0%, var(--clair-fond-alt) 100%);
+  color: var(--clair-navy-texte);
+  padding: 60px 50px;
+}
+.hero-clair-badge {
+  display: inline-block; align-self: flex-start; background: var(--clair-jaune); color: var(--clair-navy);
+  font-size: 12.5px; font-weight: 800; padding: 6px 16px; border-radius: 999px; margin-bottom: 16px;
+}
+.hero.hero-clair .hero-text h1 { color: var(--clair-navy); }
+.hero.hero-clair .hero-text h1 span { color: var(--clair-jaune-fonce); }
+.hero.hero-clair .hero-text p { color: var(--text-gris); }
+.hero-clair-boutons { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; }
+#lienAccederEspace.btn-clair-plein,
+.btn-clair-plein {
+  display: inline-block; background: var(--clair-jaune); color: var(--clair-navy); font-weight: 800;
+  padding: 13px 26px; border-radius: 10px; font-size: 15px; transition: background .15s, transform .1s;
+  margin-top: 0;
+}
+.btn-clair-plein:hover { background: var(--clair-jaune-fonce); transform: translateY(-1px); }
+.btn-clair-contour {
+  display: inline-block; background: none; color: var(--clair-navy); font-weight: 800; border: 2px solid var(--clair-navy);
+  padding: 11px 24px; border-radius: 10px; font-size: 15px; transition: background .15s, transform .1s;
+}
+.btn-clair-contour:hover { background: rgba(15,30,61,0.06); transform: translateY(-1px); }
+/* Cadre photo du héro : borné (pas plein-écran comme l'ancienne variante
+   .hero-image-defaut-plein), coins arrondis, dégradé clair — reçoit les
+   mêmes pastilles décoratives (bulle-hero et etincelle) que la précédente
+   illustration, repositionnées pour ce cadre plus petit. */
+.hero-image.hero-clair-photo {
+  position: relative; overflow: hidden; border: none; border-radius: 22px;
+  background:
+    radial-gradient(ellipse 65% 55% at 78% 22%, rgba(0,209,255,0.16), transparent 60%),
+    radial-gradient(ellipse 60% 60% at 85% 85%, rgba(22,163,74,0.14), transparent 65%),
+    linear-gradient(135deg, var(--clair-navy) 0%, var(--bleu-kekeli) 100%);
+  box-shadow: 0 14px 34px rgba(15,30,61,0.18);
+}
+.hero-clair-photo .bulle-hero-centre { right: auto; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.hero-clair-photo .bulle-hero-1 { right: 68%; top: 14%; }
+.hero-clair-photo .bulle-hero-2 { right: 10%; top: 12%; }
+.hero-clair-photo .bulle-hero-3 { right: 8%; bottom: 14%; }
+.hero-clair-photo .bulle-hero-4 { right: 62%; bottom: 12%; }
+.hero-clair-photo .etincelle-1 { right: 30%; top: 8%; }
+.hero-clair-photo .etincelle-2 { right: 20%; bottom: 36%; }
+@media (max-width: 900px) {
+  .hero.hero-clair { padding: 40px 24px; }
+}
+
+/* ----- Sections claires génériques ----- */
+.section-claire { max-width: 1140px; margin: 0 auto; padding: 60px 24px; text-align: center; }
+.titre-claire { color: var(--clair-navy); font-size: 27px; margin: 0 0 8px; }
+.sous-titre-claire { color: var(--text-gris); margin: 0 auto 30px; max-width: 640px; font-size: 15px; line-height: 1.6; }
+.titre-claire-gauche, .pourquoi-grille .sous-titre-claire { text-align: left; margin-left: 0; margin-right: 0; }
+
+/* ----- Cartes "Nos classes" ----- */
+.grille-classes-claire { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; }
+.carte-classe-claire {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; background: #ffffff;
+  border: 1px solid var(--clair-bordure); border-radius: 16px; padding: 24px 14px; color: var(--clair-navy-texte);
+  box-shadow: 0 2px 8px rgba(15,30,61,0.05); transition: transform .15s, box-shadow .15s;
+}
+.carte-classe-claire.disponible { cursor: pointer; border-color: var(--clair-jaune); }
+.carte-classe-claire.disponible:hover { transform: translateY(-4px); box-shadow: 0 10px 24px rgba(15,30,61,0.14); }
+.pastille-classe {
+  width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: var(--clair-fond-alt); color: var(--clair-navy); font-weight: 800; font-size: 14px;
+}
+.carte-classe-claire.disponible .pastille-classe { background: var(--clair-jaune); }
+.carte-classe-claire strong { font-size: 14px; }
+.etat-classe { font-size: 12px; color: var(--text-gris); font-weight: 700; }
+.carte-classe-claire.disponible .etat-classe { color: var(--clair-vert); }
+
+/* ----- Matières (cercles colorés, mockup) ----- */
+.grille-matieres-cercles { display: flex; flex-wrap: wrap; justify-content: center; gap: 26px; }
+.cercle-matiere {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; width: 160px; color: var(--clair-navy-texte);
+  text-decoration: none;
+}
+a.cercle-matiere { transition: transform .15s; }
+a.cercle-matiere:hover { transform: translateY(-4px); }
+.cercle-icone {
+  width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 28px; box-shadow: 0 4px 10px rgba(15,30,61,0.10);
+}
+.cercle-bleu     { background: #DBEAFE; }
+.cercle-vert     { background: #DCFCE7; }
+.cercle-sarcelle { background: #CCFBF1; }
+.cercle-orange   { background: #FFEDD5; }
+.cercle-violet   { background: #EDE9FE; }
+.cercle-rose     { background: #FCE7F3; }
+.cercle-matiere strong { font-size: 13.5px; }
+.cercle-desc { font-size: 11.5px; color: var(--text-gris); line-height: 1.4; }
+.cercle-total { font-size: 11.5px; font-weight: 800; color: var(--clair-navy); background: var(--clair-fond-alt); padding: 3px 10px; border-radius: 999px; }
+.cercle-indisponible { opacity: .55; }
+.cercle-indisponible .cercle-total { background: transparent; color: var(--text-gris); font-weight: 600; }
+
+/* ----- "Pourquoi choisir KEKELI ?" (2 colonnes) ----- */
+.pourquoi-claire { text-align: left; }
+.pourquoi-grille { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 46px; align-items: center; text-align: left; }
+.liste-check-claire { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.liste-check-claire li { font-size: 15px; line-height: 1.5; color: var(--clair-navy-texte); }
+.carte-slogan-claire {
+  background: linear-gradient(150deg, var(--clair-navy) 0%, var(--bleu-kekeli) 100%); border-radius: 20px;
+  padding: 38px 30px; text-align: center; color: white; display: flex; flex-direction: column; align-items: center; gap: 10px;
+  box-shadow: 0 14px 30px rgba(15,30,61,0.20);
+}
+.slogan-manuscrit { font-style: italic; font-size: 17px; margin: 0 0 6px; line-height: 1.5; }
+.carte-slogan-claire img { height: 46px; width: auto; margin-top: 4px; }
+.carte-slogan-claire strong { font-size: 18px; letter-spacing: .3px; }
+.carte-slogan-claire span { font-size: 12.5px; color: #CBD5E1; }
+@media (max-width: 760px) {
+  .pourquoi-grille { grid-template-columns: 1fr; }
+}
+
+/* ----- Actualités et nouveautés ----- */
+.actualites-claire { text-align: left; }
+.liste-actualites { display: flex; flex-direction: column; gap: 14px; }
+.item-actualite {
+  display: flex; align-items: flex-start; gap: 16px; background: #ffffff; border: 1px solid var(--clair-bordure);
+  border-radius: 14px; padding: 18px 20px; box-shadow: 0 2px 8px rgba(15,30,61,0.05);
+}
+.icone-actu {
+  flex: 0 0 auto; width: 42px; height: 42px; border-radius: 50%; background: var(--clair-fond-alt);
+  display: flex; align-items: center; justify-content: center; font-size: 19px;
+}
+.item-actualite strong { display: block; color: var(--clair-navy); font-size: 15px; margin-bottom: 3px; }
+.item-actualite p { margin: 0; font-size: 13.5px; color: var(--text-gris); line-height: 1.5; }
+
+@media (max-width: 640px) {
+  .entete-claire .logo-tagline { display: none; }
+  .grille-matieres-cercles { gap: 18px; }
+  .cercle-matiere { width: 120px; }
+}

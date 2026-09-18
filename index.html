@@ -8,15 +8,16 @@
 <link rel="stylesheet" href="css/style-public.css">
 <link rel="stylesheet" href="css/pied-de-page.css">
 </head>
-<body>
+<body class="page-accueil-claire">
 
-  <header class="entete-publique">
+  <header class="entete-publique entete-claire">
     <a href="index.html" class="logo">
-      <img src="assets/logo/logo.png" alt="Logo KEKELI"> KEKELI
+      <img src="assets/logo/logo.png" alt="Logo KEKELI">
+      <span>KEKELI<span class="logo-tagline">L'éducation qui éclaire l'avenir</span></span>
     </a>
     <nav class="nav-publique">
       <ul>
-        <li><a href="index.html">Accueil</a></li>
+        <li><a href="index.html" class="actif">Accueil</a></li>
         <li><a href="pages/navigation.html">Classes</a></li>
         <li><a href="#paliers">Paliers</a></li>
       </ul>
@@ -27,21 +28,29 @@
     </div>
   </header>
 
-  <section class="hero" id="heroSection">
+  <section class="hero hero-clair" id="heroSection">
     <div id="heroSlideUnique" style="display:contents">
-      <div class="hero-text">
+      <div class="hero-text hero-clair-texte">
         <!-- Contenu statique de secours : reste affiché tel quel si la section
              dynamique (js/accueil-hero.js, blocs gérés par le super admin depuis
              pages/admin/section-accueil.html) échoue à charger ou si aucun bloc
-             n'est configuré, ou si la disposition choisie est "Carrousel". -->
+             n'est configuré. Le badge et les 2 boutons sont des éléments fixes,
+             hors des champs gérés par un bloc (même principe déjà appliqué à
+             "Accéder à mon espace", voir js/accueil-hero.js). -->
+        <span class="hero-clair-badge">Bienvenue sur KEKELI</span>
         <div id="heroTexteDynamique">
-          <h1>Apprendre, progresser et <span>réussir ensemble</span>.</h1>
-          <p>La plateforme éducative interactive adaptée aux élèves du primaire. Accédez à vos cours, relevez des défis par paliers et suivez vos progrès en temps réel.</p>
+          <h1>Apprendre aujourd'hui, <span>réussir</span> demain.</h1>
+          <p>KEKELI est une plateforme éducative conçue pour accompagner les élèves du primaire dans leur apprentissage. Des cours clairs, des exercices variés par paliers et un suivi pour progresser à son rythme.</p>
         </div>
-        <a href="pages/login.html" class="btn btn-filled" id="lienAccederEspace" style="padding:15px 30px;font-size:16px">Accéder à mon espace 🚀</a>
+        <div class="hero-clair-boutons">
+          <a href="pages/login.html" class="btn-clair-plein" id="lienAccederEspace">📖 Accéder à mon espace</a>
+          <a href="#classesGrades" class="btn-clair-contour">▶ Découvrir les classes</a>
+        </div>
         <div class="hero-points" id="heroPoints"></div>
       </div>
-      <div class="hero-image hero-image-defaut-plein" id="heroImageDynamique">
+      <div class="hero-image hero-clair-photo" id="heroImageDynamique">
+        <!-- Illustration maison (pas d'outil de génération/récupération de
+             photo disponible dans cet environnement — voir LISEZ-MOI). -->
         <span class="bulle-hero-centre" aria-hidden="true">📚</span>
         <span class="bulle-hero bulle-hero-1" aria-hidden="true">🌱</span>
         <span class="bulle-hero bulle-hero-2" aria-hidden="true">🪘</span>
@@ -49,7 +58,6 @@
         <span class="bulle-hero bulle-hero-4" aria-hidden="true">👑</span>
         <span class="etincelle etincelle-1" aria-hidden="true">✨</span>
         <span class="etincelle etincelle-2" aria-hidden="true">✨</span>
-        <span class="etincelle etincelle-3" aria-hidden="true">⭐</span>
       </div>
     </div>
     <!-- Rempli par js/accueil-hero.js uniquement quand la disposition choisie
@@ -59,63 +67,65 @@
     <div class="hero-blocs-multiples" id="heroBlocsMultiples" style="display:none"></div>
   </section>
 
-  <section class="features" id="classes">
-    <h2>La classe de CM2, prête à explorer</h2>
-    <p class="sous-titre">Le programme complet de CM2 est déjà en ligne. Choisissez une matière pour voir ce qui vous attend.</p>
-    <div class="grid-features">
-      <a href="pages/login.html" class="feature-card carte-matiere-cm2">
-        <div class="feature-icon">📖</div>
-        <h3>Français</h3>
-        <p>Lecture, grammaire, conjugaison et expression écrite.</p>
-        <span class="badge-nb-seances">12 séances publiées</span>
-      </a>
-      <a href="pages/login.html" class="feature-card carte-matiere-cm2">
-        <div class="feature-icon">🔢</div>
-        <h3>Mathématiques</h3>
-        <p>Nombres, calcul, mesures et résolution de problèmes.</p>
-        <span class="badge-nb-seances">5 séances publiées</span>
-      </a>
-      <a href="pages/login.html" class="feature-card carte-matiere-cm2">
-        <div class="feature-icon">🌍</div>
-        <h3>Éducation Sociale</h3>
-        <p>Histoire, géographie et vie en société.</p>
-        <span class="badge-nb-seances">5 séances publiées</span>
-      </a>
-      <a href="pages/login.html" class="feature-card carte-matiere-cm2">
-        <div class="feature-icon">🔬</div>
-        <h3>Éducation Scientifique et Technologique</h3>
-        <p>Sciences de la vie, de la terre et technologie.</p>
-        <span class="badge-nb-seances">2 séances publiées</span>
-      </a>
-    </div>
-    <p class="note-autres-matieres">D'autres matières (Éducation Artistique, Éducation Physique et Sportive) arrivent bientôt.</p>
-  </section>
-
-  <section class="features">
-    <h2>Un parcours personnalisé pour chaque élève</h2>
-    <p class="sous-titre">Élèves, parents, enseignants et administrateurs : un espace pensé pour chaque rôle.</p>
-    <div class="grid-features">
-      <div class="feature-card">
-        <div class="feature-icon">📚</div>
-        <h3>Programme Conforme</h3>
-        <p>Des contenus alignés sur les Unités d'Apprentissage du primaire pour réviser efficacement.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">🎯</div>
-        <h3>Paliers de Progression</h3>
-        <p>Du niveau <strong>Azɔ̀ví</strong> à <strong>Axɔ́sú</strong>, avancez à votre rythme sans surcharge.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">👨‍🏫</div>
-        <h3>Suivi Enseignant &amp; Parent</h3>
-        <p>Consultez les bilans et accompagnez l'élève vers la réussite.</p>
-      </div>
+  <section class="section-claire" id="classesGrades">
+    <h2 class="titre-claire">Nos classes</h2>
+    <p class="sous-titre-claire">KEKELI couvre tout le primaire, du CI au CM2. Le programme de CM2 est déjà entièrement disponible ; les autres classes arrivent progressivement.</p>
+    <div class="grille-classes-claire">
+      <div class="carte-classe-claire"><span class="pastille-classe">CI</span><strong>Cours d'Initiation</strong><span class="etat-classe">Bientôt disponible</span></div>
+      <div class="carte-classe-claire"><span class="pastille-classe">CP</span><strong>Cours Préparatoire</strong><span class="etat-classe">Bientôt disponible</span></div>
+      <div class="carte-classe-claire"><span class="pastille-classe">CE1</span><strong>Cours Élémentaire 1</strong><span class="etat-classe">Bientôt disponible</span></div>
+      <div class="carte-classe-claire"><span class="pastille-classe">CE2</span><strong>Cours Élémentaire 2</strong><span class="etat-classe">Bientôt disponible</span></div>
+      <div class="carte-classe-claire"><span class="pastille-classe">CM1</span><strong>Cours Moyen 1</strong><span class="etat-classe">Bientôt disponible</span></div>
+      <a href="pages/login.html" class="carte-classe-claire disponible"><span class="pastille-classe">CM2</span><strong>Cours Moyen 2</strong><span class="etat-classe">✅ Disponible maintenant</span></a>
     </div>
   </section>
 
-  <section class="features" id="paliers" style="padding-top:0">
-    <h2>Une progression par paliers</h2>
-    <p class="sous-titre">Chaque activité peut être classée par niveau de difficulté, pour avancer sans se décourager.</p>
+  <section class="section-claire" id="matieresCM2">
+    <h2 class="titre-claire">Les matières du programme CM2</h2>
+    <p class="sous-titre-claire">Un aperçu de ce qui est déjà disponible pour les élèves de CM2 sur KEKELI.</p>
+    <div class="grille-matieres-cercles">
+      <a href="pages/login.html" class="cercle-matiere">
+        <span class="cercle-icone cercle-bleu">📖</span>
+        <strong>Français</strong>
+        <span class="cercle-desc">Lecture • Grammaire • Expression</span>
+        <span class="cercle-total">12 séances publiées</span>
+      </a>
+      <a href="pages/login.html" class="cercle-matiere">
+        <span class="cercle-icone cercle-vert">🔢</span>
+        <strong>Mathématiques</strong>
+        <span class="cercle-desc">Calcul • Mesures • Problèmes</span>
+        <span class="cercle-total">5 séances publiées</span>
+      </a>
+      <a href="pages/login.html" class="cercle-matiere">
+        <span class="cercle-icone cercle-sarcelle">🌍</span>
+        <strong>Éducation Sociale</strong>
+        <span class="cercle-desc">Histoire • Géographie • Société</span>
+        <span class="cercle-total">5 séances publiées</span>
+      </a>
+      <a href="pages/login.html" class="cercle-matiere">
+        <span class="cercle-icone cercle-orange">🔬</span>
+        <strong>Éducation Scientifique et Technologique</strong>
+        <span class="cercle-desc">Sciences • Technologie</span>
+        <span class="cercle-total">2 séances publiées</span>
+      </a>
+      <span class="cercle-matiere cercle-indisponible">
+        <span class="cercle-icone cercle-violet">🎨</span>
+        <strong>Éducation Artistique</strong>
+        <span class="cercle-desc">Créativité • Patrimoine</span>
+        <span class="cercle-total">Bientôt disponible</span>
+      </span>
+      <span class="cercle-matiere cercle-indisponible">
+        <span class="cercle-icone cercle-rose">🏃</span>
+        <strong>Éducation Physique et Sportive</strong>
+        <span class="cercle-desc">Motricité • Santé</span>
+        <span class="cercle-total">Bientôt disponible</span>
+      </span>
+    </div>
+  </section>
+
+  <section class="section-claire" id="paliers">
+    <h2 class="titre-claire">Une progression par paliers</h2>
+    <p class="sous-titre-claire">Chaque activité peut être classée par niveau de difficulté, pour avancer sans se décourager. Cliquez sur un palier pour découvrir son contenu.</p>
     <div class="grille-paliers-accueil">
       <a href="pages/login.html" class="carte-palier-accueil" aria-label="Palier Azɔ̀ví, très facile — 18 exercices publiés">
         <img src="assets/paliers-accueil/azovi.png" alt="Palier Azɔ̀ví, très facile" loading="lazy">
@@ -134,6 +144,44 @@
         <img src="assets/paliers-accueil/axosu.png" alt="Palier Axɔ́sú, très difficile" loading="lazy">
         <span class="total-palier-accueil">9</span>
       </a>
+    </div>
+  </section>
+
+  <section class="section-claire pourquoi-claire">
+    <div class="pourquoi-grille">
+      <div>
+        <h2 class="titre-claire titre-claire-gauche">Pourquoi choisir KEKELI ?</h2>
+        <ul class="liste-check-claire">
+          <li>✅ Des contenus alignés sur les programmes officiels</li>
+          <li>✅ Des exercices progressifs et interactifs, classés par palier</li>
+          <li>✅ Une interface simple, adaptée à tous les appareils</li>
+          <li>✅ Un suivi partagé entre l'élève, le parent et l'enseignant</li>
+        </ul>
+      </div>
+      <div class="carte-slogan-claire">
+        <p class="slogan-manuscrit">Ensemble pour une éducation de qualité !</p>
+        <img src="assets/logo/logo.png" alt="KEKELI">
+        <strong>KEKELI</strong>
+        <span>L'éducation qui éclaire l'avenir</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-claire actualites-claire">
+    <h2 class="titre-claire titre-claire-gauche">📣 Actualités et nouveautés</h2>
+    <div class="liste-actualites">
+      <div class="item-actualite">
+        <span class="icone-actu">📘</span>
+        <div><strong>Le programme de CM2 est disponible</strong><p>Français, Mathématiques, Éducation Sociale et Éducation Scientifique et Technologique sont déjà en ligne.</p></div>
+      </div>
+      <div class="item-actualite">
+        <span class="icone-actu">🏅</span>
+        <div><strong>Une progression par paliers</strong><p>De Azɔ̀ví à Axɔ́sú, chaque exercice est classé par niveau de difficulté pour avancer sans se décourager.</p></div>
+      </div>
+      <div class="item-actualite">
+        <span class="icone-actu">🎁</span>
+        <div><strong>Ressources gratuites</strong><p>Des fiches et des guides accessibles dès l'inscription, pour bien démarrer.</p></div>
+      </div>
     </div>
   </section>
 
