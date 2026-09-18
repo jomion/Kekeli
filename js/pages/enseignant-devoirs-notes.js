@@ -130,7 +130,20 @@ async function afficherGestionEns() {
     { cle: 'retard', devoirs: devoirsEnRetard, libelle: '⏰ Échéance dépassée', alerte: devoirsEnRetard.length > 0 },
     { cle: 'reponses', devoirs: devoirsAvecReponses, libelle: '📨 Réponses reçues (devoirs texte libre)' }
   ];
-  const html_ligneDevoirEns = (d) => {
+  // avecPanneau=false (cartes de statut, ci-dessous) : n'affiche jamais le
+  // panneau déplié (correction de bug, 18 septembre 2026) — le même devoir
+  // apparaît à la fois dans une carte de statut ET dans la liste "Devoirs"
+  // plus bas ; l'ancienne version dupliquait le panneau (et son conteneur
+  // data-editeur-blocs-devoir) aux deux endroits dès que ce devoir était
+  // "ouvert", ce qui faisait que initEditeurBlocsDevoir() (zone.querySelector,
+  // qui ne cible que la PREMIÈRE occurrence trouvée dans le DOM) initialisait
+  // toujours celui de la carte de statut — souvent replié/invisible — et
+  // laissait vide, sans le moindre bouton "+ Ajouter un bloc", celui de la
+  // liste "Devoirs" que l'enseignant regarde réellement. Le bouton "Gérer"
+  // reste cliquable dans une carte de statut (il ouvre bien le devoir), mais
+  // le panneau lui-même ne s'affiche que dans la liste "Devoirs", seul
+  // endroit où son conteneur existe désormais dans le DOM.
+  const html_ligneDevoirEns = (d, avecPanneau) => {
     const estBlocs = !!d.seance_id;
     const sousLigne = estBlocs
       ? `${echapperEns2(d.seances?.titre || '')} · ${d.statut === 'publie' ? 'Publié' : 'Brouillon'} · à rendre le ${new Date(d.date_limite).toLocaleDateString('fr-FR')}`
@@ -139,7 +152,7 @@ async function afficherGestionEns() {
     <div class="ligne-pub" style="flex-direction:column;align-items:stretch;gap:0">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
         <div><div class="titre-ligne-pub">${echapperEns2(d.titre)}</div><div class="sous-ligne-pub">${sousLigne}</div></div>
-        <button type="button" class="btn btn-discret" data-toggle-rendus-ens="${d.id}" style="padding:6px 14px;font-size:12px">${devoirOuvertEns === d.id ? '▲ Fermer' : (estBlocs ? '📂 Gérer' : '📋 Voir les rendus')}</button>
+        <button type="button" class="btn btn-discret" data-toggle-rendus-ens="${d.id}" style="padding:6px 14px;font-size:12px">${devoirOuvertEns === d.id ? (avecPanneau ? '▲ Fermer' : '👇 Ouvert dans "Devoirs" ci-dessous') : (estBlocs ? '📂 Gérer' : '📋 Voir les rendus')}</button>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px">
         <span style="font-size:11px;color:var(--text-gris)">${libelleDestinatairesDevoir((destinatairesParDevoir[d.id] || []).length, (eleves || []).length)}</span>
@@ -147,11 +160,11 @@ async function afficherGestionEns() {
         <button type="button" class="btn btn-discret" data-modifier-devoir="${d.id}" style="padding:2px 10px;font-size:11px">✏️ Modifier</button>
         <button type="button" class="btn btn-discret" data-supprimer-devoir="${d.id}" style="padding:2px 10px;font-size:11px;color:#B91C1C">🗑️ Supprimer</button>
       </div>
-      ${devoirOuvertEns === d.id ? panneauRendusEns : ''}
+      ${(avecPanneau && devoirOuvertEns === d.id) ? panneauRendusEns : ''}
     </div>`;
   };
-  const html_listeDevoirsEns = (liste) => liste.length
-    ? `<div class="liste-lignes-pub">${liste.map(html_ligneDevoirEns).join('')}</div>`
+  const html_listeDevoirsEns = (liste, avecPanneau = true) => liste.length
+    ? `<div class="liste-lignes-pub">${liste.map(d => html_ligneDevoirEns(d, avecPanneau)).join('')}</div>`
     : '<p style="color:var(--text-gris);font-size:14px">Aucun devoir dans cette situation.</p>';
 
   zone.innerHTML = `
@@ -165,7 +178,7 @@ async function afficherGestionEns() {
       </div>
       ${cartesEns.map(c => `
         <div class="zone-detail-carte-statut" data-zone-carte-statut="${c.cle}" hidden style="margin-top:12px">
-          ${html_listeDevoirsEns(c.devoirs)}
+          ${html_listeDevoirsEns(c.devoirs, false)}
         </div>`).join('')}
     </div>
     <button class="btn btn-filled" id="btnNouveauDevoirEns" style="margin-bottom:20px">+ Nouveau devoir</button>
@@ -310,7 +323,7 @@ function ouvrirNouveauDevoirTexteLibreEns(eleves) {
     titre: 'Nouveau devoir (texte libre)',
     champs: [
       { nom: 'titre', label: 'Titre' },
-      { nom: 'consigne', label: 'Consigne', type: 'textarea' },
+      { nom: 'consigne', label: 'Consigne', type: 'richtext' },
       { nom: 'date_limite', label: 'À rendre pour le', type: 'date' },
       {
         nom: 'destinataires', label: 'Destinataires', type: 'checkboxes',
