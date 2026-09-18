@@ -1,113 +1,107 @@
-LIVRAISON — Nouvelle page d'accueil, sur votre maquette (index.html)
+LIVRAISON — Palette exacte de votre maquette + déploiement sur les
+espaces parent et enseignant
 ==========================================================
 Date : 18 septembre 2026
 
-Cette livraison remplace entièrement l'apparence de la page d'accueil pour
-suivre, "à chaque détail près", la nouvelle maquette que vous avez envoyée :
-en-tête blanc, héro avec badge et boutons, cartes de classes, matières en
-cercles colorés, paliers, section "Pourquoi choisir KEKELI ?" et
-"Actualités et nouveautés".
+Cette livraison fait deux choses :
+1. Elle corrige les couleurs/polices/formes de la nouvelle page d'accueil
+   pour qu'elles suivent EXACTEMENT le fichier de référence que vous avez
+   envoyé (KEKELI_template_accueil_responsive.html), au lieu de la palette
+   que j'avais approximée à la main dans la livraison précédente.
+2. Elle applique ce même habillage (fond bleu ciel légèrement nuageux +
+   apparence complète de la maquette) à toutes les pages des espaces
+   parent et enseignant, comme convenu.
 
 ------------------------------------------------------------
-1. En-tête (haut de page)
+1. Couleurs et polices exactes de votre fichier de référence
 ------------------------------------------------------------
 
-Fond blanc (au lieu de noir), logo avec la légende "L'éducation qui éclaire
-l'avenir" en dessous, navigation Accueil / Classes / Paliers, boutons
-"Se connecter" (contour) et "S'inscrire" (jaune, plein) — comme sur votre
-maquette. Cette nouvelle apparence est spécifique à la page d'accueil ;
-elle ne touche à aucune autre page du site (vérifié : l'en-tête sombre des
-espaces élève/parent/enseignant/admin reste inchangé).
+J'ai remplacé ma palette bleu marine/or (approximative) par les vraies
+couleurs de votre maquette : bleu #0759b8, vert #14ae70, jaune #ffc400,
+orange, violet, rose — utilisées exactement comme dans votre fichier
+(boutons, badges, icônes de matières, dégradés).
+
+J'ai aussi ajouté les deux polices utilisées dans votre maquette : Nunito
+(texte courant, plus arrondie que la police précédente) et Caveat (police
+manuscrite, utilisée uniquement pour la petite citation "Ensemble pour une
+éducation de qualité !"). Ces polices se chargent automatiquement depuis
+Google Fonts ; si un jour Google Fonts n'est pas joignable (connexion très
+lente ou bloquée), le site retombe simplement sur une police système
+standard, sans rien casser.
 
 ------------------------------------------------------------
-2. Nouveau bandeau du haut (héro)
+2. Formes des composants, comme sur votre maquette
 ------------------------------------------------------------
 
-Fond clair, badge jaune "Bienvenue sur KEKELI", nouveau titre "Apprendre
-aujourd'hui, réussir demain.", et 2 boutons ("Accéder à mon espace" en
-jaune plein, "Découvrir les classes" en contour), exactement comme sur la
-maquette.
-
-Concernant la photo de la maquette (les deux enfants avec cartables et le
-drapeau du Bénin) : je n'ai pas d'outil de génération d'image par IA dans
-cet environnement de travail. J'ai bien cherché une photo similaire sur
-Adobe Stock (recherche et "achat" possibles), mais le téléchargement du
-fichier lui-même est bloqué par une restriction réseau de mon
-environnement, indépendante de ma volonté — donc impossible de récupérer
-le fichier pour l'intégrer sur le site. Comme vous l'avez choisi, j'ai
-gardé à cet endroit l'illustration "maison" en CSS déjà utilisée
-précédemment (livre + pastilles des 4 paliers), simplement recadrée dans
-un cadre à coins arrondis pour se rapprocher visuellement de la place
-qu'occupait la photo sur la maquette. Vous pourrez remplacer ce cadre par
-une vraie photo à tout moment en me l'envoyant directement dans la
-conversation.
+- Boutons et badges : forme "pilule" (bords totalement arrondis), comme
+  sur votre fichier, au lieu des coins simplement arrondis d'avant.
+- Icônes des matières (Français, Mathématiques, etc.) : cercles en
+  couleur pleine (comme votre maquette), au lieu de cercles pastel.
+- Section "Pourquoi choisir KEKELI ?" : fond en dégradé bleu très clair,
+  avec le petit trait jaune manuscrit sous la citation, comme sur votre
+  fichier.
+- Section "Actualités et nouveautés" : présentée en carte blanche avec
+  bordure et icônes rondes colorées, comme votre maquette. J'ai volontai-
+  rement conservé le choix déjà fait de ne pas afficher de fausses dates
+  (celles de votre fichier de démonstration ne sont pas de vraies dates
+  KEKELI).
 
 ------------------------------------------------------------
-3. Nouvelle section "Nos classes"
+3. Espaces parent et enseignant : nouveau fond et nouvel en-tête
 ------------------------------------------------------------
 
-Les 6 classes du primaire (CI à CM2) apparaissent maintenant en cartes,
-avant les matières. Seule la carte CM2 est cliquable et marquée
-"✅ Disponible maintenant" (vérifié en base : c'est la seule classe avec du
-contenu réellement publié) ; les 5 autres affichent "Bientôt disponible",
-sans lien, pour ne rien annoncer de faux.
+Sur les 11 pages ci-dessous, j'ai appliqué :
+- Un fond bleu ciel légèrement nuageux (dégradé doux), au lieu du fond
+  blanc uni actuel.
+- Un en-tête assorti à la nouvelle palette (les liens de menu passent en
+  pilule bleue pleine au survol/à la sélection, au lieu du gris précédent).
+- Les boutons/badges/liens de ces pages utilisent maintenant la même
+  couleur bleue que la page d'accueil.
 
-------------------------------------------------------------
-4. Matières du CM2, en cercles colorés (comme la maquette)
-------------------------------------------------------------
+Pages concernées :
+Espace parent : tableau de bord, devoirs & notes, messagerie, paiements.
+Espace enseignant : bienvenue, tableau de bord, devoirs & notes,
+messagerie, messagerie (administration), planification, registre d'appel.
 
-J'ai suivi votre choix d'utiliser les vraies matières de KEKELI (et non les
-matières génériques de la maquette) : Français, Mathématiques, Éducation
-Sociale, Éducation Scientifique et Technologique, Éducation Artistique,
-Éducation Physique et Sportive — avec, pour chacune, le VRAI nombre de
-séances déjà publiées (12, 5, 5, 2). Les deux matières sans contenu publié
-pour l'instant (Éducation Artistique, Éducation Physique et Sportive)
-restent affichées à titre informatif mais grisées, non cliquables, avec la
-mention "Bientôt disponible".
-
-------------------------------------------------------------
-5. Paliers (inchangés dans le contenu, juste repositionnés)
-------------------------------------------------------------
-
-Les 4 cartes de paliers (Azɔ̀ví, Dèví, Ògán, Axɔ́sú) restent exactement les
-mêmes qu'avant (mêmes visuels, mêmes totaux réels d'exercices publiés : 18,
-18, 11, 9), simplement déplacées après les classes et les matières, comme
-convenu.
-
-------------------------------------------------------------
-6. Nouvelles sections "Pourquoi choisir KEKELI ?" et "Actualités"
-------------------------------------------------------------
-
-Ajout d'une section à deux colonnes (liste d'arguments + carte slogan), et
-d'une section "Actualités et nouveautés" avec 3 informations authentiques
-(programme CM2 disponible, système de paliers, ressources gratuites) — pas
-de fausse date ni d'annonce inventée.
+Le contenu de ces pages n'a pas changé : seuls le fond et l'en-tête
+changent d'apparence. Les espaces élève, administrateur et autorité
+restent inchangés (vérifié : ils ne portent pas cette nouvelle apparence).
 
 ------------------------------------------------------------
 Vérification effectuée avant livraison
 ------------------------------------------------------------
 
-Page testée avec un navigateur automatisé sur 3 tailles d'écran (ordinateur,
-tablette, téléphone) : mise en page correcte partout, aucune image cassée,
-aucun élément qui déborde. J'ai aussi retiré du code quelques anciennes
-règles de style devenues inutiles après ce changement (l'ancienne
-présentation des matières en cartes, et l'ancienne illustration plein
-écran), pour garder le fichier propre — sans aucun effet visuel, juste du
-ménage.
+- Fichier CSS vérifié ligne par ligne (aucune accolade ni aucun
+  commentaire mal fermé).
+- Page d'accueil testée avec un navigateur automatisé sur 3 tailles
+  d'écran (ordinateur, tablette, téléphone) : mise en page correcte
+  partout.
+- Nouvel en-tête des espaces parent/enseignant testé (couleur de fond,
+  couleur des liens au survol) : conforme à la maquette.
+- Vérifié que les espaces élève/administrateur/autorité ne portent pas
+  ce nouveau fond (aucune régression).
 
 ------------------------------------------------------------
 Fichiers modifiés dans ce paquet
 ------------------------------------------------------------
-- index.html
 - css/style-public.css
+- pages/parent/tableau-de-bord.html
+- pages/parent/devoirs-notes.html
+- pages/parent/messagerie.html
+- pages/parent/paiements.html
+- pages/enseignant/bienvenue.html
+- pages/enseignant/tableau-de-bord.html
+- pages/enseignant/devoirs-notes.html
+- pages/enseignant/messagerie.html
+- pages/enseignant/messagerie-admin.html
+- pages/enseignant/planification.html
+- pages/enseignant/registre-appel.html
 
 ------------------------------------------------------------
 Et maintenant ?
 ------------------------------------------------------------
 
-La page d'accueil correspond maintenant à votre maquette. Prochaine étape
-prévue (déjà convenue) : appliquer ce même style (fond bleu ciel légèrement
-nuageux + apparence complète de la maquette) à toutes les pages des espaces
-parent et enseignant. Dites-moi si vous voulez d'abord des ajustements sur
-cette page d'accueil, ou si je peux continuer directement sur cette
-prochaine étape.
+La page d'accueil et l'ensemble des espaces parent/enseignant suivent
+maintenant votre maquette de référence. Dites-moi si vous voulez des
+ajustements (une couleur, une police, un espacement précis) ou si je
+peux continuer sur la suite du projet.

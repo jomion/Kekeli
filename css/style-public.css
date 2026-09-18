@@ -1,3 +1,13 @@
+/* Nunito (texte courant) + Caveat (citation manuscrite du bloc
+   slogan) : polices exactes du fichier de référence fourni par le
+   porteur du projet. Une règle @import DOIT être la toute première
+   règle du fichier CSS (avant même les autres commentaires suivis
+   de règles) sous peine d'être silencieusement ignorée par le
+   navigateur — c'est pourquoi elle est ici en tout premier, et non
+   plus près de son usage réel (leçon retenue : elle avait d'abord
+   été placée au milieu du fichier et n'était jamais chargée). */
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Nunito:wght@400;600;700;800;900&display=swap');
+
 /* ============================================================
    KEKELI — Pages "utilisateur" (accueil public, connexion, espaces
    élève/parent/enseignant). Palette distincte de l'outil d'admin
@@ -1241,14 +1251,21 @@ button.pastille-tache-admin.carte-statut-active .fleche-carte-statut { transform
 .resume-notes-detail { padding: 0 10px 10px; }
 
 /* ============================================================
-   Refonte de l'accueil (index.html) sur la maquette envoyée le
-   18 septembre 2026 — "Adapte la page d'accueil à cette maquette à
-   chaque détail prêt". Palette claire dédiée (préfixe "clair-" /
-   "-claire"), qui NE remplace PAS les variables globales du site
-   (--bleu-kekeli reste utilisé par les tableaux de bord, l'en-tête
-   sombre partagé js/entete-navigation.js, etc.) — seule la page
-   d'accueil publique (body.page-accueil-claire) et les éléments
-   explicitement marqués "-claire"/"-clair" adoptent ce nouveau look.
+   Refonte de l'accueil (index.html) — mise à jour le 18 septembre
+   2026 pour reprendre EXACTEMENT les couleurs, la typographie
+   (Nunito + Caveat) et les proportions d'une maquette HTML/CSS
+   complète fournie par le porteur du projet
+   (KEKELI_template_accueil_responsive.html), plutôt qu'une
+   approximation faite à l'œil sur une image. Les noms de classe
+   posés dans index.html restent inchangés (aucune modification de
+   index.html nécessaire pour cette passe) ; seules les valeurs de
+   ce bloc CSS sont alignées sur le fichier de référence. Palette
+   claire dédiée (préfixe "clair-"), qui NE remplace PAS les
+   variables globales du site (--bleu-kekeli reste utilisé par les
+   tableaux de bord au thème sombre) — seule la page d'accueil
+   publique (body.page-accueil-claire) et les éléments marqués
+   "-claire"/"-clair" adoptent ce nouveau look, repris ensuite pour
+   les espaces parent/enseignant plus bas dans ce fichier.
    Photo héro : pas d'outil de génération/récupération d'image
    disponible dans cet environnement (recherche Adobe Stock : le
    téléchargement des visuels achetés est bloqué par la politique
@@ -1256,18 +1273,32 @@ button.pastille-tache-admin.carte-statut-active .fleche-carte-statut { transform
    garder l'illustration CSS existante ("Utilise l'illustration CSS
    à la place"), simplement recadrée dans le nouveau cadre photo. */
 :root {
-  --clair-navy: #0F1E3D;
-  --clair-navy-texte: #1E293B;
-  --clair-jaune: #FFC72C;
-  --clair-jaune-fonce: #E8A800;
-  --clair-vert: #16A34A;
-  --clair-fond-section: #F8FAFC;
-  --clair-fond-alt: #EFF4FB;
-  --clair-bordure: #E5EAF2;
+  --clair-bleu: #0759b8;
+  --clair-bleu2: #0b68d7;
+  --clair-deep: #064b9e;
+  --clair-titre: #064a98;
+  --clair-texte: #063d83;
+  --clair-muted: #58759a;
+  --clair-vert: #14ae70;
+  --clair-jaune: #ffc400;
+  --clair-jaune-vif: #ffca05;
+  --clair-jaune-fonce: #e0a800;
+  --clair-orange: #ff7600;
+  --clair-violet: #7a25c7;
+  --clair-rose: #fb554e;
+  --clair-sky: #eef9ff;
+  --clair-fond-section: #f7fbfe;
+  --clair-fond-alt: #eaf6fe;
+  --clair-bordure: #d9ebf8;
+  /* Conservées pour compatibilité avec le reste de ce fichier (les
+     tableaux de bord parent/enseignant, plus bas) — alias vers la
+     nouvelle palette plutôt que doublons de valeurs. */
+  --clair-navy: var(--clair-bleu);
+  --clair-navy-texte: var(--clair-texte);
 }
 
 /* La page d'accueil de la maquette est faite de sections blanches /
-   gris très clair, pas de la photo de ciel utilisée par défaut
+   bleu très clair, pas de la photo de ciel utilisée par défaut
    (voir body.page-sans-fond-ciel plus haut, déjà réservé aux pages
    de connexion/inscription) — on désactive donc ici aussi le fond
    ciel, mais scopé à cette seule page plutôt que de toucher à la
@@ -1275,66 +1306,72 @@ button.pastille-tache-admin.carte-statut-active .fleche-carte-statut { transform
 body.page-accueil-claire {
   background-image: none;
   background-color: var(--clair-fond-section);
+  font-family: 'Nunito', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-/* ----- En-tête clair (mockup) ----- */
+/* ----- En-tête clair (fidèle à .site-header du fichier de référence :
+   fond blanc, liens en pilule qui basculent en bleu plein au survol,
+   boutons "pilule" Connexion/Inscription) ----- */
 header.entete-publique.entete-claire {
   background-color: #ffffff;
-  border-bottom: 1px solid var(--clair-bordure);
-  box-shadow: 0 2px 10px rgba(15,30,61,0.06);
+  border-bottom: 1px solid #eef5fa;
+  box-shadow: none;
 }
-.entete-claire .logo { color: var(--clair-navy); flex-direction: column; align-items: flex-start; gap: 0; font-size: 22px; }
-.entete-claire .logo > img { align-self: center; }
-.entete-claire .logo-tagline { display: block; font-size: 11px; font-weight: 600; color: var(--text-gris); letter-spacing: .2px; }
-/* Le logo garde l'image + "KEKELI" sur une ligne, la légende en dessous :
-   on repasse la ligne du haut (image + mot KEKELI) en row via un conteneur
-   flex, tout en laissant .logo lui-même en colonne pour la légende. */
-.entete-claire .logo { flex-direction: row; align-items: center; }
+.entete-claire .logo { color: var(--clair-bleu); flex-direction: row; align-items: center; gap: 12px; font-size: 22px; font-weight: 900; }
 .entete-claire .logo span { display: flex; flex-direction: column; line-height: 1.15; }
-.entete-claire nav.nav-publique a { color: var(--clair-navy-texte); }
-.entete-claire nav.nav-publique a:hover, .entete-claire nav.nav-publique a.actif { color: var(--clair-jaune-fonce); }
-.entete-claire .btn-outline { border-color: var(--clair-navy); color: var(--clair-navy); }
+.entete-claire .logo-tagline { display: block; font-size: 11px; font-weight: 700; color: var(--clair-muted); letter-spacing: .2px; }
+.entete-claire nav.nav-publique a {
+  color: var(--clair-titre); font-weight: 800; padding: 10px 15px; border-radius: 12px; transition: background .15s, color .15s;
+}
+.entete-claire nav.nav-publique a:hover, .entete-claire nav.nav-publique a.actif { background: var(--clair-bleu2); color: #fff; }
+.entete-claire .btn-outline {
+  border: 1.6px solid var(--clair-bleu); color: var(--clair-bleu); background: #fff; border-radius: 999px; font-weight: 800;
+}
 .entete-claire .btn-outline:hover { background: var(--clair-fond-alt); }
-.entete-claire .btn-filled { background-color: var(--clair-jaune); color: var(--clair-navy); }
+.entete-claire .btn-filled { background-color: var(--clair-jaune); color: var(--clair-bleu); border-radius: 999px; font-weight: 800; }
 .entete-claire .btn-filled:hover { background-color: var(--clair-jaune-fonce); }
 
-/* ----- Héro clair (mockup) ----- */
+/* ----- Héro clair (dégradé bleu très clair -> blanc, comme
+   .hero{background:linear-gradient(90deg,#eaf8ff,#effaff,#fff)} du
+   fichier de référence) ----- */
 .hero.hero-clair {
-  background: linear-gradient(160deg, #FFFDF6 0%, var(--clair-fond-alt) 100%);
-  color: var(--clair-navy-texte);
-  padding: 60px 50px;
+  background: linear-gradient(100deg, #eaf8ff 0%, #effaff 45%, #fff 100%);
+  color: var(--clair-texte);
+  padding: 55px 50px;
 }
 .hero-clair-badge {
-  display: inline-block; align-self: flex-start; background: var(--clair-jaune); color: var(--clair-navy);
-  font-size: 12.5px; font-weight: 800; padding: 6px 16px; border-radius: 999px; margin-bottom: 16px;
+  display: inline-block; align-self: flex-start; background: var(--clair-jaune-vif); color: var(--clair-bleu);
+  font-size: 13px; font-weight: 900; padding: 7px 18px; border-radius: 999px; margin-bottom: 14px;
 }
-.hero.hero-clair .hero-text h1 { color: var(--clair-navy); }
-.hero.hero-clair .hero-text h1 span { color: var(--clair-jaune-fonce); }
-.hero.hero-clair .hero-text p { color: var(--text-gris); }
+.hero.hero-clair .hero-text h1 { color: #0b4f9f; font-size: 42px; font-weight: 900; letter-spacing: -1px; line-height: 1.1; }
+.hero.hero-clair .hero-text h1 span { color: var(--clair-vert); }
+.hero.hero-clair .hero-text p { color: #084488; font-weight: 600; font-size: 16.5px; line-height: 1.5; max-width: 520px; }
 .hero-clair-boutons { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; }
 #lienAccederEspace.btn-clair-plein,
 .btn-clair-plein {
-  display: inline-block; background: var(--clair-jaune); color: var(--clair-navy); font-weight: 800;
-  padding: 13px 26px; border-radius: 10px; font-size: 15px; transition: background .15s, transform .1s;
+  display: inline-block; background: var(--clair-bleu2); color: #fff; font-weight: 800;
+  padding: 14px 28px; border-radius: 999px; font-size: 14.5px; transition: background .15s, transform .1s;
   margin-top: 0;
 }
-.btn-clair-plein:hover { background: var(--clair-jaune-fonce); transform: translateY(-1px); }
+.btn-clair-plein:hover { background: var(--clair-deep); transform: translateY(-1px); }
 .btn-clair-contour {
-  display: inline-block; background: none; color: var(--clair-navy); font-weight: 800; border: 2px solid var(--clair-navy);
-  padding: 11px 24px; border-radius: 10px; font-size: 15px; transition: background .15s, transform .1s;
+  display: inline-block; background: #fff; color: var(--clair-bleu); font-weight: 800; border: 1.6px solid var(--clair-bleu2);
+  padding: 12px 26px; border-radius: 999px; font-size: 14.5px; transition: background .15s, transform .1s;
 }
-.btn-clair-contour:hover { background: rgba(15,30,61,0.06); transform: translateY(-1px); }
+.btn-clair-contour:hover { background: var(--clair-fond-alt); transform: translateY(-1px); }
 /* Cadre photo du héro : borné (pas plein-écran comme l'ancienne variante
-   .hero-image-defaut-plein), coins arrondis, dégradé clair — reçoit les
-   mêmes pastilles décoratives (bulle-hero et etincelle) que la précédente
-   illustration, repositionnées pour ce cadre plus petit. */
+   .hero-image-defaut-plein), coins arrondis, dégradé bleu de la
+   maquette — reçoit les mêmes pastilles décoratives (bulle-hero et
+   etincelle) que la précédente illustration, repositionnées pour ce
+   cadre plus petit. Remplace une vraie photo (voir note en tête de
+   bloc : téléchargement bloqué par la politique réseau du bac à sable). */
 .hero-image.hero-clair-photo {
   position: relative; overflow: hidden; border: none; border-radius: 22px;
   background:
-    radial-gradient(ellipse 65% 55% at 78% 22%, rgba(0,209,255,0.16), transparent 60%),
-    radial-gradient(ellipse 60% 60% at 85% 85%, rgba(22,163,74,0.14), transparent 65%),
-    linear-gradient(135deg, var(--clair-navy) 0%, var(--bleu-kekeli) 100%);
-  box-shadow: 0 14px 34px rgba(15,30,61,0.18);
+    radial-gradient(ellipse 65% 55% at 78% 22%, rgba(255,255,255,0.18), transparent 60%),
+    radial-gradient(ellipse 60% 60% at 85% 85%, rgba(20,174,112,0.20), transparent 65%),
+    linear-gradient(135deg, var(--clair-deep) 0%, var(--clair-bleu2) 100%);
+  box-shadow: 0 14px 34px rgba(6,75,158,0.22);
 }
 .hero-clair-photo .bulle-hero-centre { right: auto; left: 50%; top: 50%; transform: translate(-50%, -50%); }
 .hero-clair-photo .bulle-hero-1 { right: 68%; top: 14%; }
@@ -1348,87 +1385,197 @@ header.entete-publique.entete-claire {
 }
 
 /* ----- Sections claires génériques ----- */
-.section-claire { max-width: 1140px; margin: 0 auto; padding: 60px 24px; text-align: center; }
-.titre-claire { color: var(--clair-navy); font-size: 27px; margin: 0 0 8px; }
-.sous-titre-claire { color: var(--text-gris); margin: 0 auto 30px; max-width: 640px; font-size: 15px; line-height: 1.6; }
+.section-claire { max-width: 1180px; margin: 0 auto; padding: 55px 24px; text-align: center; }
+.titre-claire { color: var(--clair-titre); font-size: 27px; font-weight: 900; margin: 0 0 8px; }
+.sous-titre-claire { color: var(--clair-muted); margin: 0 auto 30px; max-width: 640px; font-size: 15px; line-height: 1.6; }
 .titre-claire-gauche, .pourquoi-grille .sous-titre-claire { text-align: left; margin-left: 0; margin-right: 0; }
 
 /* ----- Cartes "Nos classes" ----- */
 .grille-classes-claire { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; }
 .carte-classe-claire {
   display: flex; flex-direction: column; align-items: center; gap: 8px; background: #ffffff;
-  border: 1px solid var(--clair-bordure); border-radius: 16px; padding: 24px 14px; color: var(--clair-navy-texte);
-  box-shadow: 0 2px 8px rgba(15,30,61,0.05); transition: transform .15s, box-shadow .15s;
+  border-radius: 14px; padding: 24px 14px; color: var(--clair-texte);
+  box-shadow: 0 4px 16px rgba(12,89,166,.08); transition: transform .15s, box-shadow .15s;
 }
-.carte-classe-claire.disponible { cursor: pointer; border-color: var(--clair-jaune); }
-.carte-classe-claire.disponible:hover { transform: translateY(-4px); box-shadow: 0 10px 24px rgba(15,30,61,0.14); }
+.carte-classe-claire.disponible { cursor: pointer; box-shadow: 0 4px 16px rgba(255,196,0,.28); }
+.carte-classe-claire.disponible:hover { transform: translateY(-4px); box-shadow: 0 10px 24px rgba(6,75,158,.18); }
 .pastille-classe {
   width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  background: var(--clair-fond-alt); color: var(--clair-navy); font-weight: 800; font-size: 14px;
+  background: var(--clair-fond-alt); color: var(--clair-bleu); font-weight: 900; font-size: 14px;
 }
-.carte-classe-claire.disponible .pastille-classe { background: var(--clair-jaune); }
-.carte-classe-claire strong { font-size: 14px; }
-.etat-classe { font-size: 12px; color: var(--text-gris); font-weight: 700; }
+.carte-classe-claire.disponible .pastille-classe { background: var(--clair-jaune); color: var(--clair-bleu); }
+.carte-classe-claire strong { font-size: 14px; color: var(--clair-titre); }
+.etat-classe { font-size: 12px; color: var(--clair-muted); font-weight: 700; }
 .carte-classe-claire.disponible .etat-classe { color: var(--clair-vert); }
 
-/* ----- Matières (cercles colorés, mockup) ----- */
-.grille-matieres-cercles { display: flex; flex-wrap: wrap; justify-content: center; gap: 26px; }
+/* ----- Matières : cercles pleins colorés (repris à l'identique de
+   .subject-icon dans le fichier de référence — 6 couleurs distinctes,
+   icône blanche/emoji sur fond plein, pas de pastille pâle), avec
+   les vraies matières et vrais chiffres Kekeli. ----- */
+.grille-matieres-cercles { display: flex; flex-wrap: wrap; justify-content: center; gap: 22px; }
 .cercle-matiere {
-  display: flex; flex-direction: column; align-items: center; gap: 6px; width: 160px; color: var(--clair-navy-texte);
-  text-decoration: none;
+  display: flex; flex-direction: column; align-items: center; gap: 7px; width: 160px; color: var(--clair-texte);
+  text-decoration: none; background: rgba(255,255,255,.9); border-radius: 14px; padding: 16px 10px 14px;
+  box-shadow: 0 4px 16px rgba(12,89,166,.045);
 }
 a.cercle-matiere { transition: transform .15s; }
 a.cercle-matiere:hover { transform: translateY(-4px); }
 .cercle-icone {
-  width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  font-size: 28px; box-shadow: 0 4px 10px rgba(15,30,61,0.10);
+  width: 61px; height: 61px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 27px;
 }
-.cercle-bleu     { background: #DBEAFE; }
-.cercle-vert     { background: #DCFCE7; }
-.cercle-sarcelle { background: #CCFBF1; }
-.cercle-orange   { background: #FFEDD5; }
-.cercle-violet   { background: #EDE9FE; }
-.cercle-rose     { background: #FCE7F3; }
-.cercle-matiere strong { font-size: 13.5px; }
-.cercle-desc { font-size: 11.5px; color: var(--text-gris); line-height: 1.4; }
-.cercle-total { font-size: 11.5px; font-weight: 800; color: var(--clair-navy); background: var(--clair-fond-alt); padding: 3px 10px; border-radius: 999px; }
+.cercle-bleu     { background: #0d7bdd; }
+.cercle-vert     { background: #45a843; }
+.cercle-sarcelle { background: #45bd80; }
+.cercle-orange   { background: var(--clair-orange); }
+.cercle-violet   { background: var(--clair-violet); }
+.cercle-rose     { background: var(--clair-rose); }
+.cercle-matiere strong { font-size: 14px; font-weight: 900; color: var(--clair-titre); }
+.cercle-desc { font-size: 11.5px; color: var(--clair-muted); line-height: 1.35; }
+.cercle-total { font-size: 11.5px; font-weight: 800; color: var(--clair-bleu); background: var(--clair-fond-alt); padding: 3px 10px; border-radius: 999px; }
 .cercle-indisponible { opacity: .55; }
-.cercle-indisponible .cercle-total { background: transparent; color: var(--text-gris); font-weight: 600; }
+.cercle-indisponible .cercle-icone { filter: grayscale(.4); }
+.cercle-indisponible .cercle-total { background: transparent; color: var(--clair-muted); font-weight: 600; }
 
-/* ----- "Pourquoi choisir KEKELI ?" (2 colonnes) ----- */
+/* ----- "Pourquoi choisir KEKELI ?" (2 colonnes, fond dégradé bleu
+   pâle comme .why{background:linear-gradient(100deg,#eaf8ff,#edf8ff)}) ----- */
 .pourquoi-claire { text-align: left; }
-.pourquoi-grille { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 46px; align-items: center; text-align: left; }
-.liste-check-claire { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
-.liste-check-claire li { font-size: 15px; line-height: 1.5; color: var(--clair-navy-texte); }
-.carte-slogan-claire {
-  background: linear-gradient(150deg, var(--clair-navy) 0%, var(--bleu-kekeli) 100%); border-radius: 20px;
-  padding: 38px 30px; text-align: center; color: white; display: flex; flex-direction: column; align-items: center; gap: 10px;
-  box-shadow: 0 14px 30px rgba(15,30,61,0.20);
+.pourquoi-grille {
+  display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 30px; align-items: center; text-align: left;
+  background: linear-gradient(100deg, #eaf8ff, #edf8ff); border-radius: 18px; padding: 30px 34px;
 }
-.slogan-manuscrit { font-style: italic; font-size: 17px; margin: 0 0 6px; line-height: 1.5; }
-.carte-slogan-claire img { height: 46px; width: auto; margin-top: 4px; }
-.carte-slogan-claire strong { font-size: 18px; letter-spacing: .3px; }
-.carte-slogan-claire span { font-size: 12.5px; color: #CBD5E1; }
+.liste-check-claire { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.liste-check-claire li {
+  font-size: 15px; font-weight: 600; line-height: 1.4; color: var(--clair-texte);
+  display: flex; align-items: center; gap: 12px;
+}
+/* "✅" déjà écrit dans index.html devant chaque item : on le laisse
+   tel quel (aucune modification HTML), l'espacement flex ci-dessus
+   suffit à reproduire la puce ronde verte du fichier de référence. */
+.carte-slogan-claire {
+  background: transparent; padding: 6px 10px; text-align: center; color: var(--clair-bleu);
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.slogan-manuscrit {
+  font-family: 'Caveat', cursive; font-weight: 700; font-style: normal; font-size: 26px; line-height: 1.15; margin: 0;
+}
+.carte-slogan-claire::after {
+  content: ""; display: block; width: 126px; height: 4px; border-radius: 5px; background: var(--clair-jaune-vif);
+  transform: rotate(-8deg); margin: 10px auto 4px; order: 1;
+}
+.carte-slogan-claire img { height: 50px; width: auto; margin-top: 6px; order: 2; }
+.carte-slogan-claire strong { font-size: 17px; letter-spacing: .3px; color: var(--clair-titre); order: 3; }
+.carte-slogan-claire span { font-size: 12.5px; color: var(--clair-muted); order: 4; }
 @media (max-width: 760px) {
-  .pourquoi-grille { grid-template-columns: 1fr; }
+  .pourquoi-grille { grid-template-columns: 1fr; padding: 24px; }
+  .carte-slogan-claire { display: none; }
 }
 
-/* ----- Actualités et nouveautés ----- */
+/* ----- Actualités et nouveautés (carte "news" du fichier de
+   référence : en-tête + liste, icônes rondes pleines) — sans date
+   inventée (principe déjà en vigueur sur ce site : ne rien annoncer
+   de faux), à la différence du fichier de référence qui en affiche. ----- */
 .actualites-claire { text-align: left; }
-.liste-actualites { display: flex; flex-direction: column; gap: 14px; }
+.actualites-claire .titre-claire-gauche {
+  display: flex; align-items: center; gap: 10px; font-size: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--clair-bordure);
+}
+.liste-actualites { display: flex; flex-direction: column; background: #fff; border: 1px solid var(--clair-bordure); border-radius: 15px; box-shadow: 0 3px 12px rgba(5,91,174,.05); overflow: hidden; }
 .item-actualite {
-  display: flex; align-items: flex-start; gap: 16px; background: #ffffff; border: 1px solid var(--clair-bordure);
-  border-radius: 14px; padding: 18px 20px; box-shadow: 0 2px 8px rgba(15,30,61,0.05);
+  display: flex; align-items: center; gap: 14px; padding: 16px 22px; border-bottom: 1px solid #e8f1f7;
 }
+.item-actualite:last-child { border-bottom: none; }
 .icone-actu {
-  flex: 0 0 auto; width: 42px; height: 42px; border-radius: 50%; background: var(--clair-fond-alt);
-  display: flex; align-items: center; justify-content: center; font-size: 19px;
+  flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff;
 }
-.item-actualite strong { display: block; color: var(--clair-navy); font-size: 15px; margin-bottom: 3px; }
-.item-actualite p { margin: 0; font-size: 13.5px; color: var(--text-gris); line-height: 1.5; }
+.item-actualite:nth-child(1) .icone-actu { background: var(--clair-vert); }
+.item-actualite:nth-child(2) .icone-actu { background: var(--clair-bleu2); }
+.item-actualite:nth-child(3) .icone-actu { background: var(--clair-jaune); }
+.item-actualite strong { display: block; color: var(--clair-titre); font-size: 14.5px; font-weight: 900; margin-bottom: 3px; }
+.item-actualite p { margin: 0; font-size: 13px; color: var(--clair-muted); line-height: 1.4; }
 
 @media (max-width: 640px) {
   .entete-claire .logo-tagline { display: none; }
-  .grille-matieres-cercles { gap: 18px; }
-  .cercle-matiere { width: 120px; }
+  .grille-matieres-cercles { gap: 14px; }
+  .cercle-matiere { width: 130px; }
+}
+
+/* ============================================================
+   Déploiement du même look (voir plus haut, section "index.html",
+   désormais fidèle à KEKELI_template_accueil_responsive.html fourni
+   par le porteur du projet) aux espaces parent et enseignant,
+   demandé le 18 septembre 2026 : « adapte ce design à tous les
+   comptes de parents, enseignant, avec fond bleu ciel légèrement
+   nuageux », confirmé "fond + style complet de la maquette" sur la
+   TOTALITÉ de leurs pages. Classe posée sur <body> (voir les
+   fichiers .html sous pages/parent/ et pages/enseignant/), sur le
+   modèle déjà éprouvé de body.theme-fille (thème rose élève) :
+   aucune modification de js/entete-navigation.js (qui rend l'en-tête
+   .entete-kekeli partagé par TOUS les rôles) — tout passe par ce
+   simple sélecteur descendant CSS, donc les espaces élève/admin/
+   autorité (qui n'ont pas cette classe sur leur <body>) ne sont pas
+   affectés, quel que soit le moment où le script injecte l'en-tête
+   dans la page.
+   --noir-kekeli n'est PAS redéfini ici (contrairement à
+   --bleu-kekeli/--accent-cyan) : cette variable vaut #000000 et sert
+   à la fois de fond sombre (en-tête) ET de couleur de texte pour de
+   nombreux titres de carte (voir plus haut) — la redéfinir en blanc
+   rendrait ces titres invisibles sur les cartes blanches. Le fond de
+   l'en-tête est donc recoloré par des règles explicites ci-dessous,
+   pas par variable. Le pied de page partagé (css/pied-de-page.css)
+   n'est pas touché : il est commun à TOUS les rôles, le reroute
+   isolément ici serait hors de portée de cette demande précise. */
+body.theme-clair-compte {
+  background-color: var(--clair-sky, #eef9ff);
+  background-image:
+    radial-gradient(ellipse 50% 30% at 12% 8%, rgba(255,255,255,0.85), transparent 70%),
+    radial-gradient(ellipse 40% 24% at 78% 4%, rgba(255,255,255,0.75), transparent 70%),
+    radial-gradient(ellipse 60% 34% at 92% 22%, rgba(255,255,255,0.6), transparent 70%),
+    linear-gradient(160deg, #eaf8ff 0%, #dcebfb 45%, #eff6fc 100%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  background-size: cover;
+  font-family: 'Nunito', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  /* Palette d'accent recolorée en bleu/or de la maquette (même
+     technique que body.theme-fille, déjà en production pour le
+     thème rose élève) : --bleu-kekeli/--bleu-kekeli-fonce/
+     --accent-cyan alimentent déjà boutons pleins, bordures
+     d'accent, pastilles et liens dans tout le thème partagé — les
+     redéfinir ici suffit à propager la nouvelle palette sans
+     toucher un seul fichier CSS de composant. */
+  --bleu-kekeli: var(--clair-bleu, #0759b8);
+  --bleu-kekeli-fonce: var(--clair-deep, #064b9e);
+  --accent-cyan: var(--clair-jaune, #ffc400);
+}
+
+/* En-tête fixe partagé (.entete-kekeli) : fond sombre -> blanc,
+   liens en pilule bleu plein au survol (identique à .nav a:hover de
+   la maquette), mêmes choix que .entete-claire (page d'accueil),
+   adaptés aux éléments propres à cet en-tête (catégories
+   déroulantes, menu mobile plein écran). */
+body.theme-clair-compte .entete-kekeli {
+  background: #ffffff;
+  border-bottom: 1px solid var(--clair-bordure, #d9ebf8);
+  box-shadow: none;
+}
+body.theme-clair-compte .entete-kekeli-logo { color: var(--clair-bleu, #0759b8); }
+body.theme-clair-compte .entete-kekeli-liens a,
+body.theme-clair-compte .entete-kekeli-categorie-btn { color: var(--clair-titre, #064a98); }
+body.theme-clair-compte .entete-kekeli-liens a:hover,
+body.theme-clair-compte .entete-kekeli-categorie-btn:hover,
+body.theme-clair-compte .entete-kekeli-categorie.ouvert .entete-kekeli-categorie-btn {
+  background: var(--clair-bleu2, #0b68d7); color: #fff;
+}
+body.theme-clair-compte .entete-kekeli-badge { background: var(--clair-jaune, #ffc400); color: var(--clair-bleu, #0759b8); }
+body.theme-clair-compte .entete-kekeli-icone-btn { border-color: var(--clair-bleu, #0759b8); color: var(--clair-bleu, #0759b8); }
+body.theme-clair-compte .entete-kekeli-icone-btn:hover { background: var(--clair-bleu2, #0b68d7); border-color: var(--clair-bleu2, #0b68d7); color: #fff; }
+body.theme-clair-compte .entete-kekeli-hamburger span { background: var(--clair-bleu, #0759b8); }
+body.theme-clair-compte .entete-kekeli-sousmenu-inner { background: #ffffff; box-shadow: 0 12px 28px rgba(6,75,158,0.18); border: 1px solid var(--clair-bordure, #d9ebf8); }
+body.theme-clair-compte .entete-kekeli-sousmenu a { color: var(--clair-titre, #064a98); }
+body.theme-clair-compte .entete-kekeli-sousmenu a:hover { background: var(--clair-fond-alt, #eaf6fe); color: var(--clair-bleu, #0759b8); }
+/* Menu mobile plein écran (sous 860px, voir la règle d'origine) : même
+   bascule blanc/bleu que le reste de l'en-tête. */
+@media (max-width: 860px) {
+  body.theme-clair-compte .entete-kekeli-zone { background: #ffffff; box-shadow: -10px 0 30px rgba(6,75,158,0.18); }
+  body.theme-clair-compte .entete-kekeli-badge { text-align: center; }
 }
