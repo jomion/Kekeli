@@ -971,6 +971,32 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .badge-palier-devi { background: #EBF5FB; color: #3498DB; }
 .badge-palier-ogan { background: #FDF2E9; color: #E67E22; }
 .badge-palier-axosu { background: #F4ECF7; color: #9B59B6; }
+/* 18 septembre 2026 (2e lot) : "A la réussite d'un palier à 100% présente le
+   trophée complet animé à l'écran avant que l'enfant poursuive" — overlay
+   plein écran, ajouté par afficherTropheePalierPleinEcran() directement à
+   document.body (voir js/pages/eleve-seance.js), donc jamais recouvert par
+   le prochain rendre(). Réutilise la médaille déjà existante de chaque palier
+   (assets/badges/medaille-<palier>.jpg), pas de nouvel asset. */
+.overlay-trophee-palier { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.72); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px; animation: apparitionOverlayTrophee 0.25s ease-out; }
+@keyframes apparitionOverlayTrophee { from { opacity: 0; } to { opacity: 1; } }
+.carte-trophee-palier { position: relative; background: white; border-radius: 20px; padding: 32px 28px; text-align: center; max-width: 340px; box-shadow: 0 20px 50px rgba(0,0,0,0.35); animation: agrandissementTrophee 0.5s cubic-bezier(.34,1.56,.64,1); overflow: hidden; }
+@keyframes agrandissementTrophee { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.image-trophee-palier { width: 130px; height: 130px; object-fit: contain; border-radius: 50%; box-shadow: 0 0 0 6px #FFF3C4, 0 6px 18px rgba(0,0,0,0.2); animation: brillanceTrophee 1.6s ease-in-out infinite; }
+@keyframes brillanceTrophee { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.25); } }
+.titre-trophee-palier { font-size: 19px; font-weight: 800; color: var(--noir-kekeli); margin: 14px 0 2px; }
+.sous-titre-trophee-palier { font-size: 15px; font-weight: 700; color: var(--bleu-kekeli); margin: 0 0 18px; }
+.confettis-trophee { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.confettis-trophee span { position: absolute; top: -20px; font-size: 20px; animation: chuteConfetti 1.8s ease-in forwards; }
+.confettis-trophee span:nth-child(odd) { animation-duration: 2.2s; }
+.confettis-trophee span:nth-child(1) { left: 5%; animation-delay: 0s; }
+.confettis-trophee span:nth-child(2) { left: 20%; animation-delay: .15s; }
+.confettis-trophee span:nth-child(3) { left: 35%; animation-delay: .3s; }
+.confettis-trophee span:nth-child(4) { left: 50%; animation-delay: .05s; }
+.confettis-trophee span:nth-child(5) { left: 65%; animation-delay: .25s; }
+.confettis-trophee span:nth-child(6) { left: 80%; animation-delay: .1s; }
+.confettis-trophee span:nth-child(7) { left: 92%; animation-delay: .35s; }
+.confettis-trophee span:nth-child(n+8) { left: 12%; animation-delay: .45s; }
+@keyframes chuteConfetti { from { transform: translateY(0) rotate(0deg); opacity: 1; } to { transform: translateY(260px) rotate(340deg); opacity: 0; } }
 .zone-travail-seance { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
 .colonne-lecture-seance, .colonne-exercice-seance { min-width: 0; }
 .activite-lecture { padding-top: 8px; }

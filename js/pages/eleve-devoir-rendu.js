@@ -16,6 +16,13 @@ let reponsesExistantesDevoir = {}; // bloc_id -> [lignes reponses_exercices] tri
 let rendusActivitesExistantsDevoir = {}; // bloc_id -> [lignes rendus_activites] triées par numero_essai
 let etatAccesCorrectionIADevoir = { autorise: false };
 let formulairesReouvertsDevoir = new Set();
+// 18 septembre 2026 (2e lot) : "L'enseignant doit recevoir, corriger et
+// attribuer une note [...] L'élève pourra consulter la correction s'il
+// valide son devoir." — ligne devoirs_blocs_validations pour CE devoir et CET
+// élève, si le devoir a déjà été explicitement validé (bouton "📤 Valider mon
+// devoir" ci-dessous) ; null tant qu'il ne l'a pas été. Voir la migration
+// ajoute_validation_devoirs_blocs_et_notif.
+let validationDevoirCourante = null;
 
 const LIBELLES_MEDAILLE_DEVOIR = { bronze: '🥉 Bronze', argent: '🥈 Argent', or: '🥇 Or', diamant: '💎 Diamant' };
 
@@ -83,7 +90,29 @@ async function chargerDevoir() {
     (rendus || []).forEach(r => { (rendusActivitesExistantsDevoir[r.bloc_id] ??= []).push(r); });
   }
 
+  const { data: validation } = await supabaseClient
+    .from('devoirs_blocs_validations').select('*').eq('devoir_id', devoirId).eq('eleve_id', profilEleveDevoir.id).maybeSingle();
+  validationDevoirCourante = validation || null;
+
   rendreDevoir();
+}
+
+// 18 septembre 2026 (2e lot) : bouton "📤 Valider mon devoir" — signal
+// explicite et unique (choisi par le porteur du projet parmi 2 options) que
+// l'élève a terminé son devoir "à blocs" : jusque-là, chaque bloc s'envoyait
+// séparément sans qu'aucun signal ne prévienne l'enseignant (cause du bug
+// "le devoir rendu n'est pas reçu par l'enseignant"). L'insertion déclenche
+// le trigger trg_notifier_devoir_blocs_valide (notifie devoirs.cree_par) ET
+// débloque l'affichage d'un éventuel bloc "Correction" (voir plus bas).
+// N'exige PAS que tout soit déjà corrigé (resume.toutCorrige) — seulement que
+// chaque bloc ait reçu au moins une réponse (resume.nbRepondus === nbBlocs) :
+// l'enseignant corrige ensuite, à son rythme, indépendamment de ce bouton.
+async function validerDevoirEleve(devoirId) {
+  if (!confirm('Valider et envoyer ce devoir à ton enseignant ? Tu ne pourras plus revenir en arrière.')) return;
+  const { error } = await supabaseClient.from('devoirs_blocs_validations')
+    .insert({ devoir_id: devoirId, eleve_id: profilEleveDevoir.id });
+  if (error) return alert(error.message);
+  await chargerDevoir();
 }
 
 async function rafraichirAccesCorrectionIADevoir() {
@@ -120,6 +149,7 @@ function rendreDevoir() {
     <div class="colonne-exercice-seance" style="max-width:720px">
       ${blocsDevoirCourant.length ? blocsDevoirCourant.map(rendreBlocTravailDevoir).join('') : '<p style="color:var(--text-gris)">Ce devoir n\'a pas encore de contenu — reviens plus tard.</p>'}
     </div>
+    ${html_zoneValidationDevoir(resume)}
   `;
 
   attacherEcouteursExercicesDevoir();
@@ -128,6 +158,31 @@ function rendreDevoir() {
   attacherEcouteursExercicesLibresDevoir();
   attacherEcouteursCorrectionsDevoir();
   attacherEcouteursRefaireDevoir();
+
+  const btnValider = document.getElementById('btnValiderDevoirEleve');
+  if (btnValider) btnValider.addEventListener('click', () => validerDevoirEleve(devoirCourant.id));
+}
+
+// Zone "📤 Valider mon devoir", sous la liste des blocs — voir
+// validerDevoirEleve() ci-dessus. resume est null si le devoir n'a aucun
+// bloc "notable" (uniquement un bloc "correction", cas très improbable mais
+// géré proprement plutôt que de faire planter le rendu).
+function html_zoneValidationDevoir(resume) {
+  if (!resume || !resume.nbBlocs) return '';
+  if (validationDevoirCourante) {
+    return `<div class="recap-score" style="margin-top:18px;background:#E6F9EF;color:#0F7A45">
+      ✅ Devoir envoyé le ${new Date(validationDevoirCourante.valide_le).toLocaleDateString('fr-FR')} — ton enseignant en a été prévenu.
+    </div>`;
+  }
+  const pretAValider = resume.nbRepondus >= resume.nbBlocs;
+  return `<div style="margin-top:20px;text-align:center;padding-top:16px;border-top:1px solid var(--bordure,#E2E8F0)">
+    <button type="button" class="btn btn-filled" id="btnValiderDevoirEleve" ${pretAValider ? '' : 'disabled'}>📤 Valider mon devoir</button>
+    <p style="font-size:12px;color:var(--text-gris);margin-top:6px">
+      ${pretAValider
+        ? 'Une fois validé, ton enseignant sera prévenu qu\'il peut corriger ton devoir.'
+        : `Réponds à tous les blocs (${resume.nbRepondus}/${resume.nbBlocs}) avant de pouvoir valider.`}
+    </p>
+  </div>`;
 }
 
 // Bascule "🔓 Voir la correction" d'un bloc "correction" (11 septembre 2026)
@@ -158,10 +213,16 @@ function rendreBlocTravailDevoir(b) {
   // Bloc "Correction" (11 septembre 2026) : jamais de réponse à recueillir,
   // contenu masqué/révélé au clic — même gabarit que côté séance (voir
   // js/pages/eleve-seance.js, rendreBlocLecture).
+  // 18 septembre 2026 (2e lot) : "L'élève pourra consulter la correction s'il
+  // valide son devoir" — le bouton reste visible (pour que l'élève sache
+  // qu'une correction existe) mais désactivé tant que validationDevoirCourante
+  // est vide (voir validerDevoirEleve()).
   if (b.type_bloc === 'correction') {
-    const corpsCorrection = `
-      <button type="button" class="btn btn-discret" data-bouton-correction-devoir="${b.id}">🔓 Voir la correction</button>
-      <div class="contenu-riche-lecture" data-zone-correction-devoir="${b.id}" hidden>${contenuRicheInitial(c.texte)}</div>`;
+    const corpsCorrection = validationDevoirCourante
+      ? `<button type="button" class="btn btn-discret" data-bouton-correction-devoir="${b.id}">🔓 Voir la correction</button>
+      <div class="contenu-riche-lecture" data-zone-correction-devoir="${b.id}" hidden>${contenuRicheInitial(c.texte)}</div>`
+      : `<button type="button" class="btn btn-discret" disabled title="Disponible une fois ton devoir validé">🔒 Voir la correction</button>
+      <p style="font-size:12px;color:var(--text-gris);margin:6px 0 0">Disponible une fois que tu auras validé ton devoir (bouton en bas de page).</p>`;
     return `<div class="bloc-lecture" style="border-left-color:${couleur};background:${teinteClaire(couleurFond, 0.04)}">
       <div class="bloc-lecture-titre" style="color:${couleur}">${info.icone} ${echapper(libelle)}</div>
       ${corpsCorrection}

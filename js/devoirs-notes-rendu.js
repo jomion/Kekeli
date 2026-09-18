@@ -4,6 +4,44 @@
 
 const LIBELLES_STATUT_DEVOIR = { a_faire: 'À faire', rendu: 'Rendu', en_retard: 'En retard', corrige: 'Corrigé' };
 
+// 18 septembre 2026 (2e lot) : "Applique la couleur de fond aux historiques
+// des devoirs des élèves et des parents" — même palette et même principe
+// (fond de couleur par type de devoir dominant) que celui déjà posé côté
+// enseignant/admin (voir js/pages/enseignant-devoirs-notes.js et
+// js/pages/admin-devoirs-notes.js, COULEURS_TYPE_DEVOIR_HIST locale à
+// chacun) — définie ici UNE seule fois car html_ligneDevoirTableau ci-dessous
+// est le rendu PARTAGÉ élève/parent. Les copies enseignant/admin, déjà en
+// production et non concernées par cette demande, ne sont pas touchées.
+const COULEURS_TYPE_DEVOIR_HIST_PARTAGE = {
+  exercice: '#DBEAFE', probleme: '#FFEDD5', activite: '#DCFCE7', evaluation: '#FEE2E2', texte_libre: '#F1F5F9'
+};
+
+// Calcule, à partir des lignes blocs_seance déjà chargées pour une liste de
+// devoirs "à blocs" (peu importe l'élève — le type de bloc ne dépend pas de
+// qui répond), le type dominant (premier bloc non-"correction", dans l'ordre)
+// de chaque devoir — même règle que côté enseignant/admin.
+function typePrincipalParDevoirDepuisBlocs(blocsTous) {
+  const carte = {};
+  (blocsTous || []).forEach(b => {
+    if (b.type_bloc !== 'correction' && !carte[b.devoir_id]) carte[b.devoir_id] = b.type_bloc;
+  });
+  return carte;
+}
+
+// Légende des couleurs (même texte que côté enseignant/admin), à afficher une
+// seule fois au-dessus de la liste "Devoirs" d'une page élève/parent.
+function html_legendeTypeDevoir() {
+  const c = COULEURS_TYPE_DEVOIR_HIST_PARTAGE;
+  const puce = (couleur) => `<span style="display:inline-block;width:10px;height:10px;background:${couleur};border-radius:2px;margin-right:3px;vertical-align:middle"></span>`;
+  return `<p style="font-size:11px;color:var(--text-gris);margin:-6px 0 10px;display:flex;gap:12px;flex-wrap:wrap">
+    <span>${puce(c.exercice)}Devoir</span>
+    <span>${puce(c.probleme)}Problème</span>
+    <span>${puce(c.activite)}Activité</span>
+    <span>${puce(c.evaluation)}Évaluation</span>
+    <span>${puce(c.texte_libre)}Texte libre</span>
+  </p>`;
+}
+
 // 18 septembre 2026 : "Renomme le bloc exercice au niveau des devoir en
 // Devoir. Avec ce bloc l'enseignant est libre de proposer ce qu'il veut."
 // — le type réel en base reste 'exercice' (aucune migration de données), et
@@ -238,6 +276,11 @@ function html_ligneDevoirTableau(d, options) {
   const note = resume
     ? (resume.toutCorrige && resume.noteSur20 != null ? `${resume.noteSur20}/20` : '—')
     : (d.rendu?.note != null ? `${d.rendu.note}/20` : '—');
+  // d.typeDevoir : renseigné par la page appelante (eleve/parent-devoirs-notes.js)
+  // via typePrincipalParDevoirDepuisBlocs() pour un devoir "à blocs" — 'exercice'
+  // par défaut si absent (même repli que côté enseignant/admin) ; 'texte_libre'
+  // pour l'ancien mode sans blocs.
+  const fondType = COULEURS_TYPE_DEVOIR_HIST_PARTAGE[resume ? (d.typeDevoir || 'exercice') : 'texte_libre'];
 
   // prefixeId : un même devoir peut apparaître à la fois dans la liste
   // principale ET dans une carte de suivi dépliée (voir
@@ -258,7 +301,7 @@ function html_ligneDevoirTableau(d, options) {
   }
 
   return `
-    <tr style="border-bottom:1px solid var(--bordure,#E2E8F0)">
+    <tr style="border-bottom:1px solid var(--bordure,#E2E8F0);background:${fondType}">
       <td style="padding:8px">${echapperTexte(d.titre)}</td>
       <td style="padding:8px;white-space:nowrap">${formaterDate(d.date_limite)}</td>
       <td style="padding:8px"><span class="pastille-statut pastille-${statut}">${LIBELLES_STATUT_DEVOIR[statut]}</span></td>

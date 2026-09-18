@@ -1,108 +1,75 @@
-KEKELI — Livraison : corrections registre / planification / devoirs (enseignant)
+KEKELI — Livraison : devoirs (validation/correction/couleurs) + paliers
 ================================================================================
 
-Cette livraison répond à votre message groupé de 12 demandes concernant le
-registre d'appel, la planification et la gestion des devoirs. Voici, point
-par point, ce qui a été fait.
+Cette livraison répond à votre dernier message : couleur des historiques de
+devoirs côté élève/parent, bug du devoir rendu non reçu par l'enseignant,
+bloc de correction pour les devoirs, et comportement des tâches de palier
+(reprise des ratées, trophée à 100%).
 
-1. « Les pages épinglées n'affichent pas la nouvelle présentation CSS »
+1. Couleur de fond des historiques de devoirs (élève et parent)
 ------------------------------------------------------------------------
-Vérification approfondie du code : les liens de raccourci « 📌 Épingler
-cette page » (menu du haut) sont générés EXACTEMENT par le même mécanisme
-que les liens de navigation normaux, avec les mêmes fichiers CSS. Aucune
-cause technique n'a été trouvée pour ce symptôme. C'est très probablement :
-  - soit le cache du navigateur (essayez un rechargement forcé, Ctrl+F5),
-  - soit la livraison précédente (palette/thème clair) pas encore installée
-    sur votre site en ligne.
-Si le problème persiste après un rechargement forcé ET l'installation de
-cette livraison, dites-le-nous avec une capture d'écran précise de la page
-concernée.
+Comme demandé, les listes "Mes devoirs" (élève) et "Devoirs" (parent)
+affichent maintenant le même fond de couleur par type de devoir que côté
+enseignant/admin (bleu clair = Devoir, orange clair = Problème, vert clair =
+Activité, rouge clair = Évaluation, gris clair = ancien devoir texte libre),
+avec la légende au-dessus de la liste. Aucune donnée supplémentaire n'a eu
+besoin d'être chargée pour cela.
 
-2. Registre et planification en mode paysage
+2. « Le devoir rendu n'est pas reçu par l'enseignant »
 ------------------------------------------------------------------------
-Suite à votre précision (« garde le registre en mode portrait, seule la
-planification sera en mode paysage ») : SEULE la page Planification est
-maintenant plus large (mode paysage, jusqu'à 1400px). Le Registre d'appel
-garde sa présentation actuelle en portrait, inchangée.
+Cause trouvée : un devoir "à blocs" (le seul mode de création depuis le
+18 septembre) n'avait JAMAIS de signal unique disant "ce devoir est fini" —
+chaque bloc (Devoir, Problème, Évaluation...) s'envoyait séparément, et
+l'ancien mécanisme de notification ne concernait que les devoirs "texte
+libre" (aujourd'hui disparus de la création). Résultat : l'enseignant
+n'était jamais prévenu qu'un devoir avait été rendu.
 
-3. Bouton pour modifier une session déjà passée
-------------------------------------------------------------------------
-Dans le Registre d'appel, un nouveau bouton « 🔓 Modifier une séance
-passée » apparaît à côté de « Valider & Notifier ». En l'activant, les
-créneaux déjà écoulés (matin/après-midi de jours précédents) deviennent de
-nouveau modifiables — avec un contour discret en pointillés pour les
-distinguer du créneau réellement en cours (contour jaune). Conformément à
-votre demande, ces corrections rétroactives sont SILENCIEUSES : aucune
-notification n'est envoyée aux parents pour elles (seul le bouton « Valider
-& Notifier » du créneau du jour envoie des notifications, comme avant).
-De plus, à l'ouverture de la page, le tableau se recentre automatiquement
-sur la colonne de la session en cours.
+Corrigé par l'ajout d'un bouton « 📤 Valider mon devoir », en bas de la page
+du devoir côté élève, qui apparaît une fois que tous les blocs ont reçu au
+moins une réponse. En cliquant dessus, l'élève envoie officiellement son
+devoir : l'enseignant (ou l'administrateur si c'est lui qui a créé le
+devoir) reçoit alors une vraie notification "Devoir rendu", avec un lien qui
+pointe désormais correctement vers SA page (nous avons corrigé au passage un
+défaut similaire sur l'ancien système, qui pointait toujours vers la page
+administrateur même pour un devoir créé par un enseignant).
 
-4. Différencier les absences (simple / justifiée)
+3 et 4. Bloc de correction + les deux options de correction
 ------------------------------------------------------------------------
-Chaque case cochée « absent » affiche maintenant un petit bouton (❔ absence
-simple, 📩 absence justifiée) permettant de préciser la nature de
-l'absence et, si besoin, un motif libre (« Maladie », « Rendez-vous
-médical »...). Ceci est enregistré en base (nouvelles colonnes dans le
-registre, sans impact sur les données déjà existantes).
+Le bloc « Correction » est de nouveau disponible dans le menu "+ Ajouter un
+bloc" d'un devoir (il avait été retiré du menu le 18 septembre, mais son
+fonctionnement existait déjà et n'avait pas besoin d'être reconstruit). Vous
+avez donc bien les deux options, combinables librement sur un même devoir :
+  - Vous ajoutez un bloc "Correction" à côté d'un bloc "Devoir"/"Problème" :
+    une fois que l'élève a validé son devoir (point 2 ci-dessus), un bouton
+    « 🔓 Voir la correction » apparaît pour lui — avant validation, ce bouton
+    reste visible mais verrouillé, pour qu'il sache qu'une correction
+    existe sans pouvoir la lire trop tôt.
+  - Vous laissez l'élève faire et envoyer son devoir normalement, vous le
+    corrigez à la main (note, appréciation, commentaire) via le bouton
+    « 📤 Renvoyer » déjà existant, sans bloc de correction — exactement comme
+    avant.
 
-5. Planification : vrais titres des séquences + édition libre
+5. Activités des séquences (paliers)
 ------------------------------------------------------------------------
-Les cases de la planification affichent maintenant le VRAI titre de la
-séance liée (en petite police), au lieu du texte générique. Si une séance
-n'a jamais été titrée par l'administration, un petit badge « à titrer »
-l'indique clairement (au lieu de faire croire à un vrai titre). Vous pouvez
-aussi, en plus de la séance liée, saisir un libellé personnalisé qui
-remplace l'affichage dans la case — la séance reste bien reliée en
-arrière-plan pour le suivi.
-
-6. Export Word / Excel / PDF verrouillés
-------------------------------------------------------------------------
-Les boutons d'export (registre, bilan mensuel, planification) restent
-visibles mais affichent maintenant « 🔒 Cette fonctionnalité arrive
-bientôt — le temps qu'elle soit bien paramétrée » au clic, le temps que ces
-exports soient finalisés avec vous.
-
-7. Bouton « Renvoyer » pour noter le devoir « Devoir » (ex-Exercice)
-------------------------------------------------------------------------
-Dans le panneau de gestion d'un devoir « à blocs », le bloc « Devoir »
-(anciennement « Exercice ») affiche maintenant un bouton « 📤 Renvoyer »
-(au lieu de « ✏️ Corriger ») pour noter la copie de l'élève — même
-fonctionnement, libellé adapté à ce bloc précis.
-
-8. Vrai titre de séquence à la création d'un devoir
-------------------------------------------------------------------------
-La liste déroulante « Séance à évaluer », lors de la création d'un devoir
-(enseignant et admin), affiche maintenant le vrai titre de la séance
-(au lieu de « Séquence 1 »). Si une séance n'a pas encore de titre saisi,
-elle apparaît suivie de « (à titrer) ».
-
-9. Historique des devoirs : fonds de couleur par type
-------------------------------------------------------------------------
-Dans la liste des devoirs (espace enseignant et admin), chaque devoir a
-maintenant un fond de couleur selon son type : bleu clair (Devoir), orange
-clair (Problème), vert clair (Activité), rouge clair (Évaluation), gris
-clair (ancien devoir texte libre). Une légende est affichée au-dessus de
-la liste.
-
-10. Retrait du mode « devoir libre » à la création
-------------------------------------------------------------------------
-Le choix « texte libre / à blocs » a disparu : un nouveau devoir se crée
-maintenant directement en mode « à blocs ». Les devoirs texte libre déjà
-créés avant cette livraison continuent de s'afficher et de se corriger
-normalement, rien n'est perdu.
-
-11 et 12. Bloc « Exercice » renommé « Devoir », menu réduit
-------------------------------------------------------------------------
-Dans l'éditeur de blocs d'un devoir, le bloc « Exercice » s'appelle
-maintenant « Devoir » (l'enseignant y écrit librement ce qu'il veut, comme
-avant). Le menu « + Ajouter un bloc » ne propose plus que : Devoir,
-Problème, Activités, Évaluation (Quiz et Correction retirés — aucun devoir
-existant de ces deux types n'est affecté, seule la création est concernée).
+Vérification faite : dès qu'une tâche est ratée au 1er essai, l'élève doit
+la refaire correctement AVANT de passer à la suivante (c'était déjà le
+comportement voulu par le système de paliers — le déverrouillage progressif
+ne fonctionne que dans un sens). En revanche, deux nouveautés :
+  - Après avoir validé un palier sans tout réussir, un nouveau bouton
+    « 🔁 Reprendre les tâches ratées » permet de ne retravailler QUE les
+    questions ratées (les bonnes réponses restent acquises) — cette reprise
+    compte comme un essai normal (essai 2, puis 3, comme avant).
+  - Le bouton « 🔓 Voir la correction » apparaît bien dès le 1er essai si
+    l'enfant réussit le palier à 100% (comportement déjà en place, vérifié).
+  - Nouveauté demandée : à la réussite d'un palier à 100% (y compris au 1er
+    essai), un trophée plein écran animé (confettis, médaille du palier en
+    brillance) s'affiche et doit être fermé par l'enfant ("Continuer") avant
+    de poursuivre — réutilise les médailles déjà existantes, aucune nouvelle
+    image.
 
 Rappel important
 ------------------------------------------------------------------------
-Tous les changements de base de données (nouvelles colonnes d'absence) ont
-déjà été appliqués directement sur votre base Supabase en production — vous
-n'avez rien à faire de ce côté-là. Il ne reste qu'à déployer les fichiers de
+Le changement de base de données (nouvelle table de suivi des devoirs
+validés + correctif de notification) a déjà été appliqué directement sur
+votre base Supabase en production. Il ne reste qu'à déployer les fichiers de
 cette livraison sur votre hébergement.

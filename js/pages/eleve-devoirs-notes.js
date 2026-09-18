@@ -28,6 +28,7 @@ async function charger() {
 
   const idsDevoirsBlocs = (devoirs || []).filter(d => d.seance_id).map(d => d.id);
   let resumesParDevoir = {};
+  let typePrincipalParDevoir = {};
   if (idsDevoirsBlocs.length) {
     const { data: blocsTous } = await supabaseClient.from('blocs_seance').select('*').in('devoir_id', idsDevoirsBlocs).order('ordre');
     const idsBlocsTous = (blocsTous || []).map(b => b.id);
@@ -38,10 +39,14 @@ async function charger() {
         ])
       : [{ data: [] }, { data: [] }];
     resumesParDevoir = resumerDevoirsBlocsEnLot(idsDevoirsBlocs, blocsTous, reponsesTous, rendusTous);
+    // 18 septembre 2026 (2e lot) : "Applique la couleur de fond aux
+    // historiques des devoirs des élèves" — même blocsTous déjà chargé
+    // ci-dessus, aucune requête supplémentaire (voir js/devoirs-notes-rendu.js).
+    typePrincipalParDevoir = typePrincipalParDevoirDepuisBlocs(blocsTous);
   }
 
   const devoirsAvecStatut = (devoirs || []).map(d => d.seance_id
-    ? { ...d, resumeBlocs: resumesParDevoir[d.id] || null }
+    ? { ...d, resumeBlocs: resumesParDevoir[d.id] || null, typeDevoir: typePrincipalParDevoir[d.id] || null }
     : { ...d, rendu: rendusParDevoir[d.id] || null });
 
   // Cartes de suivi (11 septembre 2026, demande explicite) : "rendu / en
@@ -58,6 +63,7 @@ async function charger() {
     </div>
     ${html_cartesStatutsDevoirs(devoirsAvecStatut, { libelleEnCours: 'En cours', interactif: true })}
     <div class="titre-section-pub">📚 Mes devoirs</div>
+    ${html_legendeTypeDevoir()}
     <div id="zoneDevoirs">${html_listeDevoirs(devoirsAvecStatut, { interactif: true })}</div>
     <div class="titre-section-pub">📊 Mes notes</div>
     ${html_resumeNotesParMatiere(evaluations)}

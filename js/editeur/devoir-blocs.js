@@ -48,7 +48,16 @@
 // "Devoir" à l'affichage uniquement — voir infoTypeDevoir() dans
 // js/devoirs-notes-rendu.js, "l'enseignant est libre de proposer ce qu'il veut"
 // avec ce bloc (texte libre, comme avant).
-const TYPES_BLOCS_DEVOIR = ['exercice', 'probleme', 'evaluation', 'activite'];
+// 18 septembre 2026 (2e lot, plus tard le même jour) : "L'enseignant peut
+// aussi accompagner le devoir de sa correction avec le bloc correction" —
+// 'correction' est RÉTABLI dans ce menu (il n'avait jamais été retiré de
+// html_corpsBlocDevoir/TYPES_BLOCS_DEVOIR_TEXTE_LIBRE/infoTypeDevoir, donc son
+// rendu fonctionnait déjà) : l'enseignant l'ajoute librement à côté d'un bloc
+// "Devoir"/"Problème" (adjacence dans l'ordre des blocs, même convention que
+// côté séance, aucune colonne de liaison en base). Côté élève, la correction
+// ne se révèle qu'une fois le devoir validé (voir js/pages/eleve-devoir-rendu.js,
+// validerDevoirEleve()) — 'quiz' reste retiré (non demandé cette fois-ci).
+const TYPES_BLOCS_DEVOIR = ['exercice', 'probleme', 'evaluation', 'activite', 'correction'];
 // Types de blocs devoir qui utilisent l'éditeur de texte libre (comme un
 // bloc "Texte" de séance) plutôt que l'éditeur de questions structurées.
 const TYPES_BLOCS_DEVOIR_TEXTE_LIBRE = ['exercice', 'correction'];

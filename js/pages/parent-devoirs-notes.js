@@ -45,6 +45,7 @@ async function afficher() {
 
   const idsDevoirsBlocs = (devoirs || []).filter(d => d.seance_id).map(d => d.id);
   let resumesParDevoir = {};
+  let typePrincipalParDevoir = {};
   if (idsDevoirsBlocs.length) {
     const { data: blocsTous } = await supabaseClient.from('blocs_seance').select('*').in('devoir_id', idsDevoirsBlocs).order('ordre');
     const idsBlocsTous = (blocsTous || []).map(b => b.id);
@@ -55,10 +56,13 @@ async function afficher() {
         ])
       : [{ data: [] }, { data: [] }];
     resumesParDevoir = resumerDevoirsBlocsEnLot(idsDevoirsBlocs, blocsTous, reponsesTous, rendusTous);
+    // 18 septembre 2026 (2e lot) : même principe que côté élève — voir
+    // js/pages/eleve-devoirs-notes.js et js/devoirs-notes-rendu.js.
+    typePrincipalParDevoir = typePrincipalParDevoirDepuisBlocs(blocsTous);
   }
 
   const devoirsAvecStatut = (devoirs || []).map(d => d.seance_id
-    ? { ...d, resumeBlocs: resumesParDevoir[d.id] || null }
+    ? { ...d, resumeBlocs: resumesParDevoir[d.id] || null, typeDevoir: typePrincipalParDevoir[d.id] || null }
     : { ...d, rendu: rendusParDevoir[d.id] || null });
 
   // Cartes de suivi (11 septembre 2026, demande explicite : "du côté des
@@ -77,6 +81,7 @@ async function afficher() {
 
     ${html_cartesStatutsDevoirs(devoirsAvecStatut, { libelleEnCours: 'En cours', interactif: false })}
     <div class="titre-section-pub">📚 Devoirs</div>
+    ${html_legendeTypeDevoir()}
     <div id="zoneDevoirsParent">${html_listeDevoirs(devoirsAvecStatut, { interactif: false })}</div>
     <div class="titre-section-pub">📊 Notes</div>
     ${html_resumeNotesParMatiere(evaluations)}

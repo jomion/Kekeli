@@ -319,6 +319,7 @@ function rendre() {
   attacherEcouteursActivites();
   attacherEcouteursProblemes();
   attacherEcouteursRefaire();
+  attacherEcouteursRepriseRates();
   attacherEcouteursCorrections();
   const btnMarquerTermine = document.getElementById('btnMarquerTermine');
   if (btnMarquerTermine) btnMarquerTermine.addEventListener('click', async () => {
@@ -467,6 +468,35 @@ function libelleMedaille(medaille, numeroEssai) {
   return ` <span class="badge-palier-seance" style="background:#FEF3C7;color:#92620A">${image}${LIBELLES_MEDAILLE[medaille]}${marque}</span>`;
 }
 
+// 18 septembre 2026 (2e lot) : "A la réussite d'un palier à 100% présente le
+// trophée complet animé à l'écran avant que l'enfant poursuive" — overlay
+// plein écran ajouté directement à document.body (PAS à #contenu, que le
+// prochain rendre() réécrit intégralement) : il survit donc au rendu du
+// résultat qui suit immédiatement dans soumettreExercice(), et ne se ferme
+// que par un geste explicite de l'enfant ("Continuer"). Réutilise la médaille
+// déjà existante de ce palier (assets/badges/medaille-<palier>.jpg, voir
+// aussi pages/eleve/badges.html) — aucun nouvel asset, juste une animation
+// CSS (agrandissement + brillance + confettis, voir css/style-public.css).
+function afficherTropheePalierPleinEcran(palier) {
+  const ancien = document.getElementById('overlayTropheePalier');
+  if (ancien) ancien.remove();
+  const libelle = LIBELLES_PALIER_ELEVE[palier] || palier;
+  const overlay = document.createElement('div');
+  overlay.id = 'overlayTropheePalier';
+  overlay.className = 'overlay-trophee-palier';
+  const confettis = Array.from({ length: 9 }, () => '🎉').concat(['🎊', '✨']).map(e => `<span>${e}</span>`).join('');
+  overlay.innerHTML = `
+    <div class="carte-trophee-palier">
+      <div class="confettis-trophee" aria-hidden="true">${confettis}</div>
+      <img src="${RACINE_SITE}assets/badges/medaille-${palier}.jpg" alt="" class="image-trophee-palier">
+      <p class="titre-trophee-palier">🏆 Palier réussi à 100 % !</p>
+      <p class="sous-titre-trophee-palier">${echapper(libelle)}</p>
+      <button type="button" class="btn btn-filled" id="btnFermerTropheePalier">Continuer</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.getElementById('btnFermerTropheePalier').addEventListener('click', () => overlay.remove());
+}
+
 function rendreExercice(b, c) {
   const questions = Array.isArray(c.questions) ? c.questions : [];
   const essais = reponsesExistantes[b.id] || [];
@@ -522,8 +552,18 @@ function rendreExercice(b, c) {
 // validation en direct, qui consomme un essai et déclenche paliers/badges.
 function rendreExerciceProgressif(b, c, questions, nbEssaisPrecedents, noteEssai) {
   const etat = (progressionPalier[b.id] ??= { index: 0, reponses: {} });
-  const toutesValidees = etat.index >= questions.length;
-  const enTete = `<p style="font-size:12px;color:var(--text-gris)">${nbEssaisPrecedents ? `Nouvel essai (n°${nbEssaisPrecedents + 1})` : ''}${(!toutesValidees && nbEssaisPrecedents) ? ' — ' : ''}${!toutesValidees ? `Question ${etat.index + 1}/${questions.length}` : ''}</p>`;
+  // 18 septembre 2026 (2e lot) : "Quand il valide un panier il a la
+  // possibilité de reprendre uniquement les tâches ratées" — etat.sousListe,
+  // posé par demarrerRepriseTachesRatees() ci-dessous, restreint ce même
+  // moteur de progression aux seules questions ratées du dernier essai ; la
+  // soumission finale (data-soumettre-palier) fusionne ces réponses avec
+  // celles déjà correctes (etat.reponsesBase) — voir attacherEcouteursExercices.
+  const listeActive = etat.sousListe || questions;
+  const enReprise = !!etat.sousListe;
+  const toutesValidees = etat.index >= listeActive.length;
+  const enTete = enReprise
+    ? `<p style="font-size:12px;color:var(--text-gris)">🔁 Reprise des tâches ratées — ${!toutesValidees ? `question ${etat.index + 1}/${listeActive.length}` : 'terminé'}</p>`
+    : `<p style="font-size:12px;color:var(--text-gris)">${nbEssaisPrecedents ? `Nouvel essai (n°${nbEssaisPrecedents + 1})` : ''}${(!toutesValidees && nbEssaisPrecedents) ? ' — ' : ''}${!toutesValidees ? `Question ${etat.index + 1}/${listeActive.length}` : ''}</p>`;
 
   if (toutesValidees) {
     return `
@@ -535,7 +575,7 @@ function rendreExerciceProgressif(b, c, questions, nbEssaisPrecedents, noteEssai
     `;
   }
 
-  const q = questions[etat.index];
+  const q = listeActive[etat.index];
   return `
     ${c.consigne ? `<div class="contenu-riche-lecture">${contenuRicheInitial(c.consigne)}</div>` : ''}
     ${noteEssai}
@@ -546,6 +586,41 @@ function rendreExerciceProgressif(b, c, questions, nbEssaisPrecedents, noteEssai
       <button type="button" class="btn btn-filled bouton-valider-exercice" data-valider-tache="${b.id}">✅ Valider cette réponse</button>
     </div>
   `;
+}
+
+// 18 septembre 2026 (2e lot) : démarre une reprise ciblée sur les seules
+// questions ratées au DERNIER essai (details_taches, déjà écrit par
+// corriger-exercice) — les réponses déjà correctes de ce dernier essai sont
+// conservées telles quelles (etat.reponsesBase) et fusionnées à la
+// soumission finale, qui compte comme un essai normal (numeroEssai
+// s'incrémente dans soumettreExercice, comme n'importe quelle soumission —
+// décision explicite du porteur du projet : "compte comme un essai normal").
+function demarrerRepriseTachesRatees(blocId) {
+  const bloc = blocsCourants.find(x => x.id === blocId);
+  const questions = Array.isArray(bloc?.contenu?.questions) ? bloc.contenu.questions : [];
+  const essais = reponsesExistantes[blocId] || [];
+  const dernier = essais[essais.length - 1];
+  if (!dernier) return;
+  const details = dernier.details_taches || dernier.details || {};
+  const reponsesDonnees = dernier.reponses || {};
+  const questionsRatees = questions.filter(q => {
+    const d = details[q.id] || {};
+    const tachesTotal = typeof d.tachesTotal === 'number' ? d.tachesTotal : 1;
+    const tachesReussies = typeof d.tachesReussies === 'number' ? d.tachesReussies : (d.correct ? 1 : 0);
+    return tachesReussies < tachesTotal;
+  });
+  if (!questionsRatees.length) return;
+  const reponsesBase = { ...reponsesDonnees };
+  questionsRatees.forEach(q => { delete reponsesBase[q.id]; });
+  progressionPalier[blocId] = { index: 0, reponses: {}, sousListe: questionsRatees, reponsesBase };
+  formulairesReouverts.add(blocId);
+  rendre();
+}
+
+function attacherEcouteursRepriseRates() {
+  document.querySelectorAll('[data-reprendre-rates]').forEach(btn => {
+    btn.addEventListener('click', () => demarrerRepriseTachesRatees(parseInt(btn.dataset.reprendreRates, 10)));
+  });
 }
 
 // Une "activité" n'a pas de correction automatique : l'élève rend un texte
@@ -941,6 +1016,10 @@ function rendreResultatExercice(b, c, questions, reponse) {
   // ne seront accessibles qu'au 3e essai à moins pour celui qui a validé à
   // 100% et veut consulter avant de progresser").
   const peutVoirCorrection = !enAttente && (reponse.numero_essai >= 3 || (nbTaches > 0 && nbTachesReussies === nbTaches));
+  // 18 septembre 2026 (2e lot) : "reprendre uniquement les tâches ratées" —
+  // réservé aux blocs de palier (mode progressif), tant qu'il reste au moins
+  // une tâche ratée à ce dernier essai.
+  const peutReprendreRates = !enAttente && !!b.palier && nbTaches > 0 && nbTachesReussies < nbTaches;
 
   return `
     ${c.consigne ? `<div class="contenu-riche-lecture">${contenuRicheInitial(c.consigne)}</div>` : ''}
@@ -1006,6 +1085,7 @@ function rendreResultatExercice(b, c, questions, reponse) {
       </div>`;
     }).join('')}
     ${!enAttente ? `<div class="actions-resultat-exercice" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:10px">
+      ${peutReprendreRates ? `<button type="button" class="btn btn-filled" data-reprendre-rates="${b.id}">🔁 Reprendre les tâches ratées</button>` : ''}
       <button type="button" class="btn btn-discret" data-refaire="${b.id}" data-type-refaire="exercice">🔄 Refaire cet exercice</button>
       ${(peutVoirCorrection && !correctionInfo) ? `<button type="button" class="btn btn-discret" data-voir-correction="${b.id}">🔓 Voir la correction</button>` : ''}
       ${(correctionInfo && !correctionInfo.autorise) ? `<span style="font-size:12px;color:var(--text-gris)">${echapper(correctionInfo.erreur || '')}</span>` : ''}
@@ -1183,6 +1263,12 @@ async function soumettreExercice(blocId, reponses, boutonUi) {
     } else if (reussiteTotale) {
       jouerSonReussite();
       message = numeroEssai === 1 ? '🎉 Parfait, toutes les tâches réussies du premier coup !' : '🎉 Bravo, toutes les tâches sont réussies !';
+      // 18 septembre 2026 (2e lot) : trophée plein écran à la réussite à 100%
+      // — y compris dès le 1er essai (voir afficherTropheePalierPleinEcran
+      // ci-dessus) ; réservé aux blocs de palier, où cette réussite débloque
+      // vraiment une progression (un exercice sans palier n'a pas de palier
+      // à célébrer).
+      if (bloc?.palier) afficherTropheePalierPleinEcran(bloc.palier);
     } else if (reussiesTaches > 0) {
       jouerSonReussite();
       message = '🙂 Bien joué, continue comme ça !';
@@ -1247,7 +1333,7 @@ function attacherEcouteursExercices() {
       const bloc = blocsCourants.find(x => x.id === blocId);
       const questions = Array.isArray(bloc?.contenu?.questions) ? bloc.contenu.questions : [];
       const etat = (progressionPalier[blocId] ??= { index: 0, reponses: {} });
-      const q = questions[etat.index];
+      const q = (etat.sousListe || questions)[etat.index];
       if (!q) return;
       const racine = btn.closest(`[data-progression-question="${blocId}"]`);
       const reponse = lireReponseQuestion(racine, q);
@@ -1321,7 +1407,12 @@ function attacherEcouteursExercices() {
     btn.addEventListener('click', () => {
       const blocId = parseInt(btn.dataset.soumettrePalier, 10);
       const etat = progressionPalier[blocId] || { reponses: {} };
-      soumettreExercice(blocId, etat.reponses, btn);
+      // Reprise des tâches ratées (voir demarrerRepriseTachesRatees) : fusion
+      // des réponses déjà correctes (reponsesBase) avec celles qui viennent
+      // d'être retravaillées (etat.reponses) — pour une soumission "à froid"
+      // sans reprise, reponsesBase est simplement vide.
+      const reponsesFinales = { ...(etat.reponsesBase || {}), ...etat.reponses };
+      soumettreExercice(blocId, reponsesFinales, btn);
     });
   });
 }
