@@ -1,57 +1,69 @@
-KEKELI — Livraison : cause enfin trouvée pour les devoirs invisibles côté enseignant
+KEKELI — Livraison : vrai total de tâches, nouveau look des paliers, registre corrigé, devoirs reçus mis en valeur
 ================================================================================
 
-1. Le devoir rendu par l'élève n'est ENFIN plus invisible pour l'enseignant
+1. Le nombre de tâches d'un palier n'est plus bloqué à "1 tâche"
 ------------------------------------------------------------------------
-Ce signalement était revenu trois fois malgré des vérifications déjà faites
-côté base de données (contenu bien enregistré, notification correcte,
-permissions correctes). Cette fois, la cause a été trouvée en dehors de la
-base : dans la page "Devoirs & notes" de l'enseignant, la liste des classes
-ET des élèves affichés ne se construisait qu'à partir du "suivi" élève par
-élève (un parent demande le suivi d'un enseignant précis, l'enseignant
-accepte) — alors qu'un enseignant peut aussi avoir une classe qui lui est
-attribuée directement par l'administration (Gestion administrative), ce qui
-lui donne bien le droit de tout voir/corriger dans cette classe, mais que
-cette page ignorait complètement pour choisir QUI afficher.
-
-Concrètement, avec une classe de 4 élèves attribuée à un enseignant, si un
-seul de ces 4 élèves avait fait l'objet d'un suivi individuel accepté, les 3
-autres élèves de la même classe (et donc leurs devoirs rendus, pourtant bien
-enregistrés et bien notifiés) restaient invisibles dans le panneau de
-gestion — pas de ligne, pas de contenu, alors que l'enseignant avait bien le
-droit de les corriger. D'où l'impression exacte que vous décriviez : la
-notification arrive, mais jamais le contenu.
-
-Corrigé : une classe attribuée directement à l'enseignant affiche
-maintenant TOUS ses élèves dans le panneau de gestion des devoirs, comme
-c'est déjà le cas côté administration — le suivi individuel reste utilisé
-uniquement pour les classes atteintes uniquement par ce biais (aucune
-classe attribuée). Vérifié directement en base sur votre propre enseignant
-de test : sa classe (CM2) compte 4 élèves, dont un seul était visible avant
-ce correctif.
-
-Fichier modifié : js/pages/enseignant-devoirs-notes.js
-
-2. Le nombre de tâches d'un palier revient après son nom, entre parenthèses
-------------------------------------------------------------------------
-Le titre d'un palier affichait le nombre total de tâches tout devant, avant
-le nom du palier (ex. "12 tâches — Azɔ̀ví — 8/12 réussies (67%)"). Sur votre
-demande, ce total revient après le nom, entre parenthèses, sans toucher à
-l'affichage de la progression juste à côté : "Azɔ̀ví (12 tâches) — 8/12
-réussies (67%)". Même changement pour un palier encore verrouillé.
+Tant qu'un élève n'avait jamais soumis un exercice/activité d'un palier, le
+total affiché entre parenthèses après son nom restait figé à "1 tâche" (un
+simple repère technique en attendant la première soumission), même si le
+contenu contenait en réalité 8 questions ou plus. Corrigé en base : le total
+est maintenant calculé à l'avance à partir du corrigé déjà configuré par
+l'enseignant/admin, exactement comme le fera la vraie correction — un palier
+encore verrouillé ou pas encore commencé affiche donc dès le départ son vrai
+nombre de tâches (vérifié sur des paliers réels : certains passent ainsi de
+"1 tâche" à 11, 18, 20 tâches ou plus selon leur contenu).
 
 Fichier modifié : js/pages/eleve-seance.js
+Changement en base : fonction bloc_taches_prevues() ajoutée, etat_paliers_seance_v2() mise à jour (aucun fichier de migration conservé dans le dépôt, changement appliqué directement).
 
-3. Bouton "Classes" de la page d'accueil : reste sur la page au lieu de l'ouvrir
+2. Nouveau look des blocs de palier (bandeau plein coloré)
 ------------------------------------------------------------------------
-Dans le menu du haut de la page d'accueil, le lien "Classes" ouvrait la
-vraie page de navigation des classes (celle utilisée une fois connecté). Il
-défile désormais simplement vers la section "Nos classes" de la page
-d'accueil elle-même — exactement comme le fait déjà le lien "Paliers" juste
-à côté. Vérifié dans un navigateur réel : le clic reste sur la page
-d'accueil et affiche bien la section.
+Sur votre modèle transmis : chaque palier affiche maintenant un bandeau plein
+à sa couleur en en-tête (texte blanc), au lieu du précédent encadré à bordure
+fine. Chaque activité à l'intérieur garde son propre fond, comme avant.
+Couleurs par palier : Azɔ̀ví = vert, Dèví = bleu, Ògán = orange, Axɔ́sú =
+violet (corrigé au passage : Axɔ́sú était rouge sur cette page uniquement,
+différent du violet déjà utilisé partout ailleurs sur le site — c'est
+maintenant harmonisé). Cette même mise à jour de couleurs et le nouveau
+bandeau ont aussi été reportés dans l'aperçu que vous voyez côté éditeur
+(bouton "Aperçu élève"), pour qu'il reste fidèle à ce que voit réellement
+l'élève.
 
-Fichier modifié : index.html
+Fichiers modifiés : js/pages/eleve-seance.js, js/pages/editeur-seance.js, js/apercu-blocs-seance.js, js/pages/eleve-badges.js, css/style-public.css
 
-Aucune migration dans cette livraison (les 3 correctifs sont entièrement
-frontend).
+3. Erreur "there is no unique or exclusion constraint..." dans le registre corrigée
+------------------------------------------------------------------------
+Cocher une case dans le registre d'appel déclenchait systématiquement cette
+erreur et empêchait tout enregistrement. Cause trouvée : il manquait, côté
+base, la règle qui permet de dire "une présence par élève/classe/date/
+créneau" — la page essayait de mettre à jour la bonne ligne en s'appuyant sur
+cette règle, qui n'avait jamais été posée. Ajoutée en base (vérifié : aucune
+donnée en double n'existait, l'ajout s'est fait sans risque). Le registre
+d'appel doit maintenant s'enregistrer normalement.
+
+Changement en base uniquement (aucun fichier frontend à livrer pour ce point).
+
+4. Un devoir reçu d'un élève ne passe plus inaperçu côté enseignant
+------------------------------------------------------------------------
+La carte "Réponses reçues" du tableau de bord enseignant (page "Devoirs &
+notes") ne comptait que les anciens devoirs "texte libre" — un devoir "à
+blocs" validé par un élève (bouton "Valider mon devoir") n'y apparaissait
+jamais, d'où le risque de rater un devoir à corriger malgré la notification.
+Corrigé : cette carte compte maintenant les deux types de devoir, renommée
+"📨 Devoirs reçus à corriger", avec un repère visuel doré et un petit point
+animé quand elle n'est pas vide — pour qu'elle attire mieux l'œil qu'avant.
+
+Fichiers modifiés : js/pages/enseignant-devoirs-notes.js, css/style-public.css
+
+5. Lien "Classes" du pied de page de l'accueil
+------------------------------------------------------------------------
+Complète le correctif du lot précédent (menu du haut) : le lien "Classes" du
+PIED DE PAGE de l'accueil ouvrait lui aussi la vraie page de navigation. Il
+défile désormais vers la section "Nos classes" de l'accueil, comme le lien du
+menu du haut — uniquement sur l'accueil : ce même pied de page reste inchangé
+sur toutes les autres pages (élève, enseignant, admin, parent), où ce lien
+doit continuer à ouvrir la vraie page de navigation de l'utilisateur connecté.
+
+Fichier modifié : js/pied-de-page.js
+
+Deux changements en base ont été appliqués directement (points 1 et 3) — aucun fichier de migration n'est conservé dans le dépôt, conformément au fonctionnement habituel de ce projet.

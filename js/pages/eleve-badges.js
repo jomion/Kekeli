@@ -35,7 +35,11 @@
 // chargé sur cette page.
 
 const LIBELLES_PALIER_BADGES = { azovi: '🌱 Azɔ̀ví', devi: '🪘 Dèví', ogan: '🦁 Ògán', axosu: '👑 Axɔ́sú' };
-const COULEURS_PALIER_BADGES = { azovi: '#15803D', devi: '#1D4ED8', ogan: '#9A3412', axosu: '#B91C1C' };
+// Couleurs mises à jour le 19 septembre 2026 (5e lot) pour rester cohérentes
+// avec js/pages/eleve-seance.js (ogan orange, axosu violet — alignées sur
+// les couleurs déjà utilisées ailleurs sur le site : tableau de bord, jeux
+// éducatifs).
+const COULEURS_PALIER_BADGES = { azovi: '#15803D', devi: '#1D4ED8', ogan: '#C2410C', axosu: '#9B59B6' };
 // Un palier réussi donne toujours le badge/trophée de SA propre couleur
 // (cahier des charges : Azɔ̀ví → Bronze, Dèví → Argent, Ògán → Or, Axɔ́sú →
 // Diamant) — même correspondance que calculer_medaille() côté base.

@@ -2393,10 +2393,10 @@ function dupliquerSeance() {
 // (texte libre) dans cet aperçu, plus comme un bloc de travail noté.
 const TYPES_TRAVAIL_APERCU = ['quiz', 'evaluation', 'activite'];
 const LIBELLES_PALIER_APERCU = { azovi: '🌱 Azɔ̀ví', devi: '🪘 Dèví', ogan: '🦁 Ògán', axosu: '👑 Axɔ́sú' };
-// Couleurs "pleines" (fond dense) des sections Paliers — reporté ici depuis
-// js/pages/eleve-seance.js (5 septembre 2026) pour que l'aperçu élève reste
-// identique à la vraie page.
-const COULEURS_PALIER_APERCU = { azovi: '#15803D', devi: '#1D4ED8', ogan: '#9A3412', axosu: '#B91C1C' };
+// Couleurs des sections Paliers — reporté ici depuis js/pages/eleve-seance.js
+// (5 septembre 2026, mis à jour le 19 septembre 2026 5e lot) pour que
+// l'aperçu élève reste identique à la vraie page.
+const COULEURS_PALIER_APERCU = { azovi: '#15803D', devi: '#1D4ED8', ogan: '#C2410C', axosu: '#9B59B6' };
 
 async function ouvrirApercu() {
   const fenetre = window.open('', '_blank');
@@ -2580,13 +2580,15 @@ async function ouvrirApercu() {
       ${paliersPresents.map(p => {
         const blocsPalier = (blocsParPalier[p] || []).sort((a, b) => a.ordre - b.ordre);
         const couleurPalier = COULEURS_PALIER_APERCU[p] || 'var(--bleu-kekeli)';
-        // La couleur du palier ne colore que la section (bordure + titre),
-        // pas un fond plein — voir js/pages/eleve-seance.js (5 septembre
-        // 2026, 7e lot) pour le détail ; chaque activité à l'intérieur garde
-        // son propre encadré.
-        return `<div class="bloc-lecture carte-palier-eleve" style="border-left-color:${couleurPalier};background:${teinteClaire(couleurPalier, 0.04)};margin-top:14px">
-          <div class="bloc-lecture-titre" style="color:${couleurPalier}">${LIBELLES_PALIER_APERCU[p] || p}</div>
-          ${blocsPalier.map(b => TYPES_TRAVAIL_APERCU.includes(b.type_bloc) ? rendreBlocApercuTravail(b) : rendreBlocApercu(b)).join('')}
+        // Bandeau plein en en-tête de la carte — voir js/pages/eleve-seance.js
+        // (19 septembre 2026, 5e lot) pour le détail ; chaque activité à
+        // l'intérieur garde son propre encadré. Mêmes classes CSS que la
+        // vraie page (css/style-public.css) pour que l'aperçu reste fidèle.
+        return `<div class="carte-palier-eleve" style="--couleur-palier:${couleurPalier};margin-top:14px">
+          <div class="entete-carte-palier-eleve"><span>${LIBELLES_PALIER_APERCU[p] || p}</span></div>
+          <div class="corps-carte-palier-eleve">
+            ${blocsPalier.map(b => TYPES_TRAVAIL_APERCU.includes(b.type_bloc) ? rendreBlocApercuTravail(b) : rendreBlocApercu(b)).join('')}
+          </div>
         </div>`;
       }).join('')}
     `;

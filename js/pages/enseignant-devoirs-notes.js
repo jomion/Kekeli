@@ -135,6 +135,19 @@ async function afficherGestionEns() {
   // le type dominant de chaque devoir "à blocs" et le colorer dans la liste
   // (voir html_ligneDevoirEns / COULEURS_TYPE_DEVOIR_HIST plus bas).
   const idsDevoirsBlocsEns = (devoirs || []).filter(d => d.seance_id).map(d => d.id);
+  // 19 septembre 2026 (5e lot) : "je remarque à peine que j'ai reçu un
+  // devoir à noter" — la carte "reçu" plus bas (devoirsAvecReponses) ne
+  // comptait QUE les anciens devoirs "texte libre" (via devoirs_rendus). Un
+  // devoir "à blocs" (seance_id renseigné) rendu par l'élève passe par
+  // l'action "📤 Valider mon devoir" (voir js/pages/eleve-devoir-rendu.js,
+  // validerDevoirEleve), qui écrit dans devoirs_blocs_validations — jamais
+  // regardé ici, donc jamais compté ni mis en avant dans cette carte, alors
+  // même que la notification correspondante existe bien côté élève→
+  // enseignant. On la relit donc aussi pour les devoirs "à blocs" de cette
+  // classe/matière.
+  const { data: validationsBlocs } = idsDevoirsBlocsEns.length
+    ? await supabaseClient.from('devoirs_blocs_validations').select('devoir_id, eleve_id').in('devoir_id', idsDevoirsBlocsEns)
+    : { data: [] };
   const { data: blocsTypesEns } = idsDevoirsBlocsEns.length
     ? await supabaseClient.from('blocs_seance').select('devoir_id, type_bloc').in('devoir_id', idsDevoirsBlocsEns).neq('type_bloc', 'correction').order('ordre')
     : { data: [] };
@@ -145,6 +158,11 @@ async function afficherGestionEns() {
   (evaluations || []).forEach(e => { (evalParEleve[e.eleve_id] ??= []).push(e); });
   const rendusParDevoir = {};
   (rendus || []).forEach(r => { rendusParDevoir[r.devoir_id] = (rendusParDevoir[r.devoir_id] || 0) + 1; });
+  // Un élève ne valide son devoir "à blocs" qu'une fois (devoirs_blocs_validations
+  // n'a qu'une ligne par élève/devoir) — un simple compte de lignes donne
+  // directement le nombre d'élèves ayant rendu, comme rendusParDevoir ci-dessus.
+  const validationsParDevoir = {};
+  (validationsBlocs || []).forEach(v => { validationsParDevoir[v.devoir_id] = (validationsParDevoir[v.devoir_id] || 0) + 1; });
   const destinatairesParDevoir = {};
   (destinatairesTous || []).forEach(d => { (destinatairesParDevoir[d.devoir_id] ??= []).push(d.eleve_id); });
 
@@ -178,17 +196,28 @@ async function afficherGestionEns() {
   const devoirsPublies = devoirsListe.filter(estPublieEns);
   const devoirsBrouillons = devoirsListe.filter(d => !estPublieEns(d));
   const devoirsEnRetard = devoirsListe.filter(d => estPublieEns(d) && d.date_limite && new Date(d.date_limite) < maintenantEns);
-  const devoirsAvecReponses = devoirsListe.filter(d => !d.seance_id && (rendusParDevoir[d.id] || 0) > 0);
+  // 19 septembre 2026 (5e lot) : couvre désormais les DEUX formes de devoir —
+  // "texte libre" (devoirs_rendus) ET "à blocs" (devoirs_blocs_validations,
+  // voir la requête validationsParDevoir plus haut) — voir le commentaire à
+  // cet endroit pour le signalement d'origine.
+  const devoirsAvecReponses = devoirsListe.filter(d => d.seance_id ? (validationsParDevoir[d.id] || 0) > 0 : (rendusParDevoir[d.id] || 0) > 0);
   // Cartes de suivi enseignant CLIQUABLES (11 septembre 2026, 2e demande :
   // "chaque carte [...] doit être cliquable et contenir ce qu'il renseigne").
   // La matière est déjà celle choisie dans le sélecteur ci-dessus — chaque
   // carte dépliée n'a donc besoin de lister que les devoirs concernés, sans
   // sous-groupage supplémentaire (une seule matière à la fois sur cette page).
+  // 19 septembre 2026 (5e lot) : la carte "reçu" prend désormais une classe
+  // CSS distincte ('a-corriger', dorée) plutôt que le rouge 'a-traiter'
+  // (réservé aux vrais problèmes — brouillon oublié, échéance dépassée) —
+  // recevoir un devoir est une bonne nouvelle qui attend une action, pas un
+  // problème, et le porteur du projet a signalé la remarquer "à peine" :
+  // voir .pastille-tache-admin.a-corriger dans css/style-public.css pour le
+  // repère visuel (accent doré + point animé) ajouté pour la faire ressortir.
   const cartesEns = [
     { cle: 'publies', devoirs: devoirsPublies, libelle: '📋 Devoirs publiés' },
-    { cle: 'brouillons', devoirs: devoirsBrouillons, libelle: '📝 Brouillons (non visibles des élèves)', alerte: devoirsBrouillons.length > 0 },
-    { cle: 'retard', devoirs: devoirsEnRetard, libelle: '⏰ Échéance dépassée', alerte: devoirsEnRetard.length > 0 },
-    { cle: 'reponses', devoirs: devoirsAvecReponses, libelle: '📨 Réponses reçues (devoirs texte libre)' }
+    { cle: 'brouillons', devoirs: devoirsBrouillons, libelle: '📝 Brouillons (non visibles des élèves)', classeAlerte: devoirsBrouillons.length > 0 ? 'a-traiter' : '' },
+    { cle: 'retard', devoirs: devoirsEnRetard, libelle: '⏰ Échéance dépassée', classeAlerte: devoirsEnRetard.length > 0 ? 'a-traiter' : '' },
+    { cle: 'reponses', devoirs: devoirsAvecReponses, libelle: '📨 Devoirs reçus à corriger', classeAlerte: devoirsAvecReponses.length > 0 ? 'a-corriger' : '' }
   ];
   // avecPanneau=false (cartes de statut, ci-dessous) : n'affiche jamais le
   // panneau déplié (correction de bug, 18 septembre 2026) — le même devoir
@@ -241,7 +270,7 @@ async function afficherGestionEns() {
     <div data-zone-cartes-statuts style="margin-bottom:20px">
       <div class="grille-taches-admin" style="margin-bottom:0">
         ${cartesEns.map(c => `
-          <button type="button" class="pastille-tache-admin ${c.alerte ? 'a-traiter' : ''}" data-carte-statut="${c.cle}">
+          <button type="button" class="pastille-tache-admin ${c.classeAlerte || ''}" data-carte-statut="${c.cle}">
             <span class="chiffre-tache">${c.devoirs.length}</span>
             <span class="libelle-tache">${c.libelle} <span class="fleche-carte-statut">▾</span></span>
           </button>`).join('')}

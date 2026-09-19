@@ -757,6 +757,27 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 
 /* ===== Page séance (lecture + travail : exercices / activités) ===== */
 .bloc-lecture { background: white; border-radius: 10px; padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); border-left: 5px solid var(--bleu-kekeli); }
+
+/* Carte "Palier" de la séance élève (19 septembre 2026, 5e lot) : bandeau
+   plein à la couleur du palier (--couleur-palier, posée en style inline par
+   js/pages/eleve-seance.js#html_sectionPaliers) au-dessus d'un corps blanc
+   qui contient les activités du palier — chacune gardant son propre
+   encadré/fond (.bloc-lecture, inchangé). Remplace le précédent traitement
+   "bordure fine + titre coloré" (5 septembre 2026, 7e lot). */
+.carte-palier-eleve { border-radius: 14px; overflow: hidden; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); }
+.entete-carte-palier-eleve {
+  background: var(--couleur-palier, var(--bleu-kekeli));
+  color: #fff;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 12px 16px;
+  font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px;
+}
+.fleche-entete-carte-palier-eleve { font-size: 16px; opacity: .85; flex-shrink: 0; }
+.corps-carte-palier-eleve { background: #F4F7F9; padding: 16px; }
+.corps-carte-palier-eleve .bloc-lecture:last-child { margin-bottom: 0; }
+@media (max-width: 560px) {
+  .entete-carte-palier-eleve { font-size: 12px; padding: 10px 12px; }
+}
 .bloc-lecture-titre { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--bleu-kekeli); margin-bottom: 8px; }
 .bloc-lecture img { max-width: 100%; border-radius: 8px; display: block; margin: 0 0 8px; }
 .bloc-lecture table { border-collapse: collapse; width: 100%; }
@@ -1244,6 +1265,26 @@ body.theme-fille {
 .pastille-tache-admin.a-traiter { border-left-color: #B91C1C; }
 .pastille-tache-admin .chiffre-tache { font-size: 24px; font-weight: 800; color: var(--bleu-kekeli-fonce, var(--bleu-kekeli, #0000D1)); }
 .pastille-tache-admin .libelle-tache { font-size: 12px; color: var(--text-gris, #64748B); }
+
+/* Carte "Devoirs reçus à corriger" côté enseignant (19 septembre 2026, 5e
+   lot) : un devoir rendu par un élève est passé inaperçu ("je remarque à
+   peine que j'ai reçu un devoir à noter") — traitement doré + point animé,
+   volontairement DIFFÉRENT du rouge .a-traiter ci-dessus (réservé aux vrais
+   problèmes de gestion, pas à du travail d'élève qui vient d'arriver). Voir
+   js/pages/enseignant-devoirs-notes.js. */
+.pastille-tache-admin.a-corriger { border-left-color: #B8860B; background: #FFFBEB; }
+.pastille-tache-admin.a-corriger .chiffre-tache { color: #92620A; position: relative; display: inline-block; }
+.pastille-tache-admin.a-corriger .chiffre-tache::after {
+  content: ''; position: absolute; top: -2px; right: -11px; width: 8px; height: 8px;
+  border-radius: 50%; background: #B8860B; animation: pulseCarteACorrigerEns 1.6s ease-in-out infinite;
+}
+@keyframes pulseCarteACorrigerEns {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(184,134,11,0.55); }
+  50% { box-shadow: 0 0 0 5px rgba(184,134,11,0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pastille-tache-admin.a-corriger .chiffre-tache::after { animation: none; }
+}
 
 /* Cartes de suivi cliquables (11 septembre 2026) — html_cartesStatutsDevoirs()
    rend chaque carte en <button>, il faut donc annuler le style de bouton par

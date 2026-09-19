@@ -21,10 +21,11 @@
 
 const ORDRE_PALIER_APERCU_BLOCS = ['azovi', 'devi', 'ogan', 'axosu'];
 const LIBELLES_PALIER_APERCU_BLOCS = { azovi: '🌱 Azɔ̀ví', devi: '🪘 Dèví', ogan: '🦁 Ògán', axosu: '👑 Axɔ́sú' };
-// Couleurs "pleines" (fond dense) des sections Paliers, reportées ici depuis
-// js/pages/eleve-seance.js (5 septembre 2026) pour que cet aperçu compact
-// (listings admin/enseignant) reste visuellement cohérent avec la vraie page.
-const COULEURS_PALIER_APERCU_BLOCS = { azovi: '#15803D', devi: '#1D4ED8', ogan: '#9A3412', axosu: '#B91C1C' };
+// Couleurs des sections Paliers, reportées ici depuis js/pages/eleve-seance.js
+// (5 septembre 2026, mis à jour le 19 septembre 2026 5e lot) pour que cet
+// aperçu compact (listings admin/enseignant) reste visuellement cohérent
+// avec la vraie page.
+const COULEURS_PALIER_APERCU_BLOCS = { azovi: '#15803D', devi: '#1D4ED8', ogan: '#C2410C', axosu: '#9B59B6' };
 // 11 septembre 2026 : 'exercice' retiré — bloc de texte libre désormais,
 // prévisualisé comme les autres blocs de texte (voir extraitTexteApercuBloc).
 const TYPES_TRAVAIL_APERCU_BLOCS = ['quiz', 'evaluation', 'activite'];

@@ -106,11 +106,18 @@ function sauvegarderProgressionPaliersStockee() {
 // voir rendreBlocTravail/rendreProbleme plus bas.
 const TYPES_TRAVAIL = ['quiz', 'evaluation', 'activite', 'probleme'];
 const LIBELLES_PALIER_ELEVE = { azovi: '🌱 Azɔ̀ví', devi: '🪘 Dèví', ogan: '🦁 Ògán', axosu: '👑 Axɔ́sú' };
-// Couleurs "pleines" (fond dense) des sections Paliers, demandées le 5
-// septembre 2026 pour remplacer le bandeau bleu unique — l'axosu est ici
-// rouge (différent du violet utilisé ailleurs, ex. tableau de bord/jeux
-// éducatifs, ce que le porteur du projet sait — cf. LISEZ-MOI).
-const COULEURS_PALIER_ELEVE = { azovi: '#15803D', devi: '#1D4ED8', ogan: '#9A3412', axosu: '#B91C1C' };
+// Couleurs des sections Paliers. 19 septembre 2026 (5e lot) : nouveau
+// modèle de présentation demandé par le porteur du projet — un bandeau
+// plein coloré en en-tête de chaque palier (voir html_sectionPaliers) — avec
+// des couleurs alignées sur celles déjà utilisées PARTOUT AILLEURS sur le
+// site (tableau de bord élève, jeux éducatifs, pastilles badge_palier_*) :
+// axosu redevient violet (il était volontairement rouge ici depuis le 5
+// septembre 2026, différence que le porteur du projet connaissait — ce
+// n'est plus le cas) et ogan devient un vrai orange (au lieu d'un brun-roux
+// trop proche du rouge d'axosu) — légèrement plus soutenu que le orange
+// utilisé en petites pastilles (#E67E22) pour rester lisible en texte blanc
+// sur fond plein (contraste ≥ 4.5:1).
+const COULEURS_PALIER_ELEVE = { azovi: '#15803D', devi: '#1D4ED8', ogan: '#C2410C', axosu: '#9B59B6' };
 const LIBELLES_MEDAILLE = { bronze: '🥉 Bronze', argent: '🥈 Argent', or: '🥇 Or', diamant: '💎 Diamant' };
 // Cette pastille est un simple repère de note (couleur calculée par
 // calculer_medaille() côté base à partir du score du bloc, indépendamment de
@@ -386,23 +393,24 @@ function rendre() {
   });
 }
 
-// Estimation "en direct" du nombre de tâches/pourcentage d'un palier PAS
-// ENCORE réussi — demande du 18 septembre 2026 (3e lot) : "calculer le
-// pourcentage au fur et à mesure que l'enfant évolue", plutôt que d'attendre
-// la soumission complète d'un bloc pour voir bouger le compteur. On ne
-// touche qu'aux blocs jamais soumis (reponsesExistantes vide) actuellement
-// en cours de réponse progressive (progressionPalier) : le calcul serveur
-// (etat_paliers_seance_v2) compte alors ce bloc comme "1 tâche à faire, 0
-// réussie" tant qu'aucun essai n'existe (placeholder — voir
-// bloc_etat_taches côté base) ; on remplace ce placeholder par le vrai
-// décompte question par question déjà connu côté client (etat.resultats,
-// rempli au fil des appels à l'action 'valider_tache'). Reste purement
-// indicatif côté client : etatPaliersSeance (source serveur) n'est jamais
-// modifié, seul l'AFFICHAGE en tient compte tant que le palier n'est pas
-// soumis. Les blocs en reprise de tâches ratées (etat.sousListe) sont
-// volontairement exclus : un essai existe déjà pour eux côté serveur (pas
-// de placeholder à remplacer), et répartir précisément l'ajustement
-// demanderait un détail par bloc que le serveur ne renvoie pas ici.
+// Estimation "en direct" du pourcentage d'un palier PAS ENCORE réussi —
+// demande du 18 septembre 2026 (3e lot) : "calculer le pourcentage au fur et
+// à mesure que l'enfant évolue", plutôt que d'attendre la soumission
+// complète d'un bloc pour voir bouger le compteur.
+//
+// 19 septembre 2026 (5e lot) : le TOTAL (p.nb_taches_total) n'a plus besoin
+// d'être corrigé ici — etat_paliers_seance_v2 renvoie désormais le vrai
+// total attendu pour un bloc jamais soumis (voir bloc_taches_prevues côté
+// base, qui relit le corrigé déjà configuré), et non plus un simple
+// placeholder "1 tâche" à remplacer au fil de l'eau. Seul le nombre de
+// tâches déjà RÉUSSIES reste à estimer en direct, à partir du décompte
+// question par question déjà connu côté client (etat.resultats, rempli au
+// fil des appels à l'action 'valider_tache'). Reste purement indicatif côté
+// client : etatPaliersSeance (source serveur) n'est jamais modifié, seul
+// l'AFFICHAGE en tient compte tant que le palier n'est pas soumis. Les blocs
+// en reprise de tâches ratées (etat.sousListe) sont volontairement exclus :
+// un essai existe déjà pour eux côté serveur, déjà compté par
+// p.nb_taches_reussies.
 function calculerEtatPalierEnDirect(p, blocs) {
   let total = p.nb_taches_total;
   let reussies = p.nb_taches_reussies;
@@ -410,14 +418,12 @@ function calculerEtatPalierEnDirect(p, blocs) {
   blocs.forEach(b => {
     const etat = progressionPalier[b.id];
     if (!etat || etat.sousListe || (reponsesExistantes[b.id] || []).length > 0) return;
-    let totalConnu = 0, reussiesConnu = 0;
+    let reussiesConnu = 0;
     Object.values(etat.resultats || {}).forEach(r => {
       if (r.enAttente) return;
-      totalConnu += r.tachesTotal || 0;
       reussiesConnu += r.tachesReussies || 0;
     });
-    if (totalConnu > 0) {
-      total = total - 1 + totalConnu; // remplace le placeholder "1 tâche" de ce bloc
+    if (reussiesConnu > 0) {
       reussies += reussiesConnu;
       enDirect = true;
     }
@@ -458,16 +464,26 @@ function html_sectionPaliers(blocsParPalier) {
       const etatTexte = p.reussi
         ? `✅ Réussi — ${p.nb_taches_reussies}/${p.nb_taches_total} réussie${p.nb_taches_reussies > 1 ? 's' : ''} (${p.taux}%)`
         : `${reussiesAffiche}/${totalAffiche} réussie${reussiesAffiche > 1 ? 's' : ''}${tauxAffiche != null ? ` (${tauxAffiche}%)` : ''}${enDirect ? ' 🔄' : ''}`;
-      // La couleur du palier ne colore QUE la section (bordure + titre), pas
-      // un fond plein — retour du 5 septembre 2026 (7e lot), sur demande
-      // explicite : "Pour les palier la couleur doit être uniquement pour
-      // la section. Tout ce qui vient s'ajouter comme activité doit avoir
-      // sa propre background". Chaque activité à l'intérieur garde donc son
-      // propre encadré/fond (rendreBlocTravail/rendreBlocLecture, inchangés).
-      return `<div class="bloc-lecture carte-palier-eleve" style="border-left-color:${couleurPalier};background:${teinteClaire(couleurPalier, 0.04)};margin-top:14px">
-        <div class="bloc-lecture-titre" style="color:${couleurPalier}">${libelle} (${totalAffiche} tâche${totalAffiche > 1 ? 's' : ''}) — ${etatTexte}</div>
-        ${p.tainted ? `<p style="margin:0 0 10px;color:#92620A;font-size:13px">⚠️ La correction a été consultée avant une réussite à 100% — ce palier ne peut plus être validé, mais tu peux continuer à t'entraîner.</p>` : ''}
-        ${blocs.map(b => TYPES_TRAVAIL.includes(b.type_bloc) ? rendreBlocTravail(b) : rendreBlocLecture(b)).join('')}
+      // 19 septembre 2026 (5e lot) : nouveau modèle de présentation demandé
+      // par le porteur du projet (image fournie en exemple) — un bandeau
+      // PLEIN à la couleur du palier en en-tête de la carte (texte blanc),
+      // au lieu du précédent traitement "bordure + titre coloré, fond
+      // presque blanc" (choisi le 5 septembre 2026, 7e lot). Chaque activité
+      // À L'INTÉRIEUR garde son propre encadré/fond (rendreBlocTravail/
+      // rendreBlocLecture, inchangés) : seul l'en-tête de la carte palier
+      // elle-même passe en fond plein — voir .carte-palier-eleve/
+      // .entete-carte-palier-eleve dans css/style-public.css. La flèche à
+      // droite de l'en-tête est purement décorative (reprend le repère
+      // visuel de l'image fournie) : elle ne déclenche aucune action.
+      return `<div class="carte-palier-eleve" style="--couleur-palier:${couleurPalier};margin-top:14px">
+        <div class="entete-carte-palier-eleve">
+          <span>${libelle} (${totalAffiche} tâche${totalAffiche > 1 ? 's' : ''}) — ${etatTexte}</span>
+          <span class="fleche-entete-carte-palier-eleve" aria-hidden="true">⤺</span>
+        </div>
+        <div class="corps-carte-palier-eleve">
+          ${p.tainted ? `<p style="margin:0 0 10px;color:#92620A;font-size:13px">⚠️ La correction a été consultée avant une réussite à 100% — ce palier ne peut plus être validé, mais tu peux continuer à t'entraîner.</p>` : ''}
+          ${blocs.map(b => TYPES_TRAVAIL.includes(b.type_bloc) ? rendreBlocTravail(b) : rendreBlocLecture(b)).join('')}
+        </div>
       </div>`;
     }).join('')}
   `;

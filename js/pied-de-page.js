@@ -21,6 +21,19 @@ function initPiedDePage() {
   const pied = document.querySelector('footer');
   if (!pied) return;
   const racine = typeof RACINE_SITE === 'string' ? RACINE_SITE : '';
+  // 19 septembre 2026 : seule index.html a RACINE_SITE = "" (elle vit à la
+  // racine du site, voir la liste des RACINE_SITE de chaque page) — un
+  // repère fiable pour savoir si ce pied de page (partagé par presque toutes
+  // les pages, voir commentaire en tête de fichier) est bien celui de la
+  // page d'accueil. Sur l'accueil, le lien "Classes" doit rester sur place
+  // et défiler vers la section "Nos classes" (#classesGrades, déjà utilisée
+  // par le lien "Classes" du menu du haut et le bouton du hero) plutôt que
+  // d'ouvrir la vraie page de navigation — qui, elle, reste la bonne
+  // destination pour ce même lien sur toutes les autres pages (élève,
+  // enseignant, admin, parent...) où il s'agit de naviguer dans les vraies
+  // classes de l'utilisateur connecté.
+  const estAccueil = racine === '';
+  const lienClasses = estAccueil ? '#classesGrades' : `${racine}pages/navigation.html`;
 
   pied.className = 'pied-de-page-public';
   pied.innerHTML = `
@@ -34,7 +47,7 @@ function initPiedDePage() {
         <h3>Navigation</h3>
         <ul>
           <li><a href="${racine}index.html">Accueil</a></li>
-          <li><a href="${racine}pages/navigation.html">Classes</a></li>
+          <li><a href="${lienClasses}">Classes</a></li>
           <li><a href="${racine}index.html#paliers">Paliers</a></li>
         </ul>
       </div>
