@@ -1,73 +1,56 @@
-KEKELI — Livraison du 19 septembre 2026 (3e lot du jour) — Taux de présence et rattrapage des badges de palier
-================================================================================================================
+KEKELI — Livraison du 19 septembre 2026 (4e lot du jour) — Emploi du temps
+===========================================================================
 
-Deux corrections distinctes traitées dans cette livraison.
-
-1) REGISTRE D'APPEL : UN ÉLÈVE EN RETARD COMPTE COMME PRÉSENT
+NOUVELLE FONCTIONNALITÉ : EMPLOI DU TEMPS (CM1 et CM2)
 ---------------------------------------------------------------
-Dans les statistiques du registre d'appel (onglet mensuel, ligne « 🔵 Taux
-de présence globale »), un retard était jusqu'ici soustrait du calcul au
-même titre qu'une absence : le taux affiché ne comptait que les présences
-« à l'heure », ce qui faisait paraître le taux de présence plus bas qu'il
-ne devrait.
+À partir de la maquette que vous avez fournie, une nouvelle page « 🗓️ Emploi
+du temps » a été ajoutée, accessible à TOUS les rôles liés à CM1 et CM2:
+élève, parent, enseignant, autorité pédagogique et administrateur. Chacun la
+retrouve dans son menu (pour l'enseignant, dans « 🗂️ Gestion administrative »
+avec le registre d'appel et la planification, comme demandé).
 
-C'est corrigé : le taux de présence globale compte désormais un retard
-comme une présence (seule une vraie absence le fait baisser). La ligne
-« 🟢 Présents à l'heure » reste inchangée : elle continue de mesurer
-spécifiquement la ponctualité (présences hors retard), à titre
-d'indicateur séparé.
+QUI PEUT VOIR QUOI :
+- Un élève de CM1 ou CM2 voit l'emploi du temps de SA classe.
+- Un parent voit l'emploi du temps de la ou des classes de ses enfants.
+- Un enseignant voit l'emploi du temps des classes qui lui sont assignées
+  (parmi CM1/CM2) ; s'il a les deux classes, un sélecteur permet de passer de
+  l'une à l'autre.
+- Un administrateur et une autorité pédagogique voient les deux, avec le même
+  sélecteur.
 
-Le « Bilan mensuel » (deuxième onglet du registre, avec le récapitulatif
-Garçons/Filles/Total sur l'année) n'était PAS concerné par ce problème :
-son calcul du % de présence ne s'appuie que sur les absences, il était
-déjà correct.
+QUI PEUT LE MODIFIER : uniquement l'administrateur et l'enseignant de la
+classe concernée (même règle que le registre d'appel), avec un bouton
+« ✏️ Modifier » qui n'apparaît que pour eux — les autres voient la page en
+lecture seule. Le contrôle est fait côté base de données (règle de sécurité
+sur la table), jamais seulement côté écran.
 
-Fichier modifié : js/pages/enseignant-registre-appel.js.
+CM1 ET CM2 ONT CHACUN LEUR PROPRE EMPLOI DU TEMPS, comme convenu avec vous :
+les deux ont été créés avec exactement le même contenu que votre maquette au
+départ, mais ils sont désormais totalement indépendants — modifier celui de
+CM1 ne touche pas celui de CM2, et inversement.
 
-2) BADGES DE PALIER : RATTRAPAGE DES BADGES ET TROPHÉES MANQUANTS
----------------------------------------------------------------
-Vous aviez remarqué que les badges obtenus par les élèves ne
-correspondaient pas aux conditions affichées sur la page d'administration
-« Badges » (medaille de palier, badge spécial ≥ 66,7 %, trophée
-d'excellence ≥ 90 % au 1er essai).
+CE QUI EST MODIFIABLE : les horaires, le contenu de chaque case (matière,
+durée), les libellés des lignes de récréation/interclasse, les textes du
+bloc « Repos » du mercredi après-midi, les remarques officielles, le titre et
+le sous-titre. La STRUCTURE du tableau (nombre de lignes, quelles cases sont
+fusionnées — récréations, interclasse, repos du mercredi) reste fixe, comme
+pour la planification mensuelle : c'est le document officiel qui est
+respecté, seul son contenu se met à jour.
 
-Après vérification complète des règles d'attribution en base (comparées
-une à une aux conditions décrites sur cette page) : les règles elles-mêmes
-sont correctes et ont été confirmées conformes. En revanche, une partie de
-l'historique des élèves n'avait jamais été recalculée après les dernières
-évolutions du système de paliers (11 puis 19 septembre) : plusieurs
-paliers pourtant réussis par les élèves à ≥ 66,7 % — parfois même dès le
-1er essai à 100 % — n'avaient jamais généré leur badge spécial ni leur
-trophée d'excellence, faute d'avoir été recalculés avec la version
-actuelle (corrigée) des fonctions.
+CORRECTION DE LIBELLÉ : dans votre maquette, l'abréviation « RE CRÉA »
+apparaissait pour la récréation de l'après-midi (16h à 16h10) — elle a été
+remplacée par « RÉCRÉATION » comme demandé, pour être cohérente avec la
+récréation du matin.
 
-Un rattrapage a été effectué directement en base pour tous les élèves et
-toutes les séances déjà travaillées : chaque palier réellement réussi
-génère maintenant son badge spécial et, le cas échéant, son trophée
-d'excellence — strictement selon les conditions déjà documentées (aucune
-condition modifiée, seul le retard de calcul a été rattrapé). Cela a aussi
-fait apparaître, à juste titre, quelques notes de palier qui n'avaient
-jamais été comptabilisées (« Palier réussi dès le premier essai ») dans
-les notes des élèves concernés.
+Fichiers ajoutés : css/emploi-du-temps.css, pages/emploi-du-temps.html,
+js/pages/emploi-du-temps.js.
+Fichier modifié : js/navigation-config.js (ajout du lien pour les 5 rôles).
+Base de données : nouvelle table emplois_du_temps (une ligne par classe,
+sécurité activée), déployée directement en base — aucun fichier de migration
+n'est conservé dans le projet, conformément à l'organisation déjà en place.
 
-Vérification faite après rattrapage : les totaux obtenus ont été
-recalculés à la main pour plusieurs élèves et comparés question par
-question aux conditions (+2/+1 par médaille selon l'essai, +2/+1 par badge
-spécial selon l'essai, trophée unique uniquement au 1er essai avec ≥ 90 %)
-— conformité exacte confirmée. Les noms de fichiers d'image utilisés
-(medaille_<palier>.jpg / badge_<couleur>.jpg / trophee_<couleur>.jpg) ont
-également été vérifiés un par un contre les fichiers réellement présents
-dans assets/badges/ : tous existent et correspondent exactement à ce que
-chaque type de récompense doit afficher.
-
-Aucun fichier front-end modifié pour ce point : la correction est
-entièrement côté base de données (recalcul, aucun changement de règle ni
-de schéma).
-
-Vérifications faites avant cette livraison : node --check sur le fichier
-JS modifié (point 1) ; relecture complète des fonctions
-attribuer_badges_taches / recalculer_paliers_seance / etat_paliers_seance_v2
-/ bloc_etat_taches / racine_a_pierres_rouges et comparaison ligne à ligne
-avec le texte des conditions affichées sur pages/admin/badges.html ;
-recalcul manuel des totaux attendus pour plusieurs élèves après rattrapage,
-comparé aux totaux réellement enregistrés en base.
+Vérifications faites avant cette livraison : node --check sur les fichiers
+JS ajoutés/modifiés ; équilibre des accolades et des commentaires vérifié
+sur le CSS ajouté ; contrôle de sécurité (get_advisors) après la création de
+la table en base — aucune nouvelle alerte, seules les 3 alertes déjà connues
+et sans rapport avec cette fonctionnalité restent présentes.

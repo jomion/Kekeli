@@ -39,6 +39,11 @@ const LIENS_PAR_ROLE = {
     { id: 'tableau-de-bord', href: 'tableau-de-bord.html', icone: '🏠', label: 'Tableau de bord', essentiel: true },
     { id: 'matieres', href: 'matiere.html', icone: '📘', label: 'Mes matières' },
     { id: 'seances', href: 'pages/seances.html', racine: true, icone: '📌', label: 'Séances' },
+    // 19 septembre 2026 : emploi du temps hebdomadaire officiel, partagé par
+    // tous les rôles liés à la classe (CM1/CM2 pour l'instant), voir
+    // js/pages/emploi-du-temps.js. Page partagée à la racine de pages/ comme
+    // "seances" ci-dessus, donc racine: true.
+    { id: 'emploi-du-temps', href: 'pages/emploi-du-temps.html', racine: true, icone: '🗓️', label: 'Emploi du temps' },
     { id: 'devoirs-notes', href: 'devoirs-notes.html', icone: '📊', label: 'Devoirs & notes' },
     { id: 'badges', href: 'badges.html', icone: '🏅', label: 'Mes badges' },
     // Fonctionnalité Premium (voir messagerie.html) : le lien reste visible
@@ -53,6 +58,7 @@ const LIENS_PAR_ROLE = {
     // les badges » — nouvelle page dédiée (voir js/pages/parent-suivi-enfant.js).
     { id: 'suivi-enfant', href: 'suivi-enfant.html', icone: '📈', label: "Suivi de l'enfant" },
     { id: 'seances', href: 'pages/seances.html', racine: true, icone: '📌', label: 'Séances' },
+    { id: 'emploi-du-temps', href: 'pages/emploi-du-temps.html', racine: true, icone: '🗓️', label: 'Emploi du temps' },
     { id: 'devoirs-notes', href: 'devoirs-notes.html', icone: '📊', label: 'Devoirs & notes' },
     { id: 'paiements', href: 'paiements.html', icone: '💳', label: 'Paiements' },
     { id: 'messagerie', href: 'messagerie.html', icone: '💬', label: 'Messagerie' }
@@ -63,18 +69,24 @@ const LIENS_PAR_ROLE = {
     { id: 'devoirs-notes', href: 'devoirs-notes.html', icone: '📊', label: 'Devoirs & notes' },
     { id: 'registre-appel', href: 'registre-appel.html', icone: '📋', label: "Registre d'appel", categorie: 'gestionAdministrative' },
     { id: 'planification', href: 'planification.html', icone: '🗓️', label: 'Planification mensuelle', categorie: 'gestionAdministrative' },
+    // 19 septembre 2026 (demande explicite : "Pour les enseignant ajoute
+    // l'emploi du temps dans gestion administrative") — regroupé ici plutôt
+    // qu'en lien top-level, avec registre d'appel et planification.
+    { id: 'emploi-du-temps', href: 'pages/emploi-du-temps.html', racine: true, icone: '🗓️', label: 'Emploi du temps', categorie: 'gestionAdministrative' },
     { id: 'messagerie', href: 'messagerie.html', icone: '💬', label: 'Messagerie' },
     { id: 'messagerie-admin', href: 'messagerie-admin.html', icone: '📨', label: "Contacter l'administration" }
   ],
   autorite: [
     { id: 'bienvenue', href: 'bienvenue.html', icone: '🏠', label: 'Tableau de bord', essentiel: true },
-    { id: 'seances', href: 'pages/seances.html', racine: true, icone: '📌', label: 'Séances' }
+    { id: 'seances', href: 'pages/seances.html', racine: true, icone: '📌', label: 'Séances' },
+    { id: 'emploi-du-temps', href: 'pages/emploi-du-temps.html', racine: true, icone: '🗓️', label: 'Emploi du temps' }
   ],
   admin: [
     { id: 'tableau-de-bord', href: 'tableau-de-bord.html', icone: '🏠', label: 'Tableau de bord', essentiel: true },
     { id: 'navigation-arbo', href: 'pages/navigation.html', racine: true, icone: '🌳', label: 'Arborescence', categorie: 'pedagogie' },
     { id: 'editer-seance', href: 'gestion-seances.html', icone: '✏️', label: 'Gestion des séances', categorie: 'pedagogie' },
     { id: 'seances', href: 'pages/seances.html', racine: true, icone: '📌', label: 'Séances', categorie: 'pedagogie' },
+    { id: 'emploi-du-temps', href: 'pages/emploi-du-temps.html', racine: true, icone: '🗓️', label: 'Emploi du temps', categorie: 'pedagogie' },
     { id: 'activites', href: 'activites.html', icone: '✅', label: 'Corriger activités', categorie: 'pedagogie' },
     { id: 'devoirs-notes', href: 'devoirs-notes.html', icone: '📊', label: 'Devoirs & notes', categorie: 'pedagogie' },
     { id: 'badges', href: 'badges.html', icone: '🏅', label: 'Badges', categorie: 'pedagogie' },
