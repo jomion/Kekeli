@@ -439,6 +439,7 @@ function rendreListeSea(liste) {
           <button type="button" class="btn btn-discret" data-apercu-contenu="${s.id}">👁️ Voir le contenu</button>
           <button type="button" class="bouton-epingler-sea ${s.epinglee ? 'epinglee' : ''}" data-epingler="${s.id}" title="${s.epinglee ? 'Retirer des épinglées' : 'Épingler cette séance'}">${s.epinglee ? '📌' : '📍'}</button>
           ${roleSeances === 'eleve' && s.statut === 'publie' ? `<a class="btn btn-primaire" href="eleve/seance.html?id=${s.id}">📖 Lire</a>` : ''}
+          ${(roleSeances === 'enseignant' || roleSeances === 'parent') && s.statut === 'publie' ? `<a class="btn btn-primaire" href="${roleSeances}/consulter-seance.html?id=${s.id}">🔍 Consulter</a>` : ''}
           ${roleSeances === 'admin' ? `<a class="btn btn-discret" href="editeur-seance.html?id=${s.id}" title="Éditer le contenu">✏️ Éditer</a>` : ''}
         </div>
       </div>

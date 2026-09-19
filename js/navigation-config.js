@@ -48,6 +48,10 @@ const LIENS_PAR_ROLE = {
   ],
   parent: [
     { id: 'tableau-de-bord', href: 'tableau-de-bord.html', icone: '🏠', label: 'Tableau de bord', essentiel: true },
+    // 19 septembre 2026 (25e lot) : « en tant que parent, je n'ai pas pu
+    // accéder aux activités de l'enfant... les cours suivis, les activités,
+    // les badges » — nouvelle page dédiée (voir js/pages/parent-suivi-enfant.js).
+    { id: 'suivi-enfant', href: 'suivi-enfant.html', icone: '📈', label: "Suivi de l'enfant" },
     { id: 'seances', href: 'pages/seances.html', racine: true, icone: '📌', label: 'Séances' },
     { id: 'devoirs-notes', href: 'devoirs-notes.html', icone: '📊', label: 'Devoirs & notes' },
     { id: 'paiements', href: 'paiements.html', icone: '💳', label: 'Paiements' },

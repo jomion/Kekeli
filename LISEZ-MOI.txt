@@ -1,69 +1,73 @@
-KEKELI — Livraison : vrai total de tâches, nouveau look des paliers, registre corrigé, devoirs reçus mis en valeur
+KEKELI — Livraison : correction affichée au 3e essai, carte "devoirs à corriger" fiable, suivi de l'enfant côté parent, consultation en lecture seule
 ================================================================================
 
-1. Le nombre de tâches d'un palier n'est plus bloqué à "1 tâche"
+1. Au 3e essai, la correction s'affiche enfin au lieu du message bloquant
 ------------------------------------------------------------------------
-Tant qu'un élève n'avait jamais soumis un exercice/activité d'un palier, le
-total affiché entre parenthèses après son nom restait figé à "1 tâche" (un
-simple repère technique en attendant la première soumission), même si le
-contenu contenait en réalité 8 questions ou plus. Corrigé en base : le total
-est maintenant calculé à l'avance à partir du corrigé déjà configuré par
-l'enseignant/admin, exactement comme le fera la vraie correction — un palier
-encore verrouillé ou pas encore commencé affiche donc dès le départ son vrai
-nombre de tâches (vérifié sur des paliers réels : certains passent ainsi de
-"1 tâche" à 11, 18, 20 tâches ou plus selon leur contenu).
+Vos captures d'écran montraient l'alerte "Le nombre maximum d'essais (3) est
+déjà atteint pour cet exercice." après le 3e essai. Cause trouvée : le bouton
+"🔄 Refaire cet exercice" restait affiché même après le 3e essai (le dernier
+autorisé), donc l'élève pouvait cliquer dessus et tenter un 4e essai — toujours
+refusé par le système. Corrigé : ce bouton disparaît désormais dès que les 3
+essais sont utilisés, et seul le bouton "🔓 Voir la correction" reste (déjà en
+place, mais caché derrière ce faux choix). Corrigé à la fois pour un exercice
+de séance et pour un exercice de devoir.
 
-Fichier modifié : js/pages/eleve-seance.js
-Changement en base : fonction bloc_taches_prevues() ajoutée, etat_paliers_seance_v2() mise à jour (aucun fichier de migration conservé dans le dépôt, changement appliqué directement).
+Fichiers modifiés : js/pages/eleve-seance.js, js/pages/eleve-devoir-rendu.js
 
-2. Nouveau look des blocs de palier (bandeau plein coloré)
+2. La carte "Devoirs reçus à corriger" ne reste plus active après correction
 ------------------------------------------------------------------------
-Sur votre modèle transmis : chaque palier affiche maintenant un bandeau plein
-à sa couleur en en-tête (texte blanc), au lieu du précédent encadré à bordure
-fine. Chaque activité à l'intérieur garde son propre fond, comme avant.
-Couleurs par palier : Azɔ̀ví = vert, Dèví = bleu, Ògán = orange, Axɔ́sú =
-violet (corrigé au passage : Axɔ́sú était rouge sur cette page uniquement,
-différent du violet déjà utilisé partout ailleurs sur le site — c'est
-maintenant harmonisé). Cette même mise à jour de couleurs et le nouveau
-bandeau ont aussi été reportés dans l'aperçu que vous voyez côté éditeur
-(bouton "Aperçu élève"), pour qu'il reste fidèle à ce que voit réellement
-l'élève.
+Côté enseignant, cette carte comptait un devoir dès qu'une réponse avait été
+reçue, mais ne vérifiait jamais si vous l'aviez déjà corrigé — un devoir
+corrigé restait donc compté indéfiniment. Corrigé : la carte ne compte
+maintenant que les devoirs qui ont vraiment une réponse ENCORE NON corrigée
+(que ce soit un devoir "texte libre" ou un devoir "à blocs" avec exercices/
+activités/problèmes) — dès que tout est corrigé, le devoir disparaît de cette
+carte.
 
-Fichiers modifiés : js/pages/eleve-seance.js, js/pages/editeur-seance.js, js/apercu-blocs-seance.js, js/pages/eleve-badges.js, css/style-public.css
+Fichier modifié : js/pages/enseignant-devoirs-notes.js
 
-3. Erreur "there is no unique or exclusion constraint..." dans le registre corrigée
+3. Nouvelle page "Suivi de l'enfant" pour les parents
 ------------------------------------------------------------------------
-Cocher une case dans le registre d'appel déclenchait systématiquement cette
-erreur et empêchait tout enregistrement. Cause trouvée : il manquait, côté
-base, la règle qui permet de dire "une présence par élève/classe/date/
-créneau" — la page essayait de mettre à jour la bonne ligne en s'appuyant sur
-cette règle, qui n'avait jamais été posée. Ajoutée en base (vérifié : aucune
-donnée en double n'existait, l'ajout s'est fait sans risque). Le registre
-d'appel doit maintenant s'enregistrer normalement.
+Vous ne pouviez pas voir les cours suivis, les activités faites ni les badges
+de votre enfant. Nouvelle page (menu parent → "📈 Suivi de l'enfant"), avec un
+sélecteur si vous suivez plusieurs enfants, qui regroupe :
+  - les cours/séances déjà terminés par l'enfant, avec la date et un lien pour
+    consulter le contenu de la séance (voir point 4 ci-dessous) ;
+  - l'avancement global dans le programme de sa classe (ex. "6/20 séances
+    terminées — 30%") ;
+  - l'historique de ses 20 dernières activités/exercices rendus, avec le
+    résultat (tâches réussies, note, ou "en attente de correction") et la
+    date ;
+  - ses badges et sa progression par palier (mêmes récompenses qu'affichées à
+    l'enfant : étoiles, médailles de palier, badges spéciaux, trophées
+    d'excellence), avec les mêmes filtres par palier.
+Toutes ces données étaient déjà autorisées pour un parent au niveau de la
+base ; il ne manquait qu'une page pour les présenter — aucun changement de
+sécurité n'a été nécessaire pour cette fonctionnalité.
 
-Changement en base uniquement (aucun fichier frontend à livrer pour ce point).
+Fichiers ajoutés : pages/parent/suivi-enfant.html, js/pages/parent-suivi-enfant.js
+Fichier modifié : js/navigation-config.js (nouveau lien de menu parent)
 
-4. Un devoir reçu d'un élève ne passe plus inaperçu côté enseignant
+4. Mode consultation en lecture seule pour l'enseignant et le parent
 ------------------------------------------------------------------------
-La carte "Réponses reçues" du tableau de bord enseignant (page "Devoirs &
-notes") ne comptait que les anciens devoirs "texte libre" — un devoir "à
-blocs" validé par un élève (bouton "Valider mon devoir") n'y apparaissait
-jamais, d'où le risque de rater un devoir à corriger malgré la notification.
-Corrigé : cette carte compte maintenant les deux types de devoir, renommée
-"📨 Devoirs reçus à corriger", avec un repère visuel doré et un petit point
-animé quand elle n'est pas vide — pour qu'elle attire mieux l'œil qu'avant.
+Sur votre demande ("les autres rôles doivent pouvoir accéder au contenu et le
+lire, mais sans accès à la correction automatique"), l'enseignant et le
+parent peuvent maintenant ouvrir une séance publiée en LECTURE SEULE : ils
+voient le vrai contenu (cours, énoncés des exercices, quiz, évaluations)
+exactement comme un élève, mais tous les champs de réponse sont désactivés —
+impossible de soumettre une réponse, donc aucune correction automatique n'est
+jamais déclenchée depuis cette vue. Accessible depuis le bouton "🔍 Consulter"
+sur la page "Séances" (déjà utilisée par tous les rôles), et depuis chaque
+cours listé dans "Suivi de l'enfant" côté parent (point 3). Avant ce
+correctif, l'enseignant n'avait tout simplement aucun moyen d'ouvrir le
+contenu réel d'une séance (l'éditeur complet est réservé à l'administrateur),
+et le parent non plus.
 
-Fichiers modifiés : js/pages/enseignant-devoirs-notes.js, css/style-public.css
+Fichiers ajoutés : pages/enseignant/consulter-seance.html, js/pages/enseignant-consulter-seance.js,
+pages/parent/consulter-seance.html, js/pages/parent-consulter-seance.js, js/lecture-seule-seance.js
+Fichier modifié : js/pages/seances.js (bouton "🔍 Consulter")
 
-5. Lien "Classes" du pied de page de l'accueil
-------------------------------------------------------------------------
-Complète le correctif du lot précédent (menu du haut) : le lien "Classes" du
-PIED DE PAGE de l'accueil ouvrait lui aussi la vraie page de navigation. Il
-défile désormais vers la section "Nos classes" de l'accueil, comme le lien du
-menu du haut — uniquement sur l'accueil : ce même pied de page reste inchangé
-sur toutes les autres pages (élève, enseignant, admin, parent), où ce lien
-doit continuer à ouvrir la vraie page de navigation de l'utilisateur connecté.
-
-Fichier modifié : js/pied-de-page.js
-
-Deux changements en base ont été appliqués directement (points 1 et 3) — aucun fichier de migration n'est conservé dans le dépôt, conformément au fonctionnement habituel de ce projet.
+Aucun changement de base de données n'a été nécessaire pour les points 3 et 4 :
+les autorisations nécessaires existaient déjà (un parent pouvait déjà lire les
+données de son enfant, un enseignant pouvait déjà lire le contenu de ses
+classes) — il manquait seulement les pages pour les présenter correctement.

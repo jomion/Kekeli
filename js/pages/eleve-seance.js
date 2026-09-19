@@ -13,9 +13,14 @@
 // etat_paliers_seance côté base — un palier se débloque quand le précédent a
 // toutes ses activités réussies, sauf une au maximum).
 //
-// Essais multiples : l'élève peut refaire un exercice/activité autant de
-// fois qu'il veut, mais seuls les essais 1 et 2 comptent pour la médaille
-// (🥉/🥈/🥇/💎) — au-delà, c'est de l'entraînement libre.
+// Essais multiples : pour un exercice/quiz/évaluation à correction
+// automatique, l'élève dispose au maximum de 3 essais (ESSAIS_MAX côté Edge
+// Function corriger-exercice, qui refuse tout essai suivant) — seuls les
+// essais 1 et 2 comptent pour la médaille (🥉/🥈/🥇/💎), le 3e ne rapporte
+// plus de médaille mais reste corrigé normalement. Une "activité"/un
+// "problème" à correction manuelle (rendus_activites) n'a en revanche aucune
+// limite d'essais : l'élève peut les refaire autant de fois qu'il veut tant
+// qu'un enseignant n'a pas encore noté le dernier envoi.
 
 let profilEleveSeance = null;
 let seanceCourante = null;
@@ -1151,6 +1156,13 @@ function rendreResultatExercice(b, c, questions, reponse) {
   // réservé aux blocs de palier (mode progressif), tant qu'il reste au moins
   // une tâche ratée à ce dernier essai.
   const peutReprendreRates = !enAttente && !!b.palier && nbTaches > 0 && nbTachesReussies < nbTaches;
+  // 19 septembre 2026 (25e lot) : le 3e essai est le DERNIER possible
+  // (ESSAIS_MAX côté Edge Function corriger-exercice, qui rejette tout essai
+  // suivant avec une erreur bloquante) — proposer "Refaire cet exercice"
+  // au-delà mène systématiquement à ce rejet. Une fois le 3e essai posé, seule
+  // "Voir la correction" doit rester (déjà déblocable à ce stade, voir
+  // peutVoirCorrection ci-dessus).
+  const essaisEpuises = !enAttente && reponse.numero_essai >= 3;
 
   return `
     ${c.consigne ? `<div class="contenu-riche-lecture">${contenuRicheInitial(c.consigne)}</div>` : ''}
@@ -1229,7 +1241,7 @@ function rendreResultatExercice(b, c, questions, reponse) {
     }).join('')}
     ${!enAttente ? `<div class="actions-resultat-exercice" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:10px">
       ${peutReprendreRates ? `<button type="button" class="btn btn-filled" data-reprendre-rates="${b.id}">🔁 Reprendre les tâches ratées</button>` : ''}
-      <button type="button" class="btn btn-discret" data-refaire="${b.id}" data-type-refaire="exercice">🔄 Refaire cet exercice</button>
+      ${!essaisEpuises ? `<button type="button" class="btn btn-discret" data-refaire="${b.id}" data-type-refaire="exercice">🔄 Refaire cet exercice</button>` : ''}
       ${(peutVoirCorrection && !correctionInfo) ? `<button type="button" class="btn btn-discret" data-voir-correction="${b.id}">🔓 Voir la correction</button>` : ''}
       ${(correctionInfo && !correctionInfo.autorise) ? `<span style="font-size:12px;color:var(--text-gris)">${echapper(correctionInfo.erreur || '')}</span>` : ''}
     </div>` : ''}

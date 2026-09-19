@@ -737,7 +737,7 @@ function rendreResultatExerciceDevoir(b, c, questions, reponse) {
         </div>
       </div>`;
     }).join('')}
-    ${!enAttente ? `<button type="button" class="btn btn-discret" data-refaire-devoir="${b.id}" data-type-refaire-devoir="exercice" style="margin-top:10px">🔄 Refaire cet exercice</button>` : ''}
+    ${(!enAttente && reponse.numero_essai < 3) ? `<button type="button" class="btn btn-discret" data-refaire-devoir="${b.id}" data-type-refaire-devoir="exercice" style="margin-top:10px">🔄 Refaire cet exercice</button>` : ''}
   `;
 }
 

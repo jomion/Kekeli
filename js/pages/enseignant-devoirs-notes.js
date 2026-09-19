@@ -124,7 +124,7 @@ async function afficherGestionEns() {
     ? await supabaseClient.from('evaluations').select('*').in('eleve_id', idsEleves).eq('champ_formation_id', champSelectionneEns).order('cree_le', { ascending: false })
     : { data: [] };
   const { data: rendus } = devoirs && devoirs.length
-    ? await supabaseClient.from('devoirs_rendus').select('devoir_id, eleve_id').in('devoir_id', devoirs.map(d => d.id))
+    ? await supabaseClient.from('devoirs_rendus').select('devoir_id, eleve_id, corrige_le').in('devoir_id', devoirs.map(d => d.id))
     : { data: [] };
   const { data: destinatairesTous } = devoirs && devoirs.length
     ? await supabaseClient.from('devoirs_destinataires').select('devoir_id, eleve_id').in('devoir_id', devoirs.map(d => d.id))
@@ -149,15 +149,46 @@ async function afficherGestionEns() {
     ? await supabaseClient.from('devoirs_blocs_validations').select('devoir_id, eleve_id').in('devoir_id', idsDevoirsBlocsEns)
     : { data: [] };
   const { data: blocsTypesEns } = idsDevoirsBlocsEns.length
-    ? await supabaseClient.from('blocs_seance').select('devoir_id, type_bloc').in('devoir_id', idsDevoirsBlocsEns).neq('type_bloc', 'correction').order('ordre')
+    ? await supabaseClient.from('blocs_seance').select('id, devoir_id, type_bloc').in('devoir_id', idsDevoirsBlocsEns).neq('type_bloc', 'correction').order('ordre')
     : { data: [] };
   const typePrincipalParDevoirEns = {};
   (blocsTypesEns || []).forEach(b => { if (!typePrincipalParDevoirEns[b.devoir_id]) typePrincipalParDevoirEns[b.devoir_id] = b.type_bloc; });
+  // 19 septembre 2026 (25e lot) : "si l'enseignant corrige le devoir de
+  // l'enfant, la carte devoir à corriger est toujours active" — la carte ne
+  // regardait jusqu'ici QUE l'existence d'une réponse (validationsParDevoir/
+  // rendusParDevoir ci-dessous), jamais si cette réponse a déjà été corrigée,
+  // donc un devoir restait compté "à corriger" pour toujours, même une fois
+  // la correction faite. On calcule ici, par devoir "à blocs", si TOUS les
+  // élèves l'ayant validé ont une correction complète (même définition que
+  // resumerDevoirBlocs()/toutCorrige, déjà utilisée côté élève/parent pour
+  // dire "ce devoir est corrigé") — sinon il reste "à corriger".
+  const idsBlocsDevoirsEns = (blocsTypesEns || []).map(b => b.id);
+  const [{ data: reponsesDevoirsBlocsEns }, { data: rendusDevoirsBlocsEns }] = idsBlocsDevoirsEns.length && idsEleves.length
+    ? await Promise.all([
+        supabaseClient.from('reponses_exercices').select('*').in('bloc_id', idsBlocsDevoirsEns).in('eleve_id', idsEleves),
+        supabaseClient.from('rendus_activites').select('*').in('bloc_id', idsBlocsDevoirsEns).in('eleve_id', idsEleves)
+      ])
+    : [{ data: [] }, { data: [] }];
+  const blocsParDevoirEns = {};
+  (blocsTypesEns || []).forEach(b => { (blocsParDevoirEns[b.devoir_id] ??= []).push(b); });
+  const devoirsBlocsEncoreACorriger = new Set();
+  (validationsBlocs || []).forEach(v => {
+    const blocsDuDevoir = blocsParDevoirEns[v.devoir_id] || [];
+    const idsBlocsDuDevoir = new Set(blocsDuDevoir.map(b => b.id));
+    const reponsesEleve = (reponsesDevoirsBlocsEns || []).filter(r => r.eleve_id === v.eleve_id && idsBlocsDuDevoir.has(r.bloc_id));
+    const rendusEleve = (rendusDevoirsBlocsEns || []).filter(r => r.eleve_id === v.eleve_id && idsBlocsDuDevoir.has(r.bloc_id));
+    const resume = resumerDevoirBlocs(blocsDuDevoir, reponsesEleve, rendusEleve);
+    if (!resume || !resume.toutCorrige) devoirsBlocsEncoreACorriger.add(v.devoir_id);
+  });
 
   const evalParEleve = {};
   (evaluations || []).forEach(e => { (evalParEleve[e.eleve_id] ??= []).push(e); });
   const rendusParDevoir = {};
   (rendus || []).forEach(r => { rendusParDevoir[r.devoir_id] = (rendusParDevoir[r.devoir_id] || 0) + 1; });
+  // 19 septembre 2026 (25e lot) : pendant du calcul devoirsBlocsEncoreACorriger
+  // ci-dessus, mais pour les devoirs "texte libre" (devoirs_rendus a sa propre
+  // colonne corrige_le, contrairement aux devoirs "à blocs" plus complexes).
+  const devoirsTexteEncoreACorriger = new Set((rendus || []).filter(r => !r.corrige_le).map(r => r.devoir_id));
   // Un élève ne valide son devoir "à blocs" qu'une fois (devoirs_blocs_validations
   // n'a qu'une ligne par élève/devoir) — un simple compte de lignes donne
   // directement le nombre d'élèves ayant rendu, comme rendusParDevoir ci-dessus.
@@ -200,7 +231,15 @@ async function afficherGestionEns() {
   // "texte libre" (devoirs_rendus) ET "à blocs" (devoirs_blocs_validations,
   // voir la requête validationsParDevoir plus haut) — voir le commentaire à
   // cet endroit pour le signalement d'origine.
-  const devoirsAvecReponses = devoirsListe.filter(d => d.seance_id ? (validationsParDevoir[d.id] || 0) > 0 : (rendusParDevoir[d.id] || 0) > 0);
+  // 19 septembre 2026 (25e lot) : "si l'enseignant corrige le devoir de
+  // l'enfant, la carte devoir à corriger est toujours active" — ne compte
+  // plus seulement "a reçu une réponse" mais "a reçu une réponse ENCORE NON
+  // CORRIGÉE" (devoirsTexteEncoreACorriger / devoirsBlocsEncoreACorriger,
+  // calculés plus haut) : un devoir intégralement corrigé disparaît
+  // désormais de cette carte, même s'il a bien été rendu.
+  const devoirsAvecReponses = devoirsListe.filter(d => d.seance_id
+    ? ((validationsParDevoir[d.id] || 0) > 0 && devoirsBlocsEncoreACorriger.has(d.id))
+    : ((rendusParDevoir[d.id] || 0) > 0 && devoirsTexteEncoreACorriger.has(d.id)));
   // Cartes de suivi enseignant CLIQUABLES (11 septembre 2026, 2e demande :
   // "chaque carte [...] doit être cliquable et contenir ce qu'il renseigne").
   // La matière est déjà celle choisie dans le sélecteur ci-dessus — chaque

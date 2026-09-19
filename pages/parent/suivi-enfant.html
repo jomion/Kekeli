@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KEKELI - Suivi de l'enfant</title>
+<link rel="icon" type="image/png" href="../../assets/logo/logo.png">
+<link rel="stylesheet" href="../../css/style-public.css">
+<style>
+  /* Même bloc de styles que pages/eleve/badges.html (voir ce fichier) —
+     réutilisé tel quel ici pour la section "Progression par palier" de
+     js/pages/parent-suivi-enfant.js (19 septembre 2026, 25e lot), ces classes
+     n'existant que dans ce <style> inline, pas dans css/style-public.css. */
+  .grille-totaux-badges-paliers { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-top: 10px; }
+  .carte-total-badge-palier { background: white; border-radius: 12px; padding: 16px 10px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); font-size: 26px; }
+  .carte-total-badge-palier .valeur-total-badge-palier { font-size: 22px; font-weight: 800; color: var(--bleu-kekeli); margin: 4px 0 2px; }
+  .carte-total-badge-palier div:last-child { font-size: 12px; color: var(--text-gris); font-weight: 600; }
+  .filtres-palier-badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .bouton-filtre-palier-badges { font-size: 13px; padding: 7px 14px; }
+  .carte-detail-palier-badges { background: white; border-radius: 10px; border-left: 5px solid var(--bleu-kekeli); padding: 14px 16px; margin-top: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .icone-badge-img-mat { display: inline-block; vertical-align: middle; object-fit: contain; border-radius: 6px; }
+  .carte-total-badge-palier .icone-badge-img-mat { display: block; margin: 0 auto; }
+</style>
+<link rel="stylesheet" href="../../css/pied-de-page.css">
+</head>
+<body class="theme-clair-compte">
+  <header></header>
+
+  <div class="conteneur-tableau-bord" id="contenu">
+    <p style="text-align:center;color:var(--text-gris)">Chargement...</p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/supabaseClient.js"></script>
+  <script>const RACINE_SITE = "../../";</script>
+  <script src="../../js/auth-utilisateur.js"></script>
+  <script src="../../js/notifications.js"></script>
+  <script src="../../js/editeur/blocs.js"></script>
+  <script src="../../js/loupe-badge.js"></script>
+  <script src="../../js/navigation-config.js"></script>
+  <script src="../../js/banniere-site.js"></script>
+  <script src="../../js/entete-navigation.js"></script>
+  <script src="../../js/pages/parent-suivi-enfant.js"></script>
+  <footer></footer>
+  <script src="../../js/pied-de-page.js"></script>
+</body>
+</html>
