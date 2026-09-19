@@ -1646,3 +1646,25 @@ body.theme-clair-compte .entete-kekeli-sousmenu a:hover { background: var(--clai
   body.theme-clair-compte .entete-kekeli-zone { background: #ffffff; box-shadow: -10px 0 30px rgba(6,75,158,0.18); }
   body.theme-clair-compte .entete-kekeli-badge { text-align: center; }
 }
+
+/* ===========================================================================
+   Polices resserrées sur mobile (19 septembre 2026, demande explicite :
+   "Corrige l'affichage sur mobile. Profite pour réduire la taille des
+   police sur mobile"), en plus du correctif ciblé du hero de matière du
+   thème premium (voir css/theme-premium-eleve.css) : réduction générale et
+   MODÉRÉE (pas de zoom/scale, qui casserait les mises en page) des tailles
+   les plus visibles et les plus répétées sur les pages élève/parent/
+   enseignant (titres de page, sous-titres, section d'exercice/palier),
+   pour un rendu moins encombré sur un écran de téléphone. Les tailles déjà
+   ajustées page par page (accueil, cartes palier...) restent inchangées,
+   cette règle ne touche qu'aux classes génériques partagées par (quasi)
+   toutes les pages connectées. */
+@media (max-width: 480px) {
+  body { font-size: 14.5px; }
+  .titre-page { font-size: 20px; }
+  .titre-page.centre { font-size: 22px; }
+  .sous-titre-page { font-size: 12.5px; margin-bottom: 16px; }
+  .section-title-eleve { font-size: 16px; margin-bottom: 14px; }
+  .question-enonce { font-size: 14px; }
+  .lignes-association select, .options-association select, .categories-classement select { font-size: 13.5px; padding: 3px 5px; }
+}

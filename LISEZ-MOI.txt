@@ -1,56 +1,34 @@
-KEKELI — Livraison du 19 septembre 2026 (4e lot du jour) — Emploi du temps
+KEKELI — Livraison du 19 septembre 2026 (5e lot du jour) — Affichage mobile
 ===========================================================================
 
-NOUVELLE FONCTIONNALITÉ : EMPLOI DU TEMPS (CM1 et CM2)
+CORRECTIF D'AFFICHAGE MOBILE + POLICES RÉDUITES
 ---------------------------------------------------------------
-À partir de la maquette que vous avez fournie, une nouvelle page « 🗓️ Emploi
-du temps » a été ajoutée, accessible à TOUS les rôles liés à CM1 et CM2:
-élève, parent, enseignant, autorité pédagogique et administrateur. Chacun la
-retrouve dans son menu (pour l'enseignant, dans « 🗂️ Gestion administrative »
-avec le registre d'appel et la planification, comme demandé).
+D'après vos deux captures d'écran, deux choses ont été corrigées.
 
-QUI PEUT VOIR QUOI :
-- Un élève de CM1 ou CM2 voit l'emploi du temps de SA classe.
-- Un parent voit l'emploi du temps de la ou des classes de ses enfants.
-- Un enseignant voit l'emploi du temps des classes qui lui sont assignées
-  (parmi CM1/CM2) ; s'il a les deux classes, un sélecteur permet de passer de
-  l'une à l'autre.
-- Un administrateur et une autorité pédagogique voient les deux, avec le même
-  sélecteur.
+1) Sur la page « Mes matières » (thème premium), le carrousel de pilules
+« Unité 1 / Unité 2... » coupait la pilule suivante pile au bord, juste
+contre la flèche « › » — ce qui donnait l'impression que le texte
+chevauchait la flèche. Les pilules s'estompent maintenant progressivement
+sur les bords du carrousel au lieu d'être coupées net, ce qui indique aussi
+plus clairement qu'il y a d'autres unités à faire défiler.
 
-QUI PEUT LE MODIFIER : uniquement l'administrateur et l'enseignant de la
-classe concernée (même règle que le registre d'appel), avec un bouton
-« ✏️ Modifier » qui n'apparaît que pour eux — les autres voient la page en
-lecture seule. Le contrôle est fait côté base de données (règle de sécurité
-sur la table), jamais seulement côté écran.
+2) Comme demandé, les polices ont été réduites sur mobile (écrans étroits,
+en dessous de 480px de large) :
+- le titre du bandeau de matière (« Explore, apprends et progresse ! ») et
+  son sous-titre, qui prenaient beaucoup de hauteur en retombant sur
+  plusieurs lignes ;
+- les pilules d'unité du même carrousel ;
+- les titres de page et sous-titres de page, utilisés sur (quasi) toutes
+  les pages élève/parent/enseignant ;
+- le titre « 🎯 Paliers de cette séance » et l'énoncé des questions ;
+- les menus déroulants des questions de type « Relie chaque mot... ».
 
-CM1 ET CM2 ONT CHACUN LEUR PROPRE EMPLOI DU TEMPS, comme convenu avec vous :
-les deux ont été créés avec exactement le même contenu que votre maquette au
-départ, mais ils sont désormais totalement indépendants — modifier celui de
-CM1 ne touche pas celui de CM2, et inversement.
+Ces réductions ne s'appliquent QUE sur mobile (en dessous de 480px) : rien
+ne change sur ordinateur ou tablette.
 
-CE QUI EST MODIFIABLE : les horaires, le contenu de chaque case (matière,
-durée), les libellés des lignes de récréation/interclasse, les textes du
-bloc « Repos » du mercredi après-midi, les remarques officielles, le titre et
-le sous-titre. La STRUCTURE du tableau (nombre de lignes, quelles cases sont
-fusionnées — récréations, interclasse, repos du mercredi) reste fixe, comme
-pour la planification mensuelle : c'est le document officiel qui est
-respecté, seul son contenu se met à jour.
+Fichiers modifiés : css/theme-premium-eleve.css, css/style-public.css.
+Aucune migration, aucun fichier JavaScript touché — uniquement des
+ajustements CSS.
 
-CORRECTION DE LIBELLÉ : dans votre maquette, l'abréviation « RE CRÉA »
-apparaissait pour la récréation de l'après-midi (16h à 16h10) — elle a été
-remplacée par « RÉCRÉATION » comme demandé, pour être cohérente avec la
-récréation du matin.
-
-Fichiers ajoutés : css/emploi-du-temps.css, pages/emploi-du-temps.html,
-js/pages/emploi-du-temps.js.
-Fichier modifié : js/navigation-config.js (ajout du lien pour les 5 rôles).
-Base de données : nouvelle table emplois_du_temps (une ligne par classe,
-sécurité activée), déployée directement en base — aucun fichier de migration
-n'est conservé dans le projet, conformément à l'organisation déjà en place.
-
-Vérifications faites avant cette livraison : node --check sur les fichiers
-JS ajoutés/modifiés ; équilibre des accolades et des commentaires vérifié
-sur le CSS ajouté ; contrôle de sécurité (get_advisors) après la création de
-la table en base — aucune nouvelle alerte, seules les 3 alertes déjà connues
-et sans rapport avec cette fonctionnalité restent présentes.
+Vérifications faites avant cette livraison : équilibre des accolades et des
+commentaires CSS vérifié sur les deux fichiers modifiés.

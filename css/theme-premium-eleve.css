@@ -374,8 +374,20 @@ body.theme-premium-actif .fil-ariane-eleve a { color: var(--prem-bleu); }
   color: var(--prem-texte-gris); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .15s;
 }
 .prem-onglets-fleche:hover { background: var(--prem-bleu-clair); color: var(--prem-bleu); }
-.prem-onglets-unite { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; flex: 1; scroll-behavior: smooth; }
+.prem-onglets-unite {
+  display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; flex: 1; scroll-behavior: smooth;
+}
 .prem-onglets-unite::-webkit-scrollbar { display: none; }
+/* 19 septembre 2026 (correctif mobile, signalé par capture d'écran) : sans
+   ce dégradé de masquage, la pilule coupée par le bord droit du conteneur
+   défilant donnait l'impression de "chevaucher" la flèche "›" juste à côté
+   (coupure nette, sans transition) — corrigé en estompant progressivement
+   les pilules aux deux bords plutôt que de les couper net, ce qui indique
+   aussi visuellement qu'il y a plus de contenu à faire défiler. */
+.prem-onglets-unite {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+}
 .prem-onglet-unite {
   flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 10px 18px; border-radius: 18px;
   background: var(--prem-carte); border: 1px solid var(--prem-bordure); cursor: pointer; text-align: left;
@@ -390,6 +402,24 @@ body.theme-premium-actif .fil-ariane-eleve a { color: var(--prem-bleu); }
 /* Pierres rouges (tâche #155, 11 septembre 2026) : voir le même badge côté
    thème gratuit dans css/style-public.css. */
 .prem-onglet-unite-titre .pastille-pierres-diamant-mat { margin-left: 4px; }
+
+/* 19 septembre 2026 : correctif d'affichage mobile signalé par capture
+   d'écran (le titre du hero de matière retombait sur 3 lignes, poussant
+   tout le reste très bas) + demande explicite de réduire la taille des
+   polices sur mobile — polices resserrées pour ce hero et ces pilules
+   d'unité en dessous de 480px, sans toucher à leur apparence au-delà. */
+@media (max-width: 480px) {
+  .prem-hero-matiere { padding: 22px 20px; min-height: 0; gap: 12px; }
+  .prem-hero-matiere-mini { font-size: 11px; margin-bottom: 4px; }
+  .prem-hero-matiere-texte h1 { font-size: 21px; margin: 0 0 6px; }
+  .prem-hero-matiere-texte p { font-size: 12.5px; }
+  .prem-hero-matiere-illustration { font-size: 52px; }
+  .prem-onglet-unite { padding: 8px 13px; gap: 8px; }
+  .prem-onglet-unite-icone { width: 24px; height: 24px; font-size: 13px; }
+  .prem-onglet-unite-titre { font-size: 12px; }
+  .prem-onglet-unite-sous { font-size: 10px; max-width: 110px; }
+  .prem-onglets-fleche { width: 28px; height: 28px; }
+}
 
 /* --- Ligne de filtres --- */
 .prem-barre-filtres { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
