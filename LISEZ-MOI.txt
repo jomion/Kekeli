@@ -1,51 +1,57 @@
-KEKELI — Livraison du 19 septembre 2026 (7e lot du jour) — Mes progrès, Favoris, Mon profil
+KEKELI — Livraison du 19 septembre 2026 (8e lot du jour) — Ordre des séances, profil complet, vrai graphe de progrès
 ===========================================================================
 
-NOUVEAU : TROIS PAGES ÉLÈVE ACTIVÉES
+1) CORRECTIF : ORDRE DES SÉANCES
 ---------------------------------------------------------------
-Vous aviez demandé d'activer les pages "Mes progrès" et "Favoris" (jusque-là
-visibles mais désactivées dans le nouveau look premium), avec la courbe de
-progression pour la première et les matières marquées d'un coeur pour la
-seconde, ainsi qu'une vraie page "Profil" quand l'enfant appuie sur le
-bouton du même nom.
+Vous aviez signalé : "je veux juste que l'ordre du déroulement des
+séquences soit respecté au lieu que la séance 1 se retrouve en 3e
+position, et le 3e dans une autre position".
 
-1) MES PROGRÈS (pages/eleve/mes-progres.html)
-   - Une courbe qui montre le nombre total de séances terminées, semaine
-     après semaine (calculée à partir des séances déjà faites par l'élève —
-     rien à saisir).
-   - En dessous, le détail de la progression matière par matière (%
-     complété + nombre de séances terminées / publiées pour chaque
-     matière de la classe).
+Cause trouvée en base de données : de nombreuses séances (9 Situations
+d'Apprentissage, dont certaines avec 7 ou même 20 séances) avaient toutes
+été enregistrées avec la même valeur d'ordre (0), sans doute créées avant
+qu'un calcul automatique de l'ordre ne soit ajouté à la création d'une
+séance. Résultat : la base ne savait plus dans quel ordre les renvoyer, et
+les affichait dans un ordre qui ne correspondait pas à leur numérotation
+réelle (Séance 1, Séance 2...).
 
-2) FAVORIS (pages/eleve/favoris.html)
-   - Liste toutes les séances que l'élève a déjà "épinglées" avec le coeur
-     (ce coeur existait déjà sur les cartes de séance, dans Mes matières —
-     rien de nouveau à ce niveau-là), groupées par matière.
-   - On peut retirer une séance des favoris directement depuis cette page,
-     en cliquant à nouveau sur le coeur.
+Corrigé directement en base de données (aucun fichier à livrer pour cette
+partie) : chaque séance, chaque Situation d'Apprentissage et chaque niveau
+(Thème/Unité/Semaine...) a été renuméroté dans son bon ordre, en se basant
+sur sa date de création — qui correspond exactement à l'ordre voulu
+partout où c'était vérifiable. L'ordre d'affichage est désormais fiable
+partout sur le site (page Mes matières, emploi du temps, futurs parcours).
 
-3) MON PROFIL (pages/eleve/profil.html)
-   - Nouvelle page affichée quand l'enfant appuie sur "Profil" (barre du
-     bas, thème premium) : mascotte, prénom, classe, total d'étoiles et
-     total de badges. Une simple fiche à consulter, rien à modifier —
-     cohérent avec le choix déjà fait de ne rien faire remplir à l'élève
-     dans son profil.
+2) MON PROFIL : TOUTES LES INFORMATIONS DE L'ENFANT
+---------------------------------------------------------------
+Vous aviez signalé : "Le profil actuel de l'enfant n'affiche pas le nom et
+prénom de l'enfant. Je veux tous les informations sur l'enfant affiché
+même son identifiant."
 
-Les trois pages sont accessibles aussi bien avec le nouveau look premium
-(sidebar + barre du bas) qu'avec l'affichage classique (menu du haut), pour
-que ce soit disponible quel que soit l'affichage choisi par l'élève.
+La page "Mon profil" affiche maintenant : prénom ET nom, identifiant de
+connexion, email (si renseigné), sexe, date de naissance, classe,
+localisation (si renseignée), date d'inscription, dernière activité — ainsi
+qu'un petit récapitulatif des réglages posés par un parent (compte actif,
+messagerie autorisée, horaires de connexion limités). Toujours en lecture
+seule : rien n'est modifiable depuis cette page.
 
-Aucune nouvelle table ni modification de la base de données : tout est
-recalculé à partir de données déjà existantes (séances terminées, étoiles,
-badges, coeur des séances).
+3) MES PROGRÈS : UN VRAI GRAPHIQUE SUR L'ANNÉE SCOLAIRE
+---------------------------------------------------------------
+Vous aviez signalé : "La courbe du progrès est trop simpliste. Je veux un
+vrai graphe progressif au cours de l'année."
 
-Fichiers ajoutés : pages/eleve/mes-progres.html, pages/eleve/favoris.html,
-pages/eleve/profil.html, js/pages/eleve-mes-progres.js,
-js/pages/eleve-favoris.js, js/pages/eleve-profil.js.
-Fichiers modifiés : js/theme-premium-eleve.js (activation des liens),
-js/pages/eleve-matiere.js (bouton "Voir mes progrès" activé),
-js/navigation-config.js (accès depuis le menu classique).
+La courbe a été entièrement refaite : elle suit maintenant toute l'année
+scolaire (de septembre à juin), avec un point par mois, une ligne lissée,
+une zone remplie en dégradé sous la courbe, une grille de fond avec les
+valeurs à gauche, et tous les mois affichés en repère (même ceux à venir).
+Le cumul repart à 0 à chaque rentrée de septembre. Toujours dessiné à la
+main (aucune bibliothèque externe utilisée sur ce site).
+
+Fichiers modifiés : js/pages/eleve-profil.js, js/pages/eleve-mes-progres.js.
+Aucun fichier CSS touché (les nouvelles informations réutilisent les mêmes
+styles que le reste du profil).
 
 Vérifications faites avant cette livraison : vérification de syntaxe sur
-tous les fichiers JavaScript modifiés/ajoutés ; équilibre des accolades et
-des commentaires CSS vérifié sur les 3 nouvelles pages.
+les fichiers JavaScript modifiés ; contrôle de sécurité (RLS) relancé après
+la correction en base de données ; recalcul de l'ordre vérifié directement
+en base (plus aucune séance, SA ou niveau à égalité d'ordre).

@@ -2,14 +2,20 @@
 // Nouvelle page "Mes progrès" (19 septembre 2026, demande "Active les pages
 // mes progrès et favoris. Mes progrès affiche la courbe de progression" +
 // clarification AskUserQuestion, réponse "Les deux") : une courbe de
-// progression DANS LE TEMPS (nombre cumulé de séances terminées, semaine
-// après semaine) EN PLUS d'un détail de progression PAR MATIÈRE (même
-// principe que l'avancement global déjà affiché sur le tableau de bord —
-// voir progressionPct dans js/pages/eleve-tableau-de-bord.js — mais
+// progression DANS LE TEMPS EN PLUS d'un détail de progression PAR MATIÈRE
+// (même principe que l'avancement global déjà affiché sur le tableau de
+// bord — voir progressionPct dans js/pages/eleve-tableau-de-bord.js — mais
 // recalculé ICI matière par matière). Aucune nouvelle table : tout est
 // recalculé à partir de données déjà existantes (seances_terminees,
 // noeuds_parcours, sa, seances). Courbe dessinée à la main en SVG (aucune
 // bibliothèque de graphiques n'est utilisée sur ce projet).
+//
+// Courbe revue le même jour suite à "La courbe du progrès est trop
+// simpliste. Je veux un vrai graphe progressif au cours de l'année" :
+// remplace le cumul "10 dernières semaines" par un vrai suivi de l'ANNÉE
+// SCOLAIRE en cours (septembre à juin), un point par mois, avec courbe
+// lissée, zone remplie, grille et repères d'axes — toujours en SVG fait
+// main, mais avec un rendu de graphique complet.
 
 let profilProgresEleve = null;
 
@@ -91,67 +97,156 @@ let profilProgresEleve = null;
   `;
 })();
 
-// Regroupe les dates de fin de séance par semaine (lundi comme 1er jour),
-// cumule le nombre de séances terminées semaine après semaine (le cumul
-// n'est JAMAIS remis à zéro : il inclut tout l'historique antérieur, même
-// quand on ne garde ensuite que les dernières semaines pour l'affichage),
-// et ne conserve que les 10 dernières semaines pour rester lisible.
+// Les 10 mois d'une année scolaire type (septembre à juin), dans l'ordre —
+// septembre = mois calendaire 8 (0-indexé), d'où le calcul ci-dessous.
+const MOIS_ANNEE_SCOLAIRE_PROGRES = ['Sept', 'Oct', 'Nov', 'Déc', 'Janv', 'Févr', 'Mars', 'Avr', 'Mai', 'Juin'];
+
+// Cumule le nombre de séances terminées mois après mois, DEPUIS LE DÉBUT DE
+// L'ANNÉE SCOLAIRE EN COURS (le cumul repart donc à 0 à chaque rentrée de
+// septembre — "un vrai graphe progressif au cours de l'année", pas un
+// cumul de toute la scolarité). Un seul point par mois déjà entamé
+// (septembre → mois courant inclus) ; les mois pas encore atteints
+// n'ont pas de point (mais restent affichés sur l'axe, voir
+// rendreCourbeProgres) — la courbe s'arrête donc à "aujourd'hui".
 function construireDonneesCourbeProgres(dates) {
-  if (!dates || !dates.length) return [];
+  const aujourdhui = new Date();
+  const anneeDebut = aujourdhui.getMonth() >= 8 ? aujourdhui.getFullYear() : aujourdhui.getFullYear() - 1;
+  const debutAnneeScolaire = `${anneeDebut}-09-01`;
+  const moisCourantAbsolu = aujourdhui.getFullYear() * 12 + aujourdhui.getMonth();
+  const debutAnneeScolaireAbsolu = anneeDebut * 12 + 8; // septembre = mois 8
+
   const parJour = {};
-  dates.forEach(d => {
+  (dates || []).forEach(d => {
     const jour = (d || '').slice(0, 10);
-    if (!jour) return;
+    if (!jour || jour < debutAnneeScolaire) return; // hors année scolaire en cours
     parJour[jour] = (parJour[jour] || 0) + 1;
   });
-  const parSemaine = {};
-  Object.keys(parJour).sort().forEach(jour => {
-    const dt = new Date(jour + 'T00:00:00');
-    const decalage = (dt.getDay() + 6) % 7; // 0 = lundi
-    const lundi = new Date(dt);
-    lundi.setDate(dt.getDate() - decalage);
-    const cle = lundi.toISOString().slice(0, 10);
-    parSemaine[cle] = (parSemaine[cle] || 0) + parJour[jour];
-  });
-  const semaines = Object.keys(parSemaine).sort();
+  const joursTries = Object.keys(parJour).sort();
+
+  let curseur = 0;
   let cumul = 0;
-  const points = semaines.map(cle => { cumul += parSemaine[cle]; return { semaine: cle, cumul }; });
-  const NB_MAX_SEMAINES_COURBE = 10;
-  return points.length > NB_MAX_SEMAINES_COURBE ? points.slice(points.length - NB_MAX_SEMAINES_COURBE) : points;
+  const points = [];
+  for (let i = 0; i < MOIS_ANNEE_SCOLAIRE_PROGRES.length; i++) {
+    const moisAbsolu = debutAnneeScolaireAbsolu + i;
+    if (moisAbsolu > moisCourantAbsolu) break; // mois pas encore atteint
+    const anneeMois = Math.floor(moisAbsolu / 12);
+    const moisCalendaire = moisAbsolu % 12;
+    const estMoisCourant = moisAbsolu === moisCourantAbsolu;
+    const borneJour = (estMoisCourant ? aujourdhui : new Date(anneeMois, moisCalendaire + 1, 0)).toISOString().slice(0, 10);
+    while (curseur < joursTries.length && joursTries[curseur] <= borneJour) {
+      cumul += parJour[joursTries[curseur]];
+      curseur++;
+    }
+    points.push({ moisIndex: i, cumul, estMoisCourant });
+  }
+  return points;
+}
+
+// Arrondit une valeur maximale à un palier "propre" pour des graduations
+// lisibles (1/2/5 × une puissance de 10) — évite des graduations du genre
+// "0, 3.4, 6.8...".
+function maxNiceProgres(valeur) {
+  if (valeur <= 4) return 4;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(valeur)));
+  const normalise = valeur / magnitude;
+  const palier = normalise <= 1 ? 1 : normalise <= 2 ? 2 : normalise <= 5 ? 5 : 10;
+  return palier * magnitude;
+}
+
+// Courbe lissée (Catmull-Rom → Béziers cubiques, tension standard) pour un
+// rendu de "vrai graphique" plutôt qu'une ligne brisée point à point.
+function cheminLisseProgres(pts) {
+  if (pts.length < 2) return '';
+  if (pts.length === 2) return `M${pts[0][0]},${pts[0][1]} L${pts[1][0]},${pts[1][1]}`;
+  let d = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i === 0 ? i : i - 1];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2 < pts.length ? i + 2 : i + 1];
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += ` C${c1x},${c1y} ${c2x},${c2y} ${p2[0]},${p2[1]}`;
+  }
+  return d;
 }
 
 function rendreCourbeProgres(points) {
-  if (points.length < 2) {
-    return `<p style="text-align:center;color:var(--text-gris);margin:20px 0">
-      ${points.length === 1 ? "Continue à terminer des séances pour voir ta courbe apparaître !" : "Termine ta première séance pour commencer ta courbe de progression !"}
-    </p>`;
+  const largeur = 700, hauteur = 280;
+  const margeGauche = 34, margeDroite = 14, margeHaut = 16, margeBas = 30;
+  const zoneX0 = margeGauche, zoneX1 = largeur - margeDroite;
+  const zoneY0 = margeHaut, zoneY1 = hauteur - margeBas;
+  const nbMois = MOIS_ANNEE_SCOLAIRE_PROGRES.length;
+  const xMois = (i) => zoneX0 + (i / (nbMois - 1)) * (zoneX1 - zoneX0);
+
+  const maxCumul = maxNiceProgres(Math.max(...points.map(p => p.cumul), 1));
+  const yValeur = (v) => zoneY1 - (v / maxCumul) * (zoneY1 - zoneY0);
+
+  // Grille + graduations Y (0/25/50/75/100 % du maximum "propre").
+  const grille = [0, 0.25, 0.5, 0.75, 1].map(f => {
+    const y = zoneY1 - f * (zoneY1 - zoneY0);
+    const valeur = Math.round(f * maxCumul);
+    return `<line x1="${zoneX0}" y1="${y}" x2="${zoneX1}" y2="${y}" stroke="var(--bordure)" stroke-width="1" stroke-dasharray="${f === 0 ? '0' : '3,3'}"></line>
+      <text x="${zoneX0 - 8}" y="${y + 3}" font-size="10" text-anchor="end" fill="var(--text-gris)">${valeur}</text>`;
+  }).join('');
+
+  // Repères des 10 mois de l'année scolaire, TOUJOURS tous affichés (même
+  // ceux pas encore atteints), pour que le graphe montre bien "l'année"
+  // entière et pas seulement les données déjà là.
+  const axeMois = MOIS_ANNEE_SCOLAIRE_PROGRES.map((libelle, i) => {
+    const atteint = points.some(p => p.moisIndex === i);
+    return `<text x="${xMois(i)}" y="${hauteur - 8}" font-size="10.5" text-anchor="middle" fill="${atteint ? 'var(--text-gris)' : 'var(--bordure)'}">${libelle}</text>`;
+  }).join('');
+
+  if (!points.length) {
+    return `
+      <svg viewBox="0 0 ${largeur} ${hauteur}" class="progres-svg-courbe" role="img" aria-label="Graphique de progression de l'année scolaire, pas encore de données">
+        ${grille}${axeMois}
+      </svg>
+      <p style="text-align:center;color:var(--text-gris);font-size:13px;margin:6px 0 0">Termine ta première séance pour commencer ta courbe de progression !</p>
+    `;
   }
-  const largeur = 640, hauteur = 200, marge = 30;
-  const maxCumul = Math.max(...points.map(p => p.cumul), 1);
-  const pas = (largeur - marge * 2) / (points.length - 1);
-  const coord = (i, valeur) => {
-    const x = marge + i * pas;
-    const y = hauteur - marge - (valeur / maxCumul) * (hauteur - marge * 2);
-    return [x, y];
-  };
-  const chemin = points.map((p, i) => coord(i, p.cumul).join(',')).join(' ');
+
+  const coordPoints = points.map(p => [xMois(p.moisIndex), yValeur(p.cumul)]);
+
+  if (points.length === 1) {
+    const [x, y] = coordPoints[0];
+    return `
+      <svg viewBox="0 0 ${largeur} ${hauteur}" class="progres-svg-courbe" role="img" aria-label="Graphique de progression de l'année scolaire">
+        ${grille}${axeMois}
+        <circle cx="${x}" cy="${y}" r="5" fill="var(--bleu-kekeli)"><title>${points[0].cumul} séance${points[0].cumul > 1 ? 's' : ''} terminée${points[0].cumul > 1 ? 's' : ''}</title></circle>
+      </svg>
+      <p style="text-align:center;color:var(--text-gris);font-size:13px;margin:6px 0 0">Ta courbe s'affichera au fil des mois — continue comme ça !</p>
+    `;
+  }
+
+  const cheminCourbe = cheminLisseProgres(coordPoints);
+  const cheminAire = `${cheminCourbe} L${coordPoints[coordPoints.length - 1][0]},${zoneY1} L${coordPoints[0][0]},${zoneY1} Z`;
+  const dernierPoint = points[points.length - 1];
+  const [xDernier, yDernier] = coordPoints[coordPoints.length - 1];
+
   const cercles = points.map((p, i) => {
-    const [x, y] = coord(i, p.cumul);
-    return `<circle cx="${x}" cy="${y}" r="4" fill="var(--bleu-kekeli)"></circle>`;
+    const [x, y] = coordPoints[i];
+    const dernier = i === points.length - 1;
+    return `<circle cx="${x}" cy="${y}" r="${dernier ? 5.5 : 3.5}" fill="${dernier ? 'var(--bleu-kekeli)' : 'white'}" stroke="var(--bleu-kekeli)" stroke-width="2"><title>${MOIS_ANNEE_SCOLAIRE_PROGRES[p.moisIndex]} — ${p.cumul} séance${p.cumul > 1 ? 's' : ''} terminée${p.cumul > 1 ? 's' : ''}</title></circle>`;
   }).join('');
-  const etiquettes = points.map((p, i) => {
-    const [x] = coord(i, p.cumul);
-    const dt = new Date(p.semaine + 'T00:00:00');
-    const libelle = dt.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
-    return `<text x="${x}" y="${hauteur - 6}" font-size="10" text-anchor="middle" fill="var(--text-gris)">${libelle}</text>`;
-  }).join('');
+
   return `
-    <svg viewBox="0 0 ${largeur} ${hauteur}" class="progres-svg-courbe" role="img" aria-label="Courbe du nombre de séances terminées au fil des semaines">
-      <polyline points="${chemin}" fill="none" stroke="var(--bleu-kekeli)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"></polyline>
+    <svg viewBox="0 0 ${largeur} ${hauteur}" class="progres-svg-courbe" role="img" aria-label="Graphique de progression de l'année scolaire : nombre cumulé de séances terminées, mois après mois">
+      <defs>
+        <linearGradient id="degradeProgresCourbe" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--bleu-kekeli)" stop-opacity="0.32"></stop>
+          <stop offset="100%" stop-color="var(--bleu-kekeli)" stop-opacity="0"></stop>
+        </linearGradient>
+      </defs>
+      ${grille}
+      <path d="${cheminAire}" fill="url(#degradeProgresCourbe)"></path>
+      <path d="${cheminCourbe}" fill="none" stroke="var(--bleu-kekeli)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"></path>
       ${cercles}
-      ${etiquettes}
+      <text x="${Math.min(xDernier + 8, largeur - 12)}" y="${Math.max(yDernier - 10, 12)}" font-size="11" font-weight="700" text-anchor="${xDernier > largeur - 60 ? 'end' : 'start'}" fill="var(--bleu-kekeli)">${dernierPoint.cumul}</text>
+      ${axeMois}
     </svg>
-    <p style="text-align:center;color:var(--text-gris);font-size:13px;margin:6px 0 0">Nombre total de séances terminées, semaine après semaine</p>
+    <p style="text-align:center;color:var(--text-gris);font-size:13px;margin:6px 0 0">Nombre cumulé de séances terminées depuis la rentrée, mois après mois</p>
   `;
 }
 
