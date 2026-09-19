@@ -344,7 +344,12 @@ async function confirmerInscriptionEnfant({ prenom, nom, sexe, classe, identifia
   // c'est une limitation du SDK client sans fonction serveur dédiée.
   const { error: erreurProfil } = await supabaseClient.from('profils').insert({
     id: enfantId, role: 'eleve', nom, prenom, sexe: sexe || null, identifiant: identifiant.trim().toLowerCase(), email,
-    departement: departement || null, commune: commune || null, arrondissement: (arrondissement || '').trim() || null
+    departement: departement || null, commune: commune || null, arrondissement: (arrondissement || '').trim() || null,
+    // Mot de passe temporaire choisi par le PARENT (pas par l'enfant lui-même)
+    // -> changement obligatoire imposé à la première connexion de l'enfant,
+    // comme pour un compte admin créé par un autre administrateur (voir
+    // js/auth-utilisateur.js / chargerSessionEtProfil).
+    doit_changer_mot_de_passe: true
   });
   if (erreurProfil) return alert(erreurProfil.message);
 

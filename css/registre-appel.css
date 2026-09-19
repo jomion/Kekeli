@@ -92,6 +92,21 @@
    alerterExportVerrouillePL) sans donner l'impression d'une action normale. */
 .ga-btn-verrouille { opacity: 0.55; filter: grayscale(0.3); cursor: not-allowed; }
 
+/* 19 septembre 2026 : bouton "⚡" de génération automatique par ligne de la
+   planification mensuelle (voir genererAutoPL, js/pages/enseignant-planification.js) —
+   volontairement minuscule pour tenir dans l'étroite colonne "Discipline". */
+.ga-btn-generer-auto {
+  border: 1px solid var(--bordure);
+  background: #EEF2FF;
+  border-radius: 5px;
+  font-size: 10px;
+  line-height: 1;
+  padding: 2px 5px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.ga-btn-generer-auto:disabled { cursor: wait; }
+
 .ga-badge-active {
   font-size: 0.8rem;
   padding: 4px 10px;

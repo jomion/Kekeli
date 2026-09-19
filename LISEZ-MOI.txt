@@ -1,43 +1,97 @@
-KEKELI — Livraison du 19 septembre 2026 (9e lot du jour) — Débordement mobile des tableaux dans l'aperçu des séances
+KEKELI — Livraison du 19 septembre 2026 (10e lot du jour) — Compte racine, mot de passe obligatoire, planification automatique, remise à zéro des données de test
 ===========================================================================
 
-CORRECTIF : DÉBORDEMENT HORIZONTAL SUR MOBILE
+1) COMPTE RACINE : GESTION DE TOUS LES COMPTES
 ---------------------------------------------------------------
-Vous aviez signalé : "je parle du décalage horizontal de l'aperçu des
-séances : certaines séances dépassent la largeur de l'écran et je suis
-obligé de réduire le zoom du navigateur pour voir toute la séance."
+Vous aviez demandé d'avoir la main, en tant que compte le plus haut placé
+("compte racine" — celui ajouté directement en base, avant même l'existence
+de la page de création d'administrateurs, plus de prérogatives que les
+comptes super admin ajoutés ensuite), pour supprimer ou modifier n'importe
+quel compte ajouté sur le site.
 
-Cause trouvée : certains blocs de contenu affichent un tableau (bloc
-"Tableau", ou le tableau de correction du bloc "Problème"). Sur mobile, un
-tableau dont le texte ne peut pas se réduire davantage forçait toute la
-carte — et parfois toute la page — à s'élargir au-delà de l'écran, d'où le
-besoin de dézoomer le navigateur pour tout voir. C'est ce qui explique que
-seules CERTAINES séances étaient concernées : uniquement celles qui
-contiennent un tableau.
+C'est fait : votre compte (kekelieduc@gmail.com) est désormais identifié
+comme le compte racine. Une nouvelle page réservée à ce compte permet de :
+- voir la liste de tous les comptes du site, tous rôles confondus
+  (administrateurs, enseignants, parents, élèves) ;
+- modifier les informations d'un compte (nom, prénom, e-mail...) ;
+- le désactiver (réversible : le compte est bloqué mais tout son historique
+  reste intact, on peut le réactiver à tout moment) ;
+- ou le supprimer définitivement (irréversible).
+Les deux options de suppression sont disponibles, à choisir à chaque fois
+selon le cas.
 
-Corrigé : ces tableaux sont désormais placés dans une zone qui peut défiler
-horizontalement toute seule (comme cela avait déjà été fait avec succès
-pour le tableau de l'Emploi du Temps). Résultat :
-- la carte de la séance ne déborde plus jamais de l'écran ;
-- si un tableau est vraiment trop large pour un téléphone, on peut le faire
-  glisser du doigt à l'intérieur de sa propre zone, sans toucher au reste
-  de la page ;
-- plus besoin de réduire le zoom du navigateur pour voir une séance en
-  entier.
+Protection : le compte racine lui-même est totalement intouchable par cette
+fonctionnalité (ni modifiable, ni désactivable, ni supprimable — par
+personne, y compris par lui-même, à double vérification). Personne d'autre
+que le compte racine — pas même un super admin — ne peut accéder à cette
+page ni déclencher ces actions : la vérification se fait aussi bien sur le
+site que directement sur le serveur, donc impossible à contourner.
 
-Corrigé partout où un tableau peut apparaître en lecture : page de séance
-de l'élève, consultation en lecture seule pour un parent ou un enseignant,
-aperçu de l'administrateur, et le tableau de correction du bloc "Problème".
+2) MOT DE PASSE OBLIGATOIRE À LA PREMIÈRE CONNEXION
+---------------------------------------------------------------
+Vous aviez demandé que, dès qu'un compte est ajouté (par un administrateur
+ou par un parent qui inscrit son enfant, avec un mot de passe temporaire
+qu'il choisit lui-même), la personne soit obligée de changer ce mot de
+passe avant de pouvoir accéder au reste du site.
 
-Corrigé également, dans le même esprit : la liste des séances de l'espace
-administrateur/enseignant, qui pouvait elle aussi déborder légèrement sur
-un écran étroit — elle se replie maintenant proprement sur plusieurs
-lignes comme le fait déjà la liste de séances partagée.
+C'est fait : toute personne dans ce cas est automatiquement redirigée vers
+une page dédiée dès sa première connexion, où elle doit choisir son propre
+mot de passe avant de continuer — impossible d'accéder à quoi que ce soit
+d'autre tant que ce n'est pas fait. Cela ne concerne pas les comptes que
+l'on crée soi-même en s'inscrivant (parent, enseignant, autorité
+pédagogique) : ces personnes choisissent déjà leur vrai mot de passe dès
+l'inscription.
 
-Fichiers modifiés : css/style-public.css, css/style.css,
-js/pages/eleve-seance.js, js/lecture-seule-seance.js,
-js/pages/editeur-seance.js, js/editeur/blocs.js.
+3) GÉNÉRATION AUTOMATIQUE DE LA PLANIFICATION
+---------------------------------------------------------------
+Vous aviez demandé, à travers l'emploi du temps et les séances disponibles
+et à venir, de configurer la génération automatique de la planification,
+tout en gardant la possibilité de la faire à la main.
+
+C'est fait : sur la page de planification mensuelle (utilisée par les
+enseignants et les administrateurs), un bouton "Générer automatiquement"
+a été ajouté à côté de chaque ligne de matière. En un clic, il remplit les
+semaines à venir encore vides avec les prochaines séances déjà publiées de
+cette matière, dans leur bon ordre (en tenant compte des congés/jours
+fériés déjà enregistrés, qu'il évite automatiquement). Il ne touche
+JAMAIS une semaine déjà remplie à la main — l'option manuelle reste
+entièrement disponible et prioritaire, avant et après une génération
+automatique.
+
+4) REMISE À ZÉRO DES DONNÉES DE TEST
+---------------------------------------------------------------
+Comme demandé, puisque le site est encore en phase de test : toutes les
+données d'activité (réponses aux exercices, activités rendues, badges et
+étoiles gagnés, paliers validés, notes, messages, notifications, présences
+à l'appel, progression des compétences, devoirs rendus, abonnements et
+essais gratuits, etc. — 23 tables au total) ont été remises à zéro
+directement en base de données. Vos comptes et mots de passe, ainsi que
+tout le contenu pédagogique (classes, matières, séances, exercices...),
+n'ont pas été touchés.
+
+Les comptes publics (élèves, parents, enseignants, autorités pédagogiques)
+ont aussi été déconnectés partout où ils étaient connectés : ils devront se
+reconnecter avec leur mot de passe actuel (inchangé) à leur prochaine
+visite. Vos comptes administrateur/super admin/racine n'ont pas été
+déconnectés.
+
+Fichiers modifiés : js/entete-navigation.js, js/pages/admin-gestion-tous-
+les-comptes.js, pages/admin/gestion-tous-les-comptes.html,
+js/auth-utilisateur.js, js/auth-admin.js, js/pages/changer-mot-de-passe-
+oblige.js, pages/changer-mot-de-passe-oblige.html,
+js/pages/parent-tableau-de-bord.js, js/pages/enseignant-planification.js,
+css/registre-appel.css. Les points 1 à 3 incluent aussi des changements
+côté serveur (nouvelles fonctions et une nouvelle fonction "Edge" sur
+Supabase, mis en ligne directement, rien à installer). Le point 4 est une
+opération de base de données uniquement, aucun fichier à livrer pour cette
+partie.
 
 Vérifications faites avant cette livraison : vérification de syntaxe sur
 tous les fichiers JavaScript modifiés ; vérification de l'équilibre des
-accolades et des commentaires sur les deux fichiers CSS modifiés.
+accolades/commentaires sur le fichier CSS modifié ; contrôle de sécurité
+(RLS/permissions) relancé après chaque changement en base de données,
+sans aucune nouvelle alerte ; test réel de la génération automatique de
+planification sur une matière existante (bon ordre respecté, congés
+évités, pas de doublon en relançant deux fois) ; vérification des 23
+tables de données de test bien vides et des comptes/séances bien intacts
+après la remise à zéro.

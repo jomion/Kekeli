@@ -347,9 +347,12 @@ function html_tablePlan() {
       return `<td class="${colClasse}">${contenu}</td>`;
     }).join('');
 
+    const boutonGenererAuto = ligne.texteLibreSeulement ? '' :
+      `<button type="button" class="ga-btn-generer-auto" data-generer-ligne="${ligne.id}" title="Générer automatiquement les semaines vides à venir avec les prochaines séances publiées non encore utilisées">⚡</button>`;
+
     return `<tr>
       ${debutChamp ? `<td class="ga-plan-champ-cell" rowspan="${rowspanChamp}">${ligne.champLabel}</td>` : ''}
-      <td class="ga-plan-discipline-cell">${echapperPL(ligne.label)}</td>
+      <td class="ga-plan-discipline-cell">${echapperPL(ligne.label)} ${boutonGenererAuto}</td>
       ${cellulesSemaines}
     </tr>`;
   }).join('');
@@ -398,6 +401,10 @@ function wireZonePlan(annee, mois) {
 
   document.querySelectorAll('.ga-plan-cell-vide, .ga-plan-seance-item, .ga-plan-texte-item').forEach(el => {
     el.addEventListener('click', () => ouvrirSelecteurCellulePL(el.dataset.ligne, Number(el.dataset.semaine)));
+  });
+
+  document.querySelectorAll('[data-generer-ligne]').forEach(btn => {
+    btn.addEventListener('click', () => genererAutoPL(btn.dataset.genererLigne, btn));
   });
 
   document.getElementById('plBtnWord').addEventListener('click', alerterExportVerrouillePL);
@@ -526,6 +533,49 @@ function wireCellulesEtSemainesPL() {
   document.querySelectorAll('.ga-plan-cell-vide, .ga-plan-seance-item, .ga-plan-texte-item').forEach(el => {
     el.addEventListener('click', () => ouvrirSelecteurCellulePL(el.dataset.ligne, Number(el.dataset.semaine)));
   });
+  document.querySelectorAll('[data-generer-ligne]').forEach(btn => {
+    btn.addEventListener('click', () => genererAutoPL(btn.dataset.genererLigne, btn));
+  });
+}
+
+// ===========================================================================
+// Génération automatique — 19 septembre 2026 : "Générer automatiquement" par
+// ligne (classe + champ_formation + discipline/ligne_cle visible). Remplit
+// UNIQUEMENT les semaines vides à venir (aucun texte_libre ni seance_id déjà
+// présent) avec les prochaines séances publiées non encore utilisées ailleurs
+// dans cette discipline (toute la logique de séquencement/anti-doublon vit
+// côté SQL, fonction generer_planification_automatique, pour éviter toute
+// course si l'enseignant clique deux fois vite). Une cellule déjà remplie
+// (manuellement ou par une génération précédente) n'est jamais écrasée —
+// l'option manuelle reste toujours disponible et prioritaire. Une fois
+// posée, une cellule générée automatiquement est un enregistrement normal,
+// modifiable/remplaçable comme n'importe quelle cellule manuelle (aucun état
+// "verrouillé"/"auto" particulier).
+async function genererAutoPL(ligneId, btnEl) {
+  const ligne = PLAN_LIGNES.find(l => l.id === ligneId);
+  if (!ligne || ligne.texteLibreSeulement) return;
+
+  if (btnEl) { btnEl.disabled = true; btnEl.style.opacity = '0.5'; btnEl.style.cursor = 'wait'; }
+  try {
+    const [annee, mois] = moisPL.split('-').map(Number);
+    const { data, error } = await supabaseClient.rpc('generer_planification_automatique', {
+      p_classe_id: classeSelPL,
+      p_champ_formation_id: ligne.champFormationId,
+      p_ligne_cle: ligne.id,
+      p_annee: annee,
+      p_mois_debut: mois,
+      p_disciplines: ligne.disciplines,
+      p_discipline_prefix: !!ligne.disciplinePrefix
+    });
+    if (error) { alert('Erreur de génération automatique : ' + error.message); return; }
+    if (!data || !data.length) {
+      alert("Aucune semaine vide à venir n'a pu être planifiée automatiquement (semaines déjà remplies/congés/évaluations, ou plus aucune séance publiée disponible pour cette discipline).");
+      return;
+    }
+    await chargerEtAfficherPlan();
+  } finally {
+    if (btnEl) { btnEl.disabled = false; btnEl.style.opacity = ''; btnEl.style.cursor = ''; }
+  }
 }
 
 // ===========================================================================

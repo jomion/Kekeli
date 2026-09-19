@@ -53,6 +53,15 @@ async function requireAdmin() {
     window.location.href = `${_racine()}pages/admin/connexion.html`;
     return null;
   }
+  // 19 septembre 2026 : changement de mot de passe obligatoire pour un
+  // compte admin/super_admin créé par un autre super_admin (mot de passe
+  // temporaire, voir gerer-administrateurs) — même règle que pour les autres
+  // rôles (voir js/auth-utilisateur.js / chargerSessionEtProfil), dupliquée
+  // ici car les pages purement admin ne chargent pas ce fichier-là.
+  if (profil.doit_changer_mot_de_passe === true && !/\/changer-mot-de-passe-oblige\.html$/i.test(window.location.pathname)) {
+    window.location.href = `${_racine()}pages/changer-mot-de-passe-oblige.html`;
+    return null;
+  }
   // Retient la page courante pour que "Accéder à mon espace" sur l'accueil
   // y ramène directement (voir index.html et la même logique dans
   // js/auth-utilisateur.js — dupliquée ici car les pages purement admin ne

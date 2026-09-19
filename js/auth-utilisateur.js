@@ -295,6 +295,18 @@ async function chargerSessionEtProfil() {
     window.location.href = urlLogin();
     return null;
   }
+  // 19 septembre 2026 : changement de mot de passe obligatoire — posé ici,
+  // au point d'entrée unique de toutes les pages "utilisateur" (parent,
+  // élève, enseignant, autorité pédagogique), pour couvrir toutes les pages
+  // sans avoir à modifier chacune d'elles. Concerne les comptes créés par un
+  // administrateur avec un mot de passe temporaire (profils
+  // .doit_changer_mot_de_passe, jamais vrai pour un compte auto-inscrit) —
+  // voir pages/changer-mot-de-passe-oblige.html, seule page exemptée pour ne
+  // pas boucler sur elle-même.
+  if (profil.doit_changer_mot_de_passe === true && !/\/changer-mot-de-passe-oblige\.html$/i.test(window.location.pathname)) {
+    window.location.href = `${_racine()}pages/changer-mot-de-passe-oblige.html`;
+    return null;
+  }
   const acces = await verifierAccesEleveAutorise(profil);
   if (!acces.autorise) {
     await supabaseClient.auth.signOut();
@@ -312,7 +324,7 @@ async function chargerSessionEtProfil() {
 // il n'y a aucun sens à "revenir" dessus.
 function memoriserDernierePageVisitee() {
   try {
-    if (/\/(login|inscription|completer-profil)\.html$/i.test(window.location.pathname)) return;
+    if (/\/(login|inscription|completer-profil|changer-mot-de-passe-oblige)\.html$/i.test(window.location.pathname)) return;
     localStorage.setItem('kekeli_derniere_page', window.location.pathname + window.location.search);
   } catch (_e) { /* stockage indisponible -> tant pis, comportement par défaut conservé */ }
 }

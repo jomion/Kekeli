@@ -182,6 +182,34 @@ async function initEnteteNavigation(config) {
   const header = document.querySelector('header');
   if (!header) return;
 
+  // 19 septembre 2026 : lien vers "Gestion de tous les comptes"
+  // (pages/admin/gestion-tous-les-comptes.html), réservé au COMPTE RACINE
+  // (administrateurs.est_racine — voir cette même migration), pas seulement
+  // au super_admin. Ajouté ici, de façon centralisée, plutôt que dans
+  // js/navigation-config.js + chaque page admin (qui ne connaissent que le
+  // drapeau super_admin) : ça évite de toucher aux ~15 pages admin
+  // existantes (dont certaines purement pédagogiques, ex. éditeur de
+  // séance) juste pour un lien de menu cosmétique — la vraie protection est
+  // de toute façon revérifiée côté serveur par la fonction
+  // "gerer-tous-les-comptes", ce lien n'est qu'un confort d'affichage. On
+  // déduit le préfixe de dossier à utiliser (ex. "" depuis pages/admin/*.html,
+  // "admin/" depuis pages/navigation.html) à partir du lien "tableau-de-bord"
+  // déjà présent (toujours fourni, jamais masquable) plutôt que de le
+  // recevoir en paramètre.
+  if (config.role === 'admin' && config.utilisateurId) {
+    try {
+      const { data: adminSoi } = await supabaseClient.from('administrateurs').select('est_racine').eq('id', config.utilisateurId).maybeSingle();
+      if (adminSoi?.est_racine && !(config.liens || []).some(l => l.id === 'gestion-tous-les-comptes')) {
+        const lienTableauDeBord = (config.liens || []).find(l => l.id === 'tableau-de-bord');
+        const prefixeAdmin = lienTableauDeBord ? lienTableauDeBord.href.replace(/tableau-de-bord\.html$/, '') : '';
+        config.liens = [...(config.liens || []), {
+          id: 'gestion-tous-les-comptes', href: `${prefixeAdmin}gestion-tous-les-comptes.html`,
+          icone: '🔑', label: 'Tous les comptes (racine)', categorie: 'comptes'
+        }];
+      }
+    } catch (_e) { /* préférence non disponible -> pas grave, le lien n'apparaît pas */ }
+  }
+
   let liensMasques = [];
   let raccourcisPerso = [];
   let themePremiumActif = false;
