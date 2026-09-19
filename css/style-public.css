@@ -796,6 +796,15 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .bloc-lecture table { border-collapse: collapse; width: 100%; }
 .bloc-lecture table td { border: 1px solid var(--bordure); padding: 6px; }
 .bloc-lecture table th { border: 1px solid var(--bordure); padding: 6px; background: #F1F5F9; font-weight: 700; text-align: left; }
+/* Conteneur de défilement horizontal pour tout tableau affiché en mode
+   lecture (bloc "Tableau" et tableau du bloc "Problème") — évite que le
+   tableau ne fasse déborder toute la carte/la page sur mobile (demande du
+   19 septembre 2026 : "certaines séances dépassent la largeur de l'écran").
+   Même principe que .edt-table-scroll (css/emploi-du-temps.css), déjà en
+   place et éprouvé pour l'Emploi du Temps. Le tableau garde sa largeur
+   naturelle (100%) tant qu'elle tient dans la carte ; sinon, seule cette
+   zone défile horizontalement — jamais la page entière. */
+.tableau-lecture-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 /* Le contenu riche (texte/définition/exemple...) vient de l'éditeur admin :
    selon comment il a été saisi ou collé, il peut porter ses propres marges
    ou indentations. On les neutralise pour qu'il reste toujours aligné avec

@@ -1,57 +1,43 @@
-KEKELI — Livraison du 19 septembre 2026 (8e lot du jour) — Ordre des séances, profil complet, vrai graphe de progrès
+KEKELI — Livraison du 19 septembre 2026 (9e lot du jour) — Débordement mobile des tableaux dans l'aperçu des séances
 ===========================================================================
 
-1) CORRECTIF : ORDRE DES SÉANCES
+CORRECTIF : DÉBORDEMENT HORIZONTAL SUR MOBILE
 ---------------------------------------------------------------
-Vous aviez signalé : "je veux juste que l'ordre du déroulement des
-séquences soit respecté au lieu que la séance 1 se retrouve en 3e
-position, et le 3e dans une autre position".
+Vous aviez signalé : "je parle du décalage horizontal de l'aperçu des
+séances : certaines séances dépassent la largeur de l'écran et je suis
+obligé de réduire le zoom du navigateur pour voir toute la séance."
 
-Cause trouvée en base de données : de nombreuses séances (9 Situations
-d'Apprentissage, dont certaines avec 7 ou même 20 séances) avaient toutes
-été enregistrées avec la même valeur d'ordre (0), sans doute créées avant
-qu'un calcul automatique de l'ordre ne soit ajouté à la création d'une
-séance. Résultat : la base ne savait plus dans quel ordre les renvoyer, et
-les affichait dans un ordre qui ne correspondait pas à leur numérotation
-réelle (Séance 1, Séance 2...).
+Cause trouvée : certains blocs de contenu affichent un tableau (bloc
+"Tableau", ou le tableau de correction du bloc "Problème"). Sur mobile, un
+tableau dont le texte ne peut pas se réduire davantage forçait toute la
+carte — et parfois toute la page — à s'élargir au-delà de l'écran, d'où le
+besoin de dézoomer le navigateur pour tout voir. C'est ce qui explique que
+seules CERTAINES séances étaient concernées : uniquement celles qui
+contiennent un tableau.
 
-Corrigé directement en base de données (aucun fichier à livrer pour cette
-partie) : chaque séance, chaque Situation d'Apprentissage et chaque niveau
-(Thème/Unité/Semaine...) a été renuméroté dans son bon ordre, en se basant
-sur sa date de création — qui correspond exactement à l'ordre voulu
-partout où c'était vérifiable. L'ordre d'affichage est désormais fiable
-partout sur le site (page Mes matières, emploi du temps, futurs parcours).
+Corrigé : ces tableaux sont désormais placés dans une zone qui peut défiler
+horizontalement toute seule (comme cela avait déjà été fait avec succès
+pour le tableau de l'Emploi du Temps). Résultat :
+- la carte de la séance ne déborde plus jamais de l'écran ;
+- si un tableau est vraiment trop large pour un téléphone, on peut le faire
+  glisser du doigt à l'intérieur de sa propre zone, sans toucher au reste
+  de la page ;
+- plus besoin de réduire le zoom du navigateur pour voir une séance en
+  entier.
 
-2) MON PROFIL : TOUTES LES INFORMATIONS DE L'ENFANT
----------------------------------------------------------------
-Vous aviez signalé : "Le profil actuel de l'enfant n'affiche pas le nom et
-prénom de l'enfant. Je veux tous les informations sur l'enfant affiché
-même son identifiant."
+Corrigé partout où un tableau peut apparaître en lecture : page de séance
+de l'élève, consultation en lecture seule pour un parent ou un enseignant,
+aperçu de l'administrateur, et le tableau de correction du bloc "Problème".
 
-La page "Mon profil" affiche maintenant : prénom ET nom, identifiant de
-connexion, email (si renseigné), sexe, date de naissance, classe,
-localisation (si renseignée), date d'inscription, dernière activité — ainsi
-qu'un petit récapitulatif des réglages posés par un parent (compte actif,
-messagerie autorisée, horaires de connexion limités). Toujours en lecture
-seule : rien n'est modifiable depuis cette page.
+Corrigé également, dans le même esprit : la liste des séances de l'espace
+administrateur/enseignant, qui pouvait elle aussi déborder légèrement sur
+un écran étroit — elle se replie maintenant proprement sur plusieurs
+lignes comme le fait déjà la liste de séances partagée.
 
-3) MES PROGRÈS : UN VRAI GRAPHIQUE SUR L'ANNÉE SCOLAIRE
----------------------------------------------------------------
-Vous aviez signalé : "La courbe du progrès est trop simpliste. Je veux un
-vrai graphe progressif au cours de l'année."
-
-La courbe a été entièrement refaite : elle suit maintenant toute l'année
-scolaire (de septembre à juin), avec un point par mois, une ligne lissée,
-une zone remplie en dégradé sous la courbe, une grille de fond avec les
-valeurs à gauche, et tous les mois affichés en repère (même ceux à venir).
-Le cumul repart à 0 à chaque rentrée de septembre. Toujours dessiné à la
-main (aucune bibliothèque externe utilisée sur ce site).
-
-Fichiers modifiés : js/pages/eleve-profil.js, js/pages/eleve-mes-progres.js.
-Aucun fichier CSS touché (les nouvelles informations réutilisent les mêmes
-styles que le reste du profil).
+Fichiers modifiés : css/style-public.css, css/style.css,
+js/pages/eleve-seance.js, js/lecture-seule-seance.js,
+js/pages/editeur-seance.js, js/editeur/blocs.js.
 
 Vérifications faites avant cette livraison : vérification de syntaxe sur
-les fichiers JavaScript modifiés ; contrôle de sécurité (RLS) relancé après
-la correction en base de données ; recalcul de l'ordre vérifié directement
-en base (plus aucune séance, SA ou niveau à égalité d'ordre).
+tous les fichiers JavaScript modifiés ; vérification de l'équilibre des
+accolades et des commentaires sur les deux fichiers CSS modifiés.

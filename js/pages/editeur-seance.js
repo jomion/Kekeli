@@ -2550,7 +2550,7 @@ async function ouvrirApercu() {
         const style = c.entete && i === 0 ? ` style="background:${couleurEntete};font-weight:800;color:${texteEntete}"` : '';
         return `<tr${style}>${l.map((cel, j) => masquee(i, j) ? '' : `<td ${colspan(i, j) > 1 ? `colspan="${colspan(i, j)}"` : ''}>${echapper(cel)}</td>`).join('')}</tr>`;
       }).join('');
-      corps = `${c.titre ? `<p style="font-weight:700;margin-bottom:6px">${echapper(c.titre)}</p>` : ''}<table>${lignesHtml}</table>`;
+      corps = `${c.titre ? `<p style="font-weight:700;margin-bottom:6px">${echapper(c.titre)}</p>` : ''}<div class="tableau-lecture-scroll"><table>${lignesHtml}</table></div>`;
     }
     else if (b.type_bloc === 'html_libre') corps = html_blocHtmlLibre(c.code, libelle);
     else if (b.type_bloc === 'probleme') corps = html_lectureProbleme(c, b.id);

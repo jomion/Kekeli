@@ -282,11 +282,11 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 
 .liste-lignes { display: flex; flex-direction: column; gap: 8px; }
 .ligne {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
   background: var(--blanc); border-radius: 8px; padding: 12px 16px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
-.ligne .titre-ligne { font-weight: 600; font-size: 14px; }
+.ligne .titre-ligne { font-weight: 600; font-size: 14px; min-width: 0; }
 .statut-pill { font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: 700; }
 .statut-brouillon { background: #F1F5F9; color: var(--texte-gris); }
 .statut-publie { background: #E6F9EF; color: #0F7A45; }
@@ -620,6 +620,10 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 
 /* Lecture / corrigé (tableau à 2 colonnes, une ligne par étape). */
 .enonce-probleme { margin-bottom: 10px; }
+/* Conteneur de défilement horizontal pour tout tableau affiché en mode
+   lecture (voir css/style-public.css pour le détail) — mirroré ici pour
+   l'aperçu admin (pages/editeur-seance.html, qui charge ce fichier). */
+.tableau-lecture-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .tableau-probleme-lecture-v2 { width: 100%; border-collapse: collapse; margin-top: 8px; }
 .tableau-probleme-lecture-v2 td { border: 1px solid var(--bordure); padding: 10px; vertical-align: top; }
 .cellule-solution-probleme-lecture { width: 38%; font-size: 13px; }

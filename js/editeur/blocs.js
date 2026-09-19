@@ -776,7 +776,7 @@ function html_lectureProbleme(c, blocId) {
   return `
     ${c.enonce ? `<div class="contenu-riche-lecture enonce-probleme">${contenuRicheInitial(c.enonce)}</div>` : ''}
     ${html_prepDonneesInconnuesProbleme(c, lignes)}
-    ${lignesHtml ? `<table class="tableau-probleme-lecture-v2"><tbody>${lignesHtml}</tbody></table>` : ''}
+    ${lignesHtml ? `<div class="tableau-lecture-scroll"><table class="tableau-probleme-lecture-v2"><tbody>${lignesHtml}</tbody></table></div>` : ''}
     ${explicationsDessous.length ? `<div class="explications-dessous-probleme">${explicationsDessous.map(explicationHtml).join('')}</div>` : ''}
   `;
 }
