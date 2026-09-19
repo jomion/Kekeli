@@ -6,6 +6,26 @@ let champsFormation = [];
 let classeSelectionneeEns = null;
 let champSelectionneEns = null;
 let elevesSuivisIds = []; // élèves dont l'abonnement est accepté pour cet enseignant
+// 18 septembre 2026 (4e lot) : "le devoir rendu par l'élève n'est pas reçu
+// par l'enseignant" — cause enfin trouvée après plusieurs re-vérifications
+// côté base : cette page ne construisait la liste des classes ET des élèves
+// visibles qu'à partir de abonnements_enseignant_eleve (le suivi individuel
+// élève par élève, demandé par un parent puis accepté par l'enseignant),
+// alors que peut_gerer_classe_champ() (qui protège réellement les données
+// en RLS) autorise aussi l'accès via enseignants.classes_assignees (une
+// classe attribuée administrativement à l'enseignant, voir Gestion
+// administrative/registre d'appel qui utilise déjà ce même champ pour ses
+// "vraies données de la classe assignée"). Un enseignant avec une classe
+// assignée mais peu ou pas d'abonnements individuels dans cette classe ne
+// voyait donc, au mieux, qu'une poignée d'élèves dans le panneau de gestion
+// des devoirs — les autres élèves de la même classe (et leurs devoirs
+// rendus, pourtant bien enregistrés et bien notifiés) restaient
+// invisibles, alors même que la RLS les autorisait à être lus. Corrigé en
+// traitant classes_assignees comme un accès à la classe ENTIÈRE (tous ses
+// élèves, comme côté admin), tout en gardant le suivi par abonnement pour
+// les classes accédées uniquement de cette façon (voir classesAssigneesEns
+// plus bas).
+let classesAssigneesEns = []; // classes attribuées administrativement (accès à TOUS les élèves de la classe)
 let devoirOuvertEns = null; // id du devoir dont le panneau de rendus est déplié
 
 (async function () {
@@ -16,13 +36,16 @@ let devoirOuvertEns = null; // id du devoir dont le panneau de rendus est dépli
     liens: liensAvecPrefixe('enseignant', '')
   });
 
-  const { data: abonnements } = await supabaseClient
-    .from('abonnements_enseignant_eleve')
-    .select('eleve_id, eleves(classe_id)')
-    .eq('enseignant_id', profilEnseignant.id).eq('statut', 'accepte');
+  const [{ data: abonnements }, { data: enseignantRow }] = await Promise.all([
+    supabaseClient.from('abonnements_enseignant_eleve')
+      .select('eleve_id, eleves(classe_id)')
+      .eq('enseignant_id', profilEnseignant.id).eq('statut', 'accepte'),
+    supabaseClient.from('enseignants').select('classes_assignees').eq('id', profilEnseignant.id).single()
+  ]);
 
   elevesSuivisIds = (abonnements || []).map(a => a.eleve_id);
-  const idsClasses = [...new Set((abonnements || []).map(a => a.eleves?.classe_id).filter(Boolean))];
+  classesAssigneesEns = (enseignantRow?.classes_assignees || []).map(Number);
+  const idsClasses = [...new Set([...(abonnements || []).map(a => a.eleves?.classe_id).filter(Boolean), ...classesAssigneesEns])];
 
   if (idsClasses.length === 0) {
     document.getElementById('contenu').innerHTML = `
@@ -88,8 +111,13 @@ async function afficherGestionEns() {
   const zone = document.getElementById('zoneGestionEns');
   zone.innerHTML = '<p style="color:var(--text-gris)">Chargement...</p>';
 
-  const { data: eleves } = await supabaseClient.from('eleves').select('id, profils(prenom, nom)')
-    .eq('classe_id', classeSelectionneeEns).in('id', elevesSuivisIds);
+  // Classe attribuée administrativement : accès à TOUS les élèves de la
+  // classe (comme côté admin) — sinon (classe atteinte uniquement via un
+  // suivi individuel), on garde le filtre historique sur les seuls élèves
+  // suivis, voir la note en tête de fichier.
+  const classeEstAssigneeEns = classesAssigneesEns.includes(Number(classeSelectionneeEns));
+  const requeteElevesEns = supabaseClient.from('eleves').select('id, profils(prenom, nom)').eq('classe_id', classeSelectionneeEns);
+  const { data: eleves } = classeEstAssigneeEns ? await requeteElevesEns : await requeteElevesEns.in('id', elevesSuivisIds);
   const idsEleves = (eleves || []).map(e => e.id);
   const { data: devoirs } = await supabaseClient.from('devoirs').select('*, seances(titre)').eq('classe_id', classeSelectionneeEns).eq('champ_formation_id', champSelectionneEns).order('date_limite');
   const { data: evaluations } = idsEleves.length

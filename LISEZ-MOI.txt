@@ -1,52 +1,57 @@
-KEKELI — Livraison : la correction ne doit plus se dévoiler dès le 1er essai
+KEKELI — Livraison : cause enfin trouvée pour les devoirs invisibles côté enseignant
 ================================================================================
 
-Cette livraison répond à votre dernier message : sur la capture d'écran d'un
-exercice noté par l'IA (question ouverte type "Quelle fonction remplit le
-récepteur..."), une réponse fausse dès le premier essai affichait quand même
-le commentaire explicatif de l'IA — qui, pour être pédagogique, décrit
-souvent la bonne réponse. Résultat : la correction fuitait avant l'heure,
-même si le mot "Incorrect" était bien affiché.
-
-1. Le commentaire de l'IA ne se dévoile plus avant l'heure
+1. Le devoir rendu par l'élève n'est ENFIN plus invisible pour l'enseignant
 ------------------------------------------------------------------------
-Corrigé dans les deux écrans concernés (une séance ET un devoir) : le
-commentaire pédagogique renvoyé par l'IA pour les questions à réponse ouverte
-(question ouverte, Vrai/Faux justifié) n'est désormais affiché que dans les
-mêmes conditions que la vraie correction : la question a été réussie à 100%,
-ou la correction a déjà été débloquée (dernier essai possible, ou palier
-réussi côté séance). Sur une réponse fausse avant ce moment-là, seul le badge
-"❌ Incorrect" (ou "🟡 X/Y tâches réussies") reste visible — sans aucun texte
-qui laisserait deviner la bonne réponse. Un message système ("en attente de
-correction, l'IA était indisponible") reste toujours affiché : il ne révèle
-jamais rien.
+Ce signalement était revenu trois fois malgré des vérifications déjà faites
+côté base de données (contenu bien enregistré, notification correcte,
+permissions correctes). Cette fois, la cause a été trouvée en dehors de la
+base : dans la page "Devoirs & notes" de l'enseignant, la liste des classes
+ET des élèves affichés ne se construisait qu'à partir du "suivi" élève par
+élève (un parent demande le suivi d'un enseignant précis, l'enseignant
+accepte) — alors qu'un enseignant peut aussi avoir une classe qui lui est
+attribuée directement par l'administration (Gestion administrative), ce qui
+lui donne bien le droit de tout voir/corriger dans cette classe, mais que
+cette page ignorait complètement pour choisir QUI afficher.
 
-2. Correction au passage : l'affichage des résultats d'un devoir à
-   questions (Évaluation/Activités) était en réalité toujours bloqué sur
-   "en attente de correction"
+Concrètement, avec une classe de 4 élèves attribuée à un enseignant, si un
+seul de ces 4 élèves avait fait l'objet d'un suivi individuel accepté, les 3
+autres élèves de la même classe (et donc leurs devoirs rendus, pourtant bien
+enregistrés et bien notifiés) restaient invisibles dans le panneau de
+gestion — pas de ligne, pas de contenu, alors que l'enseignant avait bien le
+droit de les corriger. D'où l'impression exacte que vous décriviez : la
+notification arrive, mais jamais le contenu.
+
+Corrigé : une classe attribuée directement à l'enseignant affiche
+maintenant TOUS ses élèves dans le panneau de gestion des devoirs, comme
+c'est déjà le cas côté administration — le suivi individuel reste utilisé
+uniquement pour les classes atteintes uniquement par ce biais (aucune
+classe attribuée). Vérifié directement en base sur votre propre enseignant
+de test : sa classe (CM2) compte 4 élèves, dont un seul était visible avant
+ce correctif.
+
+Fichier modifié : js/pages/enseignant-devoirs-notes.js
+
+2. Le nombre de tâches d'un palier revient après son nom, entre parenthèses
 ------------------------------------------------------------------------
-En corrigeant le point 1, une seconde anomalie plus ancienne a été repérée
-sur l'écran de résultat d'un devoir à blocs "Évaluation"/"Activités" : ce
-code utilisait encore un nom de champ ("correct") qui n'existe plus depuis
-la refonte du moteur de notation par tâches (11 septembre 2026) — chaque
-question y affichait donc systématiquement "⏳ En attente de correction",
-même quand elle avait bien été corrigée, juste ou fausse. Corrigé pour
-utiliser le même calcul que côté séance (nombre de tâches réussies sur le
-total) : l'affichage des résultats d'un devoir à questions montre maintenant
-le vrai statut de chaque question.
+Le titre d'un palier affichait le nombre total de tâches tout devant, avant
+le nom du palier (ex. "12 tâches — Azɔ̀ví — 8/12 réussies (67%)"). Sur votre
+demande, ce total revient après le nom, entre parenthèses, sans toucher à
+l'affichage de la progression juste à côté : "Azɔ̀ví (12 tâches) — 8/12
+réussies (67%)". Même changement pour un palier encore verrouillé.
 
-Fichiers modifiés : js/pages/eleve-seance.js, js/pages/eleve-devoir-rendu.js
+Fichier modifié : js/pages/eleve-seance.js
 
-Concernant votre autre remarque (l'enseignant ne recevrait toujours pas le
-contenu du devoir rendu, malgré la correction déjà livrée sur le lien de
-notification) : après vérification directe et approfondie dans la base de
-données (RLS, contenu réellement enregistré, permissions de l'enseignant),
-tout est en ordre côté serveur — le contenu rendu par l'élève ("Ferme" /
-"Cool" pour votre test) est bien présent et lisible par l'enseignant avec le
-code actuel. Cela pointe fortement vers un point à vérifier de votre côté :
-assurez-vous d'avoir bien déployé sur votre hébergement les fichiers des
-dernières livraisons (celles portant sur les devoirs), et pensez à dérouler
-("cliquer sur") la ligne de l'élève concerné dans le panneau de gestion du
-devoir — le détail de sa réponse y est replié par défaut. Si le problème
-persiste après vérification de ces deux points, dites-le-moi avec une
-nouvelle capture d'écran du panneau ouvert, pour que je creuse plus loin.
+3. Bouton "Classes" de la page d'accueil : reste sur la page au lieu de l'ouvrir
+------------------------------------------------------------------------
+Dans le menu du haut de la page d'accueil, le lien "Classes" ouvrait la
+vraie page de navigation des classes (celle utilisée une fois connecté). Il
+défile désormais simplement vers la section "Nos classes" de la page
+d'accueil elle-même — exactement comme le fait déjà le lien "Paliers" juste
+à côté. Vérifié dans un navigateur réel : le clic reste sur la page
+d'accueil et affiche bien la section.
+
+Fichier modifié : index.html
+
+Aucune migration dans cette livraison (les 3 correctifs sont entièrement
+frontend).

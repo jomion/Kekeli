@@ -433,23 +433,25 @@ function html_sectionPaliers(blocsParPalier) {
       const libelle = LIBELLES_PALIER_ELEVE[p.palier] || p.palier;
       const blocs = (blocsParPalier[p.palier] || []).sort((a, b) => a.ordre - b.ordre);
       if (!p.deverrouille) {
-        // 18 septembre 2026 (3e lot) : le nombre total de tâches est
-        // désormais annoncé EN PREMIER, devant le nom du palier (demande
-        // explicite), plutôt qu'après.
+        // 18 septembre 2026 (4e lot) : le nombre total de tâches revient
+        // entre parenthèses, juste APRÈS le nom du palier (le 3e lot du même
+        // jour l'avait mis devant le nom — nouvelle demande explicite de le
+        // replacer après, tout en gardant intacte l'info de progression
+        // affichée juste à côté pour un palier déverrouillé, voir ci-dessous).
         return `<div class="bloc-lecture" style="border-left-color:#94A3B8;opacity:.7;margin-top:14px">
-          <div class="bloc-lecture-titre">🔒 ${p.nb_taches_total} tâche${p.nb_taches_total > 1 ? 's' : ''} — ${libelle}</div>
+          <div class="bloc-lecture-titre">🔒 ${libelle} (${p.nb_taches_total} tâche${p.nb_taches_total > 1 ? 's' : ''})</div>
           <p style="margin:0;color:var(--text-gris);font-size:13px">Termine d'abord le palier précédent (au moins 66,7% des tâches réussies) pour débloquer celui-ci.</p>
         </div>`;
       }
       const couleurPalier = COULEURS_PALIER_ELEVE[p.palier] || 'var(--bleu-kekeli)';
-      // Chaque palier affiche, EN PREMIER dans son titre, le nombre total de
-      // tâches à mener (demande explicite du cahier des charges, puis du 18
-      // septembre 2026 pour le placer devant le nom) suivi du taux déjà
-      // obtenu — pas le nombre de blocs/questions, qui n'est plus l'unité de
-      // calcul depuis ce lot (voir etat_paliers_seance_v2 côté base : une
-      // question peut valoir plusieurs tâches). Tant que le palier n'est pas
-      // réussi, le total/taux affichés intègrent la progression EN DIRECT
-      // (voir calculerEtatPalierEnDirect) — un 🔄 signale qu'il s'agit d'une
+      // Chaque palier affiche, entre parenthèses juste après son nom, le
+      // nombre total de tâches à mener — pas le nombre de blocs/questions,
+      // qui n'est plus l'unité de calcul depuis la refonte du 11 septembre
+      // 2026 (voir etat_paliers_seance_v2 côté base : une question peut
+      // valoir plusieurs tâches) — suivi, inchangé, du taux de progression
+      // déjà obtenu. Tant que le palier n'est pas réussi, le total/taux
+      // affichés intègrent la progression EN DIRECT (voir
+      // calculerEtatPalierEnDirect) — un 🔄 signale qu'il s'agit d'une
       // estimation qui inclut du travail pas encore soumis.
       const { total: totalAffiche, reussies: reussiesAffiche, taux: tauxAffiche, enDirect } =
         p.reussi ? { total: p.nb_taches_total, reussies: p.nb_taches_reussies, taux: p.taux, enDirect: false } : calculerEtatPalierEnDirect(p, blocs);
@@ -463,7 +465,7 @@ function html_sectionPaliers(blocsParPalier) {
       // sa propre background". Chaque activité à l'intérieur garde donc son
       // propre encadré/fond (rendreBlocTravail/rendreBlocLecture, inchangés).
       return `<div class="bloc-lecture carte-palier-eleve" style="border-left-color:${couleurPalier};background:${teinteClaire(couleurPalier, 0.04)};margin-top:14px">
-        <div class="bloc-lecture-titre" style="color:${couleurPalier}">${totalAffiche} tâche${totalAffiche > 1 ? 's' : ''} — ${libelle} — ${etatTexte}</div>
+        <div class="bloc-lecture-titre" style="color:${couleurPalier}">${libelle} (${totalAffiche} tâche${totalAffiche > 1 ? 's' : ''}) — ${etatTexte}</div>
         ${p.tainted ? `<p style="margin:0 0 10px;color:#92620A;font-size:13px">⚠️ La correction a été consultée avant une réussite à 100% — ce palier ne peut plus être validé, mais tu peux continuer à t'entraîner.</p>` : ''}
         ${blocs.map(b => TYPES_TRAVAIL.includes(b.type_bloc) ? rendreBlocTravail(b) : rendreBlocLecture(b)).join('')}
       </div>`;
