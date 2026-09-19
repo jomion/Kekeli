@@ -45,12 +45,39 @@ async function afficherTableauBordEns() {
   // désormais l'accord du parent avant que l'enseignant y ait accès —
   // distinct des élèves « suivis » ci-dessus (abonnements). Voir migration
   // ma_classe_autorisation_parentale et le registre d'appel, filtré pareil.
-  let nbMaClasseAutorises = 0, nbMaClasseEnAttente = 0;
+  // Depuis cette même journée : la demande ne part plus automatiquement —
+  // une ligne 'a_demander' attend que l'enseignant clique lui-même sur
+  // "Demander l'accord du parent" (voir demander_autorisation_ma_classe).
+  // Et, sur demande explicite du porteur du projet : l'enseignant doit voir
+  // la liste COMPLÈTE des élèves de sa classe (tous statuts confondus, y
+  // compris ceux ajoutés après coup), pas seulement ceux à demander — la
+  // liste est donc construite à partir de la vraie table `eleves` (toujours
+  // à jour), et non plus seulement des lignes déjà créées dans
+  // `autorisations_ma_classe`.
+  let nbMaClasseAutorises = 0, nbMaClasseEnAttente = 0, nbMaClasseADemander = 0;
+  let rosterMaClasseParClasse = {};
   if (classesAssignees.length) {
-    const { data: autorisationsMC } = await supabaseClient.from('autorisations_ma_classe')
-      .select('statut').eq('enseignant_id', profilEnseignantTB.id);
+    const [{ data: autorisationsMC }, { data: elevesClassesEns }] = await Promise.all([
+      supabaseClient.from('autorisations_ma_classe')
+        .select('id, statut, classe_id, eleve_id').eq('enseignant_id', profilEnseignantTB.id),
+      supabaseClient.from('eleves').select('id, classe_id, profils(prenom, nom)')
+        .in('classe_id', classesAssignees).eq('compte_actif', true)
+    ]);
     nbMaClasseAutorises = (autorisationsMC || []).filter(a => a.statut === 'accepte').length;
     nbMaClasseEnAttente = (autorisationsMC || []).filter(a => a.statut === 'en_attente').length;
+    nbMaClasseADemander = (autorisationsMC || []).filter(a => a.statut === 'a_demander').length;
+
+    const autorisationParEleve = {};
+    (autorisationsMC || []).forEach(a => { autorisationParEleve[a.eleve_id] = a; });
+    classesAssignees.forEach(cid => { rosterMaClasseParClasse[cid] = []; });
+    (elevesClassesEns || []).forEach(e => {
+      const auto = autorisationParEleve[e.id];
+      (rosterMaClasseParClasse[e.classe_id] ??= []).push({
+        autorisationId: auto?.id || null,
+        statut: auto?.statut || null,
+        nom: `${e.profils?.prenom || ''} ${e.profils?.nom || ''}`.trim() || '(élève)'
+      });
+    });
   }
 
   // 19 septembre 2026 (duotricies) : vue parent liée — même identifiant de
@@ -58,7 +85,6 @@ async function afficherTableauBordEns() {
   // js/auth-utilisateur.js). Permet par exemple à un enseignant de suivre
   // ses propres enfants sans se déconnecter ni créer un second compte.
   const vueParentDejaActive = await possedeVueLiee(profilEnseignantTB.id, 'parent');
-  const classesDisponibles = (toutesClasses || []).filter(c => !classesAssignees.includes(c.id) && !demandesEnAttente.some(d => d.classe_id === c.id));
   const aAccesClasse = acceptes.length > 0 || classesAssignees.length > 0;
 
   // Aperçu au survol (Task #34) — voir js/apercu-survol.js.
@@ -130,21 +156,43 @@ async function afficherTableauBordEns() {
     <div class="carte-bienvenue" style="border-top-color:var(--devi)">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <h1 style="font-size:18px;margin:0">🏫 Mes classes (${classesAssigneesInfos.length})</h1>
-        <button class="btn btn-filled" id="btnDemanderClasse" style="padding:6px 14px;font-size:12px">+ Demander une classe</button>
       </div>
-      <p style="color:var(--text-gris);font-size:13px;margin-top:6px">En plus du suivi élève par élève, une classe accordée par l'administration vous donne accès en lecture ET édition à tout son contenu pédagogique (séances, exercices, activités).</p>
+      <p style="color:var(--text-gris);font-size:13px;margin-top:6px">En plus du suivi élève par élève, une classe accordée par l'administration vous donne accès en lecture ET édition à tout son contenu pédagogique (séances, exercices, activités).
+        Une seule classe est accordée automatiquement (choisie dans « Mon profil ») — pour une classe supplémentaire, faites-en la demande depuis <a href="${urlCompleterProfil()}" style="color:inherit;text-decoration:underline">Mon profil</a>.</p>
       ${classesAssigneesInfos.length ? `<ul style="color:var(--text-gris);padding-left:20px;margin-top:10px">
         ${classesAssigneesInfos.map(c => `<li style="margin-bottom:4px">${echapperEns(c.nom)}
           <button data-quitter-classe="${c.id}" title="Quitter cette classe" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--rouge);margin-left:4px">✕</button>
         </li>`).join('')}
       </ul>` : ''}
       ${demandesEnAttente.length ? `<div style="margin-top:10px;font-size:13px;color:var(--text-gris)">
-        Demandes en attente : ${demandesEnAttente.map(d => echapperEns((toutesClasses || []).find(c => c.id === d.classe_id)?.nom || '')).join(', ')}
+        Demandes en attente (depuis « Mon profil ») : ${demandesEnAttente.map(d => echapperEns((toutesClasses || []).find(c => c.id === d.classe_id)?.nom || '')).join(', ')}
       </div>` : ''}
       ${classesAssignees.length ? `<div style="margin-top:10px;font-size:13px;color:var(--text-gris)">
         👪 « Ma classe » (registre &amp; suivi individuel) : ${nbMaClasseAutorises} élève${nbMaClasseAutorises > 1 ? 's' : ''} autorisé${nbMaClasseAutorises > 1 ? 's' : ''} par leur parent
-        ${nbMaClasseEnAttente ? `, <span style="color:#B45309">${nbMaClasseEnAttente} en attente d'accord</span>` : ''}.
-      </div>` : ''}
+        ${nbMaClasseEnAttente ? `, <span style="color:#B45309">${nbMaClasseEnAttente} en attente de réponse du parent</span>` : ''}
+        ${nbMaClasseADemander ? `, <span style="color:#B45309">${nbMaClasseADemander} en attente de votre demande</span>` : ''}.
+      </div>
+      <details style="margin-top:8px">
+        <summary style="cursor:pointer;font-size:13px;color:var(--bleu-kekeli)">Voir la liste complète des élèves de « Ma classe »</summary>
+        ${classesAssigneesInfos.map(c => {
+          const roster = (rosterMaClasseParClasse[c.id] || []).slice().sort((x, y) => x.nom.localeCompare(y.nom, 'fr'));
+          return `<div style="margin-top:10px">
+            ${classesAssigneesInfos.length > 1 ? `<div style="font-size:12px;font-weight:600;color:var(--text-gris);margin-bottom:4px">${echapperEns(c.nom)}</div>` : ''}
+            ${roster.length ? `<div style="display:flex;flex-direction:column;gap:4px">
+              ${roster.map(el => {
+                const libStatutMC = el.statut === 'accepte' ? '<span style="color:#15803D">✅ Autorisé</span>'
+                  : el.statut === 'en_attente' ? '<span style="color:#B45309">⏳ En attente de réponse du parent</span>'
+                  : el.statut === 'refuse' ? '<span style="color:var(--rouge)">✕ Refusé par le parent</span>'
+                  : '<span style="color:#B45309">📨 Pas encore demandé</span>';
+                return `<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;font-size:13px;padding:5px 8px;border-radius:6px;background:var(--fond-clair,#F9FAFB)">
+                  <span>${echapperEns(el.nom)} — ${libStatutMC}</span>
+                  ${(el.statut === 'a_demander' && el.autorisationId) ? `<button class="btn btn-filled" data-demander-ma-classe="${el.autorisationId}" style="padding:4px 10px;font-size:11px">📨 Demander l'accord du parent</button>` : ''}
+                </div>`;
+              }).join('')}
+            </div>` : `<p style="color:var(--text-gris);font-size:13px;margin:0">Aucun élève inscrit dans cette classe pour l'instant.</p>`}
+          </div>`;
+        }).join('')}
+      </details>` : ''}
     </div>
 
     <div class="carte-bienvenue" style="border-top-color:var(--bleu-kekeli)">
@@ -227,7 +275,6 @@ async function afficherTableauBordEns() {
     btn.addEventListener('click', () => annulerAbonnementEns(parseInt(btn.dataset.annulerSuivi, 10), 'accepte'));
   });
   document.getElementById('btnSuivreEleve').addEventListener('click', ouvrirRechercheEleve);
-  document.getElementById('btnDemanderClasse').addEventListener('click', () => ouvrirDemandeClasse(classesDisponibles));
   document.querySelectorAll('[data-quitter-classe]').forEach(btn => {
     btn.addEventListener('click', () => quitterClasse(parseInt(btn.dataset.quitterClasse, 10)));
   });
@@ -236,25 +283,13 @@ async function afficherTableauBordEns() {
     if (error) return alert(error.message);
     afficherTableauBordEns();
   });
-}
-
-function ouvrirDemandeClasse(classesDisponibles) {
-  if (!classesDisponibles.length) return alert("Aucune classe supplémentaire disponible pour l'instant.");
-  ouvrirModal({
-    titre: 'Demander l\'accès à une classe',
-    champs: [{
-      nom: 'classe_id', label: 'Classe', type: 'select',
-      options: classesDisponibles.map(c => ({ valeur: c.id, label: c.nom }))
-    }],
-    texteValider: "Envoyer la demande à l'administration",
-    onValider: async ({ classe_id }) => {
-      const { error } = await supabaseClient.from('demandes_classe_enseignant').insert({
-        enseignant_id: profilEnseignantTB.id, classe_id: parseInt(classe_id, 10)
-      });
-      if (error) return alert(error.message);
-      alert("Demande envoyée — l'administration doit la valider.");
+  document.querySelectorAll('[data-demander-ma-classe]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true; btn.textContent = 'Envoi...';
+      const { error } = await supabaseClient.rpc('demander_autorisation_ma_classe', { p_id: parseInt(btn.dataset.demanderMaClasse, 10) });
+      if (error) { alert(error.message); btn.disabled = false; btn.textContent = "📨 Demander l'accord du parent"; return; }
       afficherTableauBordEns();
-    }
+    });
   });
 }
 

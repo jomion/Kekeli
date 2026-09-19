@@ -119,6 +119,7 @@ async function rerenderOngletGA() {
 // et jamais un élève dont l'autorisation est encore en attente ou refusée.
 // Voir js/pages/parent-tableau-de-bord.js pour la réponse du parent.
 let nbEnAttenteGA = 0;
+let nbADemanderGA = 0;
 
 async function chargerRosterGA() {
   const [{ data: elevesReels }, { data: elevesManuels }, { data: autorisations }] = await Promise.all([
@@ -131,6 +132,10 @@ async function chargerRosterGA() {
   const statutParEleve = {};
   (autorisations || []).forEach(a => { statutParEleve[a.eleve_id] = a.statut; });
   nbEnAttenteGA = (autorisations || []).filter(a => a.statut === 'en_attente').length;
+  // 19 septembre 2026 : la demande ne part plus automatiquement — tant que
+  // l'enseignant n'a pas cliqué "Demander l'accord du parent" (tableau de
+  // bord), l'élève reste en 'a_demander' et n'apparaît pas ici non plus.
+  nbADemanderGA = (autorisations || []).filter(a => a.statut === 'a_demander').length;
 
   const reels = (elevesReels || [])
     .filter(e => statutParEleve[e.id] === 'accepte')
@@ -269,9 +274,10 @@ function reafficherAppelSansRechargerGA() {
 function html_onglet_appel(joursOuvres) {
   const [libM] = [new Date(moisAppelGA + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })];
   return `
-    ${nbEnAttenteGA > 0 ? `
+    ${(nbEnAttenteGA > 0 || nbADemanderGA > 0) ? `
     <div class="ga-alerte-autorisation" style="background:#fff8e1;border:1px solid #ffcc80;border-radius:8px;padding:10px 14px;margin-bottom:12px;color:#7a5300;font-size:0.95em">
-      ⏳ ${nbEnAttenteGA} élève${nbEnAttenteGA > 1 ? 's' : ''} de cette classe n'appara${nbEnAttenteGA > 1 ? 'issent' : 'ît'} pas encore ici : l'autorisation du parent est en attente.
+      ${nbEnAttenteGA > 0 ? `⏳ ${nbEnAttenteGA} élève${nbEnAttenteGA > 1 ? 's' : ''} de cette classe n'appara${nbEnAttenteGA > 1 ? 'issent' : 'ît'} pas encore ici : l'autorisation du parent est en attente.` : ''}
+      ${nbADemanderGA > 0 ? `${nbEnAttenteGA > 0 ? '<br>' : ''}📨 ${nbADemanderGA} élève${nbADemanderGA > 1 ? 's' : ''} de plus n'appara${nbADemanderGA > 1 ? 'issent' : 'ît'} pas encore : vous n'avez pas encore demandé l'accord de leur parent — rendez-vous sur votre tableau de bord (« Mes classes ») pour envoyer la demande.` : ''}
     </div>` : ''}
     <div class="ga-entete-grid">
       <div class="ga-champ"><label>Mois du registre</label><input type="month" id="gaSelectMois" value="${moisAppelGA}"></div>

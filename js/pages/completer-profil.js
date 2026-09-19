@@ -93,19 +93,27 @@ async function initialiserFormulaireCP() {
     document.getElementById('zonePedagogique').value = enseignantCP?.zone_pedagogique || '';
     document.getElementById('ecole').value = enseignantCP?.ecole || '';
 
-    const aDejaUneClasse = (enseignantCP?.classes_assignees || []).length > 0;
-    let aUneDemande = false;
-    if (!aDejaUneClasse) {
-      const { count } = await supabaseClient.from('demandes_classe_enseignant')
-        .select('id', { count: 'exact', head: true }).eq('enseignant_id', profilCP.id);
-      aUneDemande = !!count;
-    }
+    const classesAssigneesCP = enseignantCP?.classes_assignees || [];
+    const aDejaUneClasse = classesAssigneesCP.length > 0;
+    const { data: demandesClasseCP } = await supabaseClient.from('demandes_classe_enseignant')
+      .select('*').eq('enseignant_id', profilCP.id);
+    const aUneDemande = (demandesClasseCP || []).length > 0;
     if (!aDejaUneClasse && !aUneDemande) {
       champClasse.style.display = '';
       const { data: classes } = await supabaseClient.from('classes').select('*').order('ordre');
       document.getElementById('classe').innerHTML = (classes || []).map(c => `<option value="${c.id}">${c.nom}</option>`).join('');
     } else {
       champClasse.style.display = 'none';
+    }
+
+    // 19 septembre 2026 : seule la toute première classe (ci-dessus, à
+    // l'inscription/première visite du profil) est attribuée automatiquement
+    // — une classe supplémentaire passe toujours par une demande à valider
+    // par l'administration. Le bouton correspondant, auparavant sur le
+    // tableau de bord enseignant, est relogé ici, dans "Mon profil".
+    if (aDejaUneClasse) {
+      await afficherBlocClasseSupplementaireCP(classesAssigneesCP, demandesClasseCP || []);
+      document.getElementById('btnDemanderClasseCP').addEventListener('click', demanderClasseSupplementaireCP);
     }
   } else {
     // autorite_pedagogique : les champs affichés dépendent de la fonction
@@ -123,6 +131,68 @@ async function initialiserFormulaireCP() {
   }
 
   document.getElementById('formCompleterProfil').addEventListener('submit', enregistrerCompletionCP);
+}
+
+// 19 septembre 2026 : demande d'une classe SUPPLÉMENTAIRE (au-delà de la
+// toute première, attribuée automatiquement) — soumise à l'administration,
+// exactement comme l'ancien bouton "+ Demander une classe" du tableau de
+// bord enseignant (js/pages/enseignant-tableau-de-bord.js), désormais logé
+// ici, dans "Mon profil".
+async function afficherBlocClasseSupplementaireCP(classesAssignees, demandesClasse) {
+  const bloc = document.getElementById('blocClasseSupplementaireCP');
+  const select = document.getElementById('classeSupplementaire');
+  const btn = document.getElementById('btnDemanderClasseCP');
+  const message = document.getElementById('messageClasseSupplementaireCP');
+
+  const demandesEnAttente = demandesClasse.filter(d => d.statut === 'en_attente');
+  const { data: toutesClasses } = await supabaseClient.from('classes').select('*').order('ordre');
+  const classesDisponibles = (toutesClasses || []).filter(c => !classesAssignees.includes(c.id) && !demandesEnAttente.some(d => d.classe_id === c.id));
+
+  const nomsAssignees = (toutesClasses || []).filter(c => classesAssignees.includes(c.id)).map(c => c.nom).join(', ');
+  const nomsEnAttente = (toutesClasses || []).filter(c => demandesEnAttente.some(d => d.classe_id === c.id)).map(c => c.nom).join(', ');
+
+  bloc.style.display = '';
+  message.innerHTML = [
+    nomsAssignees ? `Classe(s) déjà accordée(s) : <strong>${nomsAssignees}</strong>.` : '',
+    nomsEnAttente ? `Demande(s) en attente de validation par l'administration : <strong>${nomsEnAttente}</strong>.` : ''
+  ].filter(Boolean).join('<br>');
+
+  if (!classesDisponibles.length) {
+    select.style.display = 'none';
+    btn.style.display = 'none';
+    if (!nomsEnAttente) message.innerHTML += (message.innerHTML ? '<br>' : '') + "Aucune classe supplémentaire disponible pour l'instant.";
+    return;
+  }
+
+  select.style.display = '';
+  btn.style.display = '';
+  btn.disabled = false; btn.textContent = "Envoyer la demande à l'administration";
+  select.innerHTML = classesDisponibles.map(c => `<option value="${c.id}">${c.nom}</option>`).join('');
+}
+
+// Écouteur de clic attaché UNE SEULE FOIS (voir initialiserFormulaireCP) —
+// afficherBlocClasseSupplementaireCP ci-dessus ne fait que rafraîchir
+// l'affichage, jamais réattacher d'écouteur, pour éviter un double-envoi si
+// l'enseignant demande plusieurs classes l'une après l'autre.
+async function demanderClasseSupplementaireCP() {
+  const select = document.getElementById('classeSupplementaire');
+  const btn = document.getElementById('btnDemanderClasseCP');
+  const message = document.getElementById('messageClasseSupplementaireCP');
+  if (!select.value) return;
+
+  btn.disabled = true; btn.textContent = 'Envoi...';
+  const { error } = await supabaseClient.from('demandes_classe_enseignant').insert({
+    enseignant_id: profilCP.id, classe_id: parseInt(select.value, 10)
+  });
+  if (error) {
+    message.innerHTML = error.message;
+    btn.disabled = false; btn.textContent = "Envoyer la demande à l'administration";
+    return;
+  }
+  const { data: enseignantMaj } = await supabaseClient.from('enseignants').select('*').eq('id', profilCP.id).single();
+  enseignantCP = enseignantMaj;
+  const { data: demandesMaj } = await supabaseClient.from('demandes_classe_enseignant').select('*').eq('enseignant_id', profilCP.id);
+  await afficherBlocClasseSupplementaireCP(enseignantMaj?.classes_assignees || [], demandesMaj || []);
 }
 
 async function enregistrerCompletionCP(e) {

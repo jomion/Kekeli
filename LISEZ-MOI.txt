@@ -1,61 +1,71 @@
-KEKELI — Livraison du 19 septembre 2026 (suite) — Comptes liés (vues parent/enseignant)
-========================================================================================
+KEKELI — Livraison du 19 septembre 2026 (suite) — Demande explicite « Ma classe », en-tête et profil
+======================================================================================================
 
-Ceci complète le point 3 de la livraison précédente ("Compte parent ajouté par un
-enseignant" / "Compte parent ou enseignant ajouté par une autorité pédagogique"),
-qui restait en attente de clarification. Vos réponses :
-  - Oui, la vue parent liée a l'accès parent COMPLET (paiements, accès, horaires
-    compris) — pas une vue restreinte.
-  - Pour ajouter un enfant, le compte utilise le même parcours "Inscrire un enfant"
-    que n'importe quel parent — pas de recherche/liaison vers un élève existant.
+Trois demandes distinctes traitées dans cette livraison.
 
-CE QUI A ÉTÉ FAIT
+1) « MA CLASSE » : LA DEMANDE NE PART PLUS AUTOMATIQUEMENT
 -------------------------------------------------------------------
-Un enseignant peut désormais activer une "vue parent" liée à son propre compte
-(même identifiant de connexion, même e-mail, sans se déconnecter). Sur son tableau
-de bord, une carte "🔀 Vue parent" propose un bouton "Activer" ; une fois activée,
-elle devient un lien "Basculer" qui l'emmène directement sur le tableau de bord
-parent habituel. Un bandeau discret en haut de la page parent rappelle qu'il s'agit
-de la vue liée, avec un lien "← Retourner à mon espace" pour revenir à l'espace
-enseignant.
+Vous aviez remarqué que la demande d'autorisation « Ma classe » partait
+automatiquement (et notifiait le parent) dès qu'une classe était attribuée à
+un enseignant, ou qu'un élève rejoignait une classe déjà attribuée. Vous
+vouliez que l'enseignant déclenche lui-même la demande, élève par élève,
+avant que le parent ne reçoive quoi que ce soit.
 
-Une autorité pédagogique peut, de la même façon, activer une vue parent ET/OU une
-vue enseignant liées à son compte, indépendamment l'une de l'autre (nouvelle
-section "Vues liées" sur sa page d'accueil).
+C'est fait : quand une classe est attribuée, ou qu'un élève la rejoint, une
+ligne est bien créée pour chaque élève, mais avec un statut "à demander" —
+RIEN n'est envoyé au parent à ce stade. Sur son tableau de bord, l'enseignant
+voit désormais la liste COMPLÈTE des élèves de chaque classe attribuée (tous
+statuts confondus, y compris les élèves ajoutés après coup), avec un bouton
+"📨 Demander l'accord du parent" sur chacun des élèves pas encore demandés.
+Ce n'est qu'à ce clic que le parent est notifié.
 
-Dans les deux cas, la vue liée est à 100% la vraie page existante (parent ou
-enseignant) — mêmes fonctionnalités, y compris les paiements côté parent — et pour
-ajouter un enfant, on utilise exactement le même bouton "Inscrire un enfant" que
-tout parent utilise déjà. Rien de nouveau à apprendre.
+Les 12 demandes qui étaient déjà parties automatiquement (avant ce
+correctif) ont été remises à l'état "à demander" — y compris les 2 déjà
+acceptées et les 4 déjà refusées par un parent, comme vous l'avez demandé :
+l'enseignant devra les redemander lui-même.
 
-Techniquement, activer une vue liée n'ajoute qu'une ligne dans la table
-correspondante (parents ou enseignants), sans jamais toucher au rôle principal du
-compte ni à aucune autre donnée — aucun risque pour le reste du site.
+Les pages "Registre d'appel" et "Devoirs & notes" (enseignant) distinguent
+maintenant clairement, dans leur bandeau d'information, les élèves "en
+attente du parent" (déjà demandés, réponse pas encore reçue) des élèves "pas
+encore demandés par vous" (à traiter depuis le tableau de bord). Côté
+parent, un élève "à demander" n'apparaît nulle part — rien à voir ni à faire
+tant que l'enseignant n'a pas réellement envoyé la demande.
 
-BONUS : UN BUG PRÉEXISTANT CORRIGÉ AU PASSAGE
+2) EN-TÊTE : NOM CLIQUABLE, PARAMÈTRES ET DÉCONNEXION RELOGÉS
 -------------------------------------------------------------------
-En construisant cette fonctionnalité, une vérification en base a révélé que la
-table des enseignants n'avait jamais reçu l'autorisation de base pour créer ou
-modifier sa propre fiche (seule la "règle" existait, pas la "permission" sous-
-jacente qui la rend effective). Concrètement, cela empêchait déjà, avant même
-cette livraison :
-  - l'inscription normale d'un nouvel enseignant sur le site (l'étape finale
-    échouait silencieusement côté base de données) ;
-  - la page "Compléter mon profil" pour un enseignant (école, circonscription,
-    zone pédagogique).
-C'est corrigé : les enseignants peuvent maintenant s'inscrire et compléter leur
-profil normalement, comme les parents ont toujours pu le faire.
+Le nom/badge affiché en haut à droite de chaque page (tous rôles) est
+maintenant un menu déroulant : au clic (ou au survol sur ordinateur), il
+ouvre "👤 Mon profil" (parent, enseignant, autorité), "⚙️ Paramètres" et
+"🚪 Déconnexion". Ces deux derniers ne sont plus deux icônes séparées dans
+la barre du haut — l'en-tête est plus dégagé, et le profil, les réglages et
+la déconnexion sont désormais regroupés au même endroit, sous le nom.
 
-Fichiers modifiés : js/auth-utilisateur.js, js/pages/autorite-bienvenue.js,
-js/pages/enseignant-tableau-de-bord.js, js/pages/parent-tableau-de-bord.js.
+3) DEMANDE DE CLASSE SUPPLÉMENTAIRE : DÉPLACÉE DANS « MON PROFIL »
+-------------------------------------------------------------------
+Le bouton "+ Demander une classe" a été retiré du tableau de bord
+enseignant et déplacé dans "Mon profil". Pour rappel (déjà vrai avant ce
+changement, seul l'endroit change) : SEULE la toute première classe, choisie
+à l'inscription ou à la première visite du profil, est attribuée
+automatiquement. Toute classe supplémentaire passe par une demande transmise
+à l'administration pour validation — cette demande se fait maintenant
+directement dans "Mon profil", au même endroit que la classe initiale, avec
+le statut des classes déjà accordées et des demandes en attente affiché
+juste en dessous.
 
-Base de données (Supabase, appliqué immédiatement) : correction des permissions
-manquantes (GRANT) sur la table enseignants (création et modification de sa propre
-fiche), pour authenticated et anon — aucune nouvelle table, aucune policy RLS
-modifiée.
+Fichiers modifiés : js/entete-navigation.js, js/pages/admin-enseignants-classes.js,
+js/pages/completer-profil.js, js/pages/enseignant-devoirs-notes.js,
+js/pages/enseignant-registre-appel.js, js/pages/enseignant-tableau-de-bord.js,
+js/pages/parent-tableau-de-bord.js, pages/completer-profil.html.
 
-Vérifications faites avant cette livraison : node --check sur les 4 fichiers JS
-modifiés ; permissions vérifiées une à une en base après correction
-(has_table_privilege) ; mcp__Supabase__get_advisors (sécurité) relancé après la
-migration — aucune nouvelle alerte, zéro erreur, seulement les avertissements
-préexistants déjà présents sur tout le projet.
+Base de données (Supabase, appliqué immédiatement) : migration
+ma_classe_demande_explicite_enseignant — nouveau statut 'a_demander' sur
+autorisations_ma_classe, fonctions creer_demandes_ma_classe_pour_classe/pour_eleve
+modifiées pour ne plus notifier à la création, nouvelle fonction
+demander_autorisation_ma_classe (SECURITY DEFINER, vérifie que l'appelant
+est bien l'enseignant concerné) qui notifie le parent au moment de la vraie
+demande, et remise à "à demander" des 12 lignes déjà créées automatiquement.
+
+Vérifications faites avant cette livraison : node --check sur les 8 fichiers
+JS modifiés ; lecture des définitions exactes des fonctions existantes avant
+modification (pg_get_functiondef) ; mcp__Supabase__get_advisors (sécurité)
+relancé après la migration — aucune nouvelle catégorie d'alerte.

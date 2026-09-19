@@ -269,10 +269,20 @@ async function initEnteteNavigation(config) {
       </nav>
       <div class="entete-kekeli-actions">
         <div id="zoneCloche"></div>
-        ${config.badgeHtml ? `<span class="entete-kekeli-badge">${config.badgeHtml}</span>` : ''}
+        ${config.utilisateurId ? `
+        <div class="entete-kekeli-categorie">
+          <button type="button" class="entete-kekeli-categorie-btn" aria-label="Menu du compte">
+            ${config.badgeHtml ? `<span class="entete-kekeli-badge">${config.badgeHtml}</span> ` : ''}<span class="entete-kekeli-caret">▾</span>
+          </button>
+          <div class="entete-kekeli-sousmenu">
+            <div class="entete-kekeli-sousmenu-inner">
+              ${['parent', 'enseignant', 'autorite'].includes(config.role) && typeof urlCompleterProfil === 'function' ? `<a href="${urlCompleterProfil()}">👤 Mon profil</a>` : ''}
+              <a href="${racine}pages/parametres.html">⚙️ Paramètres</a>
+              <a href="#" id="btnDeconnexionEntete">🚪 Déconnexion</a>
+            </div>
+          </div>
+        </div>` : ''}
         ${config.utilisateurId && !pageDejaDansMenu ? `<button type="button" class="entete-kekeli-icone-btn" id="btnEpinglerPageEntete" title="Épingler cette page dans mes raccourcis">📌</button>` : ''}
-        ${config.utilisateurId ? `<a href="${racine}pages/parametres.html" class="entete-kekeli-icone-btn" title="Paramètres">⚙️</a>` : ''}
-        ${config.utilisateurId ? `<button class="entete-kekeli-icone-btn" id="btnDeconnexionEntete" title="Déconnexion">🚪</button>` : ''}
       </div>
     </div>
     <div class="entete-kekeli-overlay" id="enteteKekeliOverlay"></div>
@@ -282,7 +292,8 @@ async function initEnteteNavigation(config) {
   initCategoriesNavEntete(header);
 
   const btnDeconnexionEntete = document.getElementById('btnDeconnexionEntete');
-  if (btnDeconnexionEntete) btnDeconnexionEntete.addEventListener('click', () => {
+  if (btnDeconnexionEntete) btnDeconnexionEntete.addEventListener('click', (e) => {
+    e.preventDefault();
     if (typeof window[fnDeconnexion] === 'function') window[fnDeconnexion]();
   });
 

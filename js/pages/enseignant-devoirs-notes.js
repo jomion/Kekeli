@@ -119,6 +119,7 @@ async function afficherGestionEns() {
   const classeEstAssigneeEns = classesAssigneesEns.includes(Number(classeSelectionneeEns));
   const requeteElevesEns = supabaseClient.from('eleves').select('id, profils(prenom, nom)').eq('classe_id', classeSelectionneeEns);
   let nbEnAttenteEns = 0;
+  let nbADemanderEns = 0;
   let eleves;
   if (classeEstAssigneeEns) {
     const [{ data: elevesClasse }, { data: autorisations }] = await Promise.all([
@@ -129,6 +130,9 @@ async function afficherGestionEns() {
     const statutParEleve = {};
     (autorisations || []).forEach(a => { statutParEleve[a.eleve_id] = a.statut; });
     nbEnAttenteEns = (autorisations || []).filter(a => a.statut === 'en_attente').length;
+    // 19 septembre 2026 : la demande ne part plus automatiquement — voir
+    // demander_autorisation_ma_classe (tableau de bord enseignant).
+    nbADemanderEns = (autorisations || []).filter(a => a.statut === 'a_demander').length;
     eleves = (elevesClasse || []).filter(e => statutParEleve[e.id] === 'accepte');
   } else {
     eleves = (await requeteElevesEns.in('id', elevesSuivisIds)).data;

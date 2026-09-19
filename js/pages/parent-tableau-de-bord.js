@@ -38,10 +38,15 @@ async function afficherTableauDeBord() {
     // accès au registre d'appel et au suivi individuel (voir peut_gerer_eleve).
     // Mécanisme distinct des abonnements ci-dessus (« suivi » d'un enseignant
     // choisi par le parent).
+    // 19 septembre 2026 : la demande ne part plus automatiquement — tant que
+    // l'enseignant n'a pas cliqué "Demander l'accord du parent", la ligne
+    // reste en 'a_demander' et ne doit rien afficher ici (le parent n'a
+    // rien à voir ni à faire tant qu'aucune vraie demande n'est arrivée).
     const { data: autorisationsMC } = await supabaseClient
       .from('autorisations_ma_classe')
       .select('*, enseignants(profils(prenom, nom)), classes(nom)')
-      .in('eleve_id', idsEnfants);
+      .in('eleve_id', idsEnfants)
+      .neq('statut', 'a_demander');
     (autorisationsMC || []).forEach(a => { (autorisationsMaClasseParEnfant[a.eleve_id] ??= []).push(a); });
 
     // Contrôle parental de la connectivité (Task #38) : compte_actif,

@@ -89,7 +89,7 @@ async function rendrePage() {
           <strong>${echapperEC(e.profils?.prenom || '')} ${echapperEC(e.profils?.nom || '')} — ${echapperEC(classesParId[cid] || '')}</strong>
           ${lignesClasse.map(a => {
             const nomEleve = `${a.eleves?.profils?.prenom || ''} ${a.eleves?.profils?.nom || ''}`.trim() || '(élève)';
-            const libStatut = a.statut === 'accepte' ? '✅ Autorisé' : a.statut === 'refuse' ? '✕ Refusé par le parent' : '⏳ En attente du parent';
+            const libStatut = a.statut === 'accepte' ? '✅ Autorisé' : a.statut === 'refuse' ? '✕ Refusé par le parent' : a.statut === 'a_demander' ? '📨 Pas encore demandé par l\'enseignant' : '⏳ En attente du parent';
             return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:4px 0;border-top:1px solid var(--bordure)">
               <span>${echapperEC(nomEleve)} — ${libStatut}${a.source === 'ajout_manuel_admin' ? ' <span style="color:var(--texte-gris)">(ajout admin)</span>' : ''}</span>
               ${a.statut !== 'accepte' ? `<button class="btn btn-primaire" data-autoriser-manuel="${a.id}" style="padding:3px 10px;font-size:11px">✅ Autoriser manuellement</button>` : ''}
