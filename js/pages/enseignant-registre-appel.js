@@ -483,7 +483,14 @@ function recalculerStatsAppelGA(joursOuvres) {
   set('gaStOntimeG', onG); set('gaStOntimeF', onF); set('gaStOntimeT', onT);
   set('gaStRetG', retG); set('gaStRetF', retF); set('gaStRetT', retT);
   set('gaStAbsG', absG); set('gaStAbsF', absF); set('gaStAbsT', absT);
-  set('gaStPctG', pct(onG, possG)); set('gaStPctF', pct(onF, possF)); set('gaStPctT', pct(onT, possT));
+  // 19 septembre 2026 (demande explicite) : "un élève en retard est présent
+  // et ne doit pas être considéré comme absent" — le taux de présence
+  // globale doit compter les retards comme des présences (effG/effF/effT =
+  // possible - absences), et non comme on(time)G/F/T qui les excluait à
+  // tort du numérateur. La ligne "🟢 Présents à l'heure" (onG/onF/onT)
+  // continue elle d'exclure les retards, car elle mesure spécifiquement la
+  // ponctualité, pas la présence globale.
+  set('gaStPctG', pct(effG, possG)); set('gaStPctF', pct(effF, possF)); set('gaStPctT', pct(effT, possT));
 }
 
 async function toggleJourChomeGA(isoDate) {

@@ -1,63 +1,73 @@
-KEKELI — Livraison du 19 septembre 2026 (suite) — Liste complète « Ma classe » et devoir libre visible avec formatage
-======================================================================================================
+KEKELI — Livraison du 19 septembre 2026 (3e lot du jour) — Taux de présence et rattrapage des badges de palier
+================================================================================================================
 
-Deux demandes distinctes traitées dans cette livraison.
+Deux corrections distinctes traitées dans cette livraison.
 
-1) « MA CLASSE » : LA LISTE REPREND AUSSI LES ÉLÈVES AJOUTÉS MANUELLEMENT
--------------------------------------------------------------------
-Sur le tableau de bord enseignant, la liste complète des élèves de « Ma
-classe » (carte "🏫 Mes classes" → "Voir la liste complète des élèves")
-ne reprenait que les vrais comptes élève. Elle affiche désormais AUSSI les
-élèves ajoutés manuellement au registre d'appel (sans compte ni parent —
-exactement le même mécanisme que le bouton "➕ Ajouter un élève" du
-registre), avec la mention "👤 Ajouté manuellement (sans compte parent)".
+1) REGISTRE D'APPEL : UN ÉLÈVE EN RETARD COMPTE COMME PRÉSENT
+---------------------------------------------------------------
+Dans les statistiques du registre d'appel (onglet mensuel, ligne « 🔵 Taux
+de présence globale »), un retard était jusqu'ici soustrait du calcul au
+même titre qu'une absence : le taux affiché ne comptait que les présences
+« à l'heure », ce qui faisait paraître le taux de présence plus bas qu'il
+ne devrait.
 
-Un nouveau bouton "➕ Ajouter un élève manuellement" apparaît directement
-sur cette carte, pour chaque classe attribuée : plus besoin d'aller sur le
-registre d'appel pour ajouter un élève sans compte, cela se fait maintenant
-aussi depuis le tableau de bord, exactement de la même façon (nom, prénom,
-genre).
+C'est corrigé : le taux de présence globale compte désormais un retard
+comme une présence (seule une vraie absence le fait baisser). La ligne
+« 🟢 Présents à l'heure » reste inchangée : elle continue de mesurer
+spécifiquement la ponctualité (présences hors retard), à titre
+d'indicateur séparé.
 
-2) DEVOIR LIBRE : L'ÉLÈVE VOIT ENFIN LE CONTENU, ET PEUT RÉPONDRE AVEC
-   MISE EN FORME
--------------------------------------------------------------------
-Vous aviez remarqué que, pour un devoir "texte libre" pas encore rendu,
-l'élève ne voyait jamais la consigne du maître avant de répondre : le
-bouton "Rendre" ouvrait directement un simple champ de texte vide, sans
-aucun moyen d'afficher le contenu du devoir avant de s'y lancer.
+Le « Bilan mensuel » (deuxième onglet du registre, avec le récapitulatif
+Garçons/Filles/Total sur l'année) n'était PAS concerné par ce problème :
+son calcul du % de présence ne s'appuie que sur les absences, il était
+déjà correct.
 
-C'est corrigé : la fenêtre "Rendre" affiche maintenant la consigne du
-maître en lecture seule, juste au-dessus du champ de réponse. La réponse
-elle-même se rédige désormais avec la même barre d'outils de mise en forme
-(Gras, Italique, Souligné, listes, couleurs) que celle déjà utilisée par
-l'enseignant/l'administration pour rédiger la consigne d'un devoir libre.
+Fichier modifié : js/pages/enseignant-registre-appel.js.
 
-Les réponses déjà rendues par un élève (visibles côté élève, côté parent,
-et dans le panneau de correction de l'enseignant/administration) s'affichent
-maintenant avec leur mise en forme, au lieu du texte brut d'avant.
+2) BADGES DE PALIER : RATTRAPAGE DES BADGES ET TROPHÉES MANQUANTS
+---------------------------------------------------------------
+Vous aviez remarqué que les badges obtenus par les élèves ne
+correspondaient pas aux conditions affichées sur la page d'administration
+« Badges » (medaille de palier, badge spécial ≥ 66,7 %, trophée
+d'excellence ≥ 90 % au 1er essai).
 
-Fichiers modifiés : js/devoirs-notes-rendu.js, js/modal.js,
-js/pages/eleve-devoirs-notes.js, js/pages/enseignant-tableau-de-bord.js,
-pages/eleve/devoirs-notes.html.
+Après vérification complète des règles d'attribution en base (comparées
+une à une aux conditions décrites sur cette page) : les règles elles-mêmes
+sont correctes et ont été confirmées conformes. En revanche, une partie de
+l'historique des élèves n'avait jamais été recalculée après les dernières
+évolutions du système de paliers (11 puis 19 septembre) : plusieurs
+paliers pourtant réussis par les élèves à ≥ 66,7 % — parfois même dès le
+1er essai à 100 % — n'avaient jamais généré leur badge spécial ni leur
+trophée d'excellence, faute d'avoir été recalculés avec la version
+actuelle (corrigée) des fonctions.
 
-Base de données : aucune migration nécessaire pour cette livraison — les
-deux corrections sont purement côté site (front-end), les autorisations
-nécessaires existaient déjà.
+Un rattrapage a été effectué directement en base pour tous les élèves et
+toutes les séances déjà travaillées : chaque palier réellement réussi
+génère maintenant son badge spécial et, le cas échéant, son trophée
+d'excellence — strictement selon les conditions déjà documentées (aucune
+condition modifiée, seul le retard de calcul a été rattrapé). Cela a aussi
+fait apparaître, à juste titre, quelques notes de palier qui n'avaient
+jamais été comptabilisées (« Palier réussi dès le premier essai ») dans
+les notes des élèves concernés.
 
-Vérifications faites avant cette livraison : node --check sur les 4
-fichiers JS modifiés ; relecture des policies RLS de la table
-registre_eleves_manuels (peut_gerer_classe) pour confirmer qu'aucun
-changement de droits n'était nécessaire pour l'ajout manuel depuis le
-tableau de bord ; vérification que le panneau de correction de
-l'enseignant/administration (js/devoirs-notes-rendu.js,
-html_gestionRendusDevoir) affiche bien lui aussi la réponse de l'élève
-avec sa mise en forme, sur le même principe que la consigne.
+Vérification faite après rattrapage : les totaux obtenus ont été
+recalculés à la main pour plusieurs élèves et comparés question par
+question aux conditions (+2/+1 par médaille selon l'essai, +2/+1 par badge
+spécial selon l'essai, trophée unique uniquement au 1er essai avec ≥ 90 %)
+— conformité exacte confirmée. Les noms de fichiers d'image utilisés
+(medaille_<palier>.jpg / badge_<couleur>.jpg / trophee_<couleur>.jpg) ont
+également été vérifiés un par un contre les fichiers réellement présents
+dans assets/badges/ : tous existent et correspondent exactement à ce que
+chaque type de récompense doit afficher.
 
-Point clarifié en cours de route : vous avez demandé de rendre le nom de
-l'élève cliquable pour accéder à son profil/paramètres/déconnexion, comme
-pour les autres rôles. Le nom de l'élève ouvre déjà ce menu avec
-Paramètres et Déconnexion (depuis la livraison précédente, qui s'applique
-à tous les rôles connectés) — seul "Mon profil" n'y figure pas, car
-l'élève n'a pas d'informations personnelles de ce type à renseigner
-(contrairement à parent/enseignant/autorité). Vous avez confirmé qu'il n'y
-a rien de nouveau à créer sur ce point.
+Aucun fichier front-end modifié pour ce point : la correction est
+entièrement côté base de données (recalcul, aucun changement de règle ni
+de schéma).
+
+Vérifications faites avant cette livraison : node --check sur le fichier
+JS modifié (point 1) ; relecture complète des fonctions
+attribuer_badges_taches / recalculer_paliers_seance / etat_paliers_seance_v2
+/ bloc_etat_taches / racine_a_pierres_rouges et comparaison ligne à ligne
+avec le texte des conditions affichées sur pages/admin/badges.html ;
+recalcul manuel des totaux attendus pour plusieurs élèves après rattrapage,
+comparé aux totaux réellement enregistrés en base.
