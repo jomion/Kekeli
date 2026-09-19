@@ -31,21 +31,37 @@ function initPiedDePage() {
   // CM2" (#matieresCM2, déjà présente sur la page).
   //
   // Sur les autres pages, ce lien ouvrait jusqu'ici toujours la page de
-  // navigation partagée (pages/navigation.html) — qui, pour un élève,
-  // affiche d'abord la liste des CLASSES avant d'arriver aux matières,
-  // exactement ce que le porteur du projet a signalé comme incorrect
-  // (« le bouton Matière doit conduire vers les matières du compte et non
-  // vers les classes »). Pour un enseignant/admin qui gère plusieurs
-  // classes, cette étape reste nécessaire (aucune matière n'est propre à
-  // « son compte » sans avoir d'abord choisi la classe) ; en revanche, un
-  // élève n'a qu'une seule classe et dispose déjà d'une page dédiée qui va
-  // directement à ses matières, sans détour par un choix de classe :
-  // pages/eleve/matiere.html (js/pages/eleve-matiere.js). Le rôle n'étant
-  // connu qu'après une requête asynchrone, le lien pointe d'abord vers la
-  // page de navigation partagée (comportement précédent, pour ne pas
-  // retarder l'affichage du reste du pied de page), puis est réécrit vers
-  // la page dédiée dès que l'on sait qu'il s'agit bien d'un élève connecté
-  // (voir la fin de cette fonction).
+  // navigation partagée (pages/navigation.html) — qui, pour un élève comme
+  // pour un parent, affiche d'abord la liste des CLASSES avant d'arriver
+  // aux matières, exactement ce que le porteur du projet a signalé comme
+  // incorrect (« le bouton Matière doit conduire vers les matières du
+  // compte et non vers les classes » — signalé une première fois pour
+  // l'élève, puis à nouveau pour le parent : « pour le compte parent
+  // matière conduit toujours vers classe »). Pour un enseignant/admin qui
+  // gère plusieurs classes, cette étape reste nécessaire (aucune matière
+  // n'est propre à « son compte » sans avoir d'abord choisi la classe) ; en
+  // revanche, un élève n'a qu'une seule classe et dispose déjà d'une page
+  // dédiée qui va directement à ses matières, sans détour par un choix de
+  // classe : pages/eleve/matiere.html (js/pages/eleve-matiere.js). Un
+  // parent n'a pas de page équivalente, mais pages/navigation.html sait
+  // déjà sauter directement aux matières d'une classe donnée via
+  // ?classeId=... dans l'URL (voir initDepuisURL() dans js/pages/
+  // navigation.js, déjà utilisé par le lien "📌 Voir les séances" de
+  // l'enseignant et par le retour depuis l'éditeur de séance) : il suffit
+  // donc de connaître la classe du premier enfant du parent (parent_eleve
+  // -> eleves.classe_id, même requête déjà utilisée sur son tableau de
+  // bord) pour lui éviter le même détour, sans avoir à créer de nouvelle
+  // page dédiée. Si le parent a plusieurs enfants dans des classes
+  // différentes, celle du premier enfant trouvé est utilisée par défaut
+  // (aucun sélecteur de classe "actif" n'existe entre les pages pour
+  // trancher autrement) ; si le parent n'a encore inscrit aucun enfant, le
+  // lien reste sur la page de navigation partagée sans classe présélectionnée
+  // (rien de mieux à proposer dans ce cas). Le rôle n'étant connu qu'après
+  // une requête asynchrone, le lien pointe d'abord vers la page de
+  // navigation partagée (comportement précédent, pour ne pas retarder
+  // l'affichage du reste du pied de page), puis est réécrit dès que l'on
+  // sait qu'il s'agit bien d'un élève ou d'un parent connecté (voir la fin
+  // de cette fonction).
   const estAccueil = racine === '';
   const lienMatiere = estAccueil ? '#matieresCM2' : `${racine}pages/navigation.html`;
 
@@ -95,9 +111,19 @@ function initPiedDePage() {
         const { data: { session } } = await supabaseClient.auth.getSession();
         if (!session) return;
         const { data: profil } = await supabaseClient.from('profils').select('role').eq('id', session.user.id).maybeSingle();
-        if (profil?.role !== 'eleve') return;
         const lien = document.getElementById('piedLienMatiere');
-        if (lien) lien.href = `${racine}pages/eleve/matiere.html`;
+        if (!lien) return;
+        if (profil?.role === 'eleve') {
+          lien.href = `${racine}pages/eleve/matiere.html`;
+          return;
+        }
+        if (profil?.role === 'parent') {
+          const { data: liens } = await supabaseClient.from('parent_eleve').select('eleve_id').eq('parent_id', session.user.id).limit(1);
+          const idPremierEnfant = liens?.[0]?.eleve_id;
+          if (!idPremierEnfant) return;
+          const { data: enfant } = await supabaseClient.from('eleves').select('classe_id').eq('id', idPremierEnfant).maybeSingle();
+          if (enfant?.classe_id) lien.href = `${racine}pages/navigation.html?classeId=${enfant.classe_id}`;
+        }
       } catch (_e) { /* pas connecté, ou erreur réseau : on garde la destination par défaut */ }
     })();
   }

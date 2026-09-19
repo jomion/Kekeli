@@ -1,3 +1,24 @@
+KEKELI — Livraison du 19 septembre 2026 (13e lot du jour) — correctif du lien "Matière" pour un parent
+===========================================================================
+
+CORRECTIF : LE LIEN "MATIÈRE" DU PIED DE PAGE, POUR UN PARENT
+---------------------------------------------------------------
+Vous aviez signalé que, pour un compte parent, le lien "Matière" du pied
+de page menait toujours d'abord vers la liste des classes.
+
+C'est corrigé : pour un parent connecté, ce lien va maintenant directement
+aux matières de la classe de son enfant (celle du premier enfant inscrit,
+s'il en a plusieurs), sans passer par le choix de la classe. Si le parent
+n'a pas encore inscrit d'enfant, le lien garde son comportement d'avant
+(liste des classes), faute de destination plus précise à proposer. Pour
+les autres rôles (enseignant, administrateur, invité non connecté), rien
+ne change.
+
+Fichier modifié : js/pied-de-page.js. Simple changement d'affichage, aucun
+changement en base de données ; la réécriture du lien échoue silencieusement
+vers l'ancien comportement en cas de session absente ou d'erreur réseau.
+
+===========================================================================
 KEKELI — Livraison du 19 septembre 2026 (12e lot du jour) — correctif du lien "Matière" pour un élève
 ===========================================================================
 
