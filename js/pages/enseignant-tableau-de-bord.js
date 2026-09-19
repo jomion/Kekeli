@@ -40,6 +40,18 @@ async function afficherTableauBordEns() {
   const { data: demandesClasse } = await supabaseClient.from('demandes_classe_enseignant').select('*').eq('enseignant_id', profilEnseignantTB.id);
   const demandesEnAttente = (demandesClasse || []).filter(d => d.statut === 'en_attente');
   const classesAssigneesInfos = (toutesClasses || []).filter(c => classesAssignees.includes(c.id));
+
+  // 19 septembre 2026 : « Ma classe » (élèves de la classe assignée) exige
+  // désormais l'accord du parent avant que l'enseignant y ait accès —
+  // distinct des élèves « suivis » ci-dessus (abonnements). Voir migration
+  // ma_classe_autorisation_parentale et le registre d'appel, filtré pareil.
+  let nbMaClasseAutorises = 0, nbMaClasseEnAttente = 0;
+  if (classesAssignees.length) {
+    const { data: autorisationsMC } = await supabaseClient.from('autorisations_ma_classe')
+      .select('statut').eq('enseignant_id', profilEnseignantTB.id);
+    nbMaClasseAutorises = (autorisationsMC || []).filter(a => a.statut === 'accepte').length;
+    nbMaClasseEnAttente = (autorisationsMC || []).filter(a => a.statut === 'en_attente').length;
+  }
   const classesDisponibles = (toutesClasses || []).filter(c => !classesAssignees.includes(c.id) && !demandesEnAttente.some(d => d.classe_id === c.id));
   const aAccesClasse = acceptes.length > 0 || classesAssignees.length > 0;
 
@@ -112,6 +124,10 @@ async function afficherTableauBordEns() {
       </ul>` : ''}
       ${demandesEnAttente.length ? `<div style="margin-top:10px;font-size:13px;color:var(--text-gris)">
         Demandes en attente : ${demandesEnAttente.map(d => echapperEns((toutesClasses || []).find(c => c.id === d.classe_id)?.nom || '')).join(', ')}
+      </div>` : ''}
+      ${classesAssignees.length ? `<div style="margin-top:10px;font-size:13px;color:var(--text-gris)">
+        👪 « Ma classe » (registre &amp; suivi individuel) : ${nbMaClasseAutorises} élève${nbMaClasseAutorises > 1 ? 's' : ''} autorisé${nbMaClasseAutorises > 1 ? 's' : ''} par leur parent
+        ${nbMaClasseEnAttente ? `, <span style="color:#B45309">${nbMaClasseEnAttente} en attente d'accord</span>` : ''}.
       </div>` : ''}
     </div>
 

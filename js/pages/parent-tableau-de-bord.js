@@ -21,6 +21,7 @@ async function afficherTableauDeBord() {
 
   let enfants = [];
   let abonnementsParEnfant = {};
+  let autorisationsMaClasseParEnfant = {};
   let connectiviteParEnfant = {};
   if (idsEnfants.length > 0) {
     const { data: profilsEnfants } = await supabaseClient.from('profils').select('id, prenom, nom, sexe, departement, commune, arrondissement').in('id', idsEnfants);
@@ -31,6 +32,17 @@ async function afficherTableauDeBord() {
       .select('*, enseignants(profils(prenom, nom))')
       .in('eleve_id', idsEnfants);
     (abonnements || []).forEach(a => { (abonnementsParEnfant[a.eleve_id] ??= []).push(a); });
+
+    // 19 septembre 2026 : autorisations « Ma classe » — un enseignant dont la
+    // classe compte cet enfant a besoin de l'accord du parent avant d'avoir
+    // accès au registre d'appel et au suivi individuel (voir peut_gerer_eleve).
+    // Mécanisme distinct des abonnements ci-dessus (« suivi » d'un enseignant
+    // choisi par le parent).
+    const { data: autorisationsMC } = await supabaseClient
+      .from('autorisations_ma_classe')
+      .select('*, enseignants(profils(prenom, nom)), classes(nom)')
+      .in('eleve_id', idsEnfants);
+    (autorisationsMC || []).forEach(a => { (autorisationsMaClasseParEnfant[a.eleve_id] ??= []).push(a); });
 
     // Contrôle parental de la connectivité (Task #38) : compte_actif,
     // horaires_autorises et derniere_activite vivent sur `eleves`, pas `profils`.
@@ -83,8 +95,30 @@ async function afficherTableauDeBord() {
       <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
         ${(abonnementsParEnfant[e.id] || []).map(a => rendreLignePastilleAB(a)).join('') || '<span style="font-size:12px;color:var(--text-gris)">Aucun enseignant suivi pour l\'instant.</span>'}
       </div>
+      ${(autorisationsMaClasseParEnfant[e.id] || []).length ? `
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
+        <span style="font-size:12px;color:var(--text-gris)">Accès « Ma classe » (registre d'appel) :</span>
+        ${(autorisationsMaClasseParEnfant[e.id] || []).map(a => rendreLigneMaClasse(a)).join('')}
+      </div>` : ''}
     </div>`;
   }).join('') : `<p style="color:var(--text-gris)">Aucun enfant inscrit pour l'instant.</p>`;
+
+  function rendreLigneMaClasse(a) {
+    const nomEns = `${a.enseignants?.profils?.prenom || ''} ${a.enseignants?.profils?.nom || ''}`.trim() || 'Un enseignant';
+    const nomClasse = a.classes?.nom || '';
+    let actions = '';
+    if (a.statut === 'en_attente') {
+      actions = `
+        <button class="btn btn-filled" data-accepter-ma-classe="${a.id}" style="padding:3px 10px;font-size:11px">✅ Autoriser</button>
+        <button class="btn btn-deconnexion-public" data-refuser-ma-classe="${a.id}" style="padding:3px 10px;font-size:11px;color:var(--rouge);border-color:var(--rouge)">✕ Refuser</button>`;
+    }
+    const libStatut = a.statut === 'accepte' ? 'Autorisé' : a.statut === 'refuse' ? 'Refusé' : 'En attente de votre accord';
+    return `
+      <span class="pastille-statut pastille-${a.statut === 'accepte' ? 'rendu' : a.statut === 'refuse' ? 'en_retard' : 'a_faire'}" style="display:inline-flex;align-items:center;gap:6px">
+        ${echapperParentTB(nomEns)}${nomClasse ? ' — ' + echapperParentTB(nomClasse) : ''} — ${libStatut}
+        ${actions}
+      </span>`;
+  }
 
   function rendreLignePastilleAB(a) {
     const demandeParEnseignant = a.demande_par === a.enseignant_id;
@@ -184,6 +218,19 @@ async function afficherTableauDeBord() {
   document.querySelectorAll('[data-refuser-demande-ens]').forEach(btn => {
     btn.addEventListener('click', () => repondreDemandeEnseignant(parseInt(btn.dataset.refuserDemandeEns, 10), 'refuse'));
   });
+  document.querySelectorAll('[data-accepter-ma-classe]').forEach(btn => {
+    btn.addEventListener('click', () => repondreAutorisationMaClasse(parseInt(btn.dataset.accepterMaClasse, 10), 'accepte'));
+  });
+  document.querySelectorAll('[data-refuser-ma-classe]').forEach(btn => {
+    btn.addEventListener('click', () => repondreAutorisationMaClasse(parseInt(btn.dataset.refuserMaClasse, 10), 'refuse'));
+  });
+}
+
+async function repondreAutorisationMaClasse(autorisationId, statut) {
+  const { error } = await supabaseClient.from('autorisations_ma_classe')
+    .update({ statut, traite_le: new Date().toISOString(), traite_par: profilParent.id }).eq('id', autorisationId);
+  if (error) return alert(error.message);
+  afficherTableauDeBord();
 }
 
 async function annulerAbonnement(abonnementId, statutActuel) {

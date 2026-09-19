@@ -30,10 +30,11 @@ async function rendrePage() {
   const zone = document.getElementById('contenu');
   zone.innerHTML = '<div class="chargement">Chargement...</div>';
 
-  const [{ data: demandes }, { data: enseignants }, { data: classes }] = await Promise.all([
+  const [{ data: demandes }, { data: enseignants }, { data: classes }, { data: autorisationsMC }] = await Promise.all([
     supabaseClient.from('demandes_classe_enseignant').select('*').order('demande_le', { ascending: false }),
     supabaseClient.from('enseignants').select('id, classes_assignees, profils(prenom, nom, email)'),
-    supabaseClient.from('classes').select('*').order('ordre')
+    supabaseClient.from('classes').select('*').order('ordre'),
+    supabaseClient.from('autorisations_ma_classe').select('*, eleves(profils(prenom, nom))')
   ]);
 
   const classesParId = {};
@@ -71,7 +72,45 @@ async function rendrePage() {
         </tr>`).join('') || `<tr><td colspan="3" style="color:var(--texte-gris)">Aucun enseignant inscrit.</td></tr>`}
       </tbody>
     </table>
+
+    <div class="titre-cycle">Autorisations « Ma classe » (accord parental)</div>
+    <p style="font-size:13px;color:var(--texte-gris);margin-top:-8px">
+      Depuis le 19 septembre 2026, un enseignant n'a accès au registre d'appel et au suivi d'un élève de « Ma classe »
+      qu'après l'accord du parent. Vous pouvez ici suivre ces demandes, ou autoriser manuellement un élève sans
+      compte parent actif.
+    </p>
+    ${(enseignants || []).filter(e => (e.classes_assignees || []).length).map(e => {
+      const lignesEns = (autorisationsMC || []).filter(a => a.enseignant_id === e.id);
+      return e.classes_assignees.map(cid => {
+        const lignesClasse = lignesEns.filter(a => a.classe_id === cid);
+        if (!lignesClasse.length) return '';
+        return `
+        <div class="carte-demande" style="flex-direction:column;align-items:stretch;gap:6px">
+          <strong>${echapperEC(e.profils?.prenom || '')} ${echapperEC(e.profils?.nom || '')} — ${echapperEC(classesParId[cid] || '')}</strong>
+          ${lignesClasse.map(a => {
+            const nomEleve = `${a.eleves?.profils?.prenom || ''} ${a.eleves?.profils?.nom || ''}`.trim() || '(élève)';
+            const libStatut = a.statut === 'accepte' ? '✅ Autorisé' : a.statut === 'refuse' ? '✕ Refusé par le parent' : '⏳ En attente du parent';
+            return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:4px 0;border-top:1px solid var(--bordure)">
+              <span>${echapperEC(nomEleve)} — ${libStatut}${a.source === 'ajout_manuel_admin' ? ' <span style="color:var(--texte-gris)">(ajout admin)</span>' : ''}</span>
+              ${a.statut !== 'accepte' ? `<button class="btn btn-primaire" data-autoriser-manuel="${a.id}" style="padding:3px 10px;font-size:11px">✅ Autoriser manuellement</button>` : ''}
+            </div>`;
+          }).join('')}
+        </div>`;
+      }).join('');
+    }).join('') || '<p class="chargement">Aucune demande pour l\'instant.</p>'}
   `;
+
+  zone.querySelectorAll('[data-autoriser-manuel]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      confirmerAction("Autoriser manuellement cet élève pour cet enseignant, sans passer par le parent ?", async () => {
+        const { error } = await supabaseClient.from('autorisations_ma_classe')
+          .update({ statut: 'accepte', source: 'ajout_manuel_admin', traite_le: new Date().toISOString(), traite_par: profilAdminEC.id })
+          .eq('id', parseInt(btn.dataset.autoriserManuel, 10));
+        if (error) return alert(error.message);
+        rendrePage();
+      });
+    });
+  });
 
   zone.querySelectorAll('[data-accepter-demande]').forEach(btn => {
     btn.addEventListener('click', () => traiterDemande(parseInt(btn.dataset.accepterDemande, 10), 'accepte'));

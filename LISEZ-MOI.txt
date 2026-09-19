@@ -1,73 +1,113 @@
-KEKELI — Livraison : correction affichée au 3e essai, carte "devoirs à corriger" fiable, suivi de l'enfant côté parent, consultation en lecture seule
-================================================================================
+KEKELI — Livraison du 19 septembre 2026 (26e requête indépendante)
+===================================================================
 
-1. Au 3e essai, la correction s'affiche enfin au lieu du message bloquant
-------------------------------------------------------------------------
-Vos captures d'écran montraient l'alerte "Le nombre maximum d'essais (3) est
-déjà atteint pour cet exercice." après le 3e essai. Cause trouvée : le bouton
-"🔄 Refaire cet exercice" restait affiché même après le 3e essai (le dernier
-autorisé), donc l'élève pouvait cliquer dessus et tenter un 4e essai — toujours
-refusé par le système. Corrigé : ce bouton disparaît désormais dès que les 3
-essais sont utilisés, et seul le bouton "🔓 Voir la correction" reste (déjà en
-place, mais caché derrière ce faux choix). Corrigé à la fois pour un exercice
-de séance et pour un exercice de devoir.
+Vous avez envoyé un message vocal avec 7 demandes distinctes. En voici le
+traitement, une par une.
 
-Fichiers modifiés : js/pages/eleve-seance.js, js/pages/eleve-devoir-rendu.js
+1) BUG CORRIGÉ : les élèves d'une classe attribuée à un enseignant
+   s'ajoutaient automatiquement au registre, sans accord du parent
+   -------------------------------------------------------------------
+   C'était bien un bug, comme vous l'avez signalé. Un enseignant à qui
+   l'administration attribue une classe ("classes_assignees") voyait
+   auparavant TOUS les élèves de cette classe automatiquement, y compris
+   dans le registre d'appel — sans qu'aucun parent n'ait donné son accord.
 
-2. La carte "Devoirs reçus à corriger" ne reste plus active après correction
-------------------------------------------------------------------------
-Côté enseignant, cette carte comptait un devoir dès qu'une réponse avait été
-reçue, mais ne vérifiait jamais si vous l'aviez déjà corrigé — un devoir
-corrigé restait donc compté indéfiniment. Corrigé : la carte ne compte
-maintenant que les devoirs qui ont vraiment une réponse ENCORE NON corrigée
-(que ce soit un devoir "texte libre" ou un devoir "à blocs" avec exercices/
-activités/problèmes) — dès que tout est corrigé, le devoir disparaît de cette
-carte.
+   Corrigé en créant un nouveau mécanisme "Ma classe" (autorisations_ma_classe),
+   entièrement séparé du mécanisme "Élèves suivis" (abonnements_enseignant_eleve,
+   inchangé) :
+   - Quand une classe est attribuée à un enseignant (par l'administration, ou
+     au moment où l'enseignant choisit sa classe initiale à l'inscription),
+     une demande d'autorisation "en attente" est créée pour chaque élève déjà
+     dans la classe, et chaque parent est notifié.
+   - Quand un nouvel élève rejoint une classe déjà attribuée à un ou
+     plusieurs enseignants, la même demande est créée automatiquement.
+   - Le parent accepte ou refuse depuis son tableau de bord (nouvelle section
+     "Accès « Ma classe »" sous chaque enfant).
+   - Tant que le parent n'a pas répondu, l'élève N'APPARAÎT PAS dans le
+     registre d'appel de l'enseignant, ni dans la page "Devoirs & notes"
+     (un message discret indique combien d'élèves sont "en attente d'accord").
+   - Un enseignant qui SUIT un élève (mécanisme existant, indépendant) ne le
+     voit jamais dans son registre d'appel, quelle que soit la classe réelle
+     de cet élève — exactement la distinction que vous avez demandée entre
+     "Ma classe" et "Élèves suivis".
+   - Un administrateur peut, depuis "Enseignants & classes", suivre toutes
+     ces demandes et autoriser manuellement un élève sans compte parent actif.
+   - Important : les 5 attributions de classe déjà en place ont été traitées
+     rétroactivement — une demande "en attente" a été créée pour chacun des
+     12 élèves concernés, et leurs parents ont été notifiés. Tant qu'ils
+     n'auront pas répondu, ces élèves n'apparaîtront plus dans le registre.
+   - La sécurité a aussi été resserrée en base (RLS) sur les données propres
+     à un élève (devoirs rendus, réponses aux exercices, activités notées,
+     séances terminées, paliers) : un enseignant n'y a accès que via un
+     abonnement accepté OU une autorisation "Ma classe" acceptée — plus
+     jamais par simple appartenance à une classe attribuée. La gestion du
+     contenu pédagogique (séances, exercices, planification) reste, elle,
+     inchangée : elle continue de fonctionner pour toute la classe attribuée.
 
-Fichier modifié : js/pages/enseignant-devoirs-notes.js
+2) Bouton "lecture"/consultation pour l'enseignant
+   -------------------------------------------------------------------
+   Ce point a normalement déjà été résolu par la livraison précédente
+   (18-19 septembre, "mode consultation en lecture seule") : le bouton
+   "🔍 Consulter" sur la page Séances permet à l'enseignant (et au parent)
+   de lire le contenu complet d'une séance sans pouvoir soumettre de
+   réponses. Si ce n'est pas ce que vous cherchiez, précisez-nous ce qui
+   manque encore.
 
-3. Nouvelle page "Suivi de l'enfant" pour les parents
-------------------------------------------------------------------------
-Vous ne pouviez pas voir les cours suivis, les activités faites ni les badges
-de votre enfant. Nouvelle page (menu parent → "📈 Suivi de l'enfant"), avec un
-sélecteur si vous suivez plusieurs enfants, qui regroupe :
-  - les cours/séances déjà terminés par l'enfant, avec la date et un lien pour
-    consulter le contenu de la séance (voir point 4 ci-dessous) ;
-  - l'avancement global dans le programme de sa classe (ex. "6/20 séances
-    terminées — 30%") ;
-  - l'historique de ses 20 dernières activités/exercices rendus, avec le
-    résultat (tâches réussies, note, ou "en attente de correction") et la
-    date ;
-  - ses badges et sa progression par palier (mêmes récompenses qu'affichées à
-    l'enfant : étoiles, médailles de palier, badges spéciaux, trophées
-    d'excellence), avec les mêmes filtres par palier.
-Toutes ces données étaient déjà autorisées pour un parent au niveau de la
-base ; il ne manquait qu'une page pour les présenter — aucun changement de
-sécurité n'a été nécessaire pour cette fonctionnalité.
+3) Compte parent ajouté par un enseignant (même e-mail, sélecteur de vue)
+   Compte parent/enseignant ajouté par une autorité pédagogique
+   -------------------------------------------------------------------
+   PAS ENCORE IMPLÉMENTÉ — ce point touche à l'authentification (un même
+   identifiant de connexion pour deux "vues" différentes) et à des questions
+   de confidentialité qu'il vaut mieux trancher avec vous avant de coder :
+   si l'enseignant peut suivre un élève via une vraie vue parent, il verrait
+   aussi, comme un vrai parent, l'historique des paiements de cet élève. Je
+   vous pose une question de clarification séparément pour ce point précis.
 
-Fichiers ajoutés : pages/parent/suivi-enfant.html, js/pages/parent-suivi-enfant.js
-Fichier modifié : js/navigation-config.js (nouveau lien de menu parent)
+4) Devoir libre (espace non lié à une séance précise)
+   -------------------------------------------------------------------
+   Fait. Un bouton "+ Devoir libre" est réapparu à côté de "+ Nouveau devoir
+   (à blocs)", côté administration ET côté enseignant. Il permet de créer un
+   devoir texte libre (avec pièce jointe possible côté élève), sans le lier
+   à une séance — exactement ce qui existait avant d'être volontairement
+   retiré le 18 septembre (un seul mode de création restait alors). Les deux
+   modes coexistent maintenant côte à côte, comme demandé.
 
-4. Mode consultation en lecture seule pour l'enseignant et le parent
-------------------------------------------------------------------------
-Sur votre demande ("les autres rôles doivent pouvoir accéder au contenu et le
-lire, mais sans accès à la correction automatique"), l'enseignant et le
-parent peuvent maintenant ouvrir une séance publiée en LECTURE SEULE : ils
-voient le vrai contenu (cours, énoncés des exercices, quiz, évaluations)
-exactement comme un élève, mais tous les champs de réponse sont désactivés —
-impossible de soumettre une réponse, donc aucune correction automatique n'est
-jamais déclenchée depuis cette vue. Accessible depuis le bouton "🔍 Consulter"
-sur la page "Séances" (déjà utilisée par tous les rôles), et depuis chaque
-cours listé dans "Suivi de l'enfant" côté parent (point 3). Avant ce
-correctif, l'enseignant n'avait tout simplement aucun moyen d'ouvrir le
-contenu réel d'une séance (l'éditeur complet est réservé à l'administrateur),
-et le parent non plus.
+5) Bug d'affichage "Unité" pour toutes les matières
+   -------------------------------------------------------------------
+   Corrigé. La page "Champs de Formation" affichait un chiffre qui ne
+   correspondait à rien de compréhensible (un décompte de noeuds internes de
+   l'arborescence, souvent égal à 1). Elle affiche maintenant le vrai nombre
+   de séances publiées de chaque matière ("N Séances"), sur le même calcul
+   déjà utilisé pour l'avancement du tableau de bord élève.
 
-Fichiers ajoutés : pages/enseignant/consulter-seance.html, js/pages/enseignant-consulter-seance.js,
-pages/parent/consulter-seance.html, js/pages/parent-consulter-seance.js, js/lecture-seule-seance.js
-Fichier modifié : js/pages/seances.js (bouton "🔍 Consulter")
+6) Notification instantanée avec alerte visible
+   -------------------------------------------------------------------
+   Corrigé. La cloche de notifications (utilisée par tous les espaces) est
+   maintenant branchée sur le temps réel : dès qu'une notification arrive,
+   elle apparaît immédiatement dans la liste ET un petit encart ("toast")
+   apparaît en haut à droite de l'écran pendant quelques secondes, cliquable
+   pour aller directement au bon endroit — plus besoin de recharger la page
+   ou de cliquer sur la cloche pour s'apercevoir qu'il y a du nouveau.
 
-Aucun changement de base de données n'a été nécessaire pour les points 3 et 4 :
-les autorisations nécessaires existaient déjà (un parent pouvait déjà lire les
-données de son enfant, un enseignant pouvait déjà lire le contenu de ses
-classes) — il manquait seulement les pages pour les présenter correctement.
+Fichiers modifiés : js/notifications.js, js/pages/admin-devoirs-notes.js,
+js/pages/admin-enseignants-classes.js, js/pages/enseignant-devoirs-notes.js,
+js/pages/enseignant-registre-appel.js, js/pages/enseignant-tableau-de-bord.js,
+js/pages/navigation.js, js/pages/parent-tableau-de-bord.js.
+
+Base de données (Supabase, appliqué immédiatement, comme toujours) :
+nouvelle table autorisations_ma_classe (+ RLS), fonctions
+creer_demandes_ma_classe_pour_classe/pour_eleve, déclencheurs sur
+demandes_classe_enseignant/eleves.classe_id/attribuer_classe_initiale_enseignant,
+peut_gerer_eleve() et peut_gerer_presence_eleve() réécrites, policies RLS
+resserrées sur reponses_exercices/rendus_activites/seances_terminees/
+paliers_valides/presences_appel/devoirs_rendus/devoirs_blocs_validations,
+table notifications ajoutée à la réplication temps réel.
+
+Vérifications faites avant cette livraison : node --check sur les 8 fichiers
+JS modifiés ; mcp__Supabase__get_advisors (sécurité) après chaque migration
+— aucune nouvelle alerte, seulement les avertissements préexistants déjà
+présents sur tout le projet ; relecture complète des policies RLS et des
+fonctions peut_gerer_eleve/peut_gerer_classe/peut_gerer_classe_champ/
+peut_editer_perimetre avant de les modifier, pour ne retirer que le bon
+accès (le blanket "classe assignée" par élève) sans toucher à l'accès
+classe-entière au contenu pédagogique ni à l'accès admin.

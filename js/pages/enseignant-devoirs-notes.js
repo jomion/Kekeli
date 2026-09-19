@@ -111,13 +111,28 @@ async function afficherGestionEns() {
   const zone = document.getElementById('zoneGestionEns');
   zone.innerHTML = '<p style="color:var(--text-gris)">Chargement...</p>';
 
-  // Classe attribuée administrativement : accès à TOUS les élèves de la
-  // classe (comme côté admin) — sinon (classe atteinte uniquement via un
-  // suivi individuel), on garde le filtre historique sur les seuls élèves
-  // suivis, voir la note en tête de fichier.
+  // Classe attribuée administrativement : accès aux élèves de « Ma classe »
+  // réellement AUTORISÉS par leur parent (autorisations_ma_classe, voir
+  // migration du 19 septembre 2026 — même filtre que le registre d'appel) —
+  // sinon (classe atteinte uniquement via un suivi individuel), on garde le
+  // filtre historique sur les seuls élèves suivis, voir la note en tête de fichier.
   const classeEstAssigneeEns = classesAssigneesEns.includes(Number(classeSelectionneeEns));
   const requeteElevesEns = supabaseClient.from('eleves').select('id, profils(prenom, nom)').eq('classe_id', classeSelectionneeEns);
-  const { data: eleves } = classeEstAssigneeEns ? await requeteElevesEns : await requeteElevesEns.in('id', elevesSuivisIds);
+  let nbEnAttenteEns = 0;
+  let eleves;
+  if (classeEstAssigneeEns) {
+    const [{ data: elevesClasse }, { data: autorisations }] = await Promise.all([
+      requeteElevesEns,
+      supabaseClient.from('autorisations_ma_classe').select('eleve_id, statut')
+        .eq('enseignant_id', profilEnseignant.id).eq('classe_id', classeSelectionneeEns)
+    ]);
+    const statutParEleve = {};
+    (autorisations || []).forEach(a => { statutParEleve[a.eleve_id] = a.statut; });
+    nbEnAttenteEns = (autorisations || []).filter(a => a.statut === 'en_attente').length;
+    eleves = (elevesClasse || []).filter(e => statutParEleve[e.id] === 'accepte');
+  } else {
+    eleves = (await requeteElevesEns.in('id', elevesSuivisIds)).data;
+  }
   const idsEleves = (eleves || []).map(e => e.id);
   const { data: devoirs } = await supabaseClient.from('devoirs').select('*, seances(titre)').eq('classe_id', classeSelectionneeEns).eq('champ_formation_id', champSelectionneEns).order('date_limite');
   const { data: evaluations } = idsEleves.length
@@ -306,6 +321,10 @@ async function afficherGestionEns() {
     : '<p style="color:var(--text-gris);font-size:14px">Aucun devoir dans cette situation.</p>';
 
   zone.innerHTML = `
+    ${nbEnAttenteEns > 0 ? `
+    <div style="background:#fff8e1;border:1px solid #ffcc80;border-radius:8px;padding:10px 14px;margin-bottom:16px;color:#7a5300;font-size:0.95em">
+      ⏳ ${nbEnAttenteEns} élève${nbEnAttenteEns > 1 ? 's' : ''} de cette classe n'appara${nbEnAttenteEns > 1 ? 'issent' : 'ît'} pas encore ici : l'autorisation du parent est en attente.
+    </div>` : ''}
     <div data-zone-cartes-statuts style="margin-bottom:20px">
       <div class="grille-taches-admin" style="margin-bottom:0">
         ${cartesEns.map(c => `
@@ -319,7 +338,10 @@ async function afficherGestionEns() {
           ${html_listeDevoirsEns(c.devoirs, false)}
         </div>`).join('')}
     </div>
-    <button class="btn btn-filled" id="btnNouveauDevoirEns" style="margin-bottom:20px">+ Nouveau devoir</button>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">
+      <button class="btn btn-filled" id="btnNouveauDevoirEns">+ Nouveau devoir (à blocs)</button>
+      <button class="btn btn-discret" id="btnNouveauDevoirLibreEns" title="Un devoir texte libre, non lié à une séance précise">+ Devoir libre</button>
+    </div>
 
     <div class="titre-section-pub">Devoirs</div>
     <p style="font-size:11px;color:var(--text-gris);margin:-6px 0 10px;display:flex;gap:12px;flex-wrap:wrap">
@@ -349,6 +371,7 @@ async function afficherGestionEns() {
 
   attacherEcouteursCartesStatutsDevoirs(zone);
   document.getElementById('btnNouveauDevoirEns').addEventListener('click', () => ouvrirNouveauDevoirEns(eleves || []));
+  document.getElementById('btnNouveauDevoirLibreEns').addEventListener('click', () => ouvrirNouveauDevoirTexteLibreEns(eleves || []));
   zone.querySelectorAll('[data-supprimer-devoir]').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = parseInt(btn.dataset.supprimerDevoir, 10);
@@ -411,12 +434,11 @@ async function afficherGestionEns() {
   }
 }
 
-// 18 septembre 2026 : "retire le devoir libre" — le choix de mode a disparu,
-// la création va désormais directement au mode "à blocs" (le seul restant).
-// ouvrirNouveauDevoirTexteLibreEns() reste plus bas, volontairement : les
-// devoirs texte libre déjà créés avant ce changement continuent de s'afficher
-// et de se corriger normalement (voir html_gestionRendusDevoir), seule la
-// CRÉATION d'un nouveau devoir dans ce mode est retirée.
+// 18 septembre 2026 : "retire le devoir libre" avait retiré ce bouton.
+// 19 septembre 2026 (26e requête) : "ajoute aussi un espace libre pour les
+// devoirs" — le devoir libre (texte libre, non lié à une séance précise)
+// est revenu comme option de création séparée, voir le bouton "+ Devoir
+// libre" ci-dessus (ouvrirNouveauDevoirTexteLibreEns).
 function ouvrirNouveauDevoirEns(eleves) {
   ouvrirNouveauDevoirBlocsEns(eleves);
 }

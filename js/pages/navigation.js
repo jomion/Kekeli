@@ -323,7 +323,7 @@ async function afficherChamps() {
 
   // Nombre d'"unités" par champ : niveau unite/dossier si présent,
   // sinon nombre de SA rattachées directement (champs à un seul niveau).
-  const comptes = await Promise.all(champs.map(c => compterUnitesChamp(c)));
+  const comptes = await Promise.all(champs.map(c => compterSeancesChamp(c)));
   const apercusEnfants = await Promise.all(champs.map(c => recupererApercuEnfantsChamp(c)));
   // L'édition de l'arborescence (bouton "✏️ Éditer" ci-dessous) est réservée
   // aux administrateurs du périmètre — plus aux enseignants (voir migration
@@ -351,7 +351,7 @@ async function afficherChamps() {
             <ul>${apercusEnfants[i].map(t => `<li>${echapper(t)}</li>`).join('')}</ul>
           </div>` : ''}
           <div class="pied-carte-champ">
-            <span class="nb-unites-champ">${comptes[i]} Unité${comptes[i] > 1 ? 's' : ''}</span>
+            <span class="nb-unites-champ">${comptes[i]} Séance${comptes[i] > 1 ? 's' : ''}</span>
             <div style="display:flex;gap:6px;flex-wrap:wrap">
               ${droitsEdition[i] ? `<button class="btn btn-discret" data-editer-champ="${c.id}" type="button" title="Gérer toute la hiérarchie">✏️ Éditer</button>` : ''}
               <button class="btn btn-discret" data-structure-champ="${c.id}" type="button" title="Voir la structure complète de cette matière">🗂️ Structure</button>
@@ -440,23 +440,28 @@ async function recupererApercuEnfantsChamp(champ) {
   return titres;
 }
 
-async function compterUnitesChamp(champ) {
-  const { count: compteUnitesDossiers } = await supabaseClient
-    .from('noeuds_parcours').select('id', { count: 'exact', head: true })
-    .eq('classe_id', etat.classe.id).eq('champ_formation_id', champ.id).in('type_noeud', ['unite', 'dossier']);
-
-  if (compteUnitesDossiers > 0) return compteUnitesDossiers;
-
-  // Champs à un seul niveau (pas d'unité/dossier) : on compte les SA
-  // rattachées à n'importe quel noeud racine de ce champ.
-  const { data: racines } = await supabaseClient
+// 19 septembre 2026 : "ça affiche Unité, Unité partout pour toutes les
+// matières" — compterUnitesChamp comptait en réalité des NOEUDS de
+// l'arborescence (unite/dossier, ou à défaut des SA racines), pas les
+// séances elles-mêmes, ce qui donnait un chiffre sans rapport avec le vrai
+// contenu (et souvent 1, d'où "Unité" partout au singulier de fait). Corrigé
+// en comptant les vraies séances PUBLIÉES du champ, sur le même chemin
+// classe → noeuds_parcours → sa → seances déjà utilisé pour l'avancement du
+// tableau de bord élève (js/pages/eleve-tableau-de-bord.js).
+async function compterSeancesChamp(champ) {
+  const { data: noeuds } = await supabaseClient
     .from('noeuds_parcours').select('id')
-    .eq('classe_id', etat.classe.id).eq('champ_formation_id', champ.id).is('parent_id', null);
-  if (!racines || racines.length === 0) return 0;
+    .eq('classe_id', etat.classe.id).eq('champ_formation_id', champ.id);
+  const idsNoeuds = (noeuds || []).map(n => n.id);
+  if (!idsNoeuds.length) return 0;
 
-  const { count: compteSA } = await supabaseClient
-    .from('sa').select('id', { count: 'exact', head: true }).in('noeud_id', racines.map(r => r.id));
-  return compteSA || 0;
+  const { data: sas } = await supabaseClient.from('sa').select('id').in('noeud_id', idsNoeuds);
+  const idsSA = (sas || []).map(s => s.id);
+  if (!idsSA.length) return 0;
+
+  const { count } = await supabaseClient
+    .from('seances').select('id', { count: 'exact', head: true }).eq('statut', 'publie').in('sa_id', idsSA);
+  return count || 0;
 }
 
 async function verifierPermissions() {

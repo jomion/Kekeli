@@ -113,16 +113,31 @@ async function rerenderOngletGA() {
 // Onglet "Appel du jour"
 // ===========================================================================
 
+// 19 septembre 2026 : le registre d'appel ne doit contenir que les élèves de
+// « Ma classe » réellement AUTORISÉS par leur parent (autorisations_ma_classe,
+// statut 'accepte') — jamais les élèves simplement « suivis » (abonnement),
+// et jamais un élève dont l'autorisation est encore en attente ou refusée.
+// Voir js/pages/parent-tableau-de-bord.js pour la réponse du parent.
+let nbEnAttenteGA = 0;
+
 async function chargerRosterGA() {
-  const [{ data: elevesReels }, { data: elevesManuels }] = await Promise.all([
+  const [{ data: elevesReels }, { data: elevesManuels }, { data: autorisations }] = await Promise.all([
     supabaseClient.from('eleves').select('id, profils(nom, prenom, sexe)').eq('classe_id', classeSelGA),
-    supabaseClient.from('registre_eleves_manuels').select('id, nom, prenom, genre').eq('classe_id', classeSelGA).eq('actif', true)
+    supabaseClient.from('registre_eleves_manuels').select('id, nom, prenom, genre').eq('classe_id', classeSelGA).eq('actif', true),
+    supabaseClient.from('autorisations_ma_classe').select('eleve_id, statut')
+      .eq('enseignant_id', profilGA.id).eq('classe_id', classeSelGA)
   ]);
 
-  const reels = (elevesReels || []).map(e => ({
-    cle: 'r_' + e.id, type: 'reel', id: e.id,
-    nom: e.profils?.nom || '(sans nom)', prenom: e.profils?.prenom || '', genre: e.profils?.sexe || 'M'
-  }));
+  const statutParEleve = {};
+  (autorisations || []).forEach(a => { statutParEleve[a.eleve_id] = a.statut; });
+  nbEnAttenteGA = (autorisations || []).filter(a => a.statut === 'en_attente').length;
+
+  const reels = (elevesReels || [])
+    .filter(e => statutParEleve[e.id] === 'accepte')
+    .map(e => ({
+      cle: 'r_' + e.id, type: 'reel', id: e.id,
+      nom: e.profils?.nom || '(sans nom)', prenom: e.profils?.prenom || '', genre: e.profils?.sexe || 'M'
+    }));
   const manuels = (elevesManuels || []).map(e => ({
     cle: 'm_' + e.id, type: 'manuel', id: e.id, nom: e.nom, prenom: e.prenom, genre: e.genre
   }));
@@ -254,6 +269,10 @@ function reafficherAppelSansRechargerGA() {
 function html_onglet_appel(joursOuvres) {
   const [libM] = [new Date(moisAppelGA + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })];
   return `
+    ${nbEnAttenteGA > 0 ? `
+    <div class="ga-alerte-autorisation" style="background:#fff8e1;border:1px solid #ffcc80;border-radius:8px;padding:10px 14px;margin-bottom:12px;color:#7a5300;font-size:0.95em">
+      ⏳ ${nbEnAttenteGA} élève${nbEnAttenteGA > 1 ? 's' : ''} de cette classe n'appara${nbEnAttenteGA > 1 ? 'issent' : 'ît'} pas encore ici : l'autorisation du parent est en attente.
+    </div>` : ''}
     <div class="ga-entete-grid">
       <div class="ga-champ"><label>Mois du registre</label><input type="month" id="gaSelectMois" value="${moisAppelGA}"></div>
       <div class="ga-champ"><label>Demi-jours de classe</label><span class="ga-valeur">${demiJoursMoisGA}</span></div>

@@ -117,7 +117,10 @@ async function afficherGestion() {
   }
 
   zone.innerHTML = `
-    <button class="btn btn-accent" id="btnNouveauDevoir" style="margin-bottom:20px">+ Nouveau devoir</button>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">
+      <button class="btn btn-accent" id="btnNouveauDevoir">+ Nouveau devoir (à blocs)</button>
+      <button class="btn btn-discret" id="btnNouveauDevoirLibre" title="Un devoir texte libre, non lié à une séance précise">+ Devoir libre</button>
+    </div>
     <div class="titre-cycle" style="margin-top:0">Devoirs</div>
     <p style="font-size:11px;color:var(--texte-gris);margin:-4px 0 10px;display:flex;gap:12px;flex-wrap:wrap">
       <span><span style="display:inline-block;width:10px;height:10px;background:${COULEURS_TYPE_DEVOIR_HIST_ADMIN.exercice};border-radius:2px;margin-right:3px;vertical-align:middle"></span>Devoir</span>
@@ -165,6 +168,7 @@ async function afficherGestion() {
   `;
 
   document.getElementById('btnNouveauDevoir').addEventListener('click', () => ouvrirNouveauDevoir(eleves || []));
+  document.getElementById('btnNouveauDevoirLibre').addEventListener('click', () => ouvrirNouveauDevoirTexteLibre(eleves || []));
   zone.querySelectorAll('[data-noter]').forEach(btn => {
     btn.addEventListener('click', () => ouvrirNouvelleNote(btn.dataset.noter));
   });
@@ -227,11 +231,12 @@ async function afficherGestion() {
   }
 }
 
-// 18 septembre 2026 : "retire le devoir libre" — même changement que côté
-// enseignant (js/pages/enseignant-devoirs-notes.js) : la création va
-// directement au mode "à blocs", le seul restant. ouvrirNouveauDevoirTexteLibre()
-// reste plus bas : les devoirs texte libre déjà créés continuent de
-// s'afficher et de se corriger normalement, seule leur CRÉATION est retirée.
+// 18 septembre 2026 : "retire le devoir libre" avait retiré ce bouton de
+// création (seul le mode "à blocs" restait accessible). 19 septembre 2026
+// (26e requête) : "ajoute aussi un espace libre pour les devoirs" — demande
+// explicitement le retour du devoir libre (texte libre, non lié à une
+// séance précise) comme option de création À CÔTÉ du mode "à blocs", pas à
+// sa place — voir le bouton "+ Devoir libre" séparé plus haut.
 function ouvrirNouveauDevoir(eleves) {
   ouvrirNouveauDevoirBlocs(eleves);
 }
