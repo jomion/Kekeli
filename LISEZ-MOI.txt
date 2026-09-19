@@ -1,3 +1,26 @@
+KEKELI — Livraison du 19 septembre 2026 (12e lot du jour) — correctif du lien "Matière" pour un élève
+===========================================================================
+
+CORRECTIF : LE LIEN "MATIÈRE" DU PIED DE PAGE, POUR UN ÉLÈVE
+---------------------------------------------------------------
+Vous aviez signalé que, une fois connecté en tant qu'élève, le lien
+"Matière" du pied de page (ajouté dans le lot précédent) menait d'abord à
+une liste de CLASSES avant d'arriver aux matières.
+
+C'est corrigé : pour un élève connecté, ce lien va maintenant directement à
+la page "Choisis une matière" de son propre compte (un élève n'ayant
+qu'une seule classe, ce détour n'a jamais de raison d'être pour lui). Pour
+tous les autres cas (enseignant, parent, administrateur, invité non
+connecté), rien ne change : le lien continue d'ouvrir la page de
+navigation classe/matière/séance comme avant.
+
+Fichier modifié : js/pied-de-page.js. Simple changement d'affichage, aucun
+changement en base de données, aucun risque pour les autres rôles (la
+réécriture du lien ne se produit que si le compte connecté est bien un
+élève, et échoue silencieusement vers l'ancien comportement en cas de
+session absente ou d'erreur réseau).
+
+===========================================================================
 KEKELI — Livraison du 19 septembre 2026 (11e lot du jour) — 6 classes à l'inscription, lien "Matière" du pied de page, verrouillage séquentiel des séances
 ===========================================================================
 

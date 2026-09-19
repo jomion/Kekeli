@@ -28,11 +28,24 @@ function initPiedDePage() {
   // page d'accueil. Sur l'accueil, le lien "Matière" (19 septembre 2026 :
   // remplace l'ancien lien "Classes" du footer, demande explicite) doit
   // rester sur place et défiler vers la section "Les matières du programme
-  // CM2" (#matieresCM2, déjà présente sur la page) plutôt que d'ouvrir la
-  // vraie page de navigation — qui, elle, reste la bonne destination pour ce
-  // même lien sur toutes les autres pages (élève, enseignant, admin,
-  // parent...) où il s'agit de naviguer dans les vraies classes/matières de
-  // l'utilisateur connecté.
+  // CM2" (#matieresCM2, déjà présente sur la page).
+  //
+  // Sur les autres pages, ce lien ouvrait jusqu'ici toujours la page de
+  // navigation partagée (pages/navigation.html) — qui, pour un élève,
+  // affiche d'abord la liste des CLASSES avant d'arriver aux matières,
+  // exactement ce que le porteur du projet a signalé comme incorrect
+  // (« le bouton Matière doit conduire vers les matières du compte et non
+  // vers les classes »). Pour un enseignant/admin qui gère plusieurs
+  // classes, cette étape reste nécessaire (aucune matière n'est propre à
+  // « son compte » sans avoir d'abord choisi la classe) ; en revanche, un
+  // élève n'a qu'une seule classe et dispose déjà d'une page dédiée qui va
+  // directement à ses matières, sans détour par un choix de classe :
+  // pages/eleve/matiere.html (js/pages/eleve-matiere.js). Le rôle n'étant
+  // connu qu'après une requête asynchrone, le lien pointe d'abord vers la
+  // page de navigation partagée (comportement précédent, pour ne pas
+  // retarder l'affichage du reste du pied de page), puis est réécrit vers
+  // la page dédiée dès que l'on sait qu'il s'agit bien d'un élève connecté
+  // (voir la fin de cette fonction).
   const estAccueil = racine === '';
   const lienMatiere = estAccueil ? '#matieresCM2' : `${racine}pages/navigation.html`;
 
@@ -48,7 +61,7 @@ function initPiedDePage() {
         <h3>Navigation</h3>
         <ul>
           <li><a href="${racine}index.html">Accueil</a></li>
-          <li><a href="${lienMatiere}">Matière</a></li>
+          <li><a href="${lienMatiere}" id="piedLienMatiere">Matière</a></li>
           <li><a href="${racine}index.html#paliers">Paliers</a></li>
         </ul>
       </div>
@@ -70,6 +83,24 @@ function initPiedDePage() {
     </div>
     <div class="pied-page-bas">© ${new Date().getFullYear()} KEKELI — Tous droits réservés.</div>
   `;
+
+  // Réécriture asynchrone du lien "Matière" pour un élève connecté (voir le
+  // commentaire plus haut) — n'attend jamais avant d'afficher le pied de
+  // page ci-dessus, et échoue silencieusement (visiteur non connecté, session
+  // expirée, erreur réseau...) en gardant la destination par défaut déjà en
+  // place.
+  if (!estAccueil && typeof supabaseClient !== 'undefined') {
+    (async () => {
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) return;
+        const { data: profil } = await supabaseClient.from('profils').select('role').eq('id', session.user.id).maybeSingle();
+        if (profil?.role !== 'eleve') return;
+        const lien = document.getElementById('piedLienMatiere');
+        if (lien) lien.href = `${racine}pages/eleve/matiere.html`;
+      } catch (_e) { /* pas connecté, ou erreur réseau : on garde la destination par défaut */ }
+    })();
+  }
 }
 
 if (document.readyState === 'loading') {
