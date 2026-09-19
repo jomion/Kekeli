@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KEKELI - Mon profil</title>
+<link rel="icon" type="image/png" href="../../assets/logo/logo.png">
+<link rel="stylesheet" href="../../css/style-public.css">
+<link rel="stylesheet" href="../../css/theme-premium-eleve.css">
+<style>
+  /* Page "Mon profil" (19 septembre 2026) : fiche de lecture SEULE, aucun
+     champ modifiable — voir js/pages/eleve-profil.js. Classes propres à
+     cette page (non retouchées par le thème premium, même principe que
+     .grille-totaux-badges-paliers sur pages/eleve/badges.html). */
+  .profil-carte-identite { background: white; border-radius: 14px; padding: 28px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.10), 0 0 0 1px rgba(15,23,42,0.07); margin-bottom: 24px; }
+  .profil-avatar-grand { font-size: 56px; line-height: 1; margin-bottom: 10px; }
+  .profil-carte-identite h1 { margin: 0 0 4px; font-size: 22px; color: var(--noir-kekeli); }
+  .profil-classe { margin: 0; color: var(--text-gris); font-size: 14px; }
+  .grille-totaux-profil { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+  .carte-total-profil { background: white; border-radius: 12px; padding: 16px 10px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); font-size: 26px; }
+  .carte-total-profil .valeur-total-profil { font-size: 22px; font-weight: 800; color: var(--bleu-kekeli); margin: 4px 0 2px; }
+  .carte-total-profil div:last-child { font-size: 12px; color: var(--text-gris); font-weight: 600; }
+</style>
+<link rel="stylesheet" href="../../css/pied-de-page.css">
+</head>
+<body>
+  <header></header>
+
+  <div class="conteneur-tableau-bord" id="contenu">
+    <p style="text-align:center;color:var(--text-gris)">Chargement...</p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/supabaseClient.js"></script>
+  <script>const RACINE_SITE = "../../";</script>
+  <script src="../../js/auth-utilisateur.js"></script>
+  <script src="../../js/notifications.js"></script>
+  <script src="../../js/navigation-config.js"></script>
+  <script src="../../js/banniere-site.js"></script>
+  <script src="../../js/entete-navigation.js"></script>
+  <script src="../../js/theme-premium-eleve.js"></script>
+  <script src="../../js/pages/eleve-profil.js"></script>
+  <footer></footer>
+  <script src="../../js/pied-de-page.js"></script>
+</body>
+</html>

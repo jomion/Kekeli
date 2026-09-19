@@ -557,7 +557,7 @@ async function afficherMatierePremium() {
             <div class="prem-legende-ligne"><span class="prem-legende-puce" style="background:var(--prem-orange)"></span><strong>${enCours}</strong> En cours</div>
             <div class="prem-legende-ligne"><span class="prem-legende-puce" style="background:#B7BECF"></span><strong>${aVenir}</strong> À venir</div>
           </div>
-          <button type="button" class="prem-btn-plein bientot" title="Bientôt disponible" onclick="return false">${iconePrem('progres', 15)} Voir mes progrès</button>
+          <a class="prem-btn-plein" href="mes-progres.html">${iconePrem('progres', 15)} Voir mes progrès</a>
         </div>
         <div class="prem-carte-panneau">
           <h3>Mes badges</h3>

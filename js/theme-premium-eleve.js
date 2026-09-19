@@ -20,11 +20,16 @@
 //
 // Éléments affichés mais SANS fonctionnalité réelle pour l'instant (choix
 // explicite de l'utilisateur : "visuels seulement, pour l'instant") :
-// "📈 Mes progrès", "❤️ Favoris" et la barre de recherche de la topbar —
-// présentés avec une pastille "Bientôt" ou un state désactivé plutôt que
-// comme des liens/actions morts, pour rester honnête avec l'élève. Le
+// la barre de recherche de la topbar — présentée avec un state désactivé
+// plutôt que comme une action morte, pour rester honnête avec l'élève. Le
 // compteur d'étoiles de la topbar, lui, est câblé depuis le lot "Activité
 // et Paliers / Badges" (11 septembre 2026) — voir etoiles_eleve plus bas.
+// "📈 Mes progrès" et "❤️ Favoris" sont devenus de VRAIS liens le 19
+// septembre 2026 (demande "Active les pages mes progrès et favoris...") —
+// voir pages/eleve/mes-progres.html et pages/eleve/favoris.html. Le bouton
+// "Profil" de la nav mobile basse pointe désormais vers la nouvelle page
+// pages/eleve/profil.html (au lieu de tableau-de-bord.html) — demande
+// "si l'enfant appuie sur le bouton profil affiche son profil".
 // "🎮 Jeux éducatifs" est en revanche un VRAI lien
 // (demande explicite de l'utilisateur : "jeux éducatif va représenter les
 // différentes activités avec paliers") : il ouvre
@@ -94,7 +99,7 @@ function iconePrem(nom, taille) {
 // synchronisées si une matière change.
 const ICONE_LIEN_SIDEBAR_PREMIUM = {
   'tableau-de-bord': 'home', matieres: 'matieres', seances: 'seances',
-  'devoirs-notes': 'devoirs', badges: 'badges',
+  'devoirs-notes': 'devoirs', badges: 'badges', profil: 'utilisateur',
 };
 const PRESENTATION_CHAMPS_PREMIUM = {
   francais:     { icone: '📚', couleur: '#3B5EFF' }, mathematique: { icone: '📐', couleur: '#14B8A6' },
@@ -166,13 +171,18 @@ async function construireShellPremiumEleve(config, liensVisibles) {
 
   // Liens de la sidebar : les vrais liens du rôle (déjà filtrés selon les
   // préférences de masquage — voir js/entete-navigation.js), plus "Jeux
-  // éducatifs" (réel) et deux entrées visuelles seulement.
+  // éducatifs", "Mes progrès" et "Favoris" ajoutés ici avec leur propre
+  // icône/position premium. Ces deux derniers existent aussi (depuis le 19
+  // septembre 2026) comme liens réels dans LIENS_PAR_ROLE.eleve — voir
+  // js/navigation-config.js — pour rester accessibles en thème classique ;
+  // on les retire donc de liensVisibles ici pour éviter de les afficher en
+  // double dans cette sidebar.
   const lienMatieres = liensVisibles.find(l => l.id === 'matieres');
   const liensSidebar = [
-    ...liensVisibles.map(l => ({ ...l, reel: true })),
+    ...liensVisibles.filter(l => l.id !== 'mes-progres' && l.id !== 'favoris').map(l => ({ ...l, reel: true })),
     { id: 'jeux-educatifs', href: 'jeux-educatifs.html', icone: 'manette', label: 'Jeux éducatifs', reel: true },
-    { id: 'mes-progres', href: '#', icone: 'progres', label: 'Mes progrès', reel: false },
-    { id: 'favoris', href: '#', icone: 'favoris', label: 'Favoris', reel: false },
+    { id: 'mes-progres', href: 'mes-progres.html', icone: 'progres', label: 'Mes progrès', reel: true },
+    { id: 'favoris', href: 'favoris.html', icone: 'favoris', label: 'Favoris', reel: true },
   ];
 
   // Le lien "Séances" (id 'seances') n'ouvre plus pages/seances.html
@@ -294,8 +304,8 @@ async function construireShellPremiumEleve(config, liensVisibles) {
     { href: 'bienvenue.html', icone: 'home', label: 'Accueil', reel: true },
     { href: 'matiere.html', icone: 'boussole', label: 'Parcours', reel: true },
     { href: 'jeux-educatifs.html', icone: 'manette', label: 'Jeux éducatifs', reel: true, fab: true },
-    { href: '#', icone: 'coeur', label: 'Favoris', reel: false },
-    { href: 'tableau-de-bord.html', icone: 'utilisateur', label: 'Profil', reel: true },
+    { href: 'favoris.html', icone: 'coeur', label: 'Favoris', reel: true },
+    { href: 'profil.html', icone: 'utilisateur', label: 'Profil', reel: true },
   ];
   bottomNav.innerHTML = itemsBottomNav.map(it => {
     const basename = (it.href.split('/').pop() || '').toLowerCase();

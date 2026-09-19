@@ -46,6 +46,14 @@ const LIENS_PAR_ROLE = {
     { id: 'emploi-du-temps', href: 'pages/emploi-du-temps.html', racine: true, icone: '🗓️', label: 'Emploi du temps' },
     { id: 'devoirs-notes', href: 'devoirs-notes.html', icone: '📊', label: 'Devoirs & notes' },
     { id: 'badges', href: 'badges.html', icone: '🏅', label: 'Mes badges' },
+    // 19 septembre 2026 : "Mes progrès"/"Favoris"/"Mon profil" existaient déjà
+    // (visuels seulement) dans la sidebar/nav mobile basse du thème premium
+    // (voir js/theme-premium-eleve.js) — ajoutés ici aussi pour que l'élève
+    // en thème classique (sans le look premium) puisse y accéder depuis
+    // l'en-tête, comme n'importe quel autre lien réel du rôle.
+    { id: 'mes-progres', href: 'mes-progres.html', icone: '📈', label: 'Mes progrès' },
+    { id: 'favoris', href: 'favoris.html', icone: '❤️', label: 'Favoris' },
+    { id: 'profil', href: 'profil.html', icone: '🙂', label: 'Mon profil' },
     // Fonctionnalité Premium (voir messagerie.html) : le lien reste visible
     // pour tous — la page explique elle-même comment l'activer (abonnement
     // + autorisation d'un parent) plutôt que de disparaître silencieusement.
