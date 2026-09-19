@@ -69,3 +69,14 @@ Vérifications faites avant cette livraison : node --check sur les 8 fichiers
 JS modifiés ; lecture des définitions exactes des fonctions existantes avant
 modification (pg_get_functiondef) ; mcp__Supabase__get_advisors (sécurité)
 relancé après la migration — aucune nouvelle catégorie d'alerte.
+
+4) CORRECTIF : BANDEAU « DEVOIRS & NOTES » INCOMPLET
+-------------------------------------------------------------------
+En relisant la page "Devoirs & notes" de l'enseignant après la livraison
+ci-dessus, un oubli a été repéré : son bandeau d'information ne mentionnait
+que les élèves "en attente du parent" (déjà demandés), pas ceux "pas encore
+demandés par vous" — ce second cas était pourtant déjà géré sur la page
+"Registre d'appel". Corrigé : les deux pages affichent maintenant le même
+message à deux volets.
+
+Fichier modifié : js/pages/enseignant-devoirs-notes.js.

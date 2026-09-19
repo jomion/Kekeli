@@ -325,9 +325,10 @@ async function afficherGestionEns() {
     : '<p style="color:var(--text-gris);font-size:14px">Aucun devoir dans cette situation.</p>';
 
   zone.innerHTML = `
-    ${nbEnAttenteEns > 0 ? `
+    ${(nbEnAttenteEns > 0 || nbADemanderEns > 0) ? `
     <div style="background:#fff8e1;border:1px solid #ffcc80;border-radius:8px;padding:10px 14px;margin-bottom:16px;color:#7a5300;font-size:0.95em">
-      ⏳ ${nbEnAttenteEns} élève${nbEnAttenteEns > 1 ? 's' : ''} de cette classe n'appara${nbEnAttenteEns > 1 ? 'issent' : 'ît'} pas encore ici : l'autorisation du parent est en attente.
+      ${nbEnAttenteEns > 0 ? `⏳ ${nbEnAttenteEns} élève${nbEnAttenteEns > 1 ? 's' : ''} de cette classe n'appara${nbEnAttenteEns > 1 ? 'issent' : 'ît'} pas encore ici : l'autorisation du parent est en attente.` : ''}
+      ${nbADemanderEns > 0 ? `${nbEnAttenteEns > 0 ? '<br>' : ''}📨 ${nbADemanderEns} élève${nbADemanderEns > 1 ? 's' : ''} de plus n'appara${nbADemanderEns > 1 ? 'issent' : 'ît'} pas encore ici : vous n'avez pas encore demandé l'accord de leur parent — rendez-vous sur votre tableau de bord (« Mes classes »).` : ''}
     </div>` : ''}
     <div data-zone-cartes-statuts style="margin-bottom:20px">
       <div class="grille-taches-admin" style="margin-bottom:0">
