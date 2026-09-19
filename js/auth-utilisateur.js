@@ -324,6 +324,35 @@ function memoriserDernierePageVisitee() {
 // js/pages/completer-profil.js — devenue une page volontaire, plus une
 // page-gate). requireRole() ne redirige donc plus jamais vers cette page.
 
+// 19 septembre 2026 (26e requête, voir duotricies) : « vue liée » — un
+// enseignant ou une autorité pédagogique peut activer une vue secondaire
+// (parent pour l'un ou l'autre ; enseignant pour une autorité), SOUS LE MÊME
+// IDENTIFIANT DE CONNEXION, avec un sélecteur de vue plutôt qu'un second
+// compte. Le rôle PRINCIPAL (profils.role) ne change jamais — cette
+// fonction vérifie seulement si une ligne existe déjà dans la table de
+// détail du rôle secondaire demandé (`parents`/`enseignants`), possible
+// pour n'importe quel compte déjà connecté (voir RLS
+// parent_creation_soi/enseignant_creation_soi, qui n'imposent aucune
+// exclusivité entre rôles). Voir activerVueLiee() plus bas pour l'activation.
+async function possedeVueLiee(profilId, roleSecondaire) {
+  const table = roleSecondaire === 'parent' ? 'parents' : roleSecondaire === 'enseignant' ? 'enseignants' : null;
+  if (!table) return false;
+  const { data } = await supabaseClient.from(table).select('id').eq('id', profilId).maybeSingle();
+  return !!data;
+}
+
+// Active une vue secondaire pour le compte déjà connecté (voir
+// possedeVueLiee ci-dessus) — ne fait rien si elle existe déjà.
+async function activerVueLiee(profilId, roleSecondaire) {
+  const table = roleSecondaire === 'parent' ? 'parents' : roleSecondaire === 'enseignant' ? 'enseignants' : null;
+  if (!table) return { error: { message: 'Vue non reconnue.' } };
+  const deja = await possedeVueLiee(profilId, roleSecondaire);
+  if (deja) return { data: true };
+  const { error } = await supabaseClient.from(table).insert({ id: profilId });
+  if (error) return { error };
+  return { data: true };
+}
+
 // À appeler en haut de chaque page réservée à un rôle :
 //   const profil = await requireRole('parent');
 //   if (!profil) return;
@@ -331,8 +360,11 @@ async function requireRole(roleAttendu) {
   const profil = await chargerSessionEtProfil();
   if (!profil) return null;
   if (profil.role !== roleAttendu) {
-    window.location.href = urlTableauDeBord(profil.role);
-    return null;
+    const aVueLiee = (roleAttendu === 'parent' || roleAttendu === 'enseignant') && await possedeVueLiee(profil.id, roleAttendu);
+    if (!aVueLiee) {
+      window.location.href = urlTableauDeBord(profil.role);
+      return null;
+    }
   }
   // Thème rose pour les élèves filles (session du 4 septembre 2026, demande
   // explicite : "je veux que si l'enfant est une fille que le bleu soit

@@ -141,7 +141,18 @@ async function afficherTableauDeBord() {
       </span>`;
   }
 
+  // 19 septembre 2026 (duotricies) : cette vue parent peut être une vue
+  // LIÉE à un compte enseignant/autorité (même connexion, sélecteur de vue,
+  // voir js/auth-utilisateur.js) — profilParent.role reste alors le rôle
+  // PRINCIPAL réel de la personne, jamais 'parent'.
+  const estVueLiee = profilParent.role !== 'parent';
+
   document.getElementById('contenu').innerHTML = `
+    ${estVueLiee ? `
+    <div style="background:#EEF2FF;border:1px solid #C7D2FE;border-radius:8px;padding:10px 14px;margin-bottom:16px;color:#3730A3;font-size:0.9em;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <span>🔀 Vous consultez la vue parent liée à votre compte.</span>
+      <a href="${urlTableauDeBord(profilParent.role)}" style="color:#3730A3;font-weight:600;text-decoration:underline">← Retourner à mon espace</a>
+    </div>` : ''}
     <div class="carte-bienvenue">
       <h1>Bienvenue, ${profilParent.prenom} !</h1>
       <p>Voici votre espace parent KEKELI.</p>

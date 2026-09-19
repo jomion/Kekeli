@@ -1,113 +1,61 @@
-KEKELI — Livraison du 19 septembre 2026 (26e requête indépendante)
-===================================================================
+KEKELI — Livraison du 19 septembre 2026 (suite) — Comptes liés (vues parent/enseignant)
+========================================================================================
 
-Vous avez envoyé un message vocal avec 7 demandes distinctes. En voici le
-traitement, une par une.
+Ceci complète le point 3 de la livraison précédente ("Compte parent ajouté par un
+enseignant" / "Compte parent ou enseignant ajouté par une autorité pédagogique"),
+qui restait en attente de clarification. Vos réponses :
+  - Oui, la vue parent liée a l'accès parent COMPLET (paiements, accès, horaires
+    compris) — pas une vue restreinte.
+  - Pour ajouter un enfant, le compte utilise le même parcours "Inscrire un enfant"
+    que n'importe quel parent — pas de recherche/liaison vers un élève existant.
 
-1) BUG CORRIGÉ : les élèves d'une classe attribuée à un enseignant
-   s'ajoutaient automatiquement au registre, sans accord du parent
-   -------------------------------------------------------------------
-   C'était bien un bug, comme vous l'avez signalé. Un enseignant à qui
-   l'administration attribue une classe ("classes_assignees") voyait
-   auparavant TOUS les élèves de cette classe automatiquement, y compris
-   dans le registre d'appel — sans qu'aucun parent n'ait donné son accord.
+CE QUI A ÉTÉ FAIT
+-------------------------------------------------------------------
+Un enseignant peut désormais activer une "vue parent" liée à son propre compte
+(même identifiant de connexion, même e-mail, sans se déconnecter). Sur son tableau
+de bord, une carte "🔀 Vue parent" propose un bouton "Activer" ; une fois activée,
+elle devient un lien "Basculer" qui l'emmène directement sur le tableau de bord
+parent habituel. Un bandeau discret en haut de la page parent rappelle qu'il s'agit
+de la vue liée, avec un lien "← Retourner à mon espace" pour revenir à l'espace
+enseignant.
 
-   Corrigé en créant un nouveau mécanisme "Ma classe" (autorisations_ma_classe),
-   entièrement séparé du mécanisme "Élèves suivis" (abonnements_enseignant_eleve,
-   inchangé) :
-   - Quand une classe est attribuée à un enseignant (par l'administration, ou
-     au moment où l'enseignant choisit sa classe initiale à l'inscription),
-     une demande d'autorisation "en attente" est créée pour chaque élève déjà
-     dans la classe, et chaque parent est notifié.
-   - Quand un nouvel élève rejoint une classe déjà attribuée à un ou
-     plusieurs enseignants, la même demande est créée automatiquement.
-   - Le parent accepte ou refuse depuis son tableau de bord (nouvelle section
-     "Accès « Ma classe »" sous chaque enfant).
-   - Tant que le parent n'a pas répondu, l'élève N'APPARAÎT PAS dans le
-     registre d'appel de l'enseignant, ni dans la page "Devoirs & notes"
-     (un message discret indique combien d'élèves sont "en attente d'accord").
-   - Un enseignant qui SUIT un élève (mécanisme existant, indépendant) ne le
-     voit jamais dans son registre d'appel, quelle que soit la classe réelle
-     de cet élève — exactement la distinction que vous avez demandée entre
-     "Ma classe" et "Élèves suivis".
-   - Un administrateur peut, depuis "Enseignants & classes", suivre toutes
-     ces demandes et autoriser manuellement un élève sans compte parent actif.
-   - Important : les 5 attributions de classe déjà en place ont été traitées
-     rétroactivement — une demande "en attente" a été créée pour chacun des
-     12 élèves concernés, et leurs parents ont été notifiés. Tant qu'ils
-     n'auront pas répondu, ces élèves n'apparaîtront plus dans le registre.
-   - La sécurité a aussi été resserrée en base (RLS) sur les données propres
-     à un élève (devoirs rendus, réponses aux exercices, activités notées,
-     séances terminées, paliers) : un enseignant n'y a accès que via un
-     abonnement accepté OU une autorisation "Ma classe" acceptée — plus
-     jamais par simple appartenance à une classe attribuée. La gestion du
-     contenu pédagogique (séances, exercices, planification) reste, elle,
-     inchangée : elle continue de fonctionner pour toute la classe attribuée.
+Une autorité pédagogique peut, de la même façon, activer une vue parent ET/OU une
+vue enseignant liées à son compte, indépendamment l'une de l'autre (nouvelle
+section "Vues liées" sur sa page d'accueil).
 
-2) Bouton "lecture"/consultation pour l'enseignant
-   -------------------------------------------------------------------
-   Ce point a normalement déjà été résolu par la livraison précédente
-   (18-19 septembre, "mode consultation en lecture seule") : le bouton
-   "🔍 Consulter" sur la page Séances permet à l'enseignant (et au parent)
-   de lire le contenu complet d'une séance sans pouvoir soumettre de
-   réponses. Si ce n'est pas ce que vous cherchiez, précisez-nous ce qui
-   manque encore.
+Dans les deux cas, la vue liée est à 100% la vraie page existante (parent ou
+enseignant) — mêmes fonctionnalités, y compris les paiements côté parent — et pour
+ajouter un enfant, on utilise exactement le même bouton "Inscrire un enfant" que
+tout parent utilise déjà. Rien de nouveau à apprendre.
 
-3) Compte parent ajouté par un enseignant (même e-mail, sélecteur de vue)
-   Compte parent/enseignant ajouté par une autorité pédagogique
-   -------------------------------------------------------------------
-   PAS ENCORE IMPLÉMENTÉ — ce point touche à l'authentification (un même
-   identifiant de connexion pour deux "vues" différentes) et à des questions
-   de confidentialité qu'il vaut mieux trancher avec vous avant de coder :
-   si l'enseignant peut suivre un élève via une vraie vue parent, il verrait
-   aussi, comme un vrai parent, l'historique des paiements de cet élève. Je
-   vous pose une question de clarification séparément pour ce point précis.
+Techniquement, activer une vue liée n'ajoute qu'une ligne dans la table
+correspondante (parents ou enseignants), sans jamais toucher au rôle principal du
+compte ni à aucune autre donnée — aucun risque pour le reste du site.
 
-4) Devoir libre (espace non lié à une séance précise)
-   -------------------------------------------------------------------
-   Fait. Un bouton "+ Devoir libre" est réapparu à côté de "+ Nouveau devoir
-   (à blocs)", côté administration ET côté enseignant. Il permet de créer un
-   devoir texte libre (avec pièce jointe possible côté élève), sans le lier
-   à une séance — exactement ce qui existait avant d'être volontairement
-   retiré le 18 septembre (un seul mode de création restait alors). Les deux
-   modes coexistent maintenant côte à côte, comme demandé.
+BONUS : UN BUG PRÉEXISTANT CORRIGÉ AU PASSAGE
+-------------------------------------------------------------------
+En construisant cette fonctionnalité, une vérification en base a révélé que la
+table des enseignants n'avait jamais reçu l'autorisation de base pour créer ou
+modifier sa propre fiche (seule la "règle" existait, pas la "permission" sous-
+jacente qui la rend effective). Concrètement, cela empêchait déjà, avant même
+cette livraison :
+  - l'inscription normale d'un nouvel enseignant sur le site (l'étape finale
+    échouait silencieusement côté base de données) ;
+  - la page "Compléter mon profil" pour un enseignant (école, circonscription,
+    zone pédagogique).
+C'est corrigé : les enseignants peuvent maintenant s'inscrire et compléter leur
+profil normalement, comme les parents ont toujours pu le faire.
 
-5) Bug d'affichage "Unité" pour toutes les matières
-   -------------------------------------------------------------------
-   Corrigé. La page "Champs de Formation" affichait un chiffre qui ne
-   correspondait à rien de compréhensible (un décompte de noeuds internes de
-   l'arborescence, souvent égal à 1). Elle affiche maintenant le vrai nombre
-   de séances publiées de chaque matière ("N Séances"), sur le même calcul
-   déjà utilisé pour l'avancement du tableau de bord élève.
+Fichiers modifiés : js/auth-utilisateur.js, js/pages/autorite-bienvenue.js,
+js/pages/enseignant-tableau-de-bord.js, js/pages/parent-tableau-de-bord.js.
 
-6) Notification instantanée avec alerte visible
-   -------------------------------------------------------------------
-   Corrigé. La cloche de notifications (utilisée par tous les espaces) est
-   maintenant branchée sur le temps réel : dès qu'une notification arrive,
-   elle apparaît immédiatement dans la liste ET un petit encart ("toast")
-   apparaît en haut à droite de l'écran pendant quelques secondes, cliquable
-   pour aller directement au bon endroit — plus besoin de recharger la page
-   ou de cliquer sur la cloche pour s'apercevoir qu'il y a du nouveau.
+Base de données (Supabase, appliqué immédiatement) : correction des permissions
+manquantes (GRANT) sur la table enseignants (création et modification de sa propre
+fiche), pour authenticated et anon — aucune nouvelle table, aucune policy RLS
+modifiée.
 
-Fichiers modifiés : js/notifications.js, js/pages/admin-devoirs-notes.js,
-js/pages/admin-enseignants-classes.js, js/pages/enseignant-devoirs-notes.js,
-js/pages/enseignant-registre-appel.js, js/pages/enseignant-tableau-de-bord.js,
-js/pages/navigation.js, js/pages/parent-tableau-de-bord.js.
-
-Base de données (Supabase, appliqué immédiatement, comme toujours) :
-nouvelle table autorisations_ma_classe (+ RLS), fonctions
-creer_demandes_ma_classe_pour_classe/pour_eleve, déclencheurs sur
-demandes_classe_enseignant/eleves.classe_id/attribuer_classe_initiale_enseignant,
-peut_gerer_eleve() et peut_gerer_presence_eleve() réécrites, policies RLS
-resserrées sur reponses_exercices/rendus_activites/seances_terminees/
-paliers_valides/presences_appel/devoirs_rendus/devoirs_blocs_validations,
-table notifications ajoutée à la réplication temps réel.
-
-Vérifications faites avant cette livraison : node --check sur les 8 fichiers
-JS modifiés ; mcp__Supabase__get_advisors (sécurité) après chaque migration
-— aucune nouvelle alerte, seulement les avertissements préexistants déjà
-présents sur tout le projet ; relecture complète des policies RLS et des
-fonctions peut_gerer_eleve/peut_gerer_classe/peut_gerer_classe_champ/
-peut_editer_perimetre avant de les modifier, pour ne retirer que le bon
-accès (le blanket "classe assignée" par élève) sans toucher à l'accès
-classe-entière au contenu pédagogique ni à l'accès admin.
+Vérifications faites avant cette livraison : node --check sur les 4 fichiers JS
+modifiés ; permissions vérifiées une à une en base après correction
+(has_table_privilege) ; mcp__Supabase__get_advisors (sécurité) relancé après la
+migration — aucune nouvelle alerte, zéro erreur, seulement les avertissements
+préexistants déjà présents sur tout le projet.

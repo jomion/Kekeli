@@ -52,6 +52,12 @@ async function afficherTableauBordEns() {
     nbMaClasseAutorises = (autorisationsMC || []).filter(a => a.statut === 'accepte').length;
     nbMaClasseEnAttente = (autorisationsMC || []).filter(a => a.statut === 'en_attente').length;
   }
+
+  // 19 septembre 2026 (duotricies) : vue parent liée — même identifiant de
+  // connexion, sélecteur de vue (voir possedeVueLiee/activerVueLiee dans
+  // js/auth-utilisateur.js). Permet par exemple à un enseignant de suivre
+  // ses propres enfants sans se déconnecter ni créer un second compte.
+  const vueParentDejaActive = await possedeVueLiee(profilEnseignantTB.id, 'parent');
   const classesDisponibles = (toutesClasses || []).filter(c => !classesAssignees.includes(c.id) && !demandesEnAttente.some(d => d.classe_id === c.id));
   const aAccesClasse = acceptes.length > 0 || classesAssignees.length > 0;
 
@@ -74,7 +80,17 @@ async function afficherTableauBordEns() {
     (classes || []).forEach(c => { classesParId[c.id] = c.nom; });
   }
 
+  // 19 septembre 2026 (duotricies) : cette vue peut être une vue enseignant
+  // LIÉE à un compte Autorité Pédagogique (même connexion, sélecteur de
+  // vue) — profilEnseignantTB.role reste alors le rôle principal réel.
+  const estVueLieeEns = profilEnseignantTB.role !== 'enseignant';
+
   document.getElementById('contenu').innerHTML = `
+    ${estVueLieeEns ? `
+    <div style="background:#EEF2FF;border:1px solid #C7D2FE;border-radius:8px;padding:10px 14px;margin-bottom:16px;color:#3730A3;font-size:0.9em;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <span>🔀 Vous consultez la vue enseignant liée à votre compte.</span>
+      <a href="${urlTableauDeBord(profilEnseignantTB.role)}" style="color:#3730A3;font-weight:600;text-decoration:underline">← Retourner à mon espace</a>
+    </div>` : ''}
     <div class="carte-bienvenue">
       <h1>Bienvenue, ${profilEnseignantTB.prenom} !</h1>
       <p>Votre espace enseignant KEKELI. Le contenu pédagogique reste géré par l'administration —
@@ -185,6 +201,16 @@ async function afficherTableauBordEns() {
         <h3>Visioconférence</h3>
         <p>Bientôt disponible.</p>
       </div>
+      ${vueParentDejaActive ? `<a href="../parent/tableau-de-bord.html" class="carte-action-tb disponible" style="text-decoration:none;color:inherit;display:block">
+        <div class="icone-action-tb">🔀</div>
+        <h3>Vue parent</h3>
+        <p>Basculer vers votre vue parent (même connexion, même e-mail).</p>
+      </a>` : `<div class="carte-action-tb disponible">
+        <div class="icone-action-tb">🔀</div>
+        <h3>Vue parent</h3>
+        <p>Activez une vue parent liée à ce compte pour suivre un enfant (mêmes fonctionnalités qu'un compte parent habituel), sans vous déconnecter.</p>
+        <button class="btn btn-filled" id="btnActiverVueParentEns" style="padding:6px 14px;font-size:12px">Activer</button>
+      </div>`}
     </div>
   `;
 
@@ -204,6 +230,11 @@ async function afficherTableauBordEns() {
   document.getElementById('btnDemanderClasse').addEventListener('click', () => ouvrirDemandeClasse(classesDisponibles));
   document.querySelectorAll('[data-quitter-classe]').forEach(btn => {
     btn.addEventListener('click', () => quitterClasse(parseInt(btn.dataset.quitterClasse, 10)));
+  });
+  document.getElementById('btnActiverVueParentEns')?.addEventListener('click', async () => {
+    const { error } = await activerVueLiee(profilEnseignantTB.id, 'parent');
+    if (error) return alert(error.message);
+    afficherTableauBordEns();
   });
 }
 

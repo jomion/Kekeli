@@ -24,6 +24,15 @@ const LIBELLES_FONCTION_AUTORITE = {
   const { data: autorite } = await supabaseClient.from('autorites_pedagogiques').select('*').eq('id', profil.id).single();
   const libelleFonction = LIBELLES_FONCTION_AUTORITE[autorite?.fonction] || autorite?.fonction || '';
 
+  // 19 septembre 2026 (duotricies) : vues liées — même identifiant de
+  // connexion, sélecteur de vue (voir possedeVueLiee/activerVueLiee dans
+  // js/auth-utilisateur.js). Une Autorité Pédagogique peut activer une vue
+  // parent ET/OU une vue enseignant, indépendamment l'une de l'autre.
+  const [aVueParent, aVueEnseignant] = await Promise.all([
+    possedeVueLiee(profil.id, 'parent'),
+    possedeVueLiee(profil.id, 'enseignant')
+  ]);
+
   const lignesLocalisation = [
     ['Département', profil.departement],
     ['Commune', profil.commune],
@@ -53,7 +62,38 @@ const LIBELLES_FONCTION_AUTORITE = {
         `).join('')}
       </div>
     ` : ''}
+
+    <div class="section-title-eleve">Vues liées</div>
+    <div class="welcome-card-eleve theme-autorite" style="padding:20px;display:flex;flex-direction:column;gap:14px">
+      <p style="margin:0;color:var(--text-gris);font-size:13px">
+        Activez une vue supplémentaire sous ce même compte (même e-mail, sans vous déconnecter) —
+        elle aura exactement les mêmes fonctionnalités qu'un compte habituel de ce rôle.
+      </p>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <span>🔀 Vue parent</span>
+        ${aVueParent
+          ? `<a href="../parent/tableau-de-bord.html" class="btn btn-filled" style="padding:6px 14px;font-size:12px">Ouvrir</a>`
+          : `<button class="btn btn-filled" id="btnActiverVueParentAut" style="padding:6px 14px;font-size:12px">Activer</button>`}
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <span>🔀 Vue enseignant</span>
+        ${aVueEnseignant
+          ? `<a href="../enseignant/tableau-de-bord.html" class="btn btn-filled" style="padding:6px 14px;font-size:12px">Ouvrir</a>`
+          : `<button class="btn btn-filled" id="btnActiverVueEnseignantAut" style="padding:6px 14px;font-size:12px">Activer</button>`}
+      </div>
+    </div>
   `;
+
+  document.getElementById('btnActiverVueParentAut')?.addEventListener('click', async () => {
+    const { error } = await activerVueLiee(profil.id, 'parent');
+    if (error) return alert(error.message);
+    window.location.reload();
+  });
+  document.getElementById('btnActiverVueEnseignantAut')?.addEventListener('click', async () => {
+    const { error } = await activerVueLiee(profil.id, 'enseignant');
+    if (error) return alert(error.message);
+    window.location.reload();
+  });
 })();
 
 function echapperAutoriteBv(v) {
