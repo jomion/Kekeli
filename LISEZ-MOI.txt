@@ -1,43 +1,69 @@
-KEKELI — Livraison du 19 septembre 2026 (9e lot du jour) — Débordement mobile des tableaux dans l'aperçu des séances
+KEKELI — Livraison du 19 septembre 2026 (11e lot du jour) — 6 classes à l'inscription, lien "Matière" du pied de page, verrouillage séquentiel des séances
 ===========================================================================
 
-CORRECTIF : DÉBORDEMENT HORIZONTAL SUR MOBILE
+1) LES 6 CLASSES SONT PROPOSÉES PARTOUT À L'INSCRIPTION
 ---------------------------------------------------------------
-Vous aviez signalé : "je parle du décalage horizontal de l'aperçu des
-séances : certaines séances dépassent la largeur de l'écran et je suis
-obligé de réduire le zoom du navigateur pour voir toute la séance."
+Vous aviez demandé d'autoriser les 6 classes à l'inscription, en précisant
+que les classes autres que CM2 ne donnent pour l'instant accès qu'au
+registre d'appel (le contenu pédagogique n'y étant pas encore disponible).
 
-Cause trouvée : certains blocs de contenu affichent un tableau (bloc
-"Tableau", ou le tableau de correction du bloc "Problème"). Sur mobile, un
-tableau dont le texte ne peut pas se réduire davantage forçait toute la
-carte — et parfois toute la page — à s'élargir au-delà de l'écran, d'où le
-besoin de dézoomer le navigateur pour tout voir. C'est ce qui explique que
-seules CERTAINES séances étaient concernées : uniquement celles qui
-contiennent un tableau.
+C'est fait : les trois endroits où l'on choisit une classe (inscription
+enseignant, inscription d'un enfant par un parent, "Mon profil" pour la
+première classe et pour une classe supplémentaire) proposent désormais les
+6 classes au lieu de seulement CM1/CM2. Dès qu'une classe autre que CM2 est
+choisie, un message s'affiche : "Le contenu pédagogique de cette classe
+n'est pas encore disponible : seul le registre d'appel sera accessible pour
+le moment." L'accès au registre d'appel, lui, ne dépend déjà que de la
+classe attribuée à l'enseignant — aucun changement nécessaire de ce côté.
 
-Corrigé : ces tableaux sont désormais placés dans une zone qui peut défiler
-horizontalement toute seule (comme cela avait déjà été fait avec succès
-pour le tableau de l'Emploi du Temps). Résultat :
-- la carte de la séance ne déborde plus jamais de l'écran ;
-- si un tableau est vraiment trop large pour un téléphone, on peut le faire
-  glisser du doigt à l'intérieur de sa propre zone, sans toucher au reste
-  de la page ;
-- plus besoin de réduire le zoom du navigateur pour voir une séance en
-  entier.
+Le slogan de la page d'inscription ("La lumière du savoir", un ancien nom
+du site) a aussi été corrigé pour reprendre le vrai slogan actuel :
+"L'éducation qui éclaire l'avenir" — déjà utilisé sur la page d'accueil et
+le pied de page.
 
-Corrigé partout où un tableau peut apparaître en lecture : page de séance
-de l'élève, consultation en lecture seule pour un parent ou un enseignant,
-aperçu de l'administrateur, et le tableau de correction du bloc "Problème".
+2) LE LIEN "CLASSES" DU PIED DE PAGE DEVIENT "MATIÈRE"
+---------------------------------------------------------------
+Comme demandé, le lien "Classes" du pied de page (colonne "Navigation") a
+été remplacé par "Matière". Sur la page d'accueil, il défile maintenant
+vers la section "Les matières du programme CM2" ; sur les autres pages, il
+continue d'ouvrir la page de navigation classe/matière/séance de la
+personne connectée.
 
-Corrigé également, dans le même esprit : la liste des séances de l'espace
-administrateur/enseignant, qui pouvait elle aussi déborder légèrement sur
-un écran étroit — elle se replie maintenant proprement sur plusieurs
-lignes comme le fait déjà la liste de séances partagée.
+3) VERROUILLAGE SÉQUENTIEL DES SÉANCES
+---------------------------------------------------------------
+Vous aviez demandé de verrouiller toutes les séances, en ne laissant
+accessible que la première séance de chaque matière — la validation d'une
+séance donnant accès à la suivante.
 
-Fichiers modifiés : css/style-public.css, css/style.css,
-js/pages/eleve-seance.js, js/lecture-seule-seance.js,
-js/pages/editeur-seance.js, js/editeur/blocs.js.
+C'est fait, et appliqué UNIQUEMENT à l'espace élève (la consultation par un
+parent, un enseignant ou un administrateur n'est pas concernée, ni la
+correction, ni la planification). Pour chaque élève et chaque matière :
+- la toute première séance du parcours (dans l'ordre réel du programme) est
+  toujours accessible ;
+- chaque séance suivante ne se débloque qu'une fois la séance précédente
+  marquée comme terminée par l'élève ;
+- une séance verrouillée reste visible dans la liste (pour montrer la suite
+  du parcours), mais son contenu est réellement inaccessible : impossible
+  d'y accéder même en devinant son adresse, la vérification se faisant
+  directement sur le serveur, jamais seulement à l'affichage.
+
+Si un élève ouvre malgré tout l'adresse d'une séance verrouillée, un
+message clair l'informe qu'il doit d'abord terminer la séance précédente,
+au lieu d'une page vide sans explication.
+
+Fichiers modifiés : pages/inscription.html, pages/completer-profil.html,
+js/pages/completer-profil.js, js/pages/parent-tableau-de-bord.js,
+js/pied-de-page.js, js/pages/eleve-seance.js. Les points 1 et 2 sont de
+simples changements d'affichage (aucun changement en base de données). Le
+point 3 inclut aussi des changements côté serveur (nouvelle fonction et
+ajustement d'une règle de sécurité existante), mis en ligne directement,
+rien à installer.
 
 Vérifications faites avant cette livraison : vérification de syntaxe sur
-tous les fichiers JavaScript modifiés ; vérification de l'équilibre des
-accolades et des commentaires sur les deux fichiers CSS modifiés.
+tous les fichiers JavaScript modifiés (dont le script de la page
+d'inscription, vérifié séparément) ; contrôle de sécurité (RLS/permissions)
+relancé après chaque changement en base de données, sans aucune nouvelle
+alerte ; test réel du verrouillage sur une matière à 7 séances (première
+séance accessible seule au départ, déblocage confirmé séance par séance) ;
+relecture des règles d'accès existantes pour confirmer qu'aucun rôle autre
+que l'élève n'est concerné par le nouveau verrouillage.

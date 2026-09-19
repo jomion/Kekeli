@@ -101,7 +101,21 @@ async function initialiserFormulaireCP() {
     if (!aDejaUneClasse && !aUneDemande) {
       champClasse.style.display = '';
       const { data: classes } = await supabaseClient.from('classes').select('*').order('ordre');
-      document.getElementById('classe').innerHTML = (classes || []).map(c => `<option value="${c.id}">${c.nom}</option>`).join('');
+      const selectClasseCP = document.getElementById('classe');
+      selectClasseCP.innerHTML = (classes || []).map(c => `<option value="${c.id}" data-nom="${c.nom}">${c.nom}</option>`).join('');
+      // 19 septembre 2026 : les 6 classes sont proposées ; seule CM2 a du
+      // contenu pédagogique disponible pour le moment, les autres donnent
+      // uniquement accès au registre d'appel.
+      const noteClasseContenuCP = document.getElementById('noteClasseContenuCP');
+      const majNoteClasseContenuCP = () => {
+        const optionSelectionnee = selectClasseCP.options[selectClasseCP.selectedIndex];
+        const nomClasse = optionSelectionnee ? optionSelectionnee.dataset.nom : '';
+        noteClasseContenuCP.textContent = (nomClasse && nomClasse !== 'CM2')
+          ? "⚠️ Le contenu pédagogique de cette classe n'est pas encore disponible : seul le registre d'appel sera accessible pour le moment."
+          : '';
+      };
+      selectClasseCP.addEventListener('change', majNoteClasseContenuCP);
+      majNoteClasseContenuCP();
     } else {
       champClasse.style.display = 'none';
     }
@@ -167,7 +181,24 @@ async function afficherBlocClasseSupplementaireCP(classesAssignees, demandesClas
   select.style.display = '';
   btn.style.display = '';
   btn.disabled = false; btn.textContent = "Envoyer la demande à l'administration";
-  select.innerHTML = classesDisponibles.map(c => `<option value="${c.id}">${c.nom}</option>`).join('');
+  select.innerHTML = classesDisponibles.map(c => `<option value="${c.id}" data-nom="${c.nom}">${c.nom}</option>`).join('');
+
+  // 19 septembre 2026 : même note "contenu pas encore disponible" que pour
+  // la toute première classe — seule CM2 a du contenu aujourd'hui.
+  const noteClasseSupplementaireContenuCP = document.getElementById('noteClasseSupplementaireContenuCP');
+  const majNoteClasseSupplementaireContenuCP = () => {
+    const optionSelectionnee = select.options[select.selectedIndex];
+    const nomClasse = optionSelectionnee ? optionSelectionnee.dataset.nom : '';
+    noteClasseSupplementaireContenuCP.textContent = (nomClasse && nomClasse !== 'CM2')
+      ? "⚠️ Le contenu pédagogique de cette classe n'est pas encore disponible : seul le registre d'appel sera accessible pour le moment."
+      : '';
+  };
+  // onchange (pas addEventListener) : cette fonction est réappelée après
+  // l'envoi d'une demande (voir demanderClasseSupplementaireCP) sur le MÊME
+  // <select>, addEventListener empilerait un écouteur supplémentaire à
+  // chaque rafraîchissement.
+  select.onchange = majNoteClasseSupplementaireContenuCP;
+  majNoteClasseSupplementaireContenuCP();
 }
 
 // Écouteur de clic attaché UNE SEULE FOIS (voir initialiserFormulaireCP) —

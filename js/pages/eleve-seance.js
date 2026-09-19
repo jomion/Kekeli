@@ -201,6 +201,24 @@ async function charger() {
     conteneur.innerHTML = `<p class="message-erreur-auth">Erreur : ${echapper(erreurBlocs.message)}</p>`;
     return;
   }
+
+  // 19 septembre 2026 : verrouillage séquentiel des séances — la ligne
+  // `seances` reste visible même verrouillée (voir la RLS seances_lecture_
+  // publiees, inchangée), mais ses blocs de contenu sont alors invisibles
+  // (RLS blocs_lecture, voir la migration ajoute_verrouillage_sequentiel_
+  // seances). Un élève arrivant ici directement par l'URL (plutôt que par un
+  // clic, déjà désactivé sur la liste des séances — js/pages/eleve-matiere.js)
+  // ne doit pas voir une page vide sans explication : on distingue ce cas
+  // d'une séance réellement sans contenu via seance_debloquee_pour_eleve().
+  if (!erreurBlocs && (blocs || []).length === 0) {
+    const { data: debloquee } = await supabaseClient.rpc('seance_debloquee_pour_eleve', {
+      p_eleve_id: profilEleveSeance.id, p_seance_id: seanceId
+    });
+    if (debloquee === false) {
+      conteneur.innerHTML = `<p style="text-align:center;color:var(--text-gris)">🔒 Cette séance n'est pas encore accessible : termine d'abord la séance précédente de cette matière pour la débloquer.</p>`;
+      return;
+    }
+  }
   // Un bloc "brouillon" (ex: un résumé IA pas encore relu par un admin) ne
   // doit jamais apparaître ici, même si la séance est déjà publiée — la RLS
   // le bloque déjà côté base, ce filtre est une seconde barrière côté client.

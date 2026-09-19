@@ -342,7 +342,7 @@
     <!-- LOGO -->
     <div class="insc-logo-area">
       <div class="insc-logo"><img src="../assets/logo/logo.png" alt="KEKELI"> KEKELI</div>
-      <div class="insc-slogan">La lumière du savoir</div>
+      <div class="insc-slogan">L'éducation qui éclaire l'avenir</div>
     </div>
 
     <!-- TITRE -->
@@ -393,6 +393,7 @@
           <label for="classe">Classe</label>
           <select id="classe"></select>
           <p class="insc-help">Cette classe vous sera attribuée directement. Pour une classe supplémentaire, vous pourrez ensuite en faire la demande depuis votre espace (validée par l'administration).</p>
+          <p class="insc-help" id="noteClasseContenu" style="display:none">⚠️ Le contenu pédagogique de cette classe n'est pas encore disponible : seul le registre d'appel sera accessible pour le moment.</p>
         </div>
       </div>
 
@@ -449,15 +450,27 @@
     const champsEnseignant = document.getElementById('champsEnseignant');
     const champEcole = document.getElementById('ecole');
     const champClasse = document.getElementById('classe');
+    const noteClasseContenu = document.getElementById('noteClasseContenu');
     const champIdentifiant = document.getElementById('identifiant');
     const noteIdentifiant = document.getElementById('noteIdentifiant');
 
     // Liste des classes, pour que l'enseignant en choisisse une à
-    // l'inscription (elle lui est attribuée directement).
+    // l'inscription (elle lui est attribuée directement). Les 6 classes sont
+    // proposées ; seule la classe CM2 a du contenu pédagogique disponible
+    // pour le moment, les autres donnent uniquement accès au registre d'appel
+    // (message affiché via majNoteClasseContenu()).
     (async function chargerClasses() {
-      const { data: classes } = await supabaseClient.from('classes').select('*').eq('visible', true).order('ordre');
-      champClasse.innerHTML = (classes || []).map(c => `<option value="${c.id}">${c.nom}</option>`).join('');
+      const { data: classes } = await supabaseClient.from('classes').select('*').order('ordre');
+      champClasse.innerHTML = (classes || []).map(c => `<option value="${c.id}" data-nom="${c.nom}">${c.nom}</option>`).join('');
+      majNoteClasseContenu();
     })();
+
+    function majNoteClasseContenu() {
+      const optionSelectionnee = champClasse.options[champClasse.selectedIndex];
+      const nomClasse = optionSelectionnee ? optionSelectionnee.dataset.nom : '';
+      noteClasseContenu.style.display = (nomClasse && nomClasse !== 'CM2') ? '' : 'none';
+    }
+    champClasse.addEventListener('change', majNoteClasseContenu);
 
     function majNote() {
       const estEnseignant = selectRole.value === 'enseignant';

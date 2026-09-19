@@ -25,15 +25,16 @@ function initPiedDePage() {
   // racine du site, voir la liste des RACINE_SITE de chaque page) — un
   // repère fiable pour savoir si ce pied de page (partagé par presque toutes
   // les pages, voir commentaire en tête de fichier) est bien celui de la
-  // page d'accueil. Sur l'accueil, le lien "Classes" doit rester sur place
-  // et défiler vers la section "Nos classes" (#classesGrades, déjà utilisée
-  // par le lien "Classes" du menu du haut et le bouton du hero) plutôt que
-  // d'ouvrir la vraie page de navigation — qui, elle, reste la bonne
-  // destination pour ce même lien sur toutes les autres pages (élève,
-  // enseignant, admin, parent...) où il s'agit de naviguer dans les vraies
-  // classes de l'utilisateur connecté.
+  // page d'accueil. Sur l'accueil, le lien "Matière" (19 septembre 2026 :
+  // remplace l'ancien lien "Classes" du footer, demande explicite) doit
+  // rester sur place et défiler vers la section "Les matières du programme
+  // CM2" (#matieresCM2, déjà présente sur la page) plutôt que d'ouvrir la
+  // vraie page de navigation — qui, elle, reste la bonne destination pour ce
+  // même lien sur toutes les autres pages (élève, enseignant, admin,
+  // parent...) où il s'agit de naviguer dans les vraies classes/matières de
+  // l'utilisateur connecté.
   const estAccueil = racine === '';
-  const lienClasses = estAccueil ? '#classesGrades' : `${racine}pages/navigation.html`;
+  const lienMatiere = estAccueil ? '#matieresCM2' : `${racine}pages/navigation.html`;
 
   pied.className = 'pied-de-page-public';
   pied.innerHTML = `
@@ -47,7 +48,7 @@ function initPiedDePage() {
         <h3>Navigation</h3>
         <ul>
           <li><a href="${racine}index.html">Accueil</a></li>
-          <li><a href="${lienClasses}">Classes</a></li>
+          <li><a href="${lienMatiere}">Matière</a></li>
           <li><a href="${racine}index.html#paliers">Paliers</a></li>
         </ul>
       </div>

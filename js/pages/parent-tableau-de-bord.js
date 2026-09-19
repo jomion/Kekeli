@@ -289,9 +289,11 @@ function ouvrirDemandeSuivi(eleveId) {
 }
 
 async function ouvrirInscriptionEnfant() {
-  // Une classe masquée par l'admin (mise à jour de contenu en cours) n'est
-  // pas proposée pour un nouvel enfant, sans être supprimée pour autant.
-  const { data: classes } = await supabaseClient.from('classes').select('*').eq('visible', true).order('ordre');
+  // Les 6 classes sont proposées (19 septembre 2026, demande explicite) ;
+  // seule la classe CM2 a du contenu pédagogique disponible pour le moment,
+  // les autres donnent uniquement accès au registre d'appel — message affiché
+  // sous le sélecteur, voir le câblage juste après l'appel à ouvrirModal().
+  const { data: classes } = await supabaseClient.from('classes').select('*').order('ordre');
 
   // Département/Commune/Arrondissement sont désormais demandés pour l'élève
   // aussi (comme pour parent/enseignant) — préremplis avec ceux du parent
@@ -327,6 +329,26 @@ async function ouvrirInscriptionEnfant() {
     texteValider: 'Créer le compte',
     onValider: (valeurs) => confirmerInscriptionEnfant(valeurs)
   });
+
+  // Message conditionnel "contenu pas encore disponible" sous le sélecteur de
+  // classe. La modale (js/modal.js) est un singleton généré de façon
+  // synchrone sans référence retournée : on récupère le select juste après
+  // sa création.
+  const champClasseModal = document.querySelector('.modal-overlay [name="classe"]');
+  if (champClasseModal) {
+    const noteClasseContenu = document.createElement('p');
+    noteClasseContenu.className = 'note-future';
+    const etiquetteClasse = champClasseModal.closest('label.champ-modal');
+    if (etiquetteClasse) etiquetteClasse.insertAdjacentElement('afterend', noteClasseContenu);
+    const majNoteClasseContenu = () => {
+      const nomClasse = (classes || []).find(c => String(c.id) === champClasseModal.value)?.nom;
+      noteClasseContenu.textContent = (nomClasse && nomClasse !== 'CM2')
+        ? "⚠️ Le contenu pédagogique de cette classe n'est pas encore disponible : seul le registre d'appel sera accessible pour le moment."
+        : '';
+    };
+    champClasseModal.addEventListener('change', majNoteClasseContenu);
+    majNoteClasseContenu();
+  }
 }
 
 async function confirmerInscriptionEnfant({ prenom, nom, sexe, classe, identifiant, motDePasse, departement, commune, arrondissement }) {
