@@ -72,13 +72,27 @@ async function charger() {
   attacherEcouteursListeDevoirs(document.getElementById('contenu'), rendreDevoir);
 }
 
-function rendreDevoir(devoirId, titreDevoir) {
+// 19 septembre 2026 : "pour le devoir libre rendu, l'élève ne voit pas le
+// contenu. Il doit voir le contenu et pouvoir répondre avec formatage" — la
+// consigne (contenu du devoir) était jusqu'ici invisible au moment de
+// répondre (aucun bouton "Détails" ne s'affichait avant le rendu, voir
+// js/devoirs-notes-rendu.js), et la réponse se limitait à un simple
+// textarea. Corrigé : la consigne est reprise en lecture seule en haut de
+// cette modale (champ 'html', purement informatif — voir js/modal.js), et
+// la réponse utilise désormais la même zone de texte riche (Gras/Italique/
+// Listes/Couleurs) que la consigne côté enseignant/admin.
+function rendreDevoir(devoirId, titreDevoir, consigne) {
+  const champs = [];
+  if (consigne) {
+    champs.push({ nom: '_consigneLecture', type: 'html', label: '📋 Consigne du maître', valeur: contenuRicheInitialTexte(consigne) });
+  }
+  champs.push(
+    { nom: 'contenu_reponse', label: 'Ta réponse', type: 'richtext', placeholder: 'Écris ta réponse ici...' },
+    { nom: 'piece_jointe_url', label: 'Lien vers une pièce jointe (optionnel)', requis: false, placeholder: 'https://...' }
+  );
   ouvrirModal({
     titre: `Rendre : ${titreDevoir}`,
-    champs: [
-      { nom: 'contenu_reponse', label: 'Ta réponse', type: 'textarea', placeholder: 'Écris ta réponse ici...' },
-      { nom: 'piece_jointe_url', label: 'Lien vers une pièce jointe (optionnel)', requis: false, placeholder: 'https://...' }
-    ],
+    champs,
     texteValider: 'Envoyer au maître',
     onValider: async ({ contenu_reponse, piece_jointe_url }) => {
       const { error } = await supabaseClient.from('devoirs_rendus').insert({

@@ -295,9 +295,23 @@ function html_ligneDevoirTableau(d, options) {
       ? `<a href="devoir.html?id=${d.id}" class="btn btn-discret" style="padding:4px 10px;font-size:12px;white-space:nowrap">${resume.nbRepondus === 0 ? '📝 Faire' : (resume.toutCorrige ? '👁️ Revoir' : '✏️ Continuer')}</a>`
       : (resume.nbRepondus > 0 ? `<button type="button" class="btn btn-discret" data-toggle-detail="${idDetail}" style="padding:4px 10px;font-size:12px">Détails</button>` : '');
   } else {
-    actionCell = (options.interactif && !d.rendu)
-      ? `<button class="btn btn-discret" data-rendre-devoir="${d.id}" data-titre-devoir="${echapperTexte(d.titre)}" style="padding:4px 10px;font-size:12px;white-space:nowrap">📤 Rendre</button>`
-      : (d.consigne || d.rendu ? `<button type="button" class="btn btn-discret" data-toggle-detail="${idDetail}" style="padding:4px 10px;font-size:12px">Détails</button>` : '');
+    // 19 septembre 2026 : "l'élève ne voit pas le contenu [d'un devoir texte
+    // libre], il doit voir le contenu" — avant ce correctif, le bouton
+    // "Détails" (seul moyen d'afficher la consigne) n'apparaissait JAMAIS
+    // tant que le devoir n'était pas encore rendu (branche if ci-dessus),
+    // laissant l'élève cliquer "Rendre" à l'aveugle. Les deux boutons
+    // apparaissent désormais ensemble : "Détails" pour lire la consigne
+    // avant de répondre, "Rendre" pour répondre (la consigne y est aussi
+    // reprise en lecture seule, voir data-consigne-devoir ci-dessous et
+    // js/pages/eleve-devoirs-notes.js).
+    const boutons = [];
+    if (options.interactif && !d.rendu) {
+      boutons.push(`<button class="btn btn-discret" data-rendre-devoir="${d.id}" data-titre-devoir="${echapperTexte(d.titre)}" data-consigne-devoir="${encodeURIComponent(d.consigne || '')}" style="padding:4px 10px;font-size:12px;white-space:nowrap">📤 Rendre</button>`);
+    }
+    if (d.consigne || d.rendu) {
+      boutons.push(`<button type="button" class="btn btn-discret" data-toggle-detail="${idDetail}" style="padding:4px 10px;font-size:12px">Détails</button>`);
+    }
+    actionCell = boutons.join(' ');
   }
 
   return `
@@ -314,7 +328,7 @@ function html_ligneDevoirTableau(d, options) {
         ${resume ? `<p style="margin:8px 0 0;font-size:12px;color:var(--text-gris,var(--texte-gris,#64748B))">${resume.nbRepondus}/${resume.nbBlocs} bloc${resume.nbBlocs > 1 ? 's' : ''} répondu${resume.nbRepondus > 1 ? 's' : ''}${resume.nbRepondus > 0 && !resume.toutCorrige ? ' — en attente de correction' : ''}</p>` : ''}
         ${!resume && d.rendu?.contenu_reponse ? `<div style="background:white;border-radius:8px;padding:8px 10px;margin-bottom:6px">
           <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:var(--text-gris,var(--texte-gris,#64748B));text-transform:uppercase">Réponse rendue</p>
-          <p style="margin:0;font-size:13px;white-space:pre-wrap">${echapperTexte(d.rendu.contenu_reponse)}</p>
+          <div class="contenu-riche-lecture" style="font-size:13px">${contenuRicheInitialTexte(d.rendu.contenu_reponse)}</div>
         </div>` : ''}
         ${!resume && d.rendu?.piece_jointe_url ? `<a href="${echapperTexte(d.rendu.piece_jointe_url)}" target="_blank" rel="noopener" style="font-size:12px">📎 Voir la pièce jointe rendue</a>` : ''}
         ${!resume && d.rendu && !d.rendu.corrige_le ? `<p style="margin:6px 0 0;font-size:12px;color:#B8860B">⏳ En attente de correction</p>` : ''}
@@ -352,7 +366,10 @@ function attacherEcouteursListeDevoirs(conteneurEl, onRendre) {
   attacherEcouteursCartesStatutsDevoirs(conteneurEl);
   if (onRendre) {
     conteneurEl.querySelectorAll('[data-rendre-devoir]').forEach(btn => {
-      btn.addEventListener('click', () => onRendre(parseInt(btn.dataset.rendreDevoir, 10), btn.dataset.titreDevoir));
+      btn.addEventListener('click', () => onRendre(
+        parseInt(btn.dataset.rendreDevoir, 10), btn.dataset.titreDevoir,
+        decodeURIComponent(btn.dataset.consigneDevoir || '')
+      ));
     });
   }
 }
@@ -495,7 +512,7 @@ function html_gestionRendusDevoir(devoir, eleves, rendusLegacy, blocs, reponsesE
               ? `<span style="font-size:11px;font-weight:700;color:${bleuRepli}">${r.note != null ? `${r.note}/20` : 'Corrigé'}</span>`
               : `<button type="button" class="btn" data-corriger-devoir="${r.id}" style="background:${bleuRepli};color:white;padding:5px 12px;font-size:12px">✏️ Corriger</button>`}
         </div>
-        ${r?.contenu_reponse ? `<p style="margin:0;font-size:13px;background:white;padding:8px;border-radius:6px;white-space:pre-wrap">${echapperTexte(r.contenu_reponse)}</p>` : ''}
+        ${r?.contenu_reponse ? `<div class="contenu-riche-lecture" style="font-size:13px;background:white;padding:8px;border-radius:6px">${contenuRicheInitialTexte(r.contenu_reponse)}</div>` : ''}
         ${r?.piece_jointe_url ? `<a href="${echapperTexte(r.piece_jointe_url)}" target="_blank" rel="noopener" style="font-size:12px">📎 Pièce jointe</a>` : ''}
         ${r?.commentaire_correction ? `<p style="margin:0;font-size:12px;color:${grisRepli}">💬 ${echapperTexte(r.commentaire_correction)}</p>` : ''}
       </div>`;

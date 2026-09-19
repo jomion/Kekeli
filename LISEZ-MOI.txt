@@ -1,82 +1,63 @@
-KEKELI — Livraison du 19 septembre 2026 (suite) — Demande explicite « Ma classe », en-tête et profil
+KEKELI — Livraison du 19 septembre 2026 (suite) — Liste complète « Ma classe » et devoir libre visible avec formatage
 ======================================================================================================
 
-Trois demandes distinctes traitées dans cette livraison.
+Deux demandes distinctes traitées dans cette livraison.
 
-1) « MA CLASSE » : LA DEMANDE NE PART PLUS AUTOMATIQUEMENT
+1) « MA CLASSE » : LA LISTE REPREND AUSSI LES ÉLÈVES AJOUTÉS MANUELLEMENT
 -------------------------------------------------------------------
-Vous aviez remarqué que la demande d'autorisation « Ma classe » partait
-automatiquement (et notifiait le parent) dès qu'une classe était attribuée à
-un enseignant, ou qu'un élève rejoignait une classe déjà attribuée. Vous
-vouliez que l'enseignant déclenche lui-même la demande, élève par élève,
-avant que le parent ne reçoive quoi que ce soit.
+Sur le tableau de bord enseignant, la liste complète des élèves de « Ma
+classe » (carte "🏫 Mes classes" → "Voir la liste complète des élèves")
+ne reprenait que les vrais comptes élève. Elle affiche désormais AUSSI les
+élèves ajoutés manuellement au registre d'appel (sans compte ni parent —
+exactement le même mécanisme que le bouton "➕ Ajouter un élève" du
+registre), avec la mention "👤 Ajouté manuellement (sans compte parent)".
 
-C'est fait : quand une classe est attribuée, ou qu'un élève la rejoint, une
-ligne est bien créée pour chaque élève, mais avec un statut "à demander" —
-RIEN n'est envoyé au parent à ce stade. Sur son tableau de bord, l'enseignant
-voit désormais la liste COMPLÈTE des élèves de chaque classe attribuée (tous
-statuts confondus, y compris les élèves ajoutés après coup), avec un bouton
-"📨 Demander l'accord du parent" sur chacun des élèves pas encore demandés.
-Ce n'est qu'à ce clic que le parent est notifié.
+Un nouveau bouton "➕ Ajouter un élève manuellement" apparaît directement
+sur cette carte, pour chaque classe attribuée : plus besoin d'aller sur le
+registre d'appel pour ajouter un élève sans compte, cela se fait maintenant
+aussi depuis le tableau de bord, exactement de la même façon (nom, prénom,
+genre).
 
-Les 12 demandes qui étaient déjà parties automatiquement (avant ce
-correctif) ont été remises à l'état "à demander" — y compris les 2 déjà
-acceptées et les 4 déjà refusées par un parent, comme vous l'avez demandé :
-l'enseignant devra les redemander lui-même.
-
-Les pages "Registre d'appel" et "Devoirs & notes" (enseignant) distinguent
-maintenant clairement, dans leur bandeau d'information, les élèves "en
-attente du parent" (déjà demandés, réponse pas encore reçue) des élèves "pas
-encore demandés par vous" (à traiter depuis le tableau de bord). Côté
-parent, un élève "à demander" n'apparaît nulle part — rien à voir ni à faire
-tant que l'enseignant n'a pas réellement envoyé la demande.
-
-2) EN-TÊTE : NOM CLIQUABLE, PARAMÈTRES ET DÉCONNEXION RELOGÉS
+2) DEVOIR LIBRE : L'ÉLÈVE VOIT ENFIN LE CONTENU, ET PEUT RÉPONDRE AVEC
+   MISE EN FORME
 -------------------------------------------------------------------
-Le nom/badge affiché en haut à droite de chaque page (tous rôles) est
-maintenant un menu déroulant : au clic (ou au survol sur ordinateur), il
-ouvre "👤 Mon profil" (parent, enseignant, autorité), "⚙️ Paramètres" et
-"🚪 Déconnexion". Ces deux derniers ne sont plus deux icônes séparées dans
-la barre du haut — l'en-tête est plus dégagé, et le profil, les réglages et
-la déconnexion sont désormais regroupés au même endroit, sous le nom.
+Vous aviez remarqué que, pour un devoir "texte libre" pas encore rendu,
+l'élève ne voyait jamais la consigne du maître avant de répondre : le
+bouton "Rendre" ouvrait directement un simple champ de texte vide, sans
+aucun moyen d'afficher le contenu du devoir avant de s'y lancer.
 
-3) DEMANDE DE CLASSE SUPPLÉMENTAIRE : DÉPLACÉE DANS « MON PROFIL »
--------------------------------------------------------------------
-Le bouton "+ Demander une classe" a été retiré du tableau de bord
-enseignant et déplacé dans "Mon profil". Pour rappel (déjà vrai avant ce
-changement, seul l'endroit change) : SEULE la toute première classe, choisie
-à l'inscription ou à la première visite du profil, est attribuée
-automatiquement. Toute classe supplémentaire passe par une demande transmise
-à l'administration pour validation — cette demande se fait maintenant
-directement dans "Mon profil", au même endroit que la classe initiale, avec
-le statut des classes déjà accordées et des demandes en attente affiché
-juste en dessous.
+C'est corrigé : la fenêtre "Rendre" affiche maintenant la consigne du
+maître en lecture seule, juste au-dessus du champ de réponse. La réponse
+elle-même se rédige désormais avec la même barre d'outils de mise en forme
+(Gras, Italique, Souligné, listes, couleurs) que celle déjà utilisée par
+l'enseignant/l'administration pour rédiger la consigne d'un devoir libre.
 
-Fichiers modifiés : js/entete-navigation.js, js/pages/admin-enseignants-classes.js,
-js/pages/completer-profil.js, js/pages/enseignant-devoirs-notes.js,
-js/pages/enseignant-registre-appel.js, js/pages/enseignant-tableau-de-bord.js,
-js/pages/parent-tableau-de-bord.js, pages/completer-profil.html.
+Les réponses déjà rendues par un élève (visibles côté élève, côté parent,
+et dans le panneau de correction de l'enseignant/administration) s'affichent
+maintenant avec leur mise en forme, au lieu du texte brut d'avant.
 
-Base de données (Supabase, appliqué immédiatement) : migration
-ma_classe_demande_explicite_enseignant — nouveau statut 'a_demander' sur
-autorisations_ma_classe, fonctions creer_demandes_ma_classe_pour_classe/pour_eleve
-modifiées pour ne plus notifier à la création, nouvelle fonction
-demander_autorisation_ma_classe (SECURITY DEFINER, vérifie que l'appelant
-est bien l'enseignant concerné) qui notifie le parent au moment de la vraie
-demande, et remise à "à demander" des 12 lignes déjà créées automatiquement.
+Fichiers modifiés : js/devoirs-notes-rendu.js, js/modal.js,
+js/pages/eleve-devoirs-notes.js, js/pages/enseignant-tableau-de-bord.js,
+pages/eleve/devoirs-notes.html.
 
-Vérifications faites avant cette livraison : node --check sur les 8 fichiers
-JS modifiés ; lecture des définitions exactes des fonctions existantes avant
-modification (pg_get_functiondef) ; mcp__Supabase__get_advisors (sécurité)
-relancé après la migration — aucune nouvelle catégorie d'alerte.
+Base de données : aucune migration nécessaire pour cette livraison — les
+deux corrections sont purement côté site (front-end), les autorisations
+nécessaires existaient déjà.
 
-4) CORRECTIF : BANDEAU « DEVOIRS & NOTES » INCOMPLET
--------------------------------------------------------------------
-En relisant la page "Devoirs & notes" de l'enseignant après la livraison
-ci-dessus, un oubli a été repéré : son bandeau d'information ne mentionnait
-que les élèves "en attente du parent" (déjà demandés), pas ceux "pas encore
-demandés par vous" — ce second cas était pourtant déjà géré sur la page
-"Registre d'appel". Corrigé : les deux pages affichent maintenant le même
-message à deux volets.
+Vérifications faites avant cette livraison : node --check sur les 4
+fichiers JS modifiés ; relecture des policies RLS de la table
+registre_eleves_manuels (peut_gerer_classe) pour confirmer qu'aucun
+changement de droits n'était nécessaire pour l'ajout manuel depuis le
+tableau de bord ; vérification que le panneau de correction de
+l'enseignant/administration (js/devoirs-notes-rendu.js,
+html_gestionRendusDevoir) affiche bien lui aussi la réponse de l'élève
+avec sa mise en forme, sur le même principe que la consigne.
 
-Fichier modifié : js/pages/enseignant-devoirs-notes.js.
+Point clarifié en cours de route : vous avez demandé de rendre le nom de
+l'élève cliquable pour accéder à son profil/paramètres/déconnexion, comme
+pour les autres rôles. Le nom de l'élève ouvre déjà ce menu avec
+Paramètres et Déconnexion (depuis la livraison précédente, qui s'applique
+à tous les rôles connectés) — seul "Mon profil" n'y figure pas, car
+l'élève n'a pas d'informations personnelles de ce type à renseigner
+(contrairement à parent/enseignant/autorité). Vous avez confirmé qu'il n'y
+a rien de nouveau à créer sur ce point.

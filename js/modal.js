@@ -6,8 +6,14 @@
 // ============================================================
 
 // ouvrirModal({ titre, champs, texteValider, onValider })
-// champs: [{ nom, label, type: 'text'|'textarea'|'richtext'|'select'|'number'|'checkboxes', options, requis, valeur, placeholder,
+// champs: [{ nom, label, type: 'text'|'textarea'|'richtext'|'select'|'number'|'checkboxes'|'html', options, requis, valeur, placeholder,
 //            dependDe, optionsSelonDependance, toutCocherLabel }]
+// Un champ 'html' (19 septembre 2026, "l'élève doit voir le contenu [du
+// devoir] et pouvoir répondre") : purement informatif, en lecture seule —
+// affiche `valeur` (déjà du HTML sûr, ex. via contenuRicheInitialTexte()
+// dans js/devoirs-notes-rendu.js) au-dessus d'un autre champ (ex. la vraie
+// réponse). N'a pas de [name] : ignoré à la lecture des valeurs à la
+// soumission, comme 'richtext'/'checkboxes' ont chacun leur propre lecture.
 // Un select peut dépendre d'un autre (cascade, ex. Commune selon Département) :
 // dependDe = nom du champ dont il dépend, optionsSelonDependance = fonction
 // (valeurDuChampDontIlDepend) => [{valeur, label}, ...] appelée à chaque changement.
@@ -25,7 +31,7 @@ function ouvrirModal({ titre, champs, texteValider = 'Enregistrer', onValider })
   // Un champ 'richtext' a besoin de place pour sa barre d'outils : la modale
   // s'élargit automatiquement dès qu'il y en a un (même classe .modal-boite-large
   // que les autres modales bespoke plus larges du site, ex. correction).
-  const modaleLarge = champs.some(c => c.type === 'richtext');
+  const modaleLarge = champs.some(c => c.type === 'richtext' || c.type === 'html');
   overlay.innerHTML = `
     <div class="modal-boite${modaleLarge ? ' modal-boite-large' : ''}">
       <h3>${titre}</h3>
@@ -91,6 +97,7 @@ function ouvrirModal({ titre, champs, texteValider = 'Enregistrer', onValider })
     e.preventDefault();
     const valeurs = {};
     champs.forEach(c => {
+      if (c.type === 'html') return; // purement informatif, aucune valeur à lire
       if (c.type === 'checkboxes') {
         valeurs[c.nom] = Array.from(overlay.querySelectorAll(`input[name="${c.nom}"]:checked`)).map(el => el.value);
       } else if (c.type === 'richtext') {
@@ -117,6 +124,12 @@ function ouvrirModal({ titre, champs, texteValider = 'Enregistrer', onValider })
 
 function champHtmlModal(c) {
   const requis = c.requis !== false ? 'required' : '';
+  if (c.type === 'html') {
+    return `<div class="champ-modal champ-modal-richtext">
+      ${c.label ? `<span class="etiquette-champ-modal-richtext">${c.label}</span>` : ''}
+      <div class="contenu-riche-lecture" style="margin-top:4px;background:#F9FAFB;border:1px solid var(--bordure,#E2E8F0);border-radius:8px;padding:8px 10px">${c.valeur || ''}</div>
+    </div>`;
+  }
   if (c.type === 'select') {
     return `<label class="champ-modal">${c.label}
       <select name="${c.nom}" ${requis}>

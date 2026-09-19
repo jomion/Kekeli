@@ -57,11 +57,20 @@ async function afficherTableauBordEns() {
   let nbMaClasseAutorises = 0, nbMaClasseEnAttente = 0, nbMaClasseADemander = 0;
   let rosterMaClasseParClasse = {};
   if (classesAssignees.length) {
-    const [{ data: autorisationsMC }, { data: elevesClassesEns }] = await Promise.all([
+    // 19 septembre 2026 (1sexies puis correctif suivant) : la liste complète
+    // de « Ma classe » doit aussi reprendre les élèves ajoutés manuellement
+    // au registre d'appel (registre_eleves_manuels — sans compte ni parent,
+    // exactement comme dans js/pages/enseignant-registre-appel.js), pas
+    // seulement les vrais comptes élève de la table `eleves`. L'enseignant
+    // peut aussi les ajouter directement depuis cette carte (voir
+    // ouvrirAjoutEleveManuelTB ci-dessous).
+    const [{ data: autorisationsMC }, { data: elevesClassesEns }, { data: elevesManuelsTB }] = await Promise.all([
       supabaseClient.from('autorisations_ma_classe')
         .select('id, statut, classe_id, eleve_id').eq('enseignant_id', profilEnseignantTB.id),
       supabaseClient.from('eleves').select('id, classe_id, profils(prenom, nom)')
-        .in('classe_id', classesAssignees).eq('compte_actif', true)
+        .in('classe_id', classesAssignees).eq('compte_actif', true),
+      supabaseClient.from('registre_eleves_manuels').select('id, nom, prenom, classe_id')
+        .in('classe_id', classesAssignees).eq('enseignant_id', profilEnseignantTB.id).eq('actif', true)
     ]);
     nbMaClasseAutorises = (autorisationsMC || []).filter(a => a.statut === 'accepte').length;
     nbMaClasseEnAttente = (autorisationsMC || []).filter(a => a.statut === 'en_attente').length;
@@ -73,9 +82,18 @@ async function afficherTableauBordEns() {
     (elevesClassesEns || []).forEach(e => {
       const auto = autorisationParEleve[e.id];
       (rosterMaClasseParClasse[e.classe_id] ??= []).push({
+        type: 'reel',
         autorisationId: auto?.id || null,
         statut: auto?.statut || null,
         nom: `${e.profils?.prenom || ''} ${e.profils?.nom || ''}`.trim() || '(élève)'
+      });
+    });
+    (elevesManuelsTB || []).forEach(e => {
+      (rosterMaClasseParClasse[e.classe_id] ??= []).push({
+        type: 'manuel',
+        autorisationId: null,
+        statut: null,
+        nom: `${e.prenom || ''} ${e.nom || ''}`.trim() || '(élève)'
       });
     });
   }
@@ -177,10 +195,14 @@ async function afficherTableauBordEns() {
         ${classesAssigneesInfos.map(c => {
           const roster = (rosterMaClasseParClasse[c.id] || []).slice().sort((x, y) => x.nom.localeCompare(y.nom, 'fr'));
           return `<div style="margin-top:10px">
-            ${classesAssigneesInfos.length > 1 ? `<div style="font-size:12px;font-weight:600;color:var(--text-gris);margin-bottom:4px">${echapperEns(c.nom)}</div>` : ''}
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px">
+              ${classesAssigneesInfos.length > 1 ? `<div style="font-size:12px;font-weight:600;color:var(--text-gris)">${echapperEns(c.nom)}</div>` : '<div></div>'}
+              <button class="btn btn-discret" data-ajouter-eleve-manuel-tb="${c.id}" style="padding:3px 10px;font-size:11px">➕ Ajouter un élève manuellement</button>
+            </div>
             ${roster.length ? `<div style="display:flex;flex-direction:column;gap:4px">
               ${roster.map(el => {
-                const libStatutMC = el.statut === 'accepte' ? '<span style="color:#15803D">✅ Autorisé</span>'
+                const libStatutMC = el.type === 'manuel' ? '<span style="color:var(--text-gris)">👤 Ajouté manuellement (sans compte parent)</span>'
+                  : el.statut === 'accepte' ? '<span style="color:#15803D">✅ Autorisé</span>'
                   : el.statut === 'en_attente' ? '<span style="color:#B45309">⏳ En attente de réponse du parent</span>'
                   : el.statut === 'refuse' ? '<span style="color:var(--rouge)">✕ Refusé par le parent</span>'
                   : '<span style="color:#B45309">📨 Pas encore demandé</span>';
@@ -290,6 +312,32 @@ async function afficherTableauBordEns() {
       if (error) { alert(error.message); btn.disabled = false; btn.textContent = "📨 Demander l'accord du parent"; return; }
       afficherTableauBordEns();
     });
+  });
+  document.querySelectorAll('[data-ajouter-eleve-manuel-tb]').forEach(btn => {
+    btn.addEventListener('click', () => ouvrirAjoutEleveManuelTB(parseInt(btn.dataset.ajouterEleveManuelTb, 10)));
+  });
+}
+
+// Même mécanisme que le bouton "➕ Ajouter un élève" du registre d'appel
+// (js/pages/enseignant-registre-appel.js) — un élève sans compte ni parent,
+// saisi manuellement, qui apparaît désormais aussi dans cette liste complète.
+function ouvrirAjoutEleveManuelTB(classeId) {
+  ouvrirModal({
+    titre: 'Ajouter un élève manuellement à « Ma classe »',
+    texteValider: 'Ajouter',
+    champs: [
+      { nom: 'nom', label: 'Nom', type: 'text', requis: true },
+      { nom: 'prenom', label: 'Prénom', type: 'text', requis: true },
+      { nom: 'genre', label: 'Genre', type: 'select', requis: true, options: [{ valeur: 'M', label: 'Garçon' }, { valeur: 'F', label: 'Fille' }] }
+    ],
+    onValider: async (valeurs) => {
+      const { error } = await supabaseClient.from('registre_eleves_manuels').insert({
+        classe_id: classeId, enseignant_id: profilEnseignantTB.id,
+        nom: valeurs.nom.trim().toUpperCase(), prenom: valeurs.prenom.trim(), genre: valeurs.genre
+      });
+      if (error) { alert('Erreur : ' + error.message); return; }
+      afficherTableauBordEns();
+    }
   });
 }
 
