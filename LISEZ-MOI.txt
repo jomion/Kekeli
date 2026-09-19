@@ -1,34 +1,32 @@
-KEKELI — Livraison du 19 septembre 2026 (5e lot du jour) — Affichage mobile
+KEKELI — Livraison du 19 septembre 2026 (6e lot du jour) — Zoom mobile
 ===========================================================================
 
-CORRECTIF D'AFFICHAGE MOBILE + POLICES RÉDUITES
+CORRECTIF : PLUS BESOIN DE DÉZOOMER SUR MOBILE
 ---------------------------------------------------------------
-D'après vos deux captures d'écran, deux choses ont été corrigées.
+Vous aviez signalé qu'il fallait dézoomer (pincer pour réduire) sur les
+pages de séance pour obtenir un affichage normal, et demandé que ce même
+comportement "dézoomé" soit désormais celui par défaut sur toutes les pages
+mobiles.
 
-1) Sur la page « Mes matières » (thème premium), le carrousel de pilules
-« Unité 1 / Unité 2... » coupait la pilule suivante pile au bord, juste
-contre la flèche « › » — ce qui donnait l'impression que le texte
-chevauchait la flèche. Les pilules s'estompent maintenant progressivement
-sur les bords du carrousel au lieu d'être coupées net, ce qui indique aussi
-plus clairement qu'il y a d'autres unités à faire défiler.
+Cause trouvée : certains navigateurs mobiles (Chrome sur Android en
+particulier) appliquent automatiquement un agrandissement du texte
+("boost") sur les colonnes de texte étroites, pour améliorer la lisibilité
+— agrandissement qui dépasse la taille réellement prévue dans le code du
+site. Un pincement pour dézoomer réinitialise cet effet et révèle la
+taille normale : exactement le symptôme que vous décriviez.
 
-2) Comme demandé, les polices ont été réduites sur mobile (écrans étroits,
-en dessous de 480px de large) :
-- le titre du bandeau de matière (« Explore, apprends et progresse ! ») et
-  son sous-titre, qui prenaient beaucoup de hauteur en retombant sur
-  plusieurs lignes ;
-- les pilules d'unité du même carrousel ;
-- les titres de page et sous-titres de page, utilisés sur (quasi) toutes
-  les pages élève/parent/enseignant ;
-- le titre « 🎯 Paliers de cette séance » et l'énoncé des questions ;
-- les menus déroulants des questions de type « Relie chaque mot... ».
+Corrigé en désactivant ce comportement automatique (une seule règle CSS,
+`text-size-adjust`, posée une fois pour toute la partie publique/élève/
+parent/enseignant du site et une fois pour la partie administration) :
+toutes les pages du site s'affichent désormais directement à leur taille
+prévue, sans qu'aucun zoom manuel ne soit nécessaire — plus besoin de
+dézoomer nulle part.
 
-Ces réductions ne s'appliquent QUE sur mobile (en dessous de 480px) : rien
-ne change sur ordinateur ou tablette.
-
-Fichiers modifiés : css/theme-premium-eleve.css, css/style-public.css.
-Aucune migration, aucun fichier JavaScript touché — uniquement des
-ajustements CSS.
+Fichiers modifiés : css/style-public.css, css/style.css.
+Aucune migration, aucun fichier JavaScript touché.
 
 Vérifications faites avant cette livraison : équilibre des accolades et des
-commentaires CSS vérifié sur les deux fichiers modifiés.
+commentaires CSS vérifié sur les deux fichiers modifiés ; les 54 pages du
+site ont été vérifiées une par une, elles utilisent déjà toutes la bonne
+balise de zoom mobile (`width=device-width, initial-scale=1.0`), donc le
+problème ne venait pas de là.

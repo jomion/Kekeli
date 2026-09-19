@@ -8,6 +8,19 @@
    été placée au milieu du fichier et n'était jamais chargée). */
 @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Nunito:wght@400;600;700;800;900&display=swap');
 
+/* 19 septembre 2026 (demande explicite : "il faut dézoomer pour un
+   affichage normal ... adapte l'affichage du mode dézoomé à toutes les
+   pages mobiles") : sans cette règle, certains navigateurs mobiles (Chrome
+   Android en particulier) appliquent leur propre "boost" automatique de la
+   taille du texte sur les colonnes de texte étroites, agrandissant le
+   texte au-delà de sa taille réellement définie en CSS — un pincement pour
+   dézoomer réinitialise cet effet et révèle la taille normale, exactement
+   le symptôme décrit. `text-size-adjust: 100%` désactive ce boost
+   automatique partout : la page s'affiche directement à sa taille prévue,
+   sans qu'aucun zoom manuel ne soit nécessaire. Posée sur `html` (hérité
+   par toute la page) plutôt que sur chaque page une par une. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
 /* ============================================================
    KEKELI — Pages "utilisateur" (accueil public, connexion, espaces
    élève/parent/enseignant). Palette distincte de l'outil d'admin

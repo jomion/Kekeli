@@ -1,3 +1,12 @@
+/* 19 septembre 2026 (demande explicite : "il faut dézoomer pour un
+   affichage normal ... adapte l'affichage du mode dézoomé à toutes les
+   pages mobiles") — voir la même règle et son explication complète en tête
+   de css/style-public.css : désactive le "boost" automatique de taille de
+   texte de certains navigateurs mobiles, pour que la page s'affiche
+   directement à sa taille prévue sans zoom manuel. Posée ici aussi car
+   l'espace admin charge cette feuille au lieu de style-public.css. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
 /* ============================================================
    Éditeur de blocs de devoir (partagé enseignant + admin)
    Voir js/editeur/devoir-blocs.js — sous-ensemble des styles de
