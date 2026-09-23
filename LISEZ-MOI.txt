@@ -1,3 +1,43 @@
+KEKELI — Livraison du 24 septembre 2026 (septième lot) — Jeux mélangés entre disciplines, opérations combinées simplifiées
+===========================================================================
+
+CORRECTIF : LES JEUX FRANÇAIS/ES/EST MÉLANGENT ENFIN TOUTES LES DISCIPLINES
+------------------------------------------------------------------------------
+Vous aviez remarqué que les jeux (Atelier du Français, Défi Éducation
+Sociale, Défi Éducation Scientifique et Technologique) restaient concentrés
+sur une seule discipline à la fois au lieu de mélanger tout le contenu
+disponible. Cause trouvée : le jeu proposait toujours le contenu "jamais
+tenté" dans un ordre qui regroupait, sans le vouloir, les questions d'une
+même séance (donc d'une même discipline) avant de passer à la suivante.
+
+Corrigé : le prochain contenu proposé est désormais tiré au sort parmi tout
+ce qui n'a pas encore été tenté, toutes disciplines confondues — exactement
+comme demandé. Quand un réglage de catégorie est actif (le filtre de
+l'Atelier du Français, par exemple "Conjugaison" plutôt que "Tout"), le jeu
+continue bien sûr de ne proposer que cette discipline-là.
+
+CORRECTIF : CADRAN OPÉRATOIRE — OPÉRATIONS SIMPLIFIÉES POUR ÒGÁN ET AXƆ́SÚ
+------------------------------------------------------------------------------
+Vous aviez signalé que les opérations combinées des niveaux Ògán et Axɔ́sú
+étaient trop complexes et donnaient parfois des résultats qui semblaient
+impossibles. Deux correctifs : le nombre d'opérations enchaînées est réduit
+à 1 ou 2 pour Ògán (au lieu de 2 à 3) et à 2 ou 3 pour Axɔ́sú (au lieu de 3
+à 5) ; et le chiffre 0 n'est plus jamais utilisé comme nombre de départ ou
+comme nombre du bord dans ces opérations combinées, ce qui évitait des
+étapes du type "0 × 5" ou "0 ÷ 7" qui pouvaient donner l'impression d'un
+calcul impossible. Vérifié par un test automatisé sur 200 000 opérations
+générées : plus aucun opérande à zéro, et toujours un résultat entier en
+mode "réponses entières" (le réglage par défaut).
+
+FICHIERS MODIFIÉS DANS CETTE LIVRAISON
+----------------------------------------
+- js/jeux/moteur-jeu-arcade.js
+- js/pages/eleve-jeu-calcul-mental.js
+
+Aucun fichier ajouté ni supprimé. Aucune action de votre part.
+
+
+
 KEKELI — Livraison du 24 septembre 2026 (sixième lot) — Nouveau : Entraînement IA pour Français, Éducation Sociale et Éducation Scientifique et Technologique
 ===========================================================================
 

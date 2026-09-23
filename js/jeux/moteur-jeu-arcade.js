@@ -100,6 +100,26 @@ async function jeuTrouverBlocsCandidats({ classeId, champFormationIds, palier, f
 // bloc en cours (essais < 3, pas encore réussi à 100%) ; si tout est déjà
 // épuisé/réussi, on retombe sur le premier bloc en mode "relecture" plutôt
 // que de bloquer l'élève sur une impasse.
+//
+// 24 septembre 2026 (sixième lot) : demande explicite — « faut mélanger
+// effectivement toutes les questions des disciplines au lieu de choisir pour
+// une discipline donnée. Tu vas choisir pour une discipline quand le réglage
+// sera sur une discipline. » Cause trouvée : blocsCandidats est renvoyé par
+// jeuTrouverBlocsCandidats() dans l'ordre SQL de la requête (par séance, donc
+// par discipline — les blocs d'une même séance se retrouvent groupés) ; le
+// choix « jamais tenté » prenait systématiquement le PREMIER candidat de ce
+// tableau, ce qui épuisait en pratique tous les blocs d'une même séance/
+// discipline avant de passer à la suivante — l'élève ne voyait donc, dans les
+// faits, qu'une seule discipline à la fois, sans que rien ne l'ait
+// explicitement choisie. Corrigé en tirant au sort le prochain bloc « jamais
+// tenté » parmi TOUS les candidats jamais tentés (toutes disciplines
+// confondues quand aucun filtre n'est actif, ou au sein de la seule
+// discipline choisie quand filtrerCategorie restreint déjà blocsCandidats) —
+// le filtre par discipline (categoriesDisponibles, Atelier du Français)
+// continue de fonctionner à l'identique : c'est lui qui restreint
+// blocsCandidats en amont, ce tirage au sort ne fait que mélanger l'ORDRE de
+// ce qui reste. Le choix « en cours »/« premier » (relecture d'un bloc déjà
+// entièrement réussi) reste, lui, déterministe et inchangé.
 async function jeuTrouverRonde({ eleveId, classeId, champFormationIds, palier, filtrerCategorie }) {
   const blocsCandidats = await jeuTrouverBlocsCandidats({ classeId, champFormationIds, palier, filtrerCategorie });
   if (!blocsCandidats.length) return { aucunContenu: true };
@@ -110,8 +130,11 @@ async function jeuTrouverRonde({ eleveId, classeId, champFormationIds, palier, f
   const reponsesParBloc = {};
   (reponses || []).forEach(r => { (reponsesParBloc[r.bloc_id] ??= []).push(r); });
 
-  const jamaisTente = blocsCandidats.find(b => !(reponsesParBloc[b.id]?.length));
-  if (jamaisTente) return { bloc: jamaisTente, essaisPrecedents: [], termine: false };
+  const tousJamaisTentes = blocsCandidats.filter(b => !(reponsesParBloc[b.id]?.length));
+  if (tousJamaisTentes.length) {
+    const jamaisTente = tousJamaisTentes[Math.floor(Math.random() * tousJamaisTentes.length)];
+    return { bloc: jamaisTente, essaisPrecedents: [], termine: false };
+  }
 
   const enCours = blocsCandidats.find(b => {
     const essais = reponsesParBloc[b.id] || [];

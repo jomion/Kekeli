@@ -602,6 +602,26 @@ function cadranInitJeu(cadranNiveauInitial) {
   // n'est utilisé que dans environ une question sur deux (l'autre moitié du
   // temps, le point de départ est un chiffre du bord tiré au hasard, comme
   // tous les nombres suivants de la chaîne) ; récapitulatif texte optionnel
+  //
+  // RÉVISÉ le 24 septembre 2026 (sixième lot), sur signalement direct :
+  // "les opérations proposées sont trop complexes et parfois impossible
+  // comme les divisions par zéro. Faut proposer 1 à 2 opérations pour ogan
+  // et 2 à 3 Axosu". Deux changements : (1) CADRAN_PLAGE_OPERATEURS réduite
+  // à 1-2 pour Ògán et 2-3 pour Axɔ́sú (ci-dessous) ; (2) cadranTirerNombre-
+  // BordCombinee() exclut désormais 0 (contrairement à cadranTirerNombreBord,
+  // qui continue de le renvoyer pour le mode simple Azɔ̀ví/Dèví, inchangé).
+  // Le code a été relu en détail sans y trouver de division par un
+  // dénominateur littéralement égal à zéro (les diviseurs, en mode entier
+  // strict, sont toujours choisis parmi les diviseurs exacts de 1 à 12,
+  // jamais 0 ; en mode décimales, une boucle excluait déjà 0 du tirage) —
+  // mais un 0 POUVAIT apparaître comme premier nombre ou comme opérande
+  // intermédiaire, produisant des étapes dégénérées ("0 × 5", puis
+  // "0 ÷ 7 = 0"...) qui ressemblent, pour un enfant, à une opération
+  // "impossible" même si le calcul reste mathématiquement valide — c'est très
+  // probablement ce qui a été perçu comme des "divisions par zéro". Exclure 0
+  // de tous les opérandes du mode combiné supprime ces étapes dégénérées à la
+  // racine, en plus de rendre la garantie "jamais de division par zéro"
+  // triviale plutôt que simplement déduite du tirage des diviseurs.
   // selon cadranRecapTexteActif ; c'est la fin de l'assemblage complet qui
   // déclenche le chronomètre, avec un son dédié ('sequenceComplete') pour
   // que l'enfant sache que l'opération est terminée. N'affecte ni
@@ -609,10 +629,20 @@ function cadranInitJeu(cadranNiveauInitial) {
   // "Problèmes & Calculs" (cadranRunMentalSequence). =====
 
   const CADRAN_OP_SYMBOLES = { plus: '+', minus: '-', mult: '×', div: '÷' };
-  const CADRAN_PLAGE_OPERATEURS = { ogan: [2, 3], axosu: [3, 4, 5] };
+  const CADRAN_PLAGE_OPERATEURS = { ogan: [1, 2], axosu: [2, 3] };
 
   function cadranTirerNombreBord() {
     return Math.floor(Math.random() * 13); // 0 à 12, comme le mode simple
+  }
+
+  // Comme cadranTirerNombreBord(), mais 1 à 12 (jamais 0) — réservée au mode
+  // combiné (voir note du 24 septembre 2026, sixième lot, ci-dessus) : évite
+  // toute étape dégénérée ("0 × 5", "0 ÷ 7"...) qui pouvait ressembler, pour
+  // un enfant, à une opération "impossible". Le mode simple (Azɔ̀ví/Dèví,
+  // cadranRunDialSequence) continue d'utiliser cadranTirerNombreBord() et son
+  // 0 à 12 d'origine, inchangé.
+  function cadranTirerNombreBordCombinee() {
+    return Math.floor(Math.random() * 12) + 1; // 1 à 12
   }
 
   // Évalue une expression à plat (n0 op0 n1 op1 n2 ...) en respectant la
@@ -651,11 +681,15 @@ function cadranInitJeu(cadranNiveauInitial) {
 
     const departBord = Math.random() < 0.5;
     const centerVal = parseInt(elCenterSelect.value);
-    const premierNombre = departBord ? cadranTirerNombreBord() : centerVal;
+    // Le chiffre central peut lui-même être réglé sur 0 — dans ce cas précis,
+    // on tire quand même un chiffre du bord (1-12) plutôt que de démarrer
+    // l'opération à 0 (voir note du 24 septembre 2026, sixième lot).
+    const utiliserCentre = !departBord && centerVal !== 0;
+    const premierNombre = utiliserCentre ? centerVal : cadranTirerNombreBordCombinee();
 
     const nombres = [premierNombre];
     const operateurs = [];
-    const sourcesNombres = [departBord ? 'bord' : 'centre'];
+    const sourcesNombres = [utiliserCentre ? 'centre' : 'bord'];
     let valeurTermeCourant = premierNombre;
 
     for (let i = 0; i < nbOperateurs; i++) {
@@ -666,13 +700,13 @@ function cadranInitJeu(cadranNiveauInitial) {
         if (!cadranReponseDecimale) {
           const diviseurs = [];
           for (let d = 1; d <= 12; d++) { if (valeurTermeCourant % d === 0) diviseurs.push(d); }
-          if (diviseurs.length === 0) { op = 'plus'; candidat = cadranTirerNombreBord(); }
+          if (diviseurs.length === 0) { op = 'plus'; candidat = cadranTirerNombreBordCombinee(); }
           else candidat = diviseurs[Math.floor(Math.random() * diviseurs.length)];
         } else {
-          do { candidat = cadranTirerNombreBord(); } while (candidat === 0);
+          candidat = cadranTirerNombreBordCombinee(); // déjà 1-12, jamais 0
         }
       } else {
-        candidat = cadranTirerNombreBord();
+        candidat = cadranTirerNombreBordCombinee();
       }
 
       operateurs.push(op);
