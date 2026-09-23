@@ -1,3 +1,31 @@
+KEKELI — Livraison du 24 septembre 2026 (huitième lot) — Cadran opératoire : ordre de calcul corrigé (gauche à droite)
+===========================================================================
+
+CORRECTIF : LE CADRAN CALCULE MAINTENANT STRICTEMENT DE GAUCHE À DROITE
+------------------------------------------------------------------------------
+Vous nous avez signalé qu'une opération comme "2 + 4 × 5 − 2 ÷ 2" devait
+donner 14 (en calculant dans l'ordre où l'opération est proposée), alors que
+le jeu donnait 21. Cause trouvée : la version précédente appliquait, par
+erreur, la règle de priorité mathématique habituelle (multiplications et
+divisions calculées avant les additions et soustractions) — une mauvaise
+interprétation de la demande d'origine du 24 septembre.
+
+Corrigé : chaque opération s'applique désormais exactement dans l'ordre où
+elle apparaît sur le cadran, sans aucune règle de priorité — l'ordre de
+lecture est l'ordre de calcul, cohérent avec des niveaux qui n'exigent pas
+d'avoir déjà appris les règles de priorité mathématique. Vérifié : l'exemple
+"2 + 4 × 5 − 2 ÷ 2" donne bien 14, et un test automatisé sur 200 000
+opérations confirme qu'aucun opérande à zéro et qu'un résultat toujours
+entier (en mode "réponses entières") continuent d'être garantis avec ce
+nouveau mode de calcul.
+
+FICHIERS MODIFIÉS DANS CETTE LIVRAISON
+----------------------------------------
+- js/pages/eleve-jeu-calcul-mental.js
+
+Aucun fichier ajouté ni supprimé. Aucune action de votre part.
+
+
 KEKELI — Livraison du 24 septembre 2026 (septième lot) — Jeux mélangés entre disciplines, opérations combinées simplifiées
 ===========================================================================
 

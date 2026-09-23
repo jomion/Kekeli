@@ -645,36 +645,44 @@ function cadranInitJeu(cadranNiveauInitial) {
     return Math.floor(Math.random() * 12) + 1; // 1 à 12
   }
 
-  // Évalue une expression à plat (n0 op0 n1 op1 n2 ...) en respectant la
-  // priorité mathématique standard (× et ÷ avant + et -) : regroupe en
-  // "termes" séparés par + / -, chaque terme étant un enchaînement de × et
-  // ÷ évalué de gauche à droite, puis fait la somme algébrique des termes.
-  // Reflète exactement la façon dont cadranGenererOperationCombinee()
-  // choisit ses diviseurs ci-dessous (même logique de "valeur du terme en
-  // cours").
+  // Évalue une expression à plat (n0 op0 n1 op1 n2 ...) STRICTEMENT DE
+  // GAUCHE À DROITE, sans priorité mathématique.
+  //
+  // RÉVISÉ le 24 septembre 2026 (huitième lot) : la version précédente
+  // (quatrième lot, voir section 1quindecies du document de suivi)
+  // appliquait la priorité mathématique standard (× et ÷ avant + et −), une
+  // mauvaise lecture de la demande d'origine — corrigée après vérification
+  // directe avec le porteur du projet sur un exemple concret : « 2 + 4 × 5
+  // − 2 ÷ 2 ça doit donner 14 [...] l'ordre de gauche à droite », alors que
+  // l'ancienne version donnait 21 (2 + 20 − 1, avec × et ÷ groupés avant +
+  // et −). Chaque opération s'applique désormais exactement dans l'ordre où
+  // elle est proposée sur le cadran — pas de notion de "terme" à part,
+  // cohérent avec des niveaux (Ògán/Axɔ́sú) qui n'exigent pas d'avoir déjà
+  // appris les règles de priorité : l'ordre de lecture EST l'ordre de
+  // calcul.
   function cadranEvaluerExpression(nombres, operateurs) {
-    let termes = [nombres[0]];
-    let signes = [1];
+    let resultat = nombres[0];
     for (let i = 0; i < operateurs.length; i++) {
-      const op = operateurs[i];
       const n = nombres[i + 1];
-      if (op === 'mult') termes[termes.length - 1] *= n;
-      else if (op === 'div') termes[termes.length - 1] = (n === 0) ? 0 : termes[termes.length - 1] / n;
-      else if (op === 'plus') { termes.push(n); signes.push(1); }
-      else if (op === 'minus') { termes.push(n); signes.push(-1); }
+      const op = operateurs[i];
+      if (op === 'plus') resultat += n;
+      else if (op === 'minus') resultat -= n;
+      else if (op === 'mult') resultat *= n;
+      else if (op === 'div') resultat = (n === 0) ? 0 : resultat / n;
     }
-    return termes.reduce((somme, t, i) => somme + t * signes[i], 0);
+    return resultat;
   }
 
   // Construit une opération combinée aléatoire. En mode "entier strict"
   // (cadranReponseDecimale === false, par défaut), chaque division choisit
-  // son diviseur parmi les diviseurs exacts (1 à 12) de la valeur du terme
-  // en cours à cet instant, pour garantir un résultat final toujours
-  // entier ; si aucun diviseur exact n'existe dans 0-12 (cas rare), le "÷"
-  // est remplacé par un "+" pour cette étape plutôt que de produire une
-  // décimale — jamais de blocage. En mode décimales autorisées, le diviseur
-  // est un chiffre du bord quelconque (hors 0, pour éviter une division par
-  // zéro).
+  // son diviseur parmi les diviseurs exacts (1 à 12) du résultat CUMULÉ DE
+  // GAUCHE À DROITE à cet instant précis (voir cadranEvaluerExpression
+  // ci-dessus — plus de notion de "terme" depuis le 24 septembre 2026,
+  // huitième lot), pour garantir un résultat final toujours entier ; si
+  // aucun diviseur exact n'existe dans 0-12 (cas rare), le "÷" est remplacé
+  // par un "+" pour cette étape plutôt que de produire une décimale —
+  // jamais de blocage. En mode décimales autorisées, le diviseur est un
+  // chiffre du bord quelconque (hors 0, pour éviter une division par zéro).
   function cadranGenererOperationCombinee(niveau) {
     const plageOperateurs = CADRAN_PLAGE_OPERATEURS[niveau] || CADRAN_PLAGE_OPERATEURS.ogan;
     const nbOperateurs = plageOperateurs[Math.floor(Math.random() * plageOperateurs.length)];
@@ -690,7 +698,7 @@ function cadranInitJeu(cadranNiveauInitial) {
     const nombres = [premierNombre];
     const operateurs = [];
     const sourcesNombres = [utiliserCentre ? 'centre' : 'bord'];
-    let valeurTermeCourant = premierNombre;
+    let valeurCourante = premierNombre; // résultat cumulé de gauche à droite, mis à jour à chaque étape
 
     for (let i = 0; i < nbOperateurs; i++) {
       let op = ['plus', 'minus', 'mult', 'div'][Math.floor(Math.random() * 4)];
@@ -699,7 +707,7 @@ function cadranInitJeu(cadranNiveauInitial) {
       if (op === 'div') {
         if (!cadranReponseDecimale) {
           const diviseurs = [];
-          for (let d = 1; d <= 12; d++) { if (valeurTermeCourant % d === 0) diviseurs.push(d); }
+          for (let d = 1; d <= 12; d++) { if (valeurCourante % d === 0) diviseurs.push(d); }
           if (diviseurs.length === 0) { op = 'plus'; candidat = cadranTirerNombreBordCombinee(); }
           else candidat = diviseurs[Math.floor(Math.random() * diviseurs.length)];
         } else {
@@ -713,9 +721,10 @@ function cadranInitJeu(cadranNiveauInitial) {
       nombres.push(candidat);
       sourcesNombres.push('bord');
 
-      if (op === 'mult') valeurTermeCourant *= candidat;
-      else if (op === 'div') valeurTermeCourant = (candidat === 0) ? 0 : valeurTermeCourant / candidat;
-      else valeurTermeCourant = candidat; // + ou - démarre un nouveau terme
+      if (op === 'mult') valeurCourante *= candidat;
+      else if (op === 'div') valeurCourante = (candidat === 0) ? 0 : valeurCourante / candidat;
+      else if (op === 'plus') valeurCourante += candidat;
+      else valeurCourante -= candidat;
     }
 
     const brut = cadranEvaluerExpression(nombres, operateurs);
