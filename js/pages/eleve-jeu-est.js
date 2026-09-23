@@ -20,10 +20,16 @@
     champFormationIds: [4], // Éducation Scientifique et Technologique
     dureesParDefautSecondes: 15,
     permettreMasquerOperation: false,
+    // 24 septembre 2026, septième lot : limite des questions par SA
+    // ("Prévois une limite des questions [...] SA pour EST et ES") — voir
+    // jeuListerPorteeContenu (js/jeux/moteur-jeu-arcade.js), pas de
+    // sous-arborescence unité/thème au-dessus de la SA pour cette matière.
+    porteeGranularite: 'sa',
+    // Fusion Entraînement IA (même lot — "Retire le bouton entrainement IA
+    // et mélange simplement les questions IA avec celles existant déjà") :
+    // plus de bouton manuel, voir js/jeux/coquille-jeu-arcade.js
+    // (choisirPalier/lancer) et js/jeux/entrainement-ia-arcade.js.
+    entrainementIA: { champFormationId: 4 },
   });
   await jeu.init(profil, classeId);
-  // 24 septembre 2026 (requête P, partie 2) : bouton "Entraînement IA" —
-  // questions inédites générées par IA, validées par un administrateur, hors
-  // du pipeline de notation habituel. Voir js/jeux/entrainement-ia-arcade.js.
-  initEntrainementIA(jeu, { champFormationId: 4 });
 })();

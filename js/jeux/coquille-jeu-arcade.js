@@ -30,12 +30,27 @@ function creerJeuArcade(config) {
   //     comparées à seances.discipline pour décider si un bloc appartient à
   //     la catégorie. Absent : pas de sélecteur de catégorie, comportement
   //     strictement inchangé (ES, EST).
+  //   porteeGranularite: 'unite_theme' | 'sa' (optionnel, ajouté le 24
+  //     septembre 2026 — "Prévois une limite des questions Par unité ou
+  //     thème pour français, [...] SA pour EST et ES") — affiche un
+  //     troisième sélecteur "🌐 Tout le programme / <portées>" alimenté par
+  //     jeuListerPorteeContenu (js/jeux/moteur-jeu-arcade.js). Absent : pas de
+  //     sélecteur de portée, comportement inchangé (tout le programme).
+  //   entrainementIA: { champFormationId, avecCategorie? } (optionnel,
+  //     ajouté le 24 septembre 2026 — fusion des questions IA validées dans
+  //     la rotation normale, voir choisirPalier/lancer ci-dessous et
+  //     js/jeux/entrainement-ia-arcade.js pour eiaCompterQuestionsDisponibles/
+  //     lancerEntrainementIA). Absent : jeu strictement inchangé, jamais de
+  //     question IA mélangée (Cadran opératoire, qui n'utilise pas cette
+  //     coquille, n'est de toute façon pas concerné).
 
   const els = {
     accueil: document.getElementById('jeuAccueil'),
     jeuCorps: document.getElementById('jeuCorps'),
     palierSelector: document.getElementById('jeuPalierSelector'),
     categorieSelector: document.getElementById('jeuCategorieSelector'),
+    porteeSelector: document.getElementById('jeuPorteeSelector'),
+    etatActuel: document.getElementById('jeuEtatActuel'),
     infoAccueil: document.getElementById('jeuInfoAccueil'),
     btnLancer: document.getElementById('jeuBtnLancer'),
     matiereTag: document.getElementById('jeuMatiereTag'),
@@ -57,6 +72,8 @@ function creerJeuArcade(config) {
     classeId: null,
     palier: null,
     categorie: 'all', // code de config.categoriesDisponibles, ou 'all' (aucun filtre)
+    portees: [], // liste renvoyée par jeuListerPorteeContenu (si config.porteeGranularite)
+    porteeCode: 'all', // code d'une portée, ou 'all' (aucun filtre — tout le programme)
     accesCorrection: { autorise: false },
     ronde: null, // { bloc, seance, essaisPrecedents, termine }
     index: 0,
@@ -66,6 +83,8 @@ function creerJeuArcade(config) {
     scoreDirect: 0, // compteur cosmétique de bonnes réponses de CETTE ronde
     masquerOperation: false,
     operationReveleeIndex: -1, // index de question pour laquelle "Revoir" a été cliqué
+    modeRonde: 'reel', // 'reel' | 'ia' — voir choisirPalier()/lancer() pour la fusion Entraînement IA
+    questionsIA: null, // { count } — dernier comptage connu de questions IA disponibles pour le palier/catégorie en cours
   };
 
   function afficherPalierSelector() {
@@ -117,20 +136,108 @@ function creerJeuArcade(config) {
     return cat ? ` (${cat.label.replace(/^\S+\s/, '')})` : '';
   }
 
+  // --- Sélecteur de portée (24 septembre 2026 — "limite des questions par
+  // unité/thème/SA") : optionnel, voir config.porteeGranularite ci-dessus.
+  // Alimenté par jeuListerPorteeContenu (js/jeux/moteur-jeu-arcade.js), une
+  // seule fois à l'initialisation (le programme d'une classe ne change pas
+  // en cours de partie) — jamais rechargé à chaque choix de palier.
+  async function chargerPortees() {
+    if (!config.porteeGranularite || !els.porteeSelector) return;
+    etat.portees = await jeuListerPorteeContenu({
+      classeId: etat.classeId, champFormationId: config.champFormationIds[0], granularite: config.porteeGranularite,
+    });
+    afficherPorteeSelector();
+  }
+
+  function afficherPorteeSelector() {
+    if (!config.porteeGranularite || !els.porteeSelector) return;
+    if (!etat.portees.length) { els.porteeSelector.innerHTML = ''; els.porteeSelector.hidden = true; return; }
+    els.porteeSelector.hidden = false;
+    const options = [{ code: 'all', label: '🌐 Tout le programme' }, ...etat.portees];
+    els.porteeSelector.innerHTML = `<select id="jeuPorteeSelect">${options.map(p =>
+      `<option value="${p.code}" ${etat.porteeCode === p.code ? 'selected' : ''}>${echapper(p.label)}</option>`).join('')}</select>`;
+    document.getElementById('jeuPorteeSelect').addEventListener('change', (e) => choisirPortee(e.target.value));
+  }
+
+  function construireFiltreSaIds() {
+    if (!config.porteeGranularite || etat.porteeCode === 'all') return null;
+    const portee = etat.portees.find(p => p.code === etat.porteeCode);
+    return (portee && Array.isArray(portee.saIds) && portee.saIds.length) ? portee.saIds : null;
+  }
+
+  function libellePorteeActuelle() {
+    if (!config.porteeGranularite || etat.porteeCode === 'all') return '';
+    const portee = etat.portees.find(p => p.code === etat.porteeCode);
+    return portee ? ` — ${portee.label}` : '';
+  }
+
+  async function choisirPortee(code) {
+    etat.porteeCode = code;
+    // Le contenu dépend des trois filtres à la fois : si un palier est déjà
+    // choisi, on relance la recherche avec la nouvelle portée ; sinon on se
+    // contente de mémoriser le choix, comme choisirCategorie() ci-dessus.
+    if (etat.palier) await choisirPalier(etat.palier);
+    else majEtatActuel();
+  }
+
+  // --- Ligne d'état permanente (24 septembre 2026, même principe que
+  // #cadranEtatActuel — voir css/jeu-cadran-operatoire.css) : les sélecteurs
+  // palier/catégorie/portée sont désormais regroupés sous le bouton
+  // "⚙️ Réglages" (demande explicite : "regroupe tous les réglages sous le
+  // bouton réglage"), cette ligne reste visible en permanence sur l'écran
+  // d'accueil pour rappeler l'état choisi sans avoir à rouvrir les réglages.
+  function majEtatActuel() {
+    if (!els.etatActuel) return;
+    if (!etat.palier) { els.etatActuel.textContent = ''; return; }
+    const p = JEU_PALIERS.find(x => x.code === etat.palier);
+    els.etatActuel.textContent = `${p ? `${p.icone} ${p.nom}` : etat.palier}${libelleCategorieActuelle()}${libellePorteeActuelle()}`;
+  }
+
   async function choisirPalier(code) {
     etat.palier = code;
     afficherPalierSelector();
+    majEtatActuel();
     els.infoAccueil.textContent = 'Recherche des activités disponibles...';
     els.btnLancer.disabled = true;
 
+    const filtrerSaIds = construireFiltreSaIds();
     etat.ronde = await jeuTrouverRonde({
       eleveId: etat.profil.id, classeId: etat.classeId, champFormationIds: config.champFormationIds,
-      palier: code, filtrerCategorie: construireFiltreCategorie(),
+      palier: code, filtrerCategorie: construireFiltreCategorie(), filtrerSaIds,
     });
+
+    // Fusion Entraînement IA (24 septembre 2026) : décide, pour CE choix de
+    // palier/catégorie, si la prochaine partie sera une vraie ronde ou une
+    // question IA — voir lancer() ci-dessous. Comptage à part (voir
+    // eiaCompterQuestionsDisponibles, js/jeux/entrainement-ia-arcade.js),
+    // JAMAIS mélangé au flux jeuTrouverRonde déjà testé ci-dessus, pour
+    // préserver à l'identique son comportement quand aucun contenu IA
+    // n'existe (le cas le plus courant aujourd'hui).
+    etat.modeRonde = 'reel';
+    etat.questionsIA = null;
+    if (config.entrainementIA && typeof eiaCompterQuestionsDisponibles === 'function') {
+      const discipline = (config.entrainementIA.avecCategorie && etat.categorie !== 'all') ? etat.categorie : null;
+      etat.questionsIA = await eiaCompterQuestionsDisponibles({
+        champFormationId: config.entrainementIA.champFormationId, palier: code, discipline,
+      });
+      const yADuReel = !etat.ronde.aucunContenu && etat.accesCorrection.autorise;
+      const yADeLIA = etat.questionsIA && etat.questionsIA.count > 0;
+      if (yADeLIA && !yADuReel) etat.modeRonde = 'ia';
+      else if (yADeLIA && yADuReel && Math.random() < 0.5) etat.modeRonde = 'ia';
+    }
+
+    if (etat.modeRonde === 'ia') {
+      const p = JEU_PALIERS.find(x => x.code === code);
+      els.infoAccueil.innerHTML = `🤖 ${etat.questionsIA.count} question${etat.questionsIA.count > 1 ? 's' : ''} inédite${etat.questionsIA.count > 1 ? 's' : ''} générée${etat.questionsIA.count > 1 ? 's' : ''} par IA disponible${etat.questionsIA.count > 1 ? 's' : ''} pour ${p ? p.nom : code} — entraînement libre, sans impact sur tes paliers/badges.`;
+      els.btnLancer.textContent = '🚀 Lancer la partie';
+      els.btnLancer.disabled = false;
+      els.btnLancer.dataset.mode = 'jouer';
+      return;
+    }
 
     if (etat.ronde.aucunContenu) {
       const p = JEU_PALIERS.find(x => x.code === code);
-      els.infoAccueil.innerHTML = `Aucune activité ${p.nom}${libelleCategorieActuelle()} disponible pour l'instant dans cette matière — reviens plus tard, choisis un autre niveau, ou une autre catégorie. 🙂`;
+      els.infoAccueil.innerHTML = `Aucune activité ${p.nom}${libelleCategorieActuelle()}${libellePorteeActuelle()} disponible pour l'instant dans cette matière — reviens plus tard, choisis un autre niveau, une autre catégorie, ou tout le programme. 🙂`;
       els.btnLancer.disabled = true;
       return;
     }
@@ -156,6 +263,18 @@ function creerJeuArcade(config) {
 
   async function lancer() {
     if (els.btnLancer.dataset.mode === 'correction') { await afficherEcranCorrection(); return; }
+    // Fusion Entraînement IA (24 septembre 2026) : quand choisirPalier() a
+    // retenu le mode 'ia' pour cette partie, on délègue ENTIÈREMENT à
+    // lancerEntrainementIA (js/jeux/entrainement-ia-arcade.js), déjà testée
+    // et inchangée — l'écran de jeu normal (els.jeuCorps, questions(),
+    // finaliserRonde()...) n'est jamais touché dans ce cas, ce qui garantit
+    // structurellement qu'une partie IA ne peut jamais affecter
+    // reponses_exercices/essais/paliers/badges/compétences, exactement comme
+    // avant cette fusion (voir js/jeux/entrainement-ia-arcade.js).
+    if (etat.modeRonde === 'ia' && config.entrainementIA) {
+      await lancerEntrainementIA({ els, etat }, config.entrainementIA);
+      return;
+    }
     if (!etat.ronde || !etat.ronde.bloc) return;
     els.accueil.hidden = true;
     els.jeuCorps.hidden = false;
@@ -389,6 +508,7 @@ function creerJeuArcade(config) {
     }
     afficherPalierSelector();
     afficherCategorieSelector();
+    await chargerPortees();
     els.btnLancer.addEventListener('click', lancer);
     if (els.btnSettings) els.btnSettings.addEventListener('click', ouvrirReglages);
     if (els.btnCloseSettings) els.btnCloseSettings.addEventListener('click', fermerReglages);

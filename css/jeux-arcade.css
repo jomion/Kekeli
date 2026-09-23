@@ -182,6 +182,20 @@
 /* Écran de sélection matière/palier (avant le lancement) */
 .jeu-ecran-accueil { display: flex; flex-direction: column; gap: 12px; align-items: center; width: 100%; }
 .jeu-ecran-accueil p { color: #94a3b8; font-size: 0.85rem; margin: 0; }
+
+/* Ligne d'état permanente (24 septembre 2026 — "regroupe tous les réglages
+   sous le bouton réglage") : le palier/la catégorie/la portée choisis ne
+   sont plus visibles directement sur l'accueil (déplacés dans #jeuSettingsModal,
+   voir .jeu-config-grid), cette ligne les rappelle sans avoir à rouvrir les
+   réglages — même principe que .cadran-etat-actuel (css/jeu-cadran-operatoire.css). */
+.jeu-etat-actuel { text-align: center; font-size: 0.78rem; font-weight: 700; color: #94a3b8; margin: -6px 0 0; }
+
+/* Sélecteur de portée (24 septembre 2026 — "limite des questions par
+   unité/thème/SA", voir config.porteeGranularite dans js/jeux/
+   coquille-jeu-arcade.js) : un simple <select>, réutilise déjà le style
+   ".jeu-arcade-page select" existant ci-dessus (ligne 128), rien à ajouter
+   pour l'élément lui-même. */
+.jeu-portee-selector { width: 100%; }
 .jeu-verrou-premium {
   background: #1e293b; border: 2px dashed var(--gold); border-radius: 10px; padding: 12px; font-size: 0.82rem; color: #fbbf24;
 }

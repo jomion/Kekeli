@@ -24,12 +24,17 @@ const LIBELLES_SERVICE = {
   // n'est pas un service "à la conversation" mais un accès continu, moins
   // adapté au modèle essais_gratuits_services/usages_services.
   messagerie: 'Messagerie instantanée (+ thème premium)',
-  // Ajouté le 24 septembre 2026 (requête P, partie 2) : mêmes jeux d'arcade
-  // (Français/ES/EST) que d'habitude, mais avec des questions générées par
-  // IA (toujours validées par un administrateur avant publication) en plus
-  // des vraies séances — accès continu par abonnement, comme "messagerie",
-  // pas un quota consommé à chaque partie.
-  entrainement_ia: 'Entraînement IA (jeux Français/ES/EST)'
+  // "entrainement_ia" (questions IA validées, jeux Français/ES/EST) a existé
+  // ici du 24 au 24 septembre 2026 (même journée) — retiré du catalogue le
+  // jour même sur demande explicite ("Retire le bouton entrainement IA et
+  // mélange simplement les questions IA avec celles existant déjà") : ces
+  // questions sont désormais gratuites, mélangées à la rotation normale des
+  // 3 jeux (voir js/jeux/coquille-jeu-arcade.js). Confirmé en base avant ce
+  // retrait qu'aucun plan tarifaire, souscription, usage ni essai gratuit ne
+  // référençait ce service — rien à migrer. La valeur d'énumération SQL
+  // service_premium.entrainement_ia elle-même est laissée en place (inerte,
+  // sans effet — retirer une valeur d'enum est une opération à risque, jamais
+  // justifiée pour une valeur simplement devenue inutilisée).
 };
 const LIBELLES_TYPE_FACTURATION = {
   abonnement_mensuel: 'Abonnement mensuel', abonnement_annuel: 'Abonnement annuel', forfait_prepaye: 'Forfait prépayé'

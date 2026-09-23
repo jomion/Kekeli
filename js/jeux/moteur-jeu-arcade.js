@@ -59,7 +59,18 @@ async function jeuTrouverClasseEleve(eleveId) {
 // config.categoriesDisponibles dans js/jeux/coquille-jeu-arcade.js. Absente
 // ou non fournie, aucun filtre de catégorie n'est appliqué (comportement
 // inchangé pour les autres jeux — ES, EST, et l'ancien ES+EST combiné).
-async function jeuTrouverBlocsCandidats({ classeId, champFormationIds, palier, filtrerCategorie }) {
+//
+// filtrerSaIds (optionnel, ajouté le 24 septembre 2026 pour la "limite des
+// questions par unité/thème/SA" — voir jeuListerPorteeContenu ci-dessous) :
+// tableau d'identifiants sa.id, appliqué sur seances.sa_id pour ne garder que
+// les blocs des séances appartenant au périmètre curriculaire choisi par
+// l'élève (une unité/un thème de Français, ou une SA d'ES/EST). Absent, null,
+// ou tableau vide : aucun filtre de portée n'est appliqué (comportement
+// inchangé, tout le programme de la matière) — un tableau vide n'est
+// JAMAIS traité comme "aucun résultat", uniquement comme "pas de filtre",
+// pour ne jamais bloquer silencieusement un jeu si jeuListerPorteeContenu
+// échoue à trouver des SA (ex. classe sans noeuds_parcours renseignés).
+async function jeuTrouverBlocsCandidats({ classeId, champFormationIds, palier, filtrerCategorie, filtrerSaIds }) {
   if (!classeId || !Array.isArray(champFormationIds) || !champFormationIds.length || !palier) return [];
 
   const { data: noeuds } = await supabaseClient.from('noeuds_parcours')
@@ -72,7 +83,7 @@ async function jeuTrouverBlocsCandidats({ classeId, champFormationIds, palier, f
   if (!idsSA.length) return [];
 
   const { data: seances } = await supabaseClient.from('seances')
-    .select('id, titre, titre_contenu, discipline').eq('statut', 'publie').in('sa_id', idsSA);
+    .select('id, titre, titre_contenu, discipline, sa_id').eq('statut', 'publie').in('sa_id', idsSA);
   const seancesParId = {};
   (seances || []).forEach(s => { seancesParId[s.id] = s; });
   const idsSeances = Object.keys(seancesParId).map(Number);
@@ -93,7 +104,79 @@ async function jeuTrouverBlocsCandidats({ classeId, champFormationIds, palier, f
     resultats = resultats.filter(b => filtrerCategorie(b.seance?.discipline));
   }
 
+  if (Array.isArray(filtrerSaIds) && filtrerSaIds.length) {
+    resultats = resultats.filter(b => filtrerSaIds.includes(b.seance?.sa_id));
+  }
+
   return resultats;
+}
+
+// --- Portée du contenu (limite des questions par unité/thème/SA) -----------
+// Demande du 24 septembre 2026 : "Prévois une limite des questions Par unité
+// ou thème pour français, [...] SA pour EST et ES." Reprend le même
+// cheminement classe → noeuds_parcours → sa que jeuTrouverBlocsCandidats
+// ci-dessus, mais renvoie ici la liste des PORTÉES sélectionnables plutôt que
+// le contenu lui-même — chaque portée porte la liste des sa.id qu'elle
+// couvre, consommée ensuite par filtrerSaIds.
+//
+// granularite === 'sa' (ES, EST) : une portée par SA, directement rattachée
+// à son noeud (ES/EST n'ont pas de sous-arborescence unité/thème au-dessus
+// de la SA dans les données réelles du projet — voir 1undecies/investigation
+// du 24 septembre 2026).
+//
+// granularite === 'unite_theme' (Français) : une portée par noeud de type
+// 'unite' ou 'theme' (jamais 'semaine'/'dossier'/'discipline', qui ne sont
+// pas le niveau demandé), portant TOUTES les SA de ses descendants directs
+// et indirects (une unité peut contenir des noeuds 'semaine' intermédiaires
+// avant d'atteindre les SA — voir sa.noeud_id, qui pointe le parent
+// IMMÉDIAT, pas nécessairement l'unité/le thème elle-même).
+async function jeuListerPorteeContenu({ classeId, champFormationId, granularite }) {
+  if (!classeId || !champFormationId || !granularite) return [];
+
+  const { data: noeuds } = await supabaseClient.from('noeuds_parcours')
+    .select('id, parent_id, type_noeud, titre, ordre')
+    .eq('classe_id', classeId).eq('champ_formation_id', champFormationId).order('ordre');
+  if (!noeuds || !noeuds.length) return [];
+
+  const idsNoeuds = noeuds.map(n => n.id);
+  const { data: sa } = await supabaseClient.from('sa')
+    .select('id, noeud_id, titre, ordre').in('noeud_id', idsNoeuds).order('ordre');
+  if (!sa || !sa.length) return [];
+
+  if (granularite === 'sa') {
+    const noeudsParId = {};
+    noeuds.forEach(n => { noeudsParId[n.id] = n; });
+    return sa
+      .map(s => ({ code: `sa:${s.id}`, label: s.titre || `SA ${s.id}`, saIds: [s.id], niveau: 'sa', parentId: s.noeud_id }))
+      .filter(p => noeudsParId[p.parentId]); // ne garde que les SA dont le noeud parent existe bien dans cette classe/matière
+  }
+
+  if (granularite === 'unite_theme') {
+    // Carte parent -> enfants directs, pour descendre récursivement de
+    // chaque unité/thème candidate jusqu'aux SA qui s'y rattachent.
+    const enfantsDe = {};
+    noeuds.forEach(n => { (enfantsDe[n.parent_id] ??= []).push(n); });
+    const saParNoeud = {};
+    sa.forEach(s => { (saParNoeud[s.noeud_id] ??= []).push(s); });
+
+    function collecterSaSousNoeud(noeudId, vus) {
+      if (vus.has(noeudId)) return []; // garde-fou anti-cycle, ne devrait jamais arriver
+      vus.add(noeudId);
+      let ids = (saParNoeud[noeudId] || []).map(s => s.id);
+      (enfantsDe[noeudId] || []).forEach(enfant => { ids = ids.concat(collecterSaSousNoeud(enfant.id, vus)); });
+      return ids;
+    }
+
+    return noeuds
+      .filter(n => n.type_noeud === 'unite' || n.type_noeud === 'theme')
+      .map(n => ({
+        code: `noeud:${n.id}`, label: n.titre || `Unité ${n.id}`,
+        saIds: collecterSaSousNoeud(n.id, new Set()), niveau: n.type_noeud, parentId: n.parent_id,
+      }))
+      .filter(p => p.saIds.length > 0); // pas de portée vide dans le sélecteur (rien à jouer)
+  }
+
+  return [];
 }
 
 // Choisit LA ronde à proposer : priorité au contenu jamais tenté, puis à un
@@ -120,8 +203,8 @@ async function jeuTrouverBlocsCandidats({ classeId, champFormationIds, palier, f
 // blocsCandidats en amont, ce tirage au sort ne fait que mélanger l'ORDRE de
 // ce qui reste. Le choix « en cours »/« premier » (relecture d'un bloc déjà
 // entièrement réussi) reste, lui, déterministe et inchangé.
-async function jeuTrouverRonde({ eleveId, classeId, champFormationIds, palier, filtrerCategorie }) {
-  const blocsCandidats = await jeuTrouverBlocsCandidats({ classeId, champFormationIds, palier, filtrerCategorie });
+async function jeuTrouverRonde({ eleveId, classeId, champFormationIds, palier, filtrerCategorie, filtrerSaIds }) {
+  const blocsCandidats = await jeuTrouverBlocsCandidats({ classeId, champFormationIds, palier, filtrerCategorie, filtrerSaIds });
   if (!blocsCandidats.length) return { aucunContenu: true };
 
   const idsBlocs = blocsCandidats.map(b => b.id);

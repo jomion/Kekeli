@@ -1,21 +1,37 @@
-// Requête P, partie 2 (24 septembre 2026) : "Entraînement IA" — un mode
-// d'entraînement optionnel, ajouté aux jeux d'arcade déjà reliés aux vraies
-// séances (Français, ES, EST — voir js/jeux/moteur-jeu-arcade.js), avec des
-// questions INÉDITES générées par IA à partir du contenu réel de la classe et
-// des séances, mais toujours relues et validées par un administrateur avant
-// qu'un élève ne puisse y jouer (pages/admin/questions-ia-jeux.html).
+// Requête P, partie 2 (24 septembre 2026) : "Entraînement IA" — questions
+// INÉDITES générées par IA à partir du contenu réel de la classe et des
+// séances, mais toujours relues et validées par un administrateur avant
+// qu'un élève ne puisse y jouer (pages/admin/questions-ia-jeux.html), pour
+// les 3 jeux reliés aux vraies séances (Français, ES, EST — voir
+// js/jeux/moteur-jeu-arcade.js).
 //
-// Décisions produit (clarifiées avec le porteur du projet avant développement) :
-// - Service Premium payant dédié ("entrainement_ia"), distinct de
-//   "correction_ia" — vérifié CÔTÉ SERVEUR par la Edge Function
-//   "jeu-ia-questions" à chaque appel, jamais fait confiance à un indicateur
-//   client seul (etat_acces_service ci-dessous n'est qu'un aperçu UI, comme
-//   partout ailleurs sur ce projet).
-// - "Entraînement libre, sans impact formel" : ce mode ne touche JAMAIS
-//   reponses_exercices, essais, médailles, paliers, badges ni compétences —
-//   il ne réutilise donc PAS jeuSoumettreRonde/jeuValiderTache
-//   (js/jeux/moteur-jeu-arcade.js), qui persistent la notation réelle des
-//   séances. Rien n'est persisté ici.
+// 24 septembre 2026, septième lot ("Retire le bouton entrainement IA et
+// mélange simplement les questions IA avec celles existant déjà") : le
+// bouton manuel "🤖 Entraînement IA" (initEntrainementIA, ci-dessous jusqu'à
+// cette date) est RETIRÉ. Les questions IA validées sont désormais tirées au
+// sort dans la même rotation que le contenu réel, sans action de l'élève —
+// voir choisirPalier()/lancer() dans js/jeux/coquille-jeu-arcade.js, qui
+// décide, à chaque choix de palier, si la prochaine partie sera une vraie
+// ronde ou une question IA (coup de sort 50/50 si les deux existent, IA
+// seule si le contenu réel est épuisé/absent, jamais d'IA sinon). Ce fichier
+// reste par ailleurs INCHANGÉ : la garantie structurelle d'absence d'impact
+// formel (ci-dessous) tient toujours après cette fusion, puisque c'est
+// encore et uniquement lancerEntrainementIA() qui exécute une partie IA.
+//
+// Décision produit reconfirmée le même jour (clarification avant
+// développement) : le service Premium payant dédié "entrainement_ia" est
+// RETIRÉ — l'entraînement IA est désormais entièrement gratuit, comme le
+// reste du contenu des 3 jeux (voir la Edge Function "jeu-ia-questions",
+// dont la vérification etat_acces_service a été retirée côté serveur, et
+// js/pages/admin-abonnements.js, dont le libellé de catalogue a été retiré —
+// aucun plan tarifaire ni abonnement ne référençait ce service au moment du
+// retrait, vérifié directement en base avant suppression).
+// - "Entraînement libre, sans impact formel" (non négociable, reconfirmé
+//   explicitement même après la fusion dans la rotation normale) : ce mode
+//   ne touche JAMAIS reponses_exercices, essais, médailles, paliers, badges
+//   ni compétences — il ne réutilise donc PAS jeuSoumettreRonde/
+//   jeuValiderTache (js/jeux/moteur-jeu-arcade.js), qui persistent la
+//   notation réelle des séances. Rien n'est persisté ici.
 //
 // Ce fichier est volontairement autonome (pas une extension de
 // coquille-jeu-arcade.js) : le mode normal (vraies séances, notation réelle,
@@ -27,28 +43,38 @@
 // (js/jeux/moteur-jeu-arcade.js) — tous déjà chargés avant ce fichier sur
 // chaque page de jeu.
 //
-// Utilisation, depuis js/pages/eleve-jeu-es.js/eleve-jeu-est.js/
-// eleve-jeu-atelier-francais.js, juste après `await jeu.init(profil, classeId)` :
-//   initEntrainementIA(jeu, { champFormationId: 3 });                    // ES/EST
-//   initEntrainementIA(jeu, { champFormationId: 1, avecCategorie: true }); // Français
-// `jeu` est l'objet renvoyé par creerJeuArcade() (expose déjà { init, els, etat }).
+// Utilisation, depuis js/jeux/coquille-jeu-arcade.js (choisirPalier/lancer),
+// via config.entrainementIA passé à creerJeuArcade() par
+// js/pages/eleve-jeu-es.js/eleve-jeu-est.js/eleve-jeu-atelier-francais.js :
+//   entrainementIA: { champFormationId: 3 }                    // ES/EST
+//   entrainementIA: { champFormationId: 1, avecCategorie: true } // Français
+// `jeu` (premier argument de lancerEntrainementIA/eiaDisciplineActuelle) est
+// un objet { els, etat } — l'objet complet renvoyé par creerJeuArcade()
+// avant sa fusion dans la rotation, ou (depuis cette fusion) le { els, etat }
+// interne de coquille-jeu-arcade.js, structurellement identique pour
+// l'usage qu'en fait ce fichier (jeu.etat.palier/categorie, jamais jeu.init).
 
-function initEntrainementIA(jeu, config) {
-  if (!jeu || !jeu.els || !jeu.els.accueil) return;
-
-  const bouton = document.createElement('button');
-  bouton.type = 'button';
-  bouton.className = 'jeu-btn-start';
-  bouton.style.cssText = 'margin-top:14px;background:linear-gradient(135deg,#7c3aed,#a855f7)';
-  bouton.textContent = "🤖 Entraînement IA (questions inédites)";
-  bouton.addEventListener('click', () => lancerEntrainementIA(jeu, config));
-
-  // Toujours visible sur l'écran d'accueil, juste après le message d'info
-  // (élément stable, présent avant même qu'un palier soit choisi).
-  if (jeu.els.infoAccueil && jeu.els.infoAccueil.parentNode) {
-    jeu.els.infoAccueil.insertAdjacentElement('afterend', bouton);
-  } else {
-    jeu.els.accueil.appendChild(bouton);
+// eiaCompterQuestionsDisponibles : appel réseau DUPLIQUÉ (action "lister",
+// même Edge Function que lancerEntrainementIA ci-dessous) plutôt que
+// partagé, à dessein — sur le modèle déjà établi par ce projet (voir la
+// remarque équivalente dans js/pages/admin-questions-ia-jeux.js) : ne prend
+// aucun risque de régression sur lancerEntrainementIA, déjà testée et
+// éprouvée, en la gardant totalement à l'écart de ce nouveau chemin de
+// comptage utilisé par choisirPalier() pour décider du mode de la ronde.
+async function eiaCompterQuestionsDisponibles({ champFormationId, palier, discipline }) {
+  if (!champFormationId || !palier) return { count: 0 };
+  try {
+    const { data, error } = await supabaseClient.functions.invoke('jeu-ia-questions', {
+      body: { action: 'lister', champFormationId, palier, discipline: discipline || '' },
+    });
+    if (error || data?.error) return { count: 0 };
+    const questions = Array.isArray(data?.questions) ? data.questions : [];
+    return { count: questions.length };
+  } catch (_e) {
+    // Panne réseau/Edge Function : jamais bloquant, se comporte comme
+    // "aucune question IA disponible" — la rotation retombe sur le contenu
+    // réel exactement comme avant cette fusion.
+    return { count: 0 };
   }
 }
 
@@ -93,15 +119,13 @@ async function lancerEntrainementIA(jeu, config) {
     body: { action: 'lister', champFormationId: config.champFormationId, palier, discipline },
   });
 
+  // 24 septembre 2026 (septième lot) : plus de branche "accès premium
+  // requis" ici — l'Entraînement IA est désormais gratuit (voir la note en
+  // tête de fichier et la Edge Function jeu-ia-questions, dont la
+  // vérification etat_acces_service a été retirée côté serveur). Un échec
+  // reste toujours possible (réseau, Edge Function en panne) et reste géré
+  // ci-dessous, sans distinction de cause particulière.
   if (error || data?.error) {
-    if (data?.accesRequis || error?.context?.status === 402) {
-      corps.innerHTML = `
-        <h3 style="margin-top:0">🤖 Entraînement IA</h3>
-        <div class="jeu-verrou-premium">🔒 L'entraînement avec des questions générées par IA est un service premium. Demande à un adulte de contacter l'administration pour souscrire.</div>
-        <button type="button" class="jeu-btn-start" id="eiaBtnFermer" style="margin-top:12px">Fermer</button>`;
-      document.getElementById('eiaBtnFermer').addEventListener('click', fermerEiaOverlay);
-      return;
-    }
     corps.innerHTML = `<p>${echapper(data?.error || "Impossible de charger l'entraînement IA pour le moment.")}</p>
       <button type="button" class="jeu-btn-start" id="eiaBtnFermer" style="margin-top:12px">Fermer</button>`;
     document.getElementById('eiaBtnFermer').addEventListener('click', fermerEiaOverlay);

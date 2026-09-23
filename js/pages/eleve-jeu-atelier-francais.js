@@ -52,13 +52,19 @@
       { code: 'vocabulaire', label: '📚 Vocabulaire', motsCles: ['vocabulaire'] },
       { code: 'expression', label: '📝 Expression', motsCles: ['expression', 'écriture', 'lecture'] },
     ],
+    // 24 septembre 2026, septième lot : limite des questions par unité ou
+    // thème ("Prévois une limite des questions Par unité ou thème pour
+    // français") — voir jeuListerPorteeContenu (js/jeux/moteur-jeu-arcade.js).
+    porteeGranularite: 'unite_theme',
+    // Fusion Entraînement IA (même lot — "Retire le bouton entrainement IA
+    // et mélange simplement les questions IA avec celles existant déjà") :
+    // plus de bouton manuel, voir js/jeux/coquille-jeu-arcade.js
+    // (choisirPalier/lancer) et js/jeux/entrainement-ia-arcade.js.
+    // avecCategorie: true, car ce jeu a un filtre par catégorie (voir
+    // categoriesDisponibles ci-dessus) — les questions générées pour
+    // Français sont elles aussi taguées par catégorie (voir pages/admin/
+    // questions-ia-jeux.html) avec exactement ces 5 codes.
+    entrainementIA: { champFormationId: 1, avecCategorie: true },
   });
   await jeu.init(profil, classeId);
-  // 24 septembre 2026 (requête P, partie 2) : bouton "Entraînement IA" —
-  // questions inédites générées par IA, validées par un administrateur, hors
-  // du pipeline de notation habituel. avecCategorie: true, car ce jeu a un
-  // filtre par catégorie (voir categoriesDisponibles ci-dessus) — les
-  // questions générées pour Français sont elles aussi taguées par catégorie
-  // (voir pages/admin/questions-ia-jeux.html) avec exactement ces 5 codes.
-  initEntrainementIA(jeu, { champFormationId: 1, avecCategorie: true });
 })();

@@ -1,3 +1,72 @@
+KEKELI — Livraison du 24 septembre 2026 (neuvième lot) — Réglages regroupés, contenu limité par unité/SA, Entraînement IA fusionné et gratuit
+===========================================================================
+
+NOUVEAU : TOUS LES RÉGLAGES REGROUPÉS SOUS LE BOUTON "⚙️ RÉGLAGES"
+------------------------------------------------------------------------------
+Pour l'Atelier du Français, Défi Éducation Sociale et Défi Éducation
+Scientifique et Technologique, le choix du niveau (et de la catégorie pour
+le français) se faisait directement sur l'écran d'accueil du jeu. Comme
+demandé, ces réglages sont désormais regroupés dans la fenêtre "⚙️
+Réglages", exactement comme c'est déjà le cas pour le Cadran opératoire.
+L'écran d'accueil affiche maintenant un petit résumé du réglage actuel
+(ex. "Niveau : CM2 · Catégorie : Conjugaison") pour que l'élève sache
+toujours où il en est sans avoir à rouvrir les réglages.
+
+NOUVEAU : LIMITER LES QUESTIONS À UNE UNITÉ, UN THÈME OU UNE SA
+------------------------------------------------------------------------------
+Un nouveau réglage permet de restreindre les questions proposées à une
+partie précise du programme plutôt qu'à toute la matière :
+- Atelier du Français : limite possible à une unité ou un thème du
+  programme.
+- Défi Éducation Sociale et Défi Éducation Scientifique et Technologique :
+  limite possible à une SA (séquence d'apprentissage) précise.
+Ce réglage est optionnel ("Toutes" reste le choix par défaut) et se trouve
+dans la même fenêtre "⚙️ Réglages" que le niveau et la catégorie.
+
+Note : ce réglage n'a pas de sens pour les mathématiques (il n'existe pas
+de jeu d'arcade dédié aux mathématiques comme pour les trois autres
+matières) — rien n'a donc été changé de ce côté, conformément à votre
+demande.
+
+CHANGEMENT : LE BOUTON "🤖 ENTRAÎNEMENT IA" DISPARAÎT — LES QUESTIONS IA SONT DÉSORMAIS GRATUITES ET MÉLANGÉES À TOUTES LES AUTRES
+--------------------------------------------------------------------------------------------------------------------------------------
+Comme demandé, le bouton séparé "🤖 Entraînement IA (questions inédites)"
+est retiré. Les questions générées par IA et déjà validées par un
+administrateur (mêmes questions qu'avant, même contrôle de qualité) sont
+maintenant simplement mélangées à la rotation normale des questions tirées
+des vraies séances, sans bouton ni écran à part : l'élève ne voit plus la
+différence entre une question "classique" et une question générée par IA,
+elles arrivent dans le même flux de jeu.
+
+Ce service devient entièrement gratuit : l'abonnement Premium
+"Entraînement IA" qui existait pour cette fonctionnalité est retiré (aucun
+élève n'y avait souscrit ni utilisé de quota à ce jour, rien n'est donc
+perdu ni facturé rétroactivement).
+
+Important : conformément à la règle déjà en place, les questions IA
+restent TOUJOURS sans impact formel sur les paliers, badges, compétences
+ou essais de l'élève, même une fois mélangées à la rotation normale — ce
+n'est et ça reste un entraînement libre.
+
+FICHIERS MODIFIÉS DANS CETTE LIVRAISON
+----------------------------------------
+- css/jeux-arcade.css
+- js/jeux/coquille-jeu-arcade.js
+- js/jeux/entrainement-ia-arcade.js
+- js/jeux/moteur-jeu-arcade.js
+- js/pages/admin-abonnements.js
+- js/pages/eleve-jeu-atelier-francais.js
+- js/pages/eleve-jeu-es.js
+- js/pages/eleve-jeu-est.js
+- pages/eleve/jeu-atelier-francais.html
+- pages/eleve/jeu-es.html
+- pages/eleve/jeu-est.html
+
+Aucun fichier ajouté ni supprimé. Aucune action de votre part. Le service
+"Entraînement IA" (Edge Function Supabase) a été mis à jour directement en
+ligne, sans interruption de service.
+
+
 KEKELI — Livraison du 24 septembre 2026 (huitième lot) — Cadran opératoire : ordre de calcul corrigé (gauche à droite)
 ===========================================================================
 

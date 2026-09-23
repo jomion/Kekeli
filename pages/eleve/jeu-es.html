@@ -32,8 +32,8 @@
       </div>
 
       <div class="jeu-ecran-accueil" id="jeuAccueil">
-        <p>Des questions tirées de tes vraies séances d'Éducation Sociale, avec plusieurs types d'exercices — comme l'Atelier du Français. Choisis ton niveau !</p>
-        <div class="jeu-palier-selector" id="jeuPalierSelector"></div>
+        <p>Des questions tirées de tes vraies séances d'Éducation Sociale, avec plusieurs types d'exercices — comme l'Atelier du Français. Ouvre les réglages pour choisir ton niveau !</p>
+        <p class="jeu-etat-actuel" id="jeuEtatActuel"></p>
         <p id="jeuInfoAccueil">Chargement...</p>
         <button type="button" class="jeu-btn-start" id="jeuBtnLancer" disabled>🚀 Lancer la partie</button>
       </div>
@@ -58,6 +58,14 @@
           <button class="jeu-close-btn" id="jeuBtnCloseSettings">✕</button>
         </div>
         <div class="jeu-config-grid">
+          <div class="jeu-config-group">
+            <label>Niveau :</label>
+            <div class="jeu-palier-selector" id="jeuPalierSelector"></div>
+          </div>
+          <div class="jeu-config-group">
+            <label>Limiter aux questions d'une SA (unité d'apprentissage) :</label>
+            <div class="jeu-portee-selector" id="jeuPorteeSelector" hidden></div>
+          </div>
           <div class="jeu-config-group">
             <label>Temps affiché par question (décoratif) :</label>
             <select id="jeuTimeSelect">
