@@ -22,6 +22,18 @@
 // (js/editeur/blocs.js) et de jeuRendreEnonce/jeuTexteBonneReponse
 // (js/jeux/rendu-questions-jeu.js) pour l'aperçu — tous deux chargés avant ce
 // fichier sur cette page.
+//
+// Correctif du 24 septembre 2026 (onzième lot) : le panneau de relecture des
+// propositions (ouvrirRevuePropositionsQia ci-dessous) se fermait, comme
+// n'importe quelle modale du site, au moindre clic en dehors de la boîte —
+// signalement : "si je clique dans le vide par erreur, la fenêtre de
+// génération IA se ferme et je perds le contenu généré en cours de
+// vérification pour valider". Contrairement aux modales de simple saisie
+// (avant l'appel IA, rien n'est encore généré), ce panneau affiche un
+// travail déjà coûteux (un appel IA déjà effectué) qui n'existe encore nulle
+// part tant qu'il n'a pas été validé — la fermeture au clic sur le fond y a
+// donc été retirée : seuls les boutons "Annuler"/"Ajouter les questions
+// cochées" ferment désormais ce panneau précis.
 
 let profilAdminQia = null;
 let champsFormationQia = [];
@@ -452,7 +464,17 @@ function ouvrirRevuePropositionsQia(propositions, champFormationId, classeId, pa
 
   const fermer = () => overlay.remove();
   overlay.querySelector('[data-fermer-revue-qia]').addEventListener('click', fermer);
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) fermer(); });
+  // PAS de fermeture au clic sur le fond (24 septembre 2026, signalement :
+  // "si je clique dans le vide par erreur, la fenêtre de génération IA se
+  // ferme et je perds le contenu généré en cours de vérification pour
+  // valider") : contrairement aux modales de saisie (ouvrirModal, js/
+  // modal.js, avant génération — annuler n'y coûte rien), ce panneau
+  // n'apparaît qu'APRÈS un appel IA déjà effectué et affiche des questions
+  // qui n'existent encore nulle part ailleurs tant qu'elles n'ont pas été
+  // validées. Un clic accidentel en dehors du panneau ne doit donc jamais
+  // faire perdre ce travail — seul le bouton "Annuler" (action explicite,
+  // dont la perte est alors assumée) ou "Ajouter les questions cochées" le
+  // ferme.
 
   overlay.querySelectorAll('[data-prop-qia-cochee]').forEach(cb => {
     cb.addEventListener('change', () => {

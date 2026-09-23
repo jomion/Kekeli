@@ -1,3 +1,34 @@
+KEKELI — Livraison du 24 septembre 2026 (onzième lot) — Le panneau de relecture des questions IA ne se ferme plus au clic accidentel
+===========================================================================
+
+CHANGEMENT : PLUS DE PERTE DU CONTENU GÉNÉRÉ PAR L'IA EN CAS DE CLIC ACCIDENTEL
+------------------------------------------------------------------------------
+Signalement corrigé : "si je clique dans le vide par erreur, la fenêtre de
+génération IA se ferme et je perds le contenu généré en cours de
+vérification pour valider".
+
+Concerné : la fenêtre de relecture des questions générées par l'IA pour les
+jeux (Défi Éducation Sociale, Défi Éducation Scientifique et Technologique,
+Atelier du Français — page admin "Génération de questions IA pour les
+jeux"). Après avoir lancé une génération, l'admin doit relire chaque
+question proposée, décocher celles à écarter, puis valider — un clic
+accidentel en dehors de cette fenêtre la fermait immédiatement et faisait
+perdre tout ce travail (et l'appel IA déjà effectué, donc déjà coûteux),
+obligeant à tout régénérer.
+
+Désormais, un clic en dehors de cette fenêtre de relecture ne la ferme
+plus. Seuls les boutons "Annuler" (qui abandonne volontairement) et
+"Ajouter les questions cochées" (qui valide) la ferment.
+
+Précision importante : les autres fenêtres du site (formulaires de
+paramétrage classiques, avant tout appel IA) gardent leur comportement
+habituel de fermeture au clic extérieur — rien n'y est perdu puisqu'aucune
+génération n'a encore eu lieu à ce stade. La génération IA de l'éditeur de
+séance a aussi été vérifiée : elle enregistre directement son résultat en
+base sans fenêtre de relecture intermédiaire, donc n'était pas concernée
+par ce problème.
+
+===========================================================================
 KEKELI — Livraison du 24 septembre 2026 (dixième lot) — Cadran opératoire : plus aucune réponse négative ni décimale
 ===========================================================================
 
