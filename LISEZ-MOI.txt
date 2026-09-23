@@ -1,3 +1,32 @@
+KEKELI — Livraison du 24 septembre 2026 (douzième lot) — Les questions IA des jeux se présentent désormais comme n'importe quelle question d'activité
+===========================================================================
+
+CHANGEMENT : PLUS AUCUNE PRÉSENTATION PARTICULIÈRE POUR LES QUESTIONS IA
+------------------------------------------------------------------------------
+Signalement corrigé : « les questions IA ont une présentation particulière
+[dans l'Atelier du Français]. Tout doit se passer comme si c'est uniquement
+des questions d'activité. »
+
+Concerné : les questions générées par IA et validées par l'administration
+(voir la livraison du sixième lot), qui apparaissent mélangées aux vraies
+questions dans les 3 jeux reliés aux séances (Atelier du Français, Défi
+Éducation Sociale, Défi Éducation Scientifique). Ces questions s'affichaient
+jusqu'ici dans une fenêtre à part, avec un habillage différent (fond sombre,
+titre « 🤖 Entraînement IA ») qui les rendait reconnaissables par l'élève.
+
+Désormais, une question IA se déroule exactement dans le même écran de jeu
+qu'une question normale : même écran d'accueil, même décompte avant la
+question, même zone de question, mêmes boutons, même barre de temps, et le
+même écran de bilan avec confettis à la fin. Rien ne permet plus à l'élève
+de distinguer une question générée par IA d'une question d'activité
+classique.
+
+Précision importante, inchangée : une question IA continue de ne jamais
+compter dans les essais, les paliers, les badges ou les compétences de
+l'élève — cette garantie ne dépendait déjà pas de la présentation et reste
+entièrement respectée après ce changement.
+
+===========================================================================
 KEKELI — Livraison du 24 septembre 2026 (onzième lot) — Le panneau de relecture des questions IA ne se ferme plus au clic accidentel
 ===========================================================================
 

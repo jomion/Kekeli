@@ -38,11 +38,22 @@ function creerJeuArcade(config) {
   //     sélecteur de portée, comportement inchangé (tout le programme).
   //   entrainementIA: { champFormationId, avecCategorie? } (optionnel,
   //     ajouté le 24 septembre 2026 — fusion des questions IA validées dans
-  //     la rotation normale, voir choisirPalier/lancer ci-dessous et
-  //     js/jeux/entrainement-ia-arcade.js pour eiaCompterQuestionsDisponibles/
-  //     lancerEntrainementIA). Absent : jeu strictement inchangé, jamais de
-  //     question IA mélangée (Cadran opératoire, qui n'utilise pas cette
-  //     coquille, n'est de toute façon pas concerné).
+  //     la rotation normale, voir choisirPalier/lancer/questions()/
+  //     validerQuestionCourante()/finaliserRonde() ci-dessous et
+  //     js/jeux/entrainement-ia-arcade.js pour eiaCompterQuestionsDisponibles).
+  //     Absent : jeu strictement inchangé, jamais de question IA mélangée
+  //     (Cadran opératoire, qui n'utilise pas cette coquille, n'est de toute
+  //     façon pas concerné).
+  //     Depuis le 24 septembre 2026 (douzième lot, "tout doit se passer
+  //     comme si c'est uniquement des questions d'activité") : une ronde en
+  //     mode 'ia' se déroule ENTIÈREMENT dans l'écran de jeu normal (accueil,
+  //     décompte, questionArea, feedback, timerBar, bilan avec confettis) —
+  //     plus aucune fenêtre séparée ni mention "IA"/"🤖" visible de l'élève.
+  //     Seule la vérification de chaque réponse diffère en coulisses (action
+  //     "corriger" de jeu-ia-questions au lieu de jeuValiderTache), et rien
+  //     n'est jamais soumis via jeuSoumettreRonde pour ce mode — la garantie
+  //     "entraînement libre, sans impact formel" reste donc structurellement
+  //     intacte malgré la présentation désormais indiscernable.
 
   const els = {
     accueil: document.getElementById('jeuAccueil'),
@@ -84,7 +95,8 @@ function creerJeuArcade(config) {
     masquerOperation: false,
     operationReveleeIndex: -1, // index de question pour laquelle "Revoir" a été cliqué
     modeRonde: 'reel', // 'reel' | 'ia' — voir choisirPalier()/lancer() pour la fusion Entraînement IA
-    questionsIA: null, // { count } — dernier comptage connu de questions IA disponibles pour le palier/catégorie en cours
+    questionsIA: null, // { count, questions } — dernier comptage/liste connus de questions IA pour le palier/catégorie en cours
+    rondeIA: null, // { questions } — liste mélangée retenue pour LA partie en cours quand modeRonde === 'ia' (voir lancer())
   };
 
   function afficherPalierSelector() {
@@ -227,8 +239,14 @@ function creerJeuArcade(config) {
     }
 
     if (etat.modeRonde === 'ia') {
+      // 24 septembre 2026 (douzième lot) : ce message reprend volontairement
+      // le même style ("📘 ... — N question(s)") que celui d'une vraie
+      // ronde ci-dessous, sans aucune mention "IA"/"🤖" — l'élève ne doit
+      // rien voir qui distingue cette partie d'une question d'activité
+      // normale (voir la note de tête de fichier).
       const p = JEU_PALIERS.find(x => x.code === code);
-      els.infoAccueil.innerHTML = `🤖 ${etat.questionsIA.count} question${etat.questionsIA.count > 1 ? 's' : ''} inédite${etat.questionsIA.count > 1 ? 's' : ''} générée${etat.questionsIA.count > 1 ? 's' : ''} par IA disponible${etat.questionsIA.count > 1 ? 's' : ''} pour ${p ? p.nom : code} — entraînement libre, sans impact sur tes paliers/badges.`;
+      const nbQ = etat.questionsIA.count;
+      els.infoAccueil.innerHTML = `📘 ${nbQ} question${nbQ > 1 ? 's' : ''} disponible${nbQ > 1 ? 's' : ''} pour ${p ? p.nom : code}${libelleCategorieActuelle()}${libellePorteeActuelle()}`;
       els.btnLancer.textContent = '🚀 Lancer la partie';
       els.btnLancer.disabled = false;
       els.btnLancer.dataset.mode = 'jouer';
@@ -263,19 +281,21 @@ function creerJeuArcade(config) {
 
   async function lancer() {
     if (els.btnLancer.dataset.mode === 'correction') { await afficherEcranCorrection(); return; }
-    // Fusion Entraînement IA (24 septembre 2026) : quand choisirPalier() a
-    // retenu le mode 'ia' pour cette partie, on délègue ENTIÈREMENT à
-    // lancerEntrainementIA (js/jeux/entrainement-ia-arcade.js), déjà testée
-    // et inchangée — l'écran de jeu normal (els.jeuCorps, questions(),
-    // finaliserRonde()...) n'est jamais touché dans ce cas, ce qui garantit
-    // structurellement qu'une partie IA ne peut jamais affecter
-    // reponses_exercices/essais/paliers/badges/compétences, exactement comme
-    // avant cette fusion (voir js/jeux/entrainement-ia-arcade.js).
-    if (etat.modeRonde === 'ia' && config.entrainementIA) {
-      await lancerEntrainementIA({ els, etat }, config.entrainementIA);
+    // Fusion Entraînement IA (24 septembre 2026, complétée le même jour par
+    // le douzième lot) : quand choisirPalier() a retenu le mode 'ia' pour
+    // cette partie, on prépare la liste mélangée des questions IA déjà
+    // récupérées par eiaCompterQuestionsDisponibles (aucun second appel
+    // réseau) — le reste de la fonction (accueil→jeuCorps, décompte,
+    // afficherQuestionCourante) est ensuite IDENTIQUE à une vraie ronde, afin
+    // que l'élève ne voie aucune différence de présentation.
+    if (etat.modeRonde === 'ia') {
+      const dispo = (etat.questionsIA && Array.isArray(etat.questionsIA.questions)) ? etat.questionsIA.questions : [];
+      if (!dispo.length) return;
+      const ordre = dispo.map((_, i) => i).sort(() => Math.random() - 0.5);
+      etat.rondeIA = { questions: ordre.map(i => dispo[i]) };
+    } else if (!etat.ronde || !etat.ronde.bloc) {
       return;
     }
-    if (!etat.ronde || !etat.ronde.bloc) return;
     els.accueil.hidden = true;
     els.jeuCorps.hidden = false;
     etat.index = 0; // on reprend toujours à la 1ère question à chaque nouvel essai (comme le mode progressif de eleve-seance.js)
@@ -285,7 +305,14 @@ function creerJeuArcade(config) {
     await afficherQuestionCourante();
   }
 
-  function questions() { return etat.ronde.bloc.contenu.questions; }
+  // 24 septembre 2026 (douzième lot) : généralisée pour renvoyer soit les
+  // vraies questions du bloc de séance, soit la liste IA mélangée de la
+  // partie en cours (etat.rondeIA) — c'est cette seule fonction qui permet à
+  // afficherQuestionCourante()/majScoreBoard() de rester inchangées et donc
+  // rigoureusement identiques dans les deux modes.
+  function questions() {
+    return etat.modeRonde === 'ia' ? (etat.rondeIA ? etat.rondeIA.questions : []) : etat.ronde.bloc.contenu.questions;
+  }
 
   function majScoreBoard() {
     els.questionCounter.textContent = `Question : ${Math.min(etat.index + 1, questions().length)}/${questions().length}`;
@@ -355,32 +382,54 @@ function creerJeuArcade(config) {
     btn.textContent = 'Vérification...';
 
     try {
-      const data = await jeuValiderTache({ blocId: etat.ronde.bloc.id, questionId: q.id, reponse });
-      etat.reponses[q.id] = reponse;
-      clearInterval(etat.timerInterval);
-
-      // Les types corrigés par IA (reponse_longue, vrai_faux_justifie)
-      // renvoient juste "rempli" (une réponse a été fournie ou non) — la
-      // VRAIE note vient de la validation finale, jamais de ce guidage en
-      // direct. On ne compte donc PAS ce cas dans le compteur "Bonnes
-      // réponses" (purement cosmétique), pour ne jamais afficher un score
-      // trompeur pendant la partie.
-      const estGuidageIA = typeof data.rempli === 'boolean'; // reponse_longue / vrai_faux_justifie : pas de vraie note ici
       let reussi;
-      if (estGuidageIA) {
-        reussi = data.rempli;
-        els.feedback.textContent = reussi ? '📝 Réponse enregistrée — corrigée à la validation finale.' : '✏️ Écris une réponse avant de continuer.';
+      let compteDansScore = true;
+
+      if (etat.modeRonde === 'ia') {
+        // 24 septembre 2026 (douzième lot) : une question IA se vérifie via
+        // l'action "corriger" de la Edge Function jeu-ia-questions, JAMAIS
+        // via jeuValiderTache — cette dernière est propre aux vrais blocs de
+        // séance (blocId) et, surtout, alimente la notation réelle. Aucune
+        // des deux branches de ce mode n'écrit donc jamais dans
+        // reponses_exercices ni ne peut affecter essais/paliers/badges/
+        // compétences, exactement la garantie déjà en place avant que la
+        // présentation ne devienne indiscernable d'une vraie ronde.
+        const { data, error } = await supabaseClient.functions.invoke('jeu-ia-questions', {
+          body: { action: 'corriger', questionId: q.id, reponse },
+        });
+        if (error || data?.error) throw new Error(data?.error || "Impossible de vérifier ta réponse pour l'instant.");
+        etat.reponses[q.id] = reponse;
+        clearInterval(etat.timerInterval);
+        reussi = !!data.correct;
+        els.feedback.textContent = reussi ? '✅ Bonne réponse !' : "❌ Ce n'est pas encore ça !";
       } else {
-        const total = data.tachesTotal ?? 1;
-        const ok = data.tachesReussies ?? 0;
-        reussi = ok > 0;
-        els.feedback.textContent = ok === total ? (total > 1 ? `✅ Bravo — ${ok}/${total} réussies !` : '✅ Bonne réponse !')
-          : ok > 0 ? `🙂 ${ok}/${total} réussies !` : "❌ Ce n'est pas encore ça !";
+        const data = await jeuValiderTache({ blocId: etat.ronde.bloc.id, questionId: q.id, reponse });
+        etat.reponses[q.id] = reponse;
+        clearInterval(etat.timerInterval);
+
+        // Les types corrigés par IA (reponse_longue, vrai_faux_justifie)
+        // renvoient juste "rempli" (une réponse a été fournie ou non) — la
+        // VRAIE note vient de la validation finale, jamais de ce guidage en
+        // direct. On ne compte donc PAS ce cas dans le compteur "Bonnes
+        // réponses" (purement cosmétique), pour ne jamais afficher un score
+        // trompeur pendant la partie.
+        const estGuidageIA = typeof data.rempli === 'boolean'; // reponse_longue / vrai_faux_justifie : pas de vraie note ici
+        if (estGuidageIA) {
+          reussi = data.rempli;
+          compteDansScore = false;
+          els.feedback.textContent = reussi ? '📝 Réponse enregistrée — corrigée à la validation finale.' : '✏️ Écris une réponse avant de continuer.';
+        } else {
+          const total = data.tachesTotal ?? 1;
+          const ok = data.tachesReussies ?? 0;
+          reussi = ok > 0;
+          els.feedback.textContent = ok === total ? (total > 1 ? `✅ Bravo — ${ok}/${total} réussies !` : '✅ Bonne réponse !')
+            : ok > 0 ? `🙂 ${ok}/${total} réussies !` : "❌ Ce n'est pas encore ça !";
+        }
       }
 
       if (reussi) {
         jouerSonReussite();
-        if (!estGuidageIA) etat.scoreDirect++;
+        if (compteDansScore) etat.scoreDirect++;
         els.feedback.className = 'jeu-feedback feedback-ok';
       } else {
         jouerSonEchec();
@@ -407,6 +456,28 @@ function creerJeuArcade(config) {
 
   async function finaliserRonde() {
     els.questionArea.innerHTML = '<p class="jeu-message-accueil">📤 Envoi de tes réponses...</p>';
+
+    if (etat.modeRonde === 'ia') {
+      // 24 septembre 2026 (douzième lot) : jamais de jeuSoumettreRonde ici —
+      // chaque réponse a déjà été vérifiée une à une par
+      // validerQuestionCourante() ci-dessus (action "corriger" de
+      // jeu-ia-questions, rien de persisté). Le bilan réutilise directement
+      // afficherBilan(), à l'identique visuel d'une vraie ronde (même modal,
+      // mêmes confettis) — seule l'absence de médaille/déblocage de palier
+      // (naturelle ici, aucune donnée de ce type n'existe pour du contenu
+      // IA) distingue le résultat, exactement comme pour n'importe quelle
+      // vraie séance sans palier configuré.
+      const total = questions().length;
+      const ok = etat.scoreDirect;
+      afficherBilan({
+        data: { nbTaches: total, nbTachesReussies: ok },
+        reussiteTotale: total > 0 && ok === total,
+        palierMessage: '',
+        numeroEssai: 1,
+      });
+      return;
+    }
+
     const numeroEssai = etat.ronde.essaisPrecedents.length + 1;
 
     // Capturé AVANT la soumission (pas après !) pour pouvoir détecter un
