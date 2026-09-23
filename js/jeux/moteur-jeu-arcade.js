@@ -148,9 +148,15 @@ async function jeuValiderTache({ blocId, questionId, reponse }) {
 
 // --- Soumission RÉELLE (consomme un essai + le quota Premium, déclenche la
 // notation et le recalcul des paliers/badges côté base) — identique à
-// soumettreExercice (js/pages/eleve-seance.js).
+// soumettreExercice (js/pages/eleve-seance.js), à une exception près :
+// depuisJeu: true (24 septembre 2026, correctif "un jeu ne doit jamais
+// débloquer une séance") indique côté serveur que cette réponse vient d'un
+// jeu d'arcade réutilisant un vrai bloc de séance — la notation (score,
+// tâches, médaille, paliers/badges, compétences) reste inchangée, mais la
+// séance dont ce bloc fait partie n'est jamais marquée "terminée" pour
+// autant (l'élève n'a joué qu'une question isolée, pas visité la séance).
 async function jeuSoumettreRonde({ blocId, reponses, numeroEssai }) {
-  const { data, error } = await supabaseClient.functions.invoke('corriger-exercice', { body: { blocId, reponses, numeroEssai } });
+  const { data, error } = await supabaseClient.functions.invoke('corriger-exercice', { body: { blocId, reponses, numeroEssai, depuisJeu: true } });
   if (error) {
     let message = error.message || "Le service de correction n'a pas répondu.";
     try {

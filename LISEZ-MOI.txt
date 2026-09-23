@@ -1,3 +1,39 @@
+KEKELI — Livraison du 24 septembre 2026 (cinquième lot) — Correctif : un jeu éducatif ne débloque plus une séance
+===========================================================================
+
+BUG CORRIGÉ : LES JEUX ÉDUCATIFS NE DÉBLOQUENT PLUS DE SÉANCE
+------------------------------------------------------------
+Vous aviez constaté qu'une partie de jeu (Défi Éducation Sociale, Défi
+Éducation Scientifique, Atelier du Français) pouvait débloquer une séance
+que l'enfant n'avait pourtant jamais visitée. Cause trouvée : ces jeux
+piochent leurs questions parmi les vrais exercices des séances publiées, et
+la moindre réponse à l'une de ces questions déclenchait, en base, le même
+mécanisme que si l'enfant avait réellement terminé la séance entière.
+
+Corrigé : répondre à une question dans un jeu continue de compter pour le
+score du jeu, les médailles, les paliers et les badges exactement comme
+avant, mais ne débloque plus jamais, en soi, la séance suivante du
+parcours. Seule une vraie visite de la séance (via la page Séance elle-
+même) peut désormais faire progresser le parcours séquentiel.
+
+Comme convenu, la table qui mémorise les séances "terminées" a été
+entièrement réinitialisée aujourd'hui : tous les élèves repartent avec
+leur parcours à nouveau verrouillé depuis le début (seule la toute première
+séance de chaque matière reste accessible), le temps que chacun revalide
+sa progression avec ce correctif en place. Aucune autre donnée n'a été
+touchée (comptes, mots de passe, contenu pédagogique, scores des jeux,
+badges).
+
+FICHIER MODIFIÉ DANS CETTE LIVRAISON
+----------------------------------------
+- js/jeux/moteur-jeu-arcade.js
+
+Aucun fichier supprimé. Un correctif appliqué directement en base de
+données (nouvelle colonne technique, invisible pour vous, plus la mise à
+jour d'un mécanisme interne), sans action de votre part.
+
+
+
 KEKELI — Livraison du 24 septembre 2026 (quatrième lot) — Cadran opératoire : opérations combinées pour Ògán et Axɔ́sú
 ===========================================================================
 
