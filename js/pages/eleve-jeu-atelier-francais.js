@@ -54,4 +54,11 @@
     ],
   });
   await jeu.init(profil, classeId);
+  // 24 septembre 2026 (requête P, partie 2) : bouton "Entraînement IA" —
+  // questions inédites générées par IA, validées par un administrateur, hors
+  // du pipeline de notation habituel. avecCategorie: true, car ce jeu a un
+  // filtre par catégorie (voir categoriesDisponibles ci-dessus) — les
+  // questions générées pour Français sont elles aussi taguées par catégorie
+  // (voir pages/admin/questions-ia-jeux.html) avec exactement ces 5 codes.
+  initEntrainementIA(jeu, { champFormationId: 1, avecCategorie: true });
 })();

@@ -22,4 +22,8 @@
     permettreMasquerOperation: false,
   });
   await jeu.init(profil, classeId);
+  // 24 septembre 2026 (requête P, partie 2) : bouton "Entraînement IA" —
+  // questions inédites générées par IA, validées par un administrateur, hors
+  // du pipeline de notation habituel. Voir js/jeux/entrainement-ia-arcade.js.
+  initEntrainementIA(jeu, { champFormationId: 4 });
 })();

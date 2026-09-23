@@ -23,7 +23,13 @@ const LIBELLES_SERVICE = {
   // aux 3 services ci-dessus, pas d'essai gratuit proposé pour celui-ci : ce
   // n'est pas un service "à la conversation" mais un accès continu, moins
   // adapté au modèle essais_gratuits_services/usages_services.
-  messagerie: 'Messagerie instantanée (+ thème premium)'
+  messagerie: 'Messagerie instantanée (+ thème premium)',
+  // Ajouté le 24 septembre 2026 (requête P, partie 2) : mêmes jeux d'arcade
+  // (Français/ES/EST) que d'habitude, mais avec des questions générées par
+  // IA (toujours validées par un administrateur avant publication) en plus
+  // des vraies séances — accès continu par abonnement, comme "messagerie",
+  // pas un quota consommé à chaque partie.
+  entrainement_ia: 'Entraînement IA (jeux Français/ES/EST)'
 };
 const LIBELLES_TYPE_FACTURATION = {
   abonnement_mensuel: 'Abonnement mensuel', abonnement_annuel: 'Abonnement annuel', forfait_prepaye: 'Forfait prépayé'

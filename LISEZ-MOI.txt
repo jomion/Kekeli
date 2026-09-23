@@ -1,3 +1,65 @@
+KEKELI — Livraison du 24 septembre 2026 (sixième lot) — Nouveau : Entraînement IA pour Français, Éducation Sociale et Éducation Scientifique et Technologique
+===========================================================================
+
+NOUVEAU : DES QUESTIONS INÉDITES GÉNÉRÉES PAR IA, TOUJOURS RELUES PAR VOUS AVANT DE SERVIR
+--------------------------------------------------------------------------------------------
+Comme demandé, les jeux Défi Éducation Sociale, Défi Éducation Scientifique
+et Technologique et l'Atelier du Français proposent maintenant, en plus des
+questions déjà tirées des vraies séances, un bouton "🤖 Entraînement IA
+(questions inédites)" sur leur écran d'accueil.
+
+Ce bouton lance une IA qui génère de nouvelles questions à partir du
+contenu réel d'une séance publiée de la classe visée — jamais des questions
+"génériques" sans rapport avec ce qui est réellement enseigné. Mais,
+exactement comme vous l'aviez demandé, AUCUNE de ces questions n'est
+jamais visible par un élève tant que vous ne l'avez pas relue et validée
+vous-même : c'est le rôle de la nouvelle page d'administration
+"🤖 Questions IA (jeux)", accessible depuis le menu Admin.
+
+COMMENT ÇA MARCHE, CÔTÉ ADMINISTRATION
+------------------------------------------
+1. Ouvrez "🤖 Questions IA (jeux)" dans le menu.
+2. Cliquez sur "🤖 Générer des questions avec l'IA", choisissez la matière,
+   la classe, le niveau de difficulté et (pour le Français) la catégorie
+   visée (Conjugaison, Grammaire, Orthographe, Vocabulaire, Expression).
+3. Choisissez la séance publiée dont l'IA doit s'inspirer.
+4. L'IA propose une série de questions avec leur bonne réponse. Vous les
+   relisez une par une (décochez celles à écarter), puis cliquez sur
+   "Ajouter les questions cochées" — RIEN n'est enregistré avant ce clic.
+5. Une fois validées, les questions apparaissent dans la liste, classées
+   par classe et niveau, avec un bouton pour les archiver (les retirer sans
+   les supprimer) ou les supprimer définitivement.
+
+UN NOUVEAU SERVICE PREMIUM, SANS IMPACT SUR LES PALIERS NI LES BADGES
+--------------------------------------------------------------------------
+L'accès à ce mode d'entraînement (bouton "Entraînement IA") est réservé aux
+élèves dont l'abonnement inclut le nouveau service "Entraînement IA
+(jeux Français/ES/EST)" — à activer comme les autres services dans
+Abonnements > Plans tarifaires. Un élève sans cet accès voit un message lui
+indiquant de contacter l'administration, exactement comme pour les autres
+services premium du site.
+
+Comme demandé, cet entraînement reste volontairement "libre, sans impact
+formel" : jouer une partie d'Entraînement IA ne compte jamais pour les
+essais, les médailles, les paliers ni les compétences de l'élève — c'est un
+circuit entièrement séparé du reste du site, qui n'enregistre rien.
+
+FICHIERS AJOUTÉS/MODIFIÉS DANS CETTE LIVRAISON
+----------------------------------------
+- pages/admin/questions-ia-jeux.html (nouveau) — page d'administration
+- js/pages/admin-questions-ia-jeux.js (nouveau)
+- js/jeux/entrainement-ia-arcade.js (nouveau) — bouton et déroulement du jeu côté élève
+- js/navigation-config.js — nouvelle entrée de menu Admin
+- js/pages/admin-abonnements.js — libellé du nouveau service Premium
+- pages/eleve/jeu-es.html, pages/eleve/jeu-est.html, pages/eleve/jeu-atelier-francais.html
+- js/pages/eleve-jeu-es.js, js/pages/eleve-jeu-est.js, js/pages/eleve-jeu-atelier-francais.js
+
+Aucun fichier supprimé. Une nouvelle table et un nouveau service Premium
+ont été créés directement en base de données (invisibles pour vous), sans
+action de votre part.
+
+
+
 KEKELI — Livraison du 24 septembre 2026 (cinquième lot) — Correctif : un jeu éducatif ne débloque plus une séance
 ===========================================================================
 
