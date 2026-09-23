@@ -44,10 +44,27 @@
 //   chronomètre, score) est maintenant réinitialisé en revenant du bilan de
 //   fin de série (bouton "Rejouer") au lieu de garder l'état de la toute
 //   dernière question posée — voir cadranResetEcranJeu().
+//
+// Opérations combinées Ògán/Axɔ́sú (24 septembre 2026, troisième lot) :
+// signalement "au lieu de maintenir la dernière question posée faut
+// réinitialiser le cadran [...] Pour le niveau Ogan et Axosu faut aussi
+// ajouter la combinaison avec les autres opérations [...] L'opération peut
+// même commencer par les chiffres du bord et toutes les combinaisons sont
+// possibles". Clarifications obtenues avant développement : 2 à 3
+// opérations enchaînées pour Ògán, 3 à 5 pour Axɔ́sú ; réponses entières ou
+// décimales, réglable (preferences_navigation.cadran_reponse_decimale) ;
+// récapitulatif texte optionnel en plus des surlignages
+// (preferences_navigation.cadran_recap_texte_actif) ; le chiffre central
+// n'est parfois pas utilisé du tout (point de départ parfois un chiffre du
+// bord). Voir cadranGenererOperationCombinee()/cadranRunDialSequenceCombinee()
+// plus bas — n'affecte ni Azɔ̀ví/Dèví (une seule opération, inchangé), ni le
+// mode "Problèmes & Calculs".
 
 let cadranProfil = null;
 let cadranMasquerOperation = false;
 let cadranRevoirActif = true;
+let cadranReponseDecimale = false;
+let cadranRecapTexteActif = true;
 
 (async function () {
   cadranProfil = await requireRole('eleve');
@@ -60,11 +77,13 @@ let cadranRevoirActif = true;
   let cadranNiveauInitial = 'azovi';
   try {
     const { data } = await supabaseClient.from('preferences_navigation')
-      .select('masquer_operation_jeux, cadran_revoir_actif, cadran_dernier_niveau').eq('utilisateur_id', cadranProfil.id).maybeSingle();
+      .select('masquer_operation_jeux, cadran_revoir_actif, cadran_dernier_niveau, cadran_reponse_decimale, cadran_recap_texte_actif').eq('utilisateur_id', cadranProfil.id).maybeSingle();
     cadranMasquerOperation = !!data?.masquer_operation_jeux;
     cadranRevoirActif = data?.cadran_revoir_actif !== false; // défaut true
+    cadranReponseDecimale = !!data?.cadran_reponse_decimale; // défaut false (entier)
+    cadranRecapTexteActif = data?.cadran_recap_texte_actif !== false; // défaut true
     if (data?.cadran_dernier_niveau) cadranNiveauInitial = data.cadran_dernier_niveau;
-  } catch (e) { cadranMasquerOperation = false; cadranRevoirActif = true; }
+  } catch (e) { cadranMasquerOperation = false; cadranRevoirActif = true; cadranReponseDecimale = false; cadranRecapTexteActif = true; }
 
   cadranInitJeu(cadranNiveauInitial);
 })();
@@ -106,6 +125,18 @@ function cadranInitJeu(cadranNiveauInitial) {
       gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
       osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+    } else if (type === 'sequenceComplete') {
+      // Nouveau son (24 septembre 2026, opérations combinées Ògán/Axɔ́sú) :
+      // signale la FIN de l'assemblage d'une opération à plusieurs étapes,
+      // pour que l'enfant sache qu'il peut répondre — distinct de 'select'
+      // (une seule note, joué à chaque élément qui s'allume PENDANT
+      // l'assemblage) et de 'success'/'error' (résultat de la réponse).
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(700, audioCtx.currentTime);
+      osc.frequency.setValueAtTime(900, audioCtx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.28);
+      osc.start(); osc.stop(audioCtx.currentTime + 0.28);
     }
   }
 
@@ -156,6 +187,10 @@ function cadranInitJeu(cadranNiveauInitial) {
   const elShuffleModeSelect = document.getElementById('cadranShuffleModeSelect');
   const elRangeSelect = document.getElementById('cadranRangeSelect');
   const elMentalTypeSelect = document.getElementById('cadranMentalTypeSelect');
+  const elRecapCombinee = document.getElementById('cadranRecapCombinee');
+  const elReponseDecimaleToggle = document.getElementById('cadranReponseDecimaleToggle');
+  const elRecapToggle = document.getElementById('cadranRecapToggle');
+  const elNoteOpCombinee = document.getElementById('cadranNoteOpCombinee');
   const elSummaryModal = document.getElementById('cadranSummaryModal');
   const elBtnRejouer = document.getElementById('cadranBtnRejouer');
   const elDancerContainer = document.getElementById('cadranDancerContainer');
@@ -276,6 +311,7 @@ function cadranInitJeu(cadranNiveauInitial) {
     elDialContainer.classList.remove('cadran-masque');
     elProblemDisplay.classList.remove('cadran-masque');
     elProblemDisplay.innerText = 'Prêt pour le défi ?';
+    if (elRecapCombinee) { elRecapCombinee.hidden = true; elRecapCombinee.textContent = ''; }
     elBtnRevoir.hidden = true;
     elTimerBar.style.width = '0%';
     elFeedback.innerText = '';
@@ -334,7 +370,23 @@ function cadranInitJeu(cadranNiveauInitial) {
     elShuffleModeSelect.value = reglage.disposition;
     cadranUpdateDialLayout();
     cadranMajEtatActuel();
+    cadranMajEtatOpCombinee();
     if (persister) cadranPersisterNiveau(niveau);
+  }
+
+  // ----- Ògán/Axɔ́sú : l'"Opération Cadran" (Multiplication/Addition/.../
+  // Mixte) n'a plus d'effet à ces deux niveaux, l'opération combinée y
+  // mélangeant toujours plusieurs opérateurs différents (24 septembre 2026,
+  // voir cadranGenererOperationCombinee()) — le sélecteur reste visible
+  // (réglage sans lien direct avec le niveau, potentiellement repris si
+  // l'enfant revient à Azɔ̀ví/Dèví) mais grisé, avec une note explicative.
+  function cadranEstNiveauCombine() {
+    return cadranNiveauActuel === 'ogan' || cadranNiveauActuel === 'axosu';
+  }
+  function cadranMajEtatOpCombinee() {
+    const combine = cadranEstNiveauCombine();
+    if (elOpSelect) elOpSelect.disabled = combine;
+    if (elNoteOpCombinee) elNoteOpCombinee.hidden = !combine;
   }
 
   // ----- Mémorisation du niveau ("garde le niveau où l'enfant était",
@@ -464,6 +516,7 @@ function cadranInitJeu(cadranNiveauInitial) {
   function cadranStartSequence() {
     cadranClearHighlights();
     cadranMasquerCacher();
+    if (elRecapCombinee) { elRecapCombinee.hidden = true; elRecapCombinee.textContent = ''; }
     clearInterval(timerInterval);
     elTimerBar.style.width = '0%';
     elFeedback.innerText = '';
@@ -482,8 +535,12 @@ function cadranInitJeu(cadranNiveauInitial) {
       } else {
         clearInterval(cdInterval);
         elCountdown.style.visibility = 'hidden';
-        if (currentAppMode === 'dial') cadranRunDialSequence();
-        else cadranRunMentalSequence();
+        if (currentAppMode === 'dial') {
+          if (cadranEstNiveauCombine()) cadranRunDialSequenceCombinee();
+          else cadranRunDialSequence();
+        } else {
+          cadranRunMentalSequence();
+        }
       }
     }, 1000);
   }
@@ -532,6 +589,168 @@ function cadranInitJeu(cadranNiveauInitial) {
         }, tempo);
       }, tempo);
     }, tempo);
+  }
+
+  // ===== Opérations combinées, niveaux Ògán/Axɔ́sú uniquement (24 septembre
+  // 2026, troisième lot) — signalement : "faut aussi ajouter la combinaison
+  // avec les autres opérations; par exemple 5 x 4 + 8 ou 5 x 12 ÷ 2 ou
+  // 2 + 4 x 5 - 2 ÷ 2 [...] L'opération peut même commencer par les
+  // chiffres du bord et toutes les combinaisons sont possibles". Clarifié
+  // avec le porteur du projet avant développement : 2 à 3 opérateurs
+  // enchaînés pour Ògán, 3 à 5 pour Axɔ́sú ; réponse entière (défaut) ou
+  // décimale selon le réglage cadranReponseDecimale ; le chiffre central
+  // n'est utilisé que dans environ une question sur deux (l'autre moitié du
+  // temps, le point de départ est un chiffre du bord tiré au hasard, comme
+  // tous les nombres suivants de la chaîne) ; récapitulatif texte optionnel
+  // selon cadranRecapTexteActif ; c'est la fin de l'assemblage complet qui
+  // déclenche le chronomètre, avec un son dédié ('sequenceComplete') pour
+  // que l'enfant sache que l'opération est terminée. N'affecte ni
+  // Azɔ̀ví/Dèví (cadranRunDialSequence ci-dessus, inchangée), ni le mode
+  // "Problèmes & Calculs" (cadranRunMentalSequence). =====
+
+  const CADRAN_OP_SYMBOLES = { plus: '+', minus: '-', mult: '×', div: '÷' };
+  const CADRAN_PLAGE_OPERATEURS = { ogan: [2, 3], axosu: [3, 4, 5] };
+
+  function cadranTirerNombreBord() {
+    return Math.floor(Math.random() * 13); // 0 à 12, comme le mode simple
+  }
+
+  // Évalue une expression à plat (n0 op0 n1 op1 n2 ...) en respectant la
+  // priorité mathématique standard (× et ÷ avant + et -) : regroupe en
+  // "termes" séparés par + / -, chaque terme étant un enchaînement de × et
+  // ÷ évalué de gauche à droite, puis fait la somme algébrique des termes.
+  // Reflète exactement la façon dont cadranGenererOperationCombinee()
+  // choisit ses diviseurs ci-dessous (même logique de "valeur du terme en
+  // cours").
+  function cadranEvaluerExpression(nombres, operateurs) {
+    let termes = [nombres[0]];
+    let signes = [1];
+    for (let i = 0; i < operateurs.length; i++) {
+      const op = operateurs[i];
+      const n = nombres[i + 1];
+      if (op === 'mult') termes[termes.length - 1] *= n;
+      else if (op === 'div') termes[termes.length - 1] = (n === 0) ? 0 : termes[termes.length - 1] / n;
+      else if (op === 'plus') { termes.push(n); signes.push(1); }
+      else if (op === 'minus') { termes.push(n); signes.push(-1); }
+    }
+    return termes.reduce((somme, t, i) => somme + t * signes[i], 0);
+  }
+
+  // Construit une opération combinée aléatoire. En mode "entier strict"
+  // (cadranReponseDecimale === false, par défaut), chaque division choisit
+  // son diviseur parmi les diviseurs exacts (1 à 12) de la valeur du terme
+  // en cours à cet instant, pour garantir un résultat final toujours
+  // entier ; si aucun diviseur exact n'existe dans 0-12 (cas rare), le "÷"
+  // est remplacé par un "+" pour cette étape plutôt que de produire une
+  // décimale — jamais de blocage. En mode décimales autorisées, le diviseur
+  // est un chiffre du bord quelconque (hors 0, pour éviter une division par
+  // zéro).
+  function cadranGenererOperationCombinee(niveau) {
+    const plageOperateurs = CADRAN_PLAGE_OPERATEURS[niveau] || CADRAN_PLAGE_OPERATEURS.ogan;
+    const nbOperateurs = plageOperateurs[Math.floor(Math.random() * plageOperateurs.length)];
+
+    const departBord = Math.random() < 0.5;
+    const centerVal = parseInt(elCenterSelect.value);
+    const premierNombre = departBord ? cadranTirerNombreBord() : centerVal;
+
+    const nombres = [premierNombre];
+    const operateurs = [];
+    const sourcesNombres = [departBord ? 'bord' : 'centre'];
+    let valeurTermeCourant = premierNombre;
+
+    for (let i = 0; i < nbOperateurs; i++) {
+      let op = ['plus', 'minus', 'mult', 'div'][Math.floor(Math.random() * 4)];
+      let candidat;
+
+      if (op === 'div') {
+        if (!cadranReponseDecimale) {
+          const diviseurs = [];
+          for (let d = 1; d <= 12; d++) { if (valeurTermeCourant % d === 0) diviseurs.push(d); }
+          if (diviseurs.length === 0) { op = 'plus'; candidat = cadranTirerNombreBord(); }
+          else candidat = diviseurs[Math.floor(Math.random() * diviseurs.length)];
+        } else {
+          do { candidat = cadranTirerNombreBord(); } while (candidat === 0);
+        }
+      } else {
+        candidat = cadranTirerNombreBord();
+      }
+
+      operateurs.push(op);
+      nombres.push(candidat);
+      sourcesNombres.push('bord');
+
+      if (op === 'mult') valeurTermeCourant *= candidat;
+      else if (op === 'div') valeurTermeCourant = (candidat === 0) ? 0 : valeurTermeCourant / candidat;
+      else valeurTermeCourant = candidat; // + ou - démarre un nouveau terme
+    }
+
+    const brut = cadranEvaluerExpression(nombres, operateurs);
+    const expectedAnswerCombinee = cadranReponseDecimale ? Math.round(brut * 10) / 10 : Math.round(brut);
+
+    return { nombres, operateurs, sourcesNombres, expectedAnswerCombinee };
+  }
+
+  // Révèle l'opération combinée élément par élément (même cadence "tempo"
+  // que le mode simple), surlignages CUMULATIFS (rien ne s'éteint entre
+  // deux éléments, contrairement au mode simple qui n'a que 3 éléments à
+  // montrer) pour que l'enfant voie l'opération se construire
+  // progressivement sur le cadran. Le récapitulatif texte (si activé) se
+  // construit en parallèle. Le chronomètre ne démarre qu'une fois TOUS les
+  // éléments révélés (son 'sequenceComplete' dédié à cet instant précis).
+  function cadranRunDialSequenceCombinee() {
+    const tempo = parseInt(elTempoSelect.value);
+    const { nombres, operateurs, sourcesNombres, expectedAnswerCombinee } = cadranGenererOperationCombinee(cadranNiveauActuel);
+    const opElMap = { plus: elOpPlus, minus: elOpMinus, mult: elOpMult, div: elOpDiv };
+
+    expectedAnswer = expectedAnswerCombinee;
+    currentQuestionText = '';
+
+    const afficherRecap = cadranRecapTexteActif;
+    if (elRecapCombinee) {
+      elRecapCombinee.hidden = !afficherRecap;
+      elRecapCombinee.textContent = '';
+    }
+
+    const etapes = [{ type: 'nombre', index: 0 }];
+    for (let i = 0; i < operateurs.length; i++) {
+      etapes.push({ type: 'operateur', index: i });
+      etapes.push({ type: 'nombre', index: i + 1 });
+    }
+
+    function jouerEtape(pos) {
+      if (pos >= etapes.length) {
+        cadranPlaySound('sequenceComplete');
+        elUserAnswer.disabled = false;
+        elValBtn.disabled = false;
+        elUserAnswer.focus();
+        cadranMasquerAppliquer();
+        cadranStartTimer();
+        return;
+      }
+
+      setTimeout(() => {
+        const etape = etapes[pos];
+        if (etape.type === 'nombre') {
+          const valeur = nombres[etape.index];
+          if (sourcesNombres[etape.index] === 'centre') {
+            elCenterDisplay.classList.add('cadran-active');
+          } else {
+            const slot = Array.from(document.querySelectorAll('.cadran-outer-num')).find(el => parseInt(el.getAttribute('data-val')) === valeur);
+            if (slot) slot.classList.add('cadran-active');
+          }
+          currentQuestionText += (currentQuestionText ? ' ' : '') + valeur;
+        } else {
+          opElMap[operateurs[etape.index]].classList.add('cadran-active');
+          currentQuestionText += ' ' + CADRAN_OP_SYMBOLES[operateurs[etape.index]];
+        }
+        cadranPlaySound('select');
+        if (afficherRecap && elRecapCombinee) elRecapCombinee.textContent = currentQuestionText;
+
+        jouerEtape(pos + 1);
+      }, tempo);
+    }
+
+    jouerEtape(0);
   }
 
   function cadranRunMentalSequence() {
@@ -604,9 +823,14 @@ function cadranInitJeu(cadranNiveauInitial) {
 
   function cadranValidateAnswer() {
     clearInterval(timerInterval);
-    const userVal = parseInt(elUserAnswer.value);
+    // parseFloat + comparaison à tolérance (24 septembre 2026, opérations
+    // combinées) au lieu d'un simple parseInt/===, pour accepter une
+    // réponse décimale (ex. "3.5") quand cadranReponseDecimale est actif ;
+    // sans effet sur le mode simple (réponse toujours entière, une
+    // tolérance de 0.05 exige toujours une saisie exacte).
+    const userVal = parseFloat(elUserAnswer.value);
 
-    if (userVal === expectedAnswer) {
+    if (!isNaN(userVal) && Math.abs(userVal - expectedAnswer) < 0.05) {
       score++;
       cadranPlaySound('success');
       elFeedback.innerHTML = `<span style="color:var(--cadran-neon-green)">Bravo !</span>`;
@@ -728,6 +952,31 @@ function cadranInitJeu(cadranNiveauInitial) {
     try {
       const { error } = await supabaseClient.from('preferences_navigation')
         .upsert({ utilisateur_id: cadranProfil.id, cadran_revoir_actif: actif, maj_le: new Date().toISOString() });
+      if (error) throw error;
+    } catch (err) { /* non bloquant */ }
+  });
+
+  // ----- Réglages des opérations combinées (Ògán/Axɔ́sú, 24 septembre 2026,
+  // troisième lot) — mêmes colonnes preferences_navigation que ci-dessus. -----
+  if (elReponseDecimaleToggle) elReponseDecimaleToggle.checked = cadranReponseDecimale;
+  if (elRecapToggle) elRecapToggle.checked = cadranRecapTexteActif;
+
+  elReponseDecimaleToggle?.addEventListener('change', async (e) => {
+    const actif = e.target.checked;
+    cadranReponseDecimale = actif;
+    try {
+      const { error } = await supabaseClient.from('preferences_navigation')
+        .upsert({ utilisateur_id: cadranProfil.id, cadran_reponse_decimale: actif, maj_le: new Date().toISOString() });
+      if (error) throw error;
+    } catch (err) { /* non bloquant */ }
+  });
+
+  elRecapToggle?.addEventListener('change', async (e) => {
+    const actif = e.target.checked;
+    cadranRecapTexteActif = actif;
+    try {
+      const { error } = await supabaseClient.from('preferences_navigation')
+        .upsert({ utilisateur_id: cadranProfil.id, cadran_recap_texte_actif: actif, maj_le: new Date().toISOString() });
       if (error) throw error;
     } catch (err) { /* non bloquant */ }
   });

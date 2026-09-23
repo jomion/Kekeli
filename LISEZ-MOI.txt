@@ -1,3 +1,63 @@
+KEKELI — Livraison du 24 septembre 2026 (quatrième lot) — Cadran opératoire : opérations combinées pour Ògán et Axɔ́sú
+===========================================================================
+
+NOUVEAU : DES OPÉRATIONS COMBINÉES POUR LES NIVEAUX ÒGÁN ET AXƆ́SÚ
+--------------------------------------------------------------------
+Les deux niveaux les plus difficiles du Cadran opératoire ne proposent
+plus une seule opération (ex. "5 × 4"), mais un enchaînement de plusieurs
+opérations mélangées, comme demandé : "5 × 4 + 8", "5 × 12 ÷ 2",
+"2 + 4 × 5 - 2 ÷ 2"... Ògán propose 2 ou 3 opérations enchaînées, Axɔ́sú 3
+à 5. Les règles de calcul habituelles sont respectées (la multiplication
+et la division sont calculées avant l'addition et la soustraction, comme
+à l'école). L'opération commence, environ une fois sur deux, par le
+chiffre central choisi dans les Réglages, et l'autre moitié du temps par
+un chiffre du bord tiré au hasard — comme demandé, "l'opération peut même
+commencer par les chiffres du bord".
+
+Le cadran révèle chaque nombre et chaque symbole les uns après les
+autres, en s'allumant progressivement (les surlignages restent allumés
+au fur et à mesure, pour montrer l'opération qui se construit), à la même
+vitesse que le réglage "Vitesse affichage" déjà existant. Un nouveau son
+distinct retentit une fois l'opération entièrement révélée, pour que
+l'enfant sache qu'il peut répondre — c'est seulement à cet instant que le
+chronomètre démarre, jamais avant que toute l'opération soit proposée.
+
+DEUX NOUVEAUX RÉGLAGES, DANS LES RÉGLAGES DU CADRAN
+------------------------------------------------------
+- "Autoriser les réponses décimales" : désactivé par défaut (les
+  opérations combinées sont alors toujours construites pour tomber sur un
+  résultat entier, sans jamais de division qui ne "tombe pas juste").
+  Activez-le pour autoriser des résultats à virgule (ex. 3.5).
+- "Afficher un récapitulatif texte de l'opération en construction" :
+  activé par défaut. En plus des chiffres qui s'allument sur le cadran, un
+  petit texte apparaît et se complète au fur et à mesure (ex. "5", puis
+  "5 × 4", puis "5 × 4 + 8"). Désactivez-le pour revenir à un cadran
+  "silencieux", sans aucune aide texte, où l'enfant doit tout retenir par
+  les surlignages seuls.
+
+Le réglage "Opération Cadran" (Multiplication/Addition/.../Mixte) n'a
+plus d'effet à ces deux niveaux (les opérateurs y sont toujours mélangés
+automatiquement) — une petite note apparaît sous ce réglage pour
+l'indiquer, et il reste pleinement actif pour Azɔ̀ví et Dèví comme avant.
+
+CE QUI NE CHANGE PAS
+------------------------
+Les niveaux Azɔ̀ví et Dèví (une seule opération) fonctionnent exactement
+comme avant, de même que le mode "Problèmes & Calculs", qui n'est pas
+concerné par cette évolution.
+
+FICHIERS MODIFIÉS DANS CETTE LIVRAISON
+------------------------------------------
+- pages/eleve/jeu-calcul-mental.html
+- js/pages/eleve-jeu-calcul-mental.js
+- css/jeu-cadran-operatoire.css
+
+Aucun fichier supprimé. Deux nouvelles colonnes ajoutées en base de
+données (preferences_navigation.cadran_reponse_decimale et
+preferences_navigation.cadran_recap_texte_actif), appliquées directement
+en production, sans action de votre part.
+
+
 KEKELI — Livraison du 24 septembre 2026 (troisième lot) — Cadran opératoire : réglages de masquage ramenés dans le jeu, bouton "Revoir" optionnel, niveau mémorisé, écran réinitialisé entre les parties
 ===========================================================================
 

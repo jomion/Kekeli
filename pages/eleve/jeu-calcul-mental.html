@@ -55,6 +55,14 @@
           Prêt pour le défi ?
         </div>
 
+        <!-- Récapitulatif texte de l'opération combinée (Ògán/Axɔ́sú,
+             24 septembre 2026, second lot) — se construit au fur et à
+             mesure des surlignages, uniquement si le réglage correspondant
+             est actif ; caché sinon ou en mode simple/Problèmes & Calculs.
+             Voir cadranRunDialSequenceCombinee() dans
+             eleve-jeu-calcul-mental.js. -->
+        <div class="cadran-recap-combinee" id="cadranRecapCombinee" hidden></div>
+
         <button type="button" class="cadran-btn-revoir" id="cadranBtnRevoir" hidden>👁️ Revoir</button>
       </div>
 
@@ -64,7 +72,7 @@
 
       <div class="cadran-slate-area">
         <div class="cadran-input-row">
-          <input type="number" id="cadranUserAnswer" placeholder="?" disabled>
+          <input type="number" id="cadranUserAnswer" placeholder="?" step="any" disabled>
           <button type="button" class="cadran-btn-validate" id="cadranValBtn" disabled>OK</button>
         </div>
         <div class="cadran-feedback" id="cadranFeedback"></div>
@@ -144,6 +152,11 @@
               <option value="div">Division (÷)</option>
               <option value="mix">Mixte</option>
             </select>
+            <!-- Sans effet aux niveaux Ògán/Axɔ́sú (24 septembre 2026) :
+                 l'opération combinée y mélange toujours plusieurs
+                 opérateurs différents, voir cadranGenererOperationCombinee()
+                 dans eleve-jeu-calcul-mental.js. -->
+            <small class="cadran-note-op-combinee" id="cadranNoteOpCombinee" hidden>Ignoré aux niveaux Ògán/Axɔ́sú (opérateurs toujours mélangés)</small>
           </div>
 
           <div class="cadran-config-group cadran-dial-only">
@@ -162,6 +175,27 @@
               <option value="shuffled">Mélangé</option>
               <option value="shuffleEach">Mélanger à chaque question</option>
             </select>
+          </div>
+
+          <!-- Opérations combinées (Ògán/Axɔ́sú uniquement) — 24 septembre
+               2026, second lot : combinaison de plusieurs opérations
+               (ex. "5 × 4 + 8"). Réglages toujours visibles (utiles à
+               préconfigurer avant d'atteindre ces niveaux), mais sans effet
+               tant que le niveau actif n'est pas Ògán/Axɔ́sú. -->
+          <div class="cadran-config-group cadran-config-group-pleine-largeur cadran-dial-only">
+            <label>Opérations combinées (Ògán / Axɔ́sú) :</label>
+            <div class="cadran-toggle-row">
+              <label class="cadran-toggle-label" for="cadranReponseDecimaleToggle">
+                <input type="checkbox" id="cadranReponseDecimaleToggle">
+                Autoriser les réponses décimales (sinon entiers uniquement)
+              </label>
+            </div>
+            <div class="cadran-toggle-row">
+              <label class="cadran-toggle-label" for="cadranRecapToggle">
+                <input type="checkbox" id="cadranRecapToggle" checked>
+                Afficher un récapitulatif texte de l'opération en construction
+              </label>
+            </div>
           </div>
 
           <div class="cadran-config-group cadran-mental-only" style="display:none; grid-column: span 2;">
