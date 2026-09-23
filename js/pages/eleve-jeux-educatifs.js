@@ -1,23 +1,30 @@
 // Page pages/eleve/jeux-educatifs.html
 // Lot "Jeux éducatifs interactifs" (11 septembre 2026, douzième requête
-// indépendante) : cette page devient le LANCEUR des 3 jeux d'arcade
-// (pages/eleve/jeu-atelier-francais.html, jeu-calcul-mental.html,
-// jeu-es-est.html) — elle ne liste plus les séances à palier une par une
-// (l'ancienne version de ce fichier). Voir js/jeux/moteur-jeu-arcade.js et
-// js/jeux/coquille-jeu-arcade.js pour le moteur commun encore utilisé par
-// jeu-es-est.html. **Depuis le 12 septembre 2026 (treizième requête, second
-// lot), jeu-atelier-francais.html a rejoint jeu-calcul-mental.html comme
-// port quasi-verbatim et autonome d'un fichier de référence fourni par le
-// porteur du projet — il ne partage plus ce moteur commun ni le choix de
-// palier lié aux vraies séances, sur le même principe (voir
-// eleve-jeu-atelier-francais.js et la leçon retenue n°13).
+// indépendante) : cette page devient le LANCEUR des jeux d'arcade — elle ne
+// liste plus les séances à palier une par une (l'ancienne version de ce
+// fichier). Voir js/jeux/moteur-jeu-arcade.js et js/jeux/coquille-jeu-
+// arcade.js pour le moteur commun.
+//
+// **24 septembre 2026** (demande : "Pour le français, faut lier les
+// questionnaires à au séances réelles. Sépare l'ES de L'EST et lie chacun au
+// séances réelles du site") : deux changements côté liste ci-dessous —
+// jeu-atelier-francais.html a rejoint le moteur commun (il pioche à nouveau
+// dans les vraies séances publiées de Français, avec un filtre par catégorie
+// en plus du palier — voir eleve-jeu-atelier-francais.js — après avoir été,
+// entre le 12 et le 24 septembre 2026, un port autonome d'une banque de 30
+// questions statiques) ; et l'ancien jeu combiné "Défi ES & EST"
+// (jeu-es-est.html) est remplacé par deux jeux séparés, jeu-es.html
+// (Éducation Sociale) et jeu-est.html (Éducation Scientifique et
+// Technologique), chacun ciblant sa seule matière — le contenu était déjà
+// tiré des vraies séances avant cette séparation, seule la fusion des deux
+// matières dans un même jeu disparaît.
 
 let profilJeux = null;
 
 const JEUX_DISPONIBLES = [
   {
     href: 'jeu-atelier-francais.html', icone: '📚', titre: "L'Atelier du Français",
-    desc: 'Conjugaison, grammaire, orthographe, vocabulaire, expression — un défi à la fois, dans le style arcade.',
+    desc: 'Conjugaison, grammaire, orthographe, vocabulaire, expression — un défi à la fois, tiré de tes vraies séances de français.',
     couleur: '#8b5cf6'
   },
   {
@@ -26,9 +33,14 @@ const JEUX_DISPONIBLES = [
     couleur: '#06b6d4'
   },
   {
-    href: 'jeu-es-est.html', icone: '🔬', titre: 'Défi ES & EST',
-    desc: 'Éducation Sociale et Éducation Scientifique et Technologique réunies dans un seul jeu à plusieurs types de questions.',
+    href: 'jeu-es.html', icone: '🏛️', titre: 'Défi Éducation Sociale',
+    desc: 'Des questions tirées de tes vraies séances d\'Éducation Sociale, à plusieurs types de questions.',
     couleur: '#10b981'
+  },
+  {
+    href: 'jeu-est.html', icone: '🔬', titre: 'Défi Éducation Scientifique',
+    desc: 'Des questions tirées de tes vraies séances d\'Éducation Scientifique et Technologique, à plusieurs types de questions.',
+    couleur: '#f59e0b'
   }
 ];
 

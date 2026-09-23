@@ -66,6 +66,19 @@
 .jeu-palier-btn.active { color: #000; border-color: #fff; }
 .jeu-palier-btn:disabled { opacity: .4; cursor: not-allowed; }
 
+/* Sélecteur de catégorie (optionnel, ajouté le 24 septembre 2026 pour
+   l'Atelier du Français relié aux vraies séances — voir config.
+   categoriesDisponibles dans js/jeux/coquille-jeu-arcade.js). Même principe
+   visuel que le sélecteur de palier ci-dessus, en violet plutôt qu'en doré
+   pour rester lisible à côté de lui sur l'écran d'accueil. */
+.jeu-categorie-selector { display: flex; gap: 6px; margin: 4px 0; flex-wrap: wrap; }
+.jeu-categorie-btn {
+  flex: 1 1 30%; padding: 6px 4px; border-radius: 8px; border: 2px solid #475569;
+  background: #0f172a; color: #94a3b8; font-weight: 700; font-size: 0.72rem; cursor: pointer;
+  transition: all .2s; line-height: 1.3;
+}
+.jeu-categorie-btn.active { color: #fff; border-color: var(--purple); background: var(--purple); }
+
 .jeu-matiere-tag {
   position: absolute; top: 8px; left: 12px; font-size: 0.68rem; background: var(--purple);
   padding: 2px 7px; border-radius: 4px; font-weight: 700; color: #fff; text-transform: uppercase;

@@ -32,21 +32,15 @@
       <div class="cadran-header-bar">
         <a href="jeux-educatifs.html" class="cadran-btn-lien-retour" title="Retour aux jeux">⬅️</a>
         <h1>Calcul Mental</h1>
-        <button type="button" class="cadran-btn-settings" id="cadranBtnSettings">⚙️ Options</button>
+        <button type="button" class="cadran-btn-settings" id="cadranBtnSettings">⚙️ Réglages</button>
       </div>
 
-      <div class="cadran-top-controls">
-        <div class="cadran-mode-selector">
-          <button type="button" class="cadran-mode-btn active" id="cadranBtnModeDial" data-mode="dial">🎯 Cadran</button>
-          <button type="button" class="cadran-mode-btn" id="cadranBtnModeMental" data-mode="mental">💡 Problèmes &amp; Calculs</button>
-        </div>
-        <div class="cadran-difficulty-selector">
-          <button type="button" class="cadran-diff-btn active" data-diff="azovi">🌱 Azɔ̀ví</button>
-          <button type="button" class="cadran-diff-btn" data-diff="devi">🪘 Dèví</button>
-          <button type="button" class="cadran-diff-btn" data-diff="ogan">🦁 Ògán</button>
-          <button type="button" class="cadran-diff-btn" data-diff="axosu">👑 Axɔ́sú</button>
-        </div>
-      </div>
+      <!-- Indicateur discret du mode/niveau en cours (24 septembre 2026) : le
+           mode et le niveau se choisissent maintenant DANS la fenêtre
+           Réglages (voir plus bas), pour libérer de la hauteur d'écran utile
+           sur mobile — cette ligne garde le choix actuel visible sans rouvrir
+           les réglages. Mise à jour par cadranMajEtatActuel(). -->
+      <div class="cadran-etat-actuel" id="cadranEtatActuel">🎯 Cadran · 🌱 Azɔ̀ví</div>
 
       <div class="cadran-game-zone">
         <div class="cadran-dial-container cadran-dial-only" id="cadranDialContainer">
@@ -90,6 +84,29 @@
           <button type="button" class="cadran-close-btn" id="cadranBtnCloseSettings">✕</button>
         </div>
         <div class="cadran-config-grid">
+          <!-- Mode de jeu et niveau : déplacés ici depuis le haut de l'écran
+               de jeu (24 septembre 2026, demande "mettre tous les réglages
+               sous un bouton") — mêmes boutons, mêmes identifiants, mêmes
+               écouteurs, juste relogés pour libérer de la hauteur d'écran
+               utile sur mobile (voir cadran-etat-actuel ci-dessus pour le
+               rappel du choix en cours pendant la partie). -->
+          <div class="cadran-config-group cadran-config-group-pleine-largeur">
+            <label>Mode de jeu :</label>
+            <div class="cadran-mode-selector">
+              <button type="button" class="cadran-mode-btn active" id="cadranBtnModeDial" data-mode="dial">🎯 Cadran</button>
+              <button type="button" class="cadran-mode-btn" id="cadranBtnModeMental" data-mode="mental">💡 Problèmes &amp; Calculs</button>
+            </div>
+          </div>
+          <div class="cadran-config-group cadran-config-group-pleine-largeur">
+            <label>Niveau de difficulté :</label>
+            <div class="cadran-difficulty-selector">
+              <button type="button" class="cadran-diff-btn active" data-diff="azovi">🌱 Azɔ̀ví</button>
+              <button type="button" class="cadran-diff-btn" data-diff="devi">🪘 Dèví</button>
+              <button type="button" class="cadran-diff-btn" data-diff="ogan">🦁 Ògán</button>
+              <button type="button" class="cadran-diff-btn" data-diff="axosu">👑 Axɔ́sú</button>
+            </div>
+          </div>
+
           <div class="cadran-config-group">
             <label>Série de calculs :</label>
             <select id="cadranSeriesSelect">

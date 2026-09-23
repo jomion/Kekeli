@@ -64,6 +64,22 @@ body.avec-banniere-site .cadran-page { height: calc(100vh - 68px - var(--hauteur
 @supports not (height: 100dvh) {
   .cadran-page.cadran-plein-ecran-actif { height: 100vh; }
 }
+/* Correctif du 24 septembre 2026 (signalement : "même en plein écran le
+   clavier du portable surmonte le cadran ce qui empêche de voir les
+   réponses saisies") : dans un élément en plein écran RÉEL (API
+   Fullscreen), plusieurs navigateurs mobiles (Chrome Android notamment) ne
+   font PAS suivre 100dvh à l'ouverture du clavier virtuel — contrairement
+   au mode normal (hors plein écran), où le correctif du 12 septembre 2026
+   ci-dessus fonctionne déjà bien. Le clavier se pose alors en recouvrement
+   par-dessus la zone de saisie, tout en bas de l'écran, sans que la mise en
+   page ne se réduise pour lui laisser la place. cadranAjusterHauteurClavier()
+   (eleve-jeu-calcul-mental.js) mesure la hauteur RÉELLEMENT visible via
+   window.visualViewport (qui, lui, réagit fiablement au clavier même en
+   plein écran) et la pose dans --cadran-hauteur-visible ; cette règle
+   prend alors le dessus sur 100dvh, qui peut être resté figé sur la
+   hauteur totale de l'écran. Sans JS (navigateur trop ancien), la classe
+   n'est jamais posée et le comportement précédent reste inchangé. */
+.cadran-page.cadran-plein-ecran-actif.cadran-hauteur-mesuree { height: var(--cadran-hauteur-visible) !important; }
 
 .cadran-app {
   background: var(--cadran-panel-bg);
@@ -92,7 +108,14 @@ body.avec-banniere-site .cadran-page { height: calc(100vh - 68px - var(--hauteur
 }
 .cadran-btn-settings:hover { background: #475569; }
 
-.cadran-top-controls { display: flex; flex-direction: column; gap: 5px; margin: 4px 0; }
+/* Rappel discret du mode/niveau en cours (24 septembre 2026) : le
+   sélecteur de mode et de niveau, autrefois toujours visible ici
+   (.cadran-top-controls), a été déplacé dans la fenêtre Réglages pour
+   libérer de la hauteur d'écran utile sur mobile — voir
+   cadran-config-group-pleine-largeur plus bas et cadranMajEtatActuel()
+   dans eleve-jeu-calcul-mental.js. */
+.cadran-etat-actuel { text-align: center; font-size: 0.78rem; font-weight: 700; color: #94a3b8; margin: 2px 0; }
+
 .cadran-mode-selector, .cadran-difficulty-selector { display: flex; gap: 6px; }
 .cadran-mode-btn, .cadran-diff-btn {
   flex: 1; padding: 5px; border-radius: 8px; border: 1px solid #475569; background: #0f172a;
@@ -200,6 +223,9 @@ body.avec-banniere-site .cadran-page { height: calc(100vh - 68px - var(--hauteur
 .cadran-config-group label { color: #94a3b8; font-weight: bold; margin-bottom: 3px; }
 .cadran-app select { width: 100%; padding: 5px; border-radius: 6px; border: 1px solid #475569; background: #1e293b; color: #fff; font-weight: bold; }
 .cadran-note-masquage { grid-column: span 2; color: #94a3b8; font-size: 0.78rem; margin: 4px 0 0; }
+/* Groupe de réglage occupant toute la largeur de la grille (mode de jeu,
+   niveau — 24 septembre 2026, voir cadran-etat-actuel ci-dessus). */
+.cadran-config-group-pleine-largeur { grid-column: span 2; }
 
 .cadran-countdown-overlay {
   position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15,23,42,0.85);

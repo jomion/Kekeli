@@ -1,3 +1,71 @@
+KEKELI — Livraison du 24 septembre 2026 — Cadran opératoire (réglages, clavier mobile, masquage), jeux ES/EST séparés et Atelier du Français relié aux vraies séances
+===========================================================================
+
+CADRAN OPÉRATOIRE (CALCUL MENTAL) : RÉGLAGES REGROUPÉS, CORRECTIF CLAVIER MOBILE, MASQUAGE MOINS RAPIDE
+---------------------------------------------------------------
+Trois correctifs demandés sur ce jeu.
+
+1) Tous les réglages sont maintenant sous un seul bouton. Le choix du mode
+(Cadran / Problèmes & Calculs) et du niveau de difficulté, qui prenaient
+auparavant deux rangées toujours visibles au-dessus du cadran, sont
+désormais à l'intérieur de la fenêtre "⚙️ Réglages", avec les autres
+options. Une petite ligne discrète rappelle le choix en cours pendant la
+partie, pour ne pas avoir à rouvrir les réglages pour vérifier.
+
+2) Sur mobile, même en plein écran, le clavier ne recouvre plus la réponse.
+Le correctif précédent (12 septembre 2026) fonctionnait déjà bien hors
+plein écran, mais pas dans le mode plein écran réel activé automatiquement
+sur mobile : certains téléphones ne réduisent pas la mise en page à
+l'ouverture du clavier dans ce mode précis, qui se pose alors carrément
+par-dessus la zone de saisie. Le jeu mesure maintenant la hauteur
+réellement visible de l'écran (celle qui tient compte du clavier) et
+l'applique en priorité.
+
+3) Le masquage de l'opération se déclenche maintenant après un court
+instant de lecture, plutôt qu'immédiatement. Avec le réglage "masquer
+l'opération" activé (dans Paramètres), le flou apparaissait exactement au
+moment où l'opération finissait de s'afficher — trop tôt pour avoir le
+temps de la lire avant qu'elle disparaisse. Un court délai a été ajouté
+avant que le flou ne s'applique ; la saisie de la réponse, elle, reste
+possible dès que l'opération est proposée, sans attendre ce délai.
+
+DÉFI ES & EST SÉPARÉ EN DEUX JEUX, RELIÉS AUX VRAIES SÉANCES
+---------------------------------------------------------------
+Le jeu combiné "Défi ES & EST" devient deux jeux distincts dans la page
+"Jeux éducatifs" : "Défi Éducation Sociale" et "Défi Éducation Scientifique
+et Technologique", chacun consacré à sa seule matière. Le contenu (vraies
+séances publiées de la classe de l'élève) était déjà tiré de vos séances
+réelles avant cette séparation ; seule la fusion des deux matières dans un
+même jeu disparaît, pour que chaque élève puisse s'entraîner spécifiquement
+sur l'une ou l'autre.
+
+L'ATELIER DU FRANÇAIS EST DÉSORMAIS RELIÉ À VOS VRAIES SÉANCES
+---------------------------------------------------------------
+Depuis le 12 septembre 2026, ce jeu piochait dans une banque fixe de 30
+questions, indépendante du contenu réellement publié. Comme demandé, il
+pioche maintenant dans les vraies séances de Français déjà publiées, avec
+les mêmes 4 niveaux que les autres jeux (Azɔ̀ví/Dèví/Ògán/Axɔ́sú), et un
+filtre par catégorie en plus (Conjugaison/Grammaire/Orthographe/
+Vocabulaire/Expression, ce dernier regroupant aussi Lecture et Écriture,
+faute de catégorie dédiée) — le contenu réel étant encore peu fourni pour
+certaines combinaisons niveau/catégorie, un message clair s'affiche quand
+rien n'est encore disponible, plutôt que de bloquer l'élève.
+
+Point important, confirmé avec vous avant cette livraison : ce jeu devient,
+comme les autres jeux liés aux vraies séances, soumis au service Premium de
+correction automatique — il était auparavant gratuit et illimité pour tous.
+
+Fichiers modifiés : css/jeu-cadran-operatoire.css, css/jeux-arcade.css,
+js/jeux/coquille-jeu-arcade.js, js/jeux/moteur-jeu-arcade.js,
+js/pages/eleve-jeu-atelier-francais.js, js/pages/eleve-jeu-calcul-mental.js,
+js/pages/eleve-jeux-educatifs.js, pages/eleve/jeu-atelier-francais.html,
+pages/eleve/jeu-calcul-mental.html. Fichiers ajoutés :
+js/pages/eleve-jeu-es.js, js/pages/eleve-jeu-est.js, pages/eleve/jeu-es.html,
+pages/eleve/jeu-est.html. Fichiers supprimés : css/jeu-atelier-francais.css,
+js/pages/eleve-jeu-es-est.js, pages/eleve/jeu-es-est.html. Aucun changement
+en base de données — lot purement frontend.
+
+===========================================================================
 KEKELI — Livraison du 23 septembre 2026 — compétences liées à chaque séance
 ===========================================================================
 

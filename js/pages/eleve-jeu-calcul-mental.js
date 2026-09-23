@@ -144,6 +144,7 @@ function cadranInitJeu() {
   const elCadranPage = document.querySelector('.cadran-page');
   const elBtnQuitterFlottant = document.getElementById('cadranBtnQuitterFlottant');
   const elLienRetourEntete = document.querySelector('.cadran-btn-lien-retour');
+  const elEtatActuel = document.getElementById('cadranEtatActuel');
 
   // ----- Plein écran forcé sur mobile (session du 12 septembre 2026) -----
   //
@@ -182,8 +183,35 @@ function cadranInitJeu() {
   ['fullscreenchange', 'webkitfullscreenchange', 'msfullscreenchange'].forEach((evenement) => {
     document.addEventListener(evenement, () => {
       elCadranPage?.classList.toggle('cadran-plein-ecran-actif', !!document.fullscreenElement);
+      if (!document.fullscreenElement) {
+        // On quitte le plein écran : on retire la mesure manuelle pour
+        // revenir immédiatement au comportement CSS normal (100dvh), plutôt
+        // que de garder une hauteur figée sur l'ancien état du clavier.
+        elCadranPage?.classList.remove('cadran-hauteur-mesuree');
+      } else {
+        cadranAjusterHauteurClavier();
+      }
     });
   });
+
+  // ----- Hauteur réellement visible en plein écran mobile, clavier compris
+  // (correctif du 24 septembre 2026, voir le commentaire détaillé dans
+  // css/jeu-cadran-operatoire.css) : window.visualViewport, contrairement à
+  // 100dvh, réagit de façon fiable à l'ouverture du clavier virtuel MÊME
+  // dans un élément en plein écran réel — on l'utilise pour poser la vraie
+  // hauteur visible en variable CSS, que la page applique alors en priorité
+  // sur 100dvh via .cadran-hauteur-mesuree. Sans effet hors plein écran
+  // (déjà correctement géré par 100dvh, voir plus haut) ni sur les
+  // navigateurs sans visualViewport (le clavier bascule un peu plus tard,
+  // faute d'un signal fiable, mais rien ne casse).
+  function cadranAjusterHauteurClavier() {
+    if (!window.visualViewport || !document.fullscreenElement || !elCadranPage) return;
+    elCadranPage.style.setProperty('--cadran-hauteur-visible', window.visualViewport.height + 'px');
+    elCadranPage.classList.add('cadran-hauteur-mesuree');
+  }
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', cadranAjusterHauteurClavier);
+  }
 
   if (elBtnQuitterFlottant) {
     elBtnQuitterFlottant.addEventListener('click', () => {
@@ -200,6 +228,16 @@ function cadranInitJeu() {
   function cadranCloseSettings() { elSettingsModal.classList.remove('active'); }
   function cadranCloseSummary() { elSummaryModal.classList.remove('active'); }
 
+  // ----- Rappel du mode/niveau en cours, affiché hors de la fenêtre
+  // Réglages (24 septembre 2026 — voir cadran-etat-actuel). -----
+  const CADRAN_LIBELLE_MODE = { dial: '🎯 Cadran', mental: '💡 Problèmes & Calculs' };
+  const CADRAN_LIBELLE_NIVEAU = { azovi: '🌱 Azɔ̀ví', devi: '🪘 Dèví', ogan: '🦁 Ògán', axosu: '👑 Axɔ́sú' };
+  let cadranNiveauActuel = 'azovi';
+  function cadranMajEtatActuel() {
+    if (!elEtatActuel) return;
+    elEtatActuel.textContent = `${CADRAN_LIBELLE_MODE[currentAppMode] || ''} · ${CADRAN_LIBELLE_NIVEAU[cadranNiveauActuel] || ''}`;
+  }
+
   // ----- Modes -----
   let currentAppMode = 'dial';
 
@@ -210,6 +248,7 @@ function cadranInitJeu() {
 
     document.querySelectorAll('.cadran-dial-only').forEach(el => el.style.display = mode === 'dial' ? '' : 'none');
     document.querySelectorAll('.cadran-mental-only').forEach(el => el.style.display = mode === 'mental' ? '' : 'none');
+    cadranMajEtatActuel();
   }
 
   // ----- Difficulté (Azɔ̀ví/Dèví/Ògán/Axɔ́sú — remplace Facile/Moyen/
@@ -228,10 +267,12 @@ function cadranInitJeu() {
     document.querySelectorAll('.cadran-diff-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.diff === niveau));
     const reglage = CADRAN_NIVEAUX[niveau];
     if (!reglage) return;
+    cadranNiveauActuel = niveau;
     elTimeSelect.value = reglage.temps;
     elRangeSelect.value = reglage.intervalle;
     elShuffleModeSelect.value = reglage.disposition;
     cadranUpdateDialLayout();
+    cadranMajEtatActuel();
   }
 
   // ----- Configuration du cadran -----
@@ -540,14 +581,34 @@ function cadranInitJeu() {
 
   // ----- Réglage additif "masquer l'opération" (Paramètres) : floute la
   // zone de jeu une fois la question affichée, révélée à la demande via
-  // "👁️ Revoir". N'a aucun effet sur la logique ci-dessus. -----
+  // "👁️ Revoir". N'a aucun effet sur la logique ci-dessus.
+  //
+  // Correctif du 24 septembre 2026 (signalement : "l'option masqué [...]
+  // est activé juste avant la fin de l'opération. Il faut que le cadran
+  // finisse de proposer l'opération avant que le masquage s'active") :
+  // cadranMasquerAppliquer() était jusqu'ici appelée à l'instant même où
+  // l'opération finit de s'assembler (voir cadranRunDialSequence/
+  // cadranRunMentalSequence) — le flou s'appliquait donc AVANT que l'élève
+  // ait eu le temps de lire l'opération complète, la masquant en pratique
+  // dès son apparition plutôt qu'après. Un court délai de lecture
+  // (CADRAN_DELAI_LECTURE_MASQUAGE_MS) est maintenant intercalé entre la fin
+  // de l'assemblage (l'opération reste pleinement visible pendant ce délai)
+  // et l'application réelle du flou. La saisie et le chronomètre, eux, ne
+  // sont volontairement pas retardés (l'élève peut commencer à répondre dès
+  // que l'opération est proposée, comme avant). -----
+  const CADRAN_DELAI_LECTURE_MASQUAGE_MS = 1200;
+  let cadranMasquageTimeoutId = null;
   function cadranMasquerAppliquer() {
+    clearTimeout(cadranMasquageTimeoutId);
     if (!cadranMasquerOperation) { elBtnRevoir.hidden = true; return; }
-    const cible = currentAppMode === 'dial' ? elDialContainer : elProblemDisplay;
-    cible.classList.add('cadran-masque');
-    elBtnRevoir.hidden = false;
+    cadranMasquageTimeoutId = setTimeout(() => {
+      const cible = currentAppMode === 'dial' ? elDialContainer : elProblemDisplay;
+      cible.classList.add('cadran-masque');
+      elBtnRevoir.hidden = false;
+    }, CADRAN_DELAI_LECTURE_MASQUAGE_MS);
   }
   function cadranMasquerCacher() {
+    clearTimeout(cadranMasquageTimeoutId);
     elDialContainer.classList.remove('cadran-masque');
     elProblemDisplay.classList.remove('cadran-masque');
     elBtnRevoir.hidden = true;

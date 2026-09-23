@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KEKELI - L'Atelier du Français</title>
+<title>KEKELI - Défi Éducation Sociale</title>
 <link rel="icon" type="image/png" href="../../assets/logo/logo.png">
 <link rel="stylesheet" href="../../css/style-public.css">
 <link rel="stylesheet" href="../../css/theme-premium-eleve.css">
@@ -14,36 +14,33 @@
 <body>
   <header></header>
 
-  <!-- "L'Atelier du Français" — rebranché le 24 septembre 2026 sur le moteur
-       d'arcade commun (js/jeux/), pour piocher dans les vraies séances
-       publiées de Français plutôt que dans la banque de 30 questions
-       statiques utilisée entre le 12 et le 24 septembre 2026 (demande :
-       "Pour le français, faut lier les questionnaires à au séances
-       réelles"). Même coquille générique que jeu-es.html/jeu-est.html — la
-       seule différence est l'ajout, sur demande explicite lors de la
-       clarification de cette livraison, d'un second sélecteur "Catégorie"
-       (conjugaison/grammaire/orthographe/vocabulaire/expression, en plus du
-       palier), voir jeuCategorieSelector ci-dessous et js/pages/eleve-jeu-
-       atelier-francais.js pour le détail des catégories. -->
+  <!-- Jeu "Défi Éducation Sociale" — séparé le 24 septembre 2026 de l'ancien
+       jeu combiné "Défi ES & EST" (jeu-es-est.html, retiré ce même jour, sur
+       demande explicite : "Sépare l'ES de L'EST et lie chacun au séances
+       réelles du site"). Même coquille/moteur partagés (js/jeux/), la seule
+       différence avec jeu-est.html est la matière ciblée (champFormationIds
+       dans js/pages/eleve-jeu-es.js) — le contenu était déjà tiré des vraies
+       séances publiées avant cette séparation (voir js/jeux/moteur-jeu-
+       arcade.js), seule la fusion des deux matières dans un même jeu
+       disparaît. -->
   <div class="jeu-arcade-page">
     <div class="jeu-app-container">
       <div class="jeu-header-bar">
         <a href="jeux-educatifs.html" class="jeu-btn-lien-retour">⬅️ Jeux</a>
-        <h1>📚 L'Atelier du Français</h1>
+        <h1>🏛️ Défi Éducation Sociale</h1>
         <button type="button" class="jeu-btn-settings" id="jeuBtnSettings">⚙️</button>
       </div>
 
       <div class="jeu-ecran-accueil" id="jeuAccueil">
-        <p>Des questions tirées de tes vraies séances de français — conjugaison, grammaire, orthographe, vocabulaire, expression. Choisis ta catégorie et ton niveau !</p>
+        <p>Des questions tirées de tes vraies séances d'Éducation Sociale, avec plusieurs types d'exercices — comme l'Atelier du Français. Choisis ton niveau !</p>
         <div class="jeu-palier-selector" id="jeuPalierSelector"></div>
-        <div class="jeu-categorie-selector" id="jeuCategorieSelector"></div>
         <p id="jeuInfoAccueil">Chargement...</p>
         <button type="button" class="jeu-btn-start" id="jeuBtnLancer" disabled>🚀 Lancer la partie</button>
       </div>
 
       <div id="jeuCorps" hidden style="display:flex;flex-direction:column;flex:1;min-height:0">
         <div class="jeu-zone" id="jeuZone">
-          <div class="jeu-matiere-tag" id="jeuMatiereTag">Français</div>
+          <div class="jeu-matiere-tag" id="jeuMatiereTag">Éducation Sociale</div>
           <div id="jeuQuestionArea" class="jeu-message-accueil">Prépare-toi...</div>
           <div class="jeu-countdown-overlay" id="jeuCountdownOverlay"></div>
         </div>
@@ -91,7 +88,7 @@
   <script src="../../js/jeux/rendu-questions-jeu.js"></script>
   <script src="../../js/jeux/moteur-jeu-arcade.js"></script>
   <script src="../../js/jeux/coquille-jeu-arcade.js"></script>
-  <script src="../../js/pages/eleve-jeu-atelier-francais.js"></script>
+  <script src="../../js/pages/eleve-jeu-es.js"></script>
   <footer></footer>
   <script src="../../js/pied-de-page.js"></script>
 </body>

@@ -1,12 +1,23 @@
 // Lot "Jeux éducatifs interactifs" (11 septembre 2026, douzième requête).
-// Moteur PARTAGÉ des 3 jeux d'arcade (pages/eleve/jeu-atelier-francais.html,
-// jeu-calcul-mental.html, jeu-es-est.html) : découverte de contenu réel
-// (blocs_seance rattachés aux séances déjà publiées de la classe de l'élève,
-// jamais une banque de questions à part), et réutilisation EXACTE du système
-// de paliers/badges déjà en place (mêmes appels que js/pages/eleve-seance.js —
-// valider_tache pour le guidage en direct, soumission réelle pour la
-// notation/les badges, etat_paliers_seance_v2 pour l'état des paliers). Voir
+// Moteur PARTAGÉ des jeux d'arcade reliés aux vraies séances : découverte de
+// contenu réel (blocs_seance rattachés aux séances déjà publiées de la
+// classe de l'élève, jamais une banque de questions à part), et
+// réutilisation EXACTE du système de paliers/badges déjà en place (mêmes
+// appels que js/pages/eleve-seance.js — valider_tache pour le guidage en
+// direct, soumission réelle pour la notation/les badges,
+// etat_paliers_seance_v2 pour l'état des paliers). Voir
 // js/jeux/rendu-questions-jeu.js pour le rendu des 13 types de question.
+//
+// Utilisé par pages/eleve/jeu-es.html (Éducation Sociale) et jeu-est.html
+// (Éducation Scientifique et Technologique), séparés le 24 septembre 2026 à
+// partir de l'ancien jeu combiné "Défi ES & EST" (jeu-es-est.html, retiré ce
+// même jour) — et depuis le même jour par jeu-atelier-francais.html
+// (Français), qui a rejoint ce moteur commun après avoir été, entre le 12 et
+// le 24 septembre 2026, un port fidèle et autonome d'une banque de 30
+// questions statiques (voir js/pages/eleve-jeu-atelier-francais.js pour le
+// détail de cette bascule). jeu-calcul-mental.html reste volontairement à
+// l'écart de ce moteur (calcul mental généré aléatoirement, jamais tiré des
+// séances — voir js/pages/eleve-jeu-calcul-mental.js).
 //
 // Dépend de : supabaseClient (js/supabaseClient.js), RACINE_SITE (défini
 // inline sur chaque page), js/sons-eleve.js (jouerSonReussite/Echec/Palier).
@@ -41,7 +52,14 @@ async function jeuTrouverClasseEleve(eleveId) {
   return data?.classe_id || null;
 }
 
-async function jeuTrouverBlocsCandidats({ classeId, champFormationIds, palier }) {
+// filtrerCategorie (optionnel, ajouté le 24 septembre 2026 pour l'Atelier du
+// Français relié aux vraies séances) : fonction (discipline: string) =>
+// boolean, appliquée sur seances.discipline pour ne garder que les blocs
+// d'une catégorie choisie par l'élève (conjugaison, grammaire...) — voir
+// config.categoriesDisponibles dans js/jeux/coquille-jeu-arcade.js. Absente
+// ou non fournie, aucun filtre de catégorie n'est appliqué (comportement
+// inchangé pour les autres jeux — ES, EST, et l'ancien ES+EST combiné).
+async function jeuTrouverBlocsCandidats({ classeId, champFormationIds, palier, filtrerCategorie }) {
   if (!classeId || !Array.isArray(champFormationIds) || !champFormationIds.length || !palier) return [];
 
   const { data: noeuds } = await supabaseClient.from('noeuds_parcours')
@@ -66,18 +84,24 @@ async function jeuTrouverBlocsCandidats({ classeId, champFormationIds, palier })
   const { data: blocs } = await supabaseClient.from('blocs_seance')
     .select('*').in('seance_id', idsSeances).eq('palier', palier).order('ordre');
 
-  return (blocs || [])
+  let resultats = (blocs || [])
     .filter(b => b.statut_bloc !== 'brouillon' && ['quiz', 'evaluation', 'activite'].includes(b.type_bloc))
     .filter(b => Array.isArray(b.contenu?.questions) && b.contenu.questions.length > 0)
     .map(b => ({ ...b, seance: seancesParId[b.seance_id] }));
+
+  if (typeof filtrerCategorie === 'function') {
+    resultats = resultats.filter(b => filtrerCategorie(b.seance?.discipline));
+  }
+
+  return resultats;
 }
 
 // Choisit LA ronde à proposer : priorité au contenu jamais tenté, puis à un
 // bloc en cours (essais < 3, pas encore réussi à 100%) ; si tout est déjà
 // épuisé/réussi, on retombe sur le premier bloc en mode "relecture" plutôt
 // que de bloquer l'élève sur une impasse.
-async function jeuTrouverRonde({ eleveId, classeId, champFormationIds, palier }) {
-  const blocsCandidats = await jeuTrouverBlocsCandidats({ classeId, champFormationIds, palier });
+async function jeuTrouverRonde({ eleveId, classeId, champFormationIds, palier, filtrerCategorie }) {
+  const blocsCandidats = await jeuTrouverBlocsCandidats({ classeId, champFormationIds, palier, filtrerCategorie });
   if (!blocsCandidats.length) return { aucunContenu: true };
 
   const idsBlocs = blocsCandidats.map(b => b.id);

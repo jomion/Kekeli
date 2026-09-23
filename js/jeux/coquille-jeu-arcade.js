@@ -1,10 +1,13 @@
 // Lot "Jeux éducatifs interactifs" (11 septembre 2026, douzième requête).
-// Coquille COMMUNE aux 3 jeux d'arcade : écran d'accueil (choix du palier),
-// décompte, affichage d'une question à la fois (façon "Atelier du Français" /
-// "Cadran opératoire" fournis en référence), barre de temps décorative,
-// bilan de fin de ronde avec confettis, réglages. La partie spécifique à
-// chaque jeu (matière(s) ciblées, étiquette, cadran cosmétique pour le
-// Calcul mental...) est passée en configuration par
+// Coquille COMMUNE aux jeux d'arcade reliés aux vraies séances (Atelier du
+// Français, Défi Éducation Sociale, Défi Éducation Scientifique et
+// Technologique — voir js/jeux/moteur-jeu-arcade.js pour la liste à jour) :
+// écran d'accueil (choix du palier, et depuis le 24 septembre 2026
+// optionnellement de la catégorie), décompte, affichage d'une question à la
+// fois (façon "Atelier du Français" / "Cadran opératoire" fournis en
+// référence), barre de temps décorative, bilan de fin de ronde avec
+// confettis, réglages. La partie spécifique à chaque jeu (matière(s)
+// ciblées, catégories disponibles...) est passée en configuration par
 // js/pages/eleve-jeu-*.js — voir creerJeuArcade() en bas de fichier.
 //
 // Dépend de : supabaseClient, RACINE_SITE, js/sons-eleve.js,
@@ -14,16 +17,25 @@
 
 function creerJeuArcade(config) {
   // config attendu :
-  //   champFormationIds: [id,...]  (1 matière, ou 2 pour ES+EST)
+  //   champFormationIds: [id,...]  (1 matière — 2 pour l'ancien jeu ES+EST
+  //     combiné, retiré le 24 septembre 2026, voir ci-dessus)
   //   dureesParDefautSecondes: 15 (temps par question, cosmétique)
   //   permettreMasquerOperation: bool (Calcul mental uniquement)
   //   etiquetteQuestion(seance): string affichée dans le tag matière
   //   transformerZoneQuestion(zoneEl, q): optionnel, hook visuel (ex: cadran)
+  //   categoriesDisponibles: [{code, label, motsCles:[...]}] (optionnel,
+  //     ajouté le 24 septembre 2026 pour l'Atelier du Français) — affiche un
+  //     second sélecteur "Tout / <catégories>" sur l'écran d'accueil, EN PLUS
+  //     du palier ; motsCles est une liste de sous-chaînes (en minuscules)
+  //     comparées à seances.discipline pour décider si un bloc appartient à
+  //     la catégorie. Absent : pas de sélecteur de catégorie, comportement
+  //     strictement inchangé (ES, EST).
 
   const els = {
     accueil: document.getElementById('jeuAccueil'),
     jeuCorps: document.getElementById('jeuCorps'),
     palierSelector: document.getElementById('jeuPalierSelector'),
+    categorieSelector: document.getElementById('jeuCategorieSelector'),
     infoAccueil: document.getElementById('jeuInfoAccueil'),
     btnLancer: document.getElementById('jeuBtnLancer'),
     matiereTag: document.getElementById('jeuMatiereTag'),
@@ -44,6 +56,7 @@ function creerJeuArcade(config) {
     profil: null,
     classeId: null,
     palier: null,
+    categorie: 'all', // code de config.categoriesDisponibles, ou 'all' (aucun filtre)
     accesCorrection: { autorise: false },
     ronde: null, // { bloc, seance, essaisPrecedents, termine }
     index: 0,
@@ -65,17 +78,59 @@ function creerJeuArcade(config) {
     });
   }
 
+  // Sélecteur de catégorie (optionnel — voir config.categoriesDisponibles
+  // ci-dessus). Sans configuration, l'élément (s'il existe dans la page)
+  // reste simplement vide et masqué par la page elle-même.
+  function afficherCategorieSelector() {
+    if (!Array.isArray(config.categoriesDisponibles) || !config.categoriesDisponibles.length || !els.categorieSelector) return;
+    const toutes = [{ code: 'all', label: '🌟 Tout' }, ...config.categoriesDisponibles];
+    els.categorieSelector.innerHTML = toutes.map(c => `
+      <button type="button" class="jeu-categorie-btn ${etat.categorie === c.code ? 'active' : ''}" data-categorie="${c.code}">${c.label}</button>`).join('');
+    els.categorieSelector.querySelectorAll('[data-categorie]').forEach(btn => {
+      btn.addEventListener('click', () => choisirCategorie(btn.dataset.categorie));
+    });
+  }
+
+  async function choisirCategorie(code) {
+    etat.categorie = code;
+    afficherCategorieSelector();
+    // Le contenu dépend des deux filtres à la fois : si un palier est déjà
+    // choisi, on relance la recherche avec la nouvelle catégorie ; sinon on
+    // se contente de mémoriser le choix (l'élève doit encore choisir un
+    // palier pour que "Lancer la partie" s'active).
+    if (etat.palier) await choisirPalier(etat.palier);
+  }
+
+  function construireFiltreCategorie() {
+    if (!Array.isArray(config.categoriesDisponibles) || !etat.categorie || etat.categorie === 'all') return null;
+    const cat = config.categoriesDisponibles.find(c => c.code === etat.categorie);
+    if (!cat || !Array.isArray(cat.motsCles) || !cat.motsCles.length) return null;
+    return (discipline) => {
+      const texte = String(discipline || '').toLowerCase();
+      return cat.motsCles.some(mot => texte.includes(mot));
+    };
+  }
+
+  function libelleCategorieActuelle() {
+    if (!Array.isArray(config.categoriesDisponibles) || etat.categorie === 'all') return '';
+    const cat = config.categoriesDisponibles.find(c => c.code === etat.categorie);
+    return cat ? ` (${cat.label.replace(/^\S+\s/, '')})` : '';
+  }
+
   async function choisirPalier(code) {
     etat.palier = code;
     afficherPalierSelector();
     els.infoAccueil.textContent = 'Recherche des activités disponibles...';
     els.btnLancer.disabled = true;
 
-    etat.ronde = await jeuTrouverRonde({ eleveId: etat.profil.id, classeId: etat.classeId, champFormationIds: config.champFormationIds, palier: code });
+    etat.ronde = await jeuTrouverRonde({
+      eleveId: etat.profil.id, classeId: etat.classeId, champFormationIds: config.champFormationIds,
+      palier: code, filtrerCategorie: construireFiltreCategorie(),
+    });
 
     if (etat.ronde.aucunContenu) {
       const p = JEU_PALIERS.find(x => x.code === code);
-      els.infoAccueil.innerHTML = `Aucune activité ${p.nom} disponible pour l'instant dans cette matière — reviens plus tard, ou choisis un autre niveau. 🙂`;
+      els.infoAccueil.innerHTML = `Aucune activité ${p.nom}${libelleCategorieActuelle()} disponible pour l'instant dans cette matière — reviens plus tard, choisis un autre niveau, ou une autre catégorie. 🙂`;
       els.btnLancer.disabled = true;
       return;
     }
@@ -333,6 +388,7 @@ function creerJeuArcade(config) {
       etat.masquerOperation = await jeuLireMasquerOperation(profil.id);
     }
     afficherPalierSelector();
+    afficherCategorieSelector();
     els.btnLancer.addEventListener('click', lancer);
     if (els.btnSettings) els.btnSettings.addEventListener('click', ouvrirReglages);
     if (els.btnCloseSettings) els.btnCloseSettings.addEventListener('click', fermerReglages);
