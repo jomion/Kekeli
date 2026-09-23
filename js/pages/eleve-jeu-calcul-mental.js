@@ -23,9 +23,31 @@
 // preferences_navigation.masquer_operation_jeux) floute le cadran/l'énoncé
 // une fois affiché, avec un bouton "Revoir" pour le faire réapparaître à la
 // demande — voir cadranAppliquerMasquage().
+//
+// Compléments du 24 septembre 2026 (second lot) :
+// - Le réglage "masquer l'opération" est désormais RAMENÉ directement dans
+//   les Réglages du Cadran (en plus de rester modifiable depuis la page
+//   Paramètres générale, dont il partage la même colonne
+//   preferences_navigation.masquer_operation_jeux — les deux emplacements
+//   restent synchronisés, et les autres jeux qui lisent cette même colonne
+//   ne sont pas affectés).
+// - Nouveau réglage "afficher ou non le bouton Revoir"
+//   (preferences_navigation.cadran_revoir_actif, colonne ajoutée par
+//   migration, défaut true = comportement identique à avant) : permet de
+//   désactiver la possibilité de faire réapparaître l'opération masquée à
+//   la demande, pour un entraînement plus strict de la mémoire.
+// - Le niveau de difficulté choisi est maintenant mémorisé
+//   (preferences_navigation.cadran_dernier_niveau) et repris automatiquement
+//   au prochain lancement du jeu ("garde le niveau où l'enfant était"),
+//   au lieu de toujours redémarrer sur Azɔ̀ví.
+// - Le cadran/l'écran de jeu (chiffre central, opération affichée, saisie,
+//   chronomètre, score) est maintenant réinitialisé en revenant du bilan de
+//   fin de série (bouton "Rejouer") au lieu de garder l'état de la toute
+//   dernière question posée — voir cadranResetEcranJeu().
 
 let cadranProfil = null;
 let cadranMasquerOperation = false;
+let cadranRevoirActif = true;
 
 (async function () {
   cadranProfil = await requireRole('eleve');
@@ -35,13 +57,16 @@ let cadranMasquerOperation = false;
     liens: liensAvecPrefixe('eleve', '')
   });
 
+  let cadranNiveauInitial = 'azovi';
   try {
     const { data } = await supabaseClient.from('preferences_navigation')
-      .select('masquer_operation_jeux').eq('utilisateur_id', cadranProfil.id).maybeSingle();
+      .select('masquer_operation_jeux, cadran_revoir_actif, cadran_dernier_niveau').eq('utilisateur_id', cadranProfil.id).maybeSingle();
     cadranMasquerOperation = !!data?.masquer_operation_jeux;
-  } catch (e) { cadranMasquerOperation = false; }
+    cadranRevoirActif = data?.cadran_revoir_actif !== false; // défaut true
+    if (data?.cadran_dernier_niveau) cadranNiveauInitial = data.cadran_dernier_niveau;
+  } catch (e) { cadranMasquerOperation = false; cadranRevoirActif = true; }
 
-  cadranInitJeu();
+  cadranInitJeu(cadranNiveauInitial);
 })();
 
 function cadranEchapper(v) {
@@ -50,7 +75,7 @@ function cadranEchapper(v) {
   return d.innerHTML;
 }
 
-function cadranInitJeu() {
+function cadranInitJeu(cadranNiveauInitial) {
   // ----- Moteur Audio (identique au fichier de référence) -----
   const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -141,6 +166,9 @@ function cadranInitJeu() {
   const elBtnModeDial = document.getElementById('cadranBtnModeDial');
   const elBtnModeMental = document.getElementById('cadranBtnModeMental');
   const elBtnRevoir = document.getElementById('cadranBtnRevoir');
+  const elMasquerToggle = document.getElementById('cadranMasquerToggle');
+  const elRevoirToggle = document.getElementById('cadranRevoirToggle');
+  const elRevoirToggleRow = document.getElementById('cadranRevoirToggleRow');
   const elCadranPage = document.querySelector('.cadran-page');
   const elBtnQuitterFlottant = document.getElementById('cadranBtnQuitterFlottant');
   const elLienRetourEntete = document.querySelector('.cadran-btn-lien-retour');
@@ -226,7 +254,37 @@ function cadranInitJeu() {
 
   function cadranOpenSettings() { elSettingsModal.classList.add('active'); }
   function cadranCloseSettings() { elSettingsModal.classList.remove('active'); }
-  function cadranCloseSummary() { elSummaryModal.classList.remove('active'); }
+  function cadranCloseSummary() {
+    elSummaryModal.classList.remove('active');
+    cadranResetEcranJeu();
+  }
+
+  // ----- Réinitialisation de l'écran de jeu (24 septembre 2026, second lot)
+  // — signalement : "au lieu de maintenir la dernière question posée faut
+  // réinitialiser le cadran". En revenant du bilan de fin de série (bouton
+  // "Rejouer"), l'écran gardait jusqu'ici l'état de la toute dernière
+  // question (chiffre/opération/nombre surlignés, énoncé, saisie, retour
+  // "Bravo !"/"Oups !", barre de temps) jusqu'à ce qu'une nouvelle série
+  // soit lancée — cadranCloseSummary() n'appelait jamais la remise à zéro
+  // (celle-ci n'existait que dans cadranStartSequence(), déclenchée
+  // uniquement au lancement effectif d'une question). Cette fonction remet
+  // l'écran dans son état neutre de départ dès la fermeture du bilan. -----
+  function cadranResetEcranJeu() {
+    clearInterval(timerInterval);
+    clearTimeout(cadranMasquageTimeoutId);
+    cadranResetDisplay();
+    elDialContainer.classList.remove('cadran-masque');
+    elProblemDisplay.classList.remove('cadran-masque');
+    elProblemDisplay.innerText = 'Prêt pour le défi ?';
+    elBtnRevoir.hidden = true;
+    elTimerBar.style.width = '0%';
+    elFeedback.innerText = '';
+    elUserAnswer.value = '';
+    elUserAnswer.disabled = true;
+    elValBtn.disabled = true;
+    elQuestionCounter.innerText = 'Question : 0/0';
+    elScoreDisplay.innerText = 'Score : 0';
+  }
 
   // ----- Rappel du mode/niveau en cours, affiché hors de la fenêtre
   // Réglages (24 septembre 2026 — voir cadran-etat-actuel). -----
@@ -263,7 +321,10 @@ function cadranInitJeu() {
     axosu: { temps: '3',  intervalle: '500', disposition: 'shuffleEach' }
   };
 
-  function cadranSetDifficulty(niveau) {
+  // persister=false lors de l'application du niveau repris au chargement
+  // (on vient justement de LE LIRE en base, pas de le modifier) ; true
+  // (par défaut) quand l'enfant clique lui-même sur un niveau.
+  function cadranSetDifficulty(niveau, persister = true) {
     document.querySelectorAll('.cadran-diff-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.diff === niveau));
     const reglage = CADRAN_NIVEAUX[niveau];
     if (!reglage) return;
@@ -273,6 +334,21 @@ function cadranInitJeu() {
     elShuffleModeSelect.value = reglage.disposition;
     cadranUpdateDialLayout();
     cadranMajEtatActuel();
+    if (persister) cadranPersisterNiveau(niveau);
+  }
+
+  // ----- Mémorisation du niveau ("garde le niveau où l'enfant était",
+  // 24 septembre 2026) : preferences_navigation.cadran_dernier_niveau, même
+  // pattern d'upsert que masquer_operation_jeux/theme_premium. Non bloquant
+  // en cas d'échec réseau : le niveau reste appliqué pour la partie en
+  // cours, simplement pas mémorisé pour la prochaine visite. -----
+  async function cadranPersisterNiveau(niveau) {
+    if (!cadranProfil) return;
+    try {
+      const { error } = await supabaseClient.from('preferences_navigation')
+        .upsert({ utilisateur_id: cadranProfil.id, cadran_dernier_niveau: niveau, maj_le: new Date().toISOString() });
+      if (error) throw error;
+    } catch (e) { /* non bloquant */ }
   }
 
   // ----- Configuration du cadran -----
@@ -604,7 +680,10 @@ function cadranInitJeu() {
     cadranMasquageTimeoutId = setTimeout(() => {
       const cible = currentAppMode === 'dial' ? elDialContainer : elProblemDisplay;
       cible.classList.add('cadran-masque');
-      elBtnRevoir.hidden = false;
+      // Réglage additif "afficher ou non le bouton Revoir" (24 septembre
+      // 2026, second lot) : quand désactivé, l'opération reste masquée
+      // sans possibilité de la faire réapparaître à la demande.
+      elBtnRevoir.hidden = !cadranRevoirActif;
     }, CADRAN_DELAI_LECTURE_MASQUAGE_MS);
   }
   function cadranMasquerCacher() {
@@ -616,6 +695,41 @@ function cadranInitJeu() {
   elBtnRevoir.addEventListener('click', () => {
     const cible = currentAppMode === 'dial' ? elDialContainer : elProblemDisplay;
     cible.classList.toggle('cadran-masque');
+  });
+
+  // ----- Réglage "masquer l'opération" + sous-option "bouton Revoir",
+  // ramenés directement dans les Réglages du Cadran (24 septembre 2026,
+  // second lot) — mêmes colonnes preferences_navigation que la page
+  // Paramètres générale (masquer_operation_jeux) / nouvelle colonne dédiée
+  // (cadran_revoir_actif), toujours modifiables aussi depuis Paramètres. -----
+  function cadranMajEtatToggleRevoir() {
+    if (elRevoirToggle) elRevoirToggle.disabled = !cadranMasquerOperation;
+    elRevoirToggleRow?.classList.toggle('cadran-toggle-desactive', !cadranMasquerOperation);
+  }
+  if (elMasquerToggle) elMasquerToggle.checked = cadranMasquerOperation;
+  if (elRevoirToggle) elRevoirToggle.checked = cadranRevoirActif;
+  cadranMajEtatToggleRevoir();
+
+  elMasquerToggle?.addEventListener('change', async (e) => {
+    const actif = e.target.checked;
+    cadranMasquerOperation = actif;
+    cadranMajEtatToggleRevoir();
+    try {
+      const { error } = await supabaseClient.from('preferences_navigation')
+        .upsert({ utilisateur_id: cadranProfil.id, masquer_operation_jeux: actif, maj_le: new Date().toISOString() });
+      if (error) throw error;
+    } catch (err) { /* non bloquant : le réglage reste actif pour cette partie */ }
+  });
+
+  elRevoirToggle?.addEventListener('change', async (e) => {
+    const actif = e.target.checked;
+    cadranRevoirActif = actif;
+    if (!actif) elBtnRevoir.hidden = true;
+    try {
+      const { error } = await supabaseClient.from('preferences_navigation')
+        .upsert({ utilisateur_id: cadranProfil.id, cadran_revoir_actif: actif, maj_le: new Date().toISOString() });
+      if (error) throw error;
+    } catch (err) { /* non bloquant */ }
   });
 
   // ----- Écouteurs -----
@@ -633,7 +747,10 @@ function cadranInitJeu() {
   elBtnStart.addEventListener('click', () => { cadranDemanderPleinEcran(); cadranStartSeries(); });
   elBtnRejouer.addEventListener('click', cadranCloseSummary);
 
-  // Niveau de difficulté par défaut : Azɔ̀ví (comme le fichier de référence
-  // démarrait sur "Facile").
-  cadranSetDifficulty('azovi');
+  // Niveau de difficulté : celui où l'enfant s'était arrêté la dernière fois
+  // (preferences_navigation.cadran_dernier_niveau — "garde le niveau où
+  // l'enfant était", 24 septembre 2026), Azɔ̀ví par défaut sinon (comme
+  // avant). persister=false : on vient de LIRE ce niveau en base, pas de le
+  // modifier.
+  cadranSetDifficulty(CADRAN_NIVEAUX[cadranNiveauInitial] ? cadranNiveauInitial : 'azovi', false);
 }

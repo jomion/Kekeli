@@ -1,3 +1,68 @@
+KEKELI — Livraison du 24 septembre 2026 (troisième lot) — Cadran opératoire : réglages de masquage ramenés dans le jeu, bouton "Revoir" optionnel, niveau mémorisé, écran réinitialisé entre les parties
+===========================================================================
+
+LE RÉGLAGE "MASQUER L'OPÉRATION" EST DE RETOUR DIRECTEMENT DANS LE CADRAN
+--------------------------------------------------------------------------
+Il fallait jusqu'ici quitter le jeu et aller dans "Paramètres" (menu du
+haut) pour activer ou désactiver le masquage de l'opération. Ce réglage
+est maintenant disponible directement dans les Réglages du Cadran
+opératoire (bouton "⚙️ Réglages" en haut du jeu) — plus besoin de sortir
+du jeu. Il reste aussi modifiable depuis "Paramètres" si vous préférez :
+c'est le même réglage aux deux endroits, toujours synchronisé, et les
+autres jeux éducatifs qui utilisent ce même masquage ne sont pas touchés.
+
+NOUVEAU : AUTORISER OU NON LE BOUTON "REVOIR"
+-----------------------------------------------
+Juste en dessous, un second réglage permet de choisir si le bouton
+"👁️ Revoir" (qui permet à l'enfant de faire réapparaître l'opération
+masquée à la demande) est autorisé ou non. Activé par défaut (comme
+avant) ; désactivez-le pour un entraînement de mémoire plus strict, où
+l'opération masquée ne peut plus être révélée avant la question suivante.
+Ce réglage n'a d'effet que si le masquage de l'opération est lui-même
+activé (sinon il apparaît grisé dans les Réglages).
+
+LE JEU REPREND MAINTENANT AU NIVEAU OÙ L'ENFANT S'ÉTAIT ARRÊTÉ
+------------------------------------------------------------------
+Auparavant, le Cadran redémarrait toujours sur le niveau "Azɔ̀ví" (le plus
+facile) à chaque nouvelle visite, même si l'enfant avait progressé
+jusqu'à "Ògán" ou "Axɔ́sú" la fois précédente. Le dernier niveau choisi
+est maintenant mémorisé et repris automatiquement au prochain lancement
+du jeu.
+
+L'ÉCRAN DE JEU SE RÉINITIALISE ENTRE DEUX PARTIES
+----------------------------------------------------
+Signalement : "au lieu de maintenir la dernière question posée faut
+réinitialiser le cadran". En cliquant sur "Rejouer" à la fin d'une série,
+l'écran gardait jusqu'ici l'état de la toute dernière question posée
+(chiffre et opération encore surlignés, énoncé encore affiché, réponse
+saisie, message "Bravo !"/"Oups !", barre de temps) jusqu'au lancement
+d'une nouvelle série. L'écran repart maintenant à zéro (cadran neutre,
+aucun énoncé, aucune saisie, score et compteur remis à 0) dès la
+fermeture du bilan, prêt pour un nouveau départ.
+
+À VENIR : COMBINAISON D'OPÉRATIONS POUR ÒGÁN ET AXƆ́SÚ
+----------------------------------------------------------
+Le second volet de votre demande — ajouter des opérations combinées
+(ex. "5 × 4 + 8", "2 + 4 × 5 - 2 ÷ 2") aux niveaux Ògán et Axɔ́sú — est en
+cours de cadrage avant développement : plusieurs choix de conception ont
+un impact direct sur l'expérience de jeu (façon dont le cadran anime une
+opération à plusieurs étapes, nombre d'opérations enchaînées, point de
+départ de l'opération) et méritent d'être validés avec vous avant
+d'écrire le code, plutôt que de deviner. Vous serez sollicité séparément
+à ce sujet.
+
+FICHIERS MODIFIÉS DANS CETTE LIVRAISON
+------------------------------------------
+- pages/eleve/jeu-calcul-mental.html
+- js/pages/eleve-jeu-calcul-mental.js
+- css/jeu-cadran-operatoire.css
+
+Aucun fichier supprimé. Deux nouvelles colonnes ajoutées en base de
+données (preferences_navigation.cadran_dernier_niveau et
+preferences_navigation.cadran_revoir_actif), appliquées directement en
+production, sans action de votre part.
+
+
 KEKELI — Livraison du 24 septembre 2026 (second lot) — affichage mobile de la page "Mes matières" corrigé
 ===========================================================================
 

@@ -183,7 +183,27 @@
             </select>
           </div>
 
-          <p class="cadran-note-masquage">💡 Le réglage "masquer l'opération" (pour t'entraîner à la mémoriser) se trouve dans <strong>Paramètres</strong>, menu du haut — il s'applique automatiquement ici.</p>
+          <!-- Masquage de l'opération, ramené directement ici (24 septembre
+               2026, second lot) au lieu d'un simple renvoi vers la page
+               Paramètres générale — toujours modifiable aussi depuis
+               Paramètres (même réglage, préférence partagée avec les autres
+               jeux). Sous-option "bouton Revoir" : n'a d'effet que si le
+               masquage est actif. -->
+          <div class="cadran-config-group cadran-config-group-pleine-largeur">
+            <label>Masquage de l'opération :</label>
+            <div class="cadran-toggle-row">
+              <label class="cadran-toggle-label" for="cadranMasquerToggle">
+                <input type="checkbox" id="cadranMasquerToggle">
+                Masquer l'opération (pour s'entraîner à la mémoriser)
+              </label>
+            </div>
+            <div class="cadran-toggle-row cadran-toggle-sous-option" id="cadranRevoirToggleRow">
+              <label class="cadran-toggle-label" for="cadranRevoirToggle">
+                <input type="checkbox" id="cadranRevoirToggle" checked>
+                Autoriser le bouton "👁️ Revoir"
+              </label>
+            </div>
+          </div>
         </div>
       </div>
 
