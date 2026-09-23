@@ -1283,8 +1283,16 @@ function html_selectPalier(bloc) {
 // coupler ce fichier partagé à une source de données précise. La sélection
 // courante du bloc n'est PAS dans bloc.contenu : elle vit dans la table de
 // liaison `blocs_competences`, chargée à part et posée sur bloc.competencesIds
-// par l'appelant avant le premier rendu (voir chargerBlocs() côté éditeur de
-// séance et chargerBlocsDevoir() côté éditeur de devoir).
+// par l'appelant avant le premier rendu.
+// 23 septembre 2026 : côté SÉANCE, ce sélecteur par bloc a été remplacé par
+// un sélecteur unique au niveau de l'en-tête de la séance (voir
+// html_selectCompetencesSeance() dans js/pages/editeur-seance.js, qui
+// n'appelle plus cette fonction) — la table blocs_competences n'est donc
+// plus alimentée pour les séances (elle reste vide et dormante de ce côté,
+// conservée pour un affinage plus fin éventuel plus tard). Cette fonction
+// reste en revanche utilisée telle quelle par l'éditeur de devoir
+// (js/editeur/devoir-blocs.js, chargerBlocsDevoir()), qui n'est pas
+// concerné par cette révision.
 function html_selectCompetencesBloc(bloc, dispo) {
   if (!Array.isArray(dispo) || !dispo.length) {
     return '<p class="note-future">Aucune compétence configurée pour cette matière/classe — gérez le référentiel dans Admin ▸ Compétences pour pouvoir suivre la progression des élèves sur ce bloc (fonctionnalité Premium).</p>';
@@ -1353,7 +1361,13 @@ function html_editeurExercice(bloc, c) {
     <!-- Sans palier, cet exercice est un bloc de contenu ordinaire : ni seuil
          ni progression à configurer, uniquement visible/masqué via data-bloc-seuil
          ci-dessus (le champ garde sa valeur en base, juste masqué à l'écran). -->
-    ${html_selectCompetencesBloc(bloc, typeof COMPETENCES_DISPONIBLES_EDITEUR !== 'undefined' ? COMPETENCES_DISPONIBLES_EDITEUR : [])}
+    <!-- 23 septembre 2026 : le sélecteur de compétences travaillées, qui
+         était ici jusqu'alors (répété sur chaque bloc exercice/quiz/
+         évaluation/activité), est remonté au niveau de l'en-tête de la
+         séance — voir html_selectCompetencesSeance() dans
+         js/pages/editeur-seance.js — pour ne plus encombrer chaque bloc.
+         html_selectCompetencesBloc() reste défini ci-dessous : l'éditeur de
+         devoir (js/editeur/devoir-blocs.js) continue de l'utiliser. -->
     <div class="editeur-questions" data-questions-bloc="${bloc.id}">
       <div class="liste-questions" data-liste-questions>
         ${questions.length ? questions.map((q, i) => html_questionEditeur(q, i, null)).join('') : '<p class="note-future">Aucune question pour l\'instant.</p>'}

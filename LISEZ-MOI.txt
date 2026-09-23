@@ -1,3 +1,50 @@
+KEKELI — Livraison du 23 septembre 2026 — compétences liées à chaque séance
+===========================================================================
+
+DES COMPÉTENCES SONT DÉSORMAIS LIÉES À CHAQUE SÉANCE
+---------------------------------------------------------------
+Vous aviez demandé que des compétences soient liées à chaque séance.
+
+C'est fait. Dans l'éditeur de séance, un nouveau bloc "Compétences liées à
+cette séance" apparaît juste sous l'en-tête (titre, matière, etc.) : on y
+coche, une seule fois pour toute la séance, les compétences concernées.
+C'est un changement volontaire par rapport à l'ancien système (jamais
+vraiment utilisé) qui proposait de cocher des compétences sur CHAQUE bloc
+exercice/quiz séparément — cela encombrait l'affichage sans réel bénéfice,
+puisque toutes les réponses d'une même séance contribuent de toute façon au
+même suivi de maîtrise. On tague donc la séance dans son ensemble.
+
+Le suivi de la maîtrise de chaque élève, par compétence (déjà existant
+mais jusqu'ici jamais alimenté en pratique, faute de compétences liées),
+fonctionne maintenant réellement : dès qu'un élève répond à un exercice ou
+rend une activité, sa progression sur les compétences de la séance
+correspondante se recalcule automatiquement en arrière-plan. Un test
+complet (compétence de test liée à une séance réelle, réponse d'un élève
+de test) a confirmé un calcul exact avant mise en production ; toutes les
+données de test ont ensuite été supprimées.
+
+La page d'administration des compétences (où vous pouvez créer des
+compétences à la main ou demander à l'IA d'en proposer à partir d'une
+séance publiée, fonctionnalité déjà en place) permet maintenant de lier
+une compétence choisie à une séance entière en un clic, au lieu de devoir
+d'abord vérifier que la séance contient bien des exercices/quiz.
+
+Point important : les DEVOIRS ne sont pas concernés par ce changement.
+L'éditeur de devoirs garde son ancien sélecteur de compétences par bloc,
+mais celui-ci n'alimente plus le suivi de maîtrise (qui se base désormais
+uniquement sur les séances). Le rattachement des compétences aux devoirs
+n'est pas prévu dans cette phase du projet ; nous vous préviendrons si ce
+choix doit être révisé.
+
+Fichiers modifiés : js/pages/editeur-seance.js, js/editeur/blocs.js,
+js/pages/admin-competences.js. Changements en base de données mis en ligne
+directement (rien à installer de votre côté) : une nouvelle table
+seances_competences (liaison séance ↔ compétence), et le calcul de
+progression déjà existant reprogrammé pour s'appuyer dessus au lieu de
+l'ancienne liaison par bloc. Contrôle de sécurité (RLS/permissions)
+relancé après ces changements en base, sans aucune nouvelle alerte.
+
+===========================================================================
 KEKELI — Livraison du 19 septembre 2026 (13e lot du jour) — correctif du lien "Matière" pour un parent
 ===========================================================================
 

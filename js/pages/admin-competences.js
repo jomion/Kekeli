@@ -4,6 +4,10 @@
 // partir d'une séance déjà publiée (edge function assistant-ia, action
 // "proposerCompetences"). L'IA ne fait QUE proposer — rien n'est jamais
 // inséré en base sans relecture/validation explicite de l'admin ici.
+// 23 septembre 2026 : une compétence se lie désormais à une séance ENTIÈRE
+// (table seances_competences), pas à chacun de ses blocs — voir
+// lierCompetenceASeance() plus bas, et le nouveau sélecteur unique dans
+// l'en-tête de l'éditeur de séance (js/pages/editeur-seance.js).
 
 let profilAdminCompetences = null;
 let champsFormationCompetences = [];
@@ -155,9 +159,9 @@ function ouvrirNouvelleCompetence() {
       await chargerCompetences();
       // Demande du porteur du projet (5 septembre 2026) : pouvoir associer
       // directement la compétence qu'on vient de créer à une séance déjà
-      // publiée, sans repasser par l'éditeur de séance — tous les blocs
-      // Exercice/Quiz/Évaluation/Activité de la séance choisie sont alors
-      // tagués d'un coup (pas de sélection bloc par bloc ici).
+      // publiée, sans repasser par l'éditeur de séance. 23 septembre 2026 :
+      // lie désormais la séance elle-même (seances_competences), et non plus
+      // chacun de ses blocs — voir lierCompetenceASeance() plus bas.
       confirmerAction("Compétence créée. Voulez-vous l'associer tout de suite à une séance déjà publiée ?", () => {
         ouvrirChoixClasseAssociation(code);
       });
@@ -165,8 +169,7 @@ function ouvrirNouvelleCompetence() {
   });
 }
 
-// --- Association d'une compétence à toute une séance existante ------------
-// (tous ses blocs Exercice/Quiz/Évaluation/Activité en une seule fois).
+// --- Association d'une compétence à une séance existante -------------------
 
 function ouvrirChoixClasseAssociation(code) {
   // La compétence vient d'être créée par le insert ci-dessus : on la
@@ -213,20 +216,23 @@ async function ouvrirChoixSeanceAssociation(competence, classeId) {
       nom: 'seance_id', label: 'Séance publiée',
       type: 'select', options: seances.map(s => ({ valeur: s.id, label: `${s.titre}${s.titre_contenu ? ' — ' + s.titre_contenu : ''}${s.discipline ? ' (' + s.discipline + ')' : ''}` }))
     }],
-    texteValider: 'Lier tous ses exercices à cette compétence',
+    texteValider: 'Lier cette séance à la compétence',
     onValider: async ({ seance_id }) => await lierCompetenceASeance(competence.id, parseInt(seance_id, 10))
   });
 }
 
+// 23 septembre 2026 : lie désormais la compétence à la SÉANCE elle-même
+// (table seances_competences), et non plus à chacun de ses blocs Exercice/
+// Quiz/Évaluation/Activité un par un (table blocs_competences, devenue
+// dormante côté séance — voir js/pages/editeur-seance.js) — même révision
+// que le sélecteur de l'éditeur, qui vit maintenant dans l'en-tête de la
+// séance. Ça fonctionne même pour une séance qui n'a pas encore de bloc
+// noté (le suivi de progression se mettra à jour dès qu'elle en aura un).
 async function lierCompetenceASeance(competenceId, seanceId) {
-  const { data: blocs } = await supabaseClient.from('blocs_seance').select('id')
-    .eq('seance_id', seanceId).in('type_bloc', ['exercice', 'quiz', 'evaluation', 'activite']);
-  if (!blocs || !blocs.length) return alert("Cette séance n'a aucun bloc Exercice/Quiz/Évaluation/Activité à lier — la compétence a bien été créée, mais reste non rattachée à cette séance.");
-
-  const { error } = await supabaseClient.from('blocs_competences')
-    .upsert(blocs.map(b => ({ bloc_id: b.id, competence_id: competenceId })), { onConflict: 'bloc_id,competence_id', ignoreDuplicates: true });
+  const { error } = await supabaseClient.from('seances_competences')
+    .upsert({ seance_id: seanceId, competence_id: competenceId }, { onConflict: 'seance_id,competence_id', ignoreDuplicates: true });
   if (error) return alert(error.message);
-  alert(`Compétence liée à ${blocs.length} bloc${blocs.length > 1 ? 's' : ''} de la séance.`);
+  alert('Compétence liée à la séance.');
 }
 
 function ouvrirModifierCompetence(id) {

@@ -6,12 +6,21 @@ let seance = null;
 let chaineNavigation = null; // { sa, noeud, classe_id, champ_id, classeNom, champNom }
 let blocs = [];
 // Compétences du référentiel disponibles pour la classe/matière de cette
-// séance (Phase 2 — Accompagnement pédagogique personnalisé, Premium) — lu
-// par html_selectCompetencesBloc() dans js/editeur/blocs.js. Chaque bloc
-// exercice/quiz/évaluation/activité porte sa propre sélection dans
-// bloc.competencesIds (posée par chargerBlocs(), jamais dans bloc.contenu :
-// la source de vérité reste la table de liaison blocs_competences).
+// séance (Phase 2 — Accompagnement pédagogique personnalisé, Premium).
+// 23 septembre 2026 : demande explicite ("des compétences liées à chaque
+// séance"), qui exécute la révision déjà décidée le 19 septembre 2026 — la
+// sélection se fait UNE SEULE FOIS pour toute la séance, dans son en-tête
+// (voir html_selectCompetencesSeance() plus bas), et non plus répétée sur
+// chaque bloc exercice/quiz/évaluation/activité (l'ancien sélecteur par
+// bloc encombrait l'éditeur — voir html_selectCompetencesBloc() dans
+// js/editeur/blocs.js, dont l'appel a été retiré du rendu d'un bloc
+// exercice, mais dont la fonction reste utilisée par l'éditeur de devoir,
+// hors périmètre de cette demande). La sélection courante de la séance vit
+// dans la table de liaison `seances_competences` (jamais dans le contenu
+// d'un bloc), chargée par chargerCompetencesSeance() dans
+// SEANCE_COMPETENCES_SELECTIONNEES.
 let COMPETENCES_DISPONIBLES_EDITEUR = [];
+let SEANCE_COMPETENCES_SELECTIONNEES = [];
 let profilAdmin = null;
 let peutEditer = false;
 let peutValider = false;
@@ -155,28 +164,66 @@ async function chargerBlocs() {
   if (error) { console.error(error); return; }
   blocs = data;
 
-  // Compétences déjà rattachées à chaque bloc (table de liaison, jamais dans
-  // bloc.contenu — voir html_selectCompetencesBloc dans js/editeur/blocs.js).
-  const idsBlocs = blocs.map(b => b.id);
-  if (idsBlocs.length) {
-    const { data: liens } = await supabaseClient.from('blocs_competences').select('bloc_id, competence_id').in('bloc_id', idsBlocs);
-    const idsParBloc = {};
-    (liens || []).forEach(l => { (idsParBloc[l.bloc_id] ??= []).push(l.competence_id); });
-    blocs.forEach(b => { b.competencesIds = idsParBloc[b.id] || []; });
-  }
-
   await chargerCompetencesDisponiblesEditeur();
+  await chargerCompetencesSeance();
 }
 
 // Compétences actives du référentiel pour la classe/matière de cette séance
-// (transversales incluses, classe_id null) — proposées dans le sélecteur de
-// chaque bloc exercice/quiz/évaluation/activité.
+// (transversales incluses, classe_id null) — proposées dans le sélecteur
+// unique de l'en-tête de la séance (html_selectCompetencesSeance ci-dessous).
 async function chargerCompetencesDisponiblesEditeur() {
   const { data } = await supabaseClient.from('competences').select('id, intitule, domaine, ordre')
     .eq('champ_formation_id', chaineNavigation.champ_id).eq('actif', true)
     .or(`classe_id.eq.${chaineNavigation.classe_id},classe_id.is.null`)
     .order('domaine').order('ordre');
   COMPETENCES_DISPONIBLES_EDITEUR = data || [];
+}
+
+// Compétences déjà rattachées à CETTE séance (table de liaison
+// seances_competences, jamais dans seance.* ni dans un bloc — voir le
+// commentaire d'en-tête de SEANCE_COMPETENCES_SELECTIONNEES).
+async function chargerCompetencesSeance() {
+  const { data } = await supabaseClient.from('seances_competences').select('competence_id').eq('seance_id', idSeance);
+  SEANCE_COMPETENCES_SELECTIONNEES = (data || []).map(l => l.competence_id);
+}
+
+// Sélecteur unique, au niveau de l'en-tête de la séance, des compétences
+// travaillées par TOUTE la séance (23 septembre 2026 — voir le commentaire
+// d'en-tête de SEANCE_COMPETENCES_SELECTIONNEES). Même présentation (liste
+// de pastilles à cocher) que l'ancien sélecteur par bloc, pour rester
+// familière, mais posée une seule fois ici plutôt que répétée sur chaque
+// bloc exercice/quiz/évaluation/activité.
+function html_selectCompetencesSeance() {
+  if (!Array.isArray(COMPETENCES_DISPONIBLES_EDITEUR) || !COMPETENCES_DISPONIBLES_EDITEUR.length) {
+    return '<p class="note-future">🧩 Aucune compétence configurée pour cette matière/classe — gérez le référentiel dans Admin ▸ Compétences pour pouvoir suivre la progression des élèves sur cette séance (fonctionnalité Premium).</p>';
+  }
+  const selectionnees = new Set(SEANCE_COMPETENCES_SELECTIONNEES.map(String));
+  return `
+    <div class="champ-ligne" style="flex-direction:column;align-items:flex-start;gap:6px">
+      <label>🧩 Compétences travaillées par cette séance (suivi de progression Premium)</label>
+      <div class="liste-competences-bloc" style="display:flex;flex-wrap:wrap;gap:6px">
+        ${COMPETENCES_DISPONIBLES_EDITEUR.map(c => `
+          <label class="checkbox-modal" style="display:inline-flex;align-items:center;gap:5px;border:1px solid var(--bordure);border-radius:20px;padding:3px 10px;font-size:12px;cursor:pointer">
+            <input type="checkbox" data-competence-seance="${c.id}" ${selectionnees.has(String(c.id)) ? 'checked' : ''}> ${echapper(c.intitule)}
+          </label>`).join('')}
+      </div>
+    </div>`;
+}
+
+// Une coche/décoche = une seule écriture immédiate dans seances_competences
+// (pas de debounce, comme l'ancien sélecteur par bloc — voir le commentaire
+// équivalent qu'il portait).
+async function basculerCompetenceSeance(caseCompetence) {
+  const competenceId = parseInt(caseCompetence.dataset.competenceSeance, 10);
+  if (caseCompetence.checked) {
+    const { error } = await supabaseClient.from('seances_competences').insert({ seance_id: idSeance, competence_id: competenceId });
+    if (error) { caseCompetence.checked = false; alert(error.message); return; }
+    if (!SEANCE_COMPETENCES_SELECTIONNEES.includes(competenceId)) SEANCE_COMPETENCES_SELECTIONNEES.push(competenceId);
+  } else {
+    const { error } = await supabaseClient.from('seances_competences').delete().eq('seance_id', idSeance).eq('competence_id', competenceId);
+    if (error) { caseCompetence.checked = true; alert(error.message); return; }
+    SEANCE_COMPETENCES_SELECTIONNEES = SEANCE_COMPETENCES_SELECTIONNEES.filter(id => id !== competenceId);
+  }
 }
 
 // --- RENDU GÉNÉRAL -------------------------------------------------------
@@ -224,6 +271,10 @@ function rendre() {
     </div>
     </fieldset>
 
+    <fieldset id="fsCompetencesSeance" ${verrouilleLectureSeule ? 'disabled' : ''} style="border:0;padding:0;margin:8px 0">
+      ${html_selectCompetencesSeance()}
+    </fieldset>
+
     <div style="display:flex;justify-content:flex-end;gap:10px;margin:4px 0 8px">
       ${!verrouilleLectureSeule ? `<button class="btn btn-discret" id="btnBasculerVerrouLecture">🔒 Verrouiller en lecture seule</button>` : ''}
       <button class="btn btn-accent" onclick="ouvrirApercu()">👁️ Aperçu élève</button>
@@ -243,6 +294,10 @@ function rendre() {
 
   const btnBasculerVerrou = document.getElementById('btnBasculerVerrouLecture');
   if (btnBasculerVerrou) btnBasculerVerrou.addEventListener('click', basculerVerrouLectureSeule);
+
+  document.querySelectorAll('#fsCompetencesSeance [data-competence-seance]').forEach(caseCompetence => {
+    caseCompetence.addEventListener('change', () => basculerCompetenceSeance(caseCompetence));
+  });
 
   document.getElementById('selectStatut').addEventListener('change', gererChangementStatut);
   const btnValider = document.getElementById('btnValider');
@@ -452,28 +507,11 @@ function attacherEcouteursBloc(bloc) {
     });
   }
 
-  // Compétences travaillées (Phase 2 "Accompagnement personnalisé", Premium)
-  // — persistées directement dans blocs_competences (table de liaison), pas
-  // dans bloc.contenu : chaque coche/décoche déclenche un insert/delete
-  // immédiat, sans passer par programmerSauvegardeBloc (pas de debounce ici,
-  // il n'y a rien à taper — une seule action = une seule écriture).
-  el.querySelectorAll(':scope > .bloc-corps [data-competence-bloc]').forEach(caseCompetence => {
-    caseCompetence.addEventListener('change', async () => {
-      const competenceId = parseInt(caseCompetence.dataset.competenceBloc, 10);
-      bloc.competencesIds = Array.isArray(bloc.competencesIds) ? bloc.competencesIds : [];
-      if (caseCompetence.checked) {
-        if (!bloc.competencesIds.includes(competenceId)) {
-          const { error } = await supabaseClient.from('blocs_competences').insert({ bloc_id: bloc.id, competence_id: competenceId });
-          if (error) { caseCompetence.checked = false; alert(error.message); return; }
-          bloc.competencesIds.push(competenceId);
-        }
-      } else {
-        const { error } = await supabaseClient.from('blocs_competences').delete().eq('bloc_id', bloc.id).eq('competence_id', competenceId);
-        if (error) { caseCompetence.checked = true; alert(error.message); return; }
-        bloc.competencesIds = bloc.competencesIds.filter(id => id !== competenceId);
-      }
-    });
-  });
+  // Compétences travaillées : depuis le 23 septembre 2026, le sélecteur est
+  // au niveau de l'en-tête de la séance (voir html_selectCompetencesSeance()
+  // et basculerCompetenceSeance() plus haut) et non plus répété sur chaque
+  // bloc — il n'y a donc plus rien à câbler ici (le sélecteur par bloc
+  // n'est plus rendu, voir html_editeurExercice() dans js/editeur/blocs.js).
 
   // Nom du bloc modifiable (remplace le libellé figé du type)
   const inputLibelle = el.querySelector(':scope > .bloc-entete [data-libelle-bloc]');
