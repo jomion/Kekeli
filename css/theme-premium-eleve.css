@@ -486,6 +486,51 @@ body.theme-premium-actif .fil-ariane-eleve a { color: var(--prem-bleu); }
 .prem-liste-seances.compact .prem-carte-seance-repere,
 .prem-liste-seances.compact .prem-tags-seance { display: none; }
 
+/* Correctif du 24 septembre 2026 (signalement, capture d'écran mobile à
+   l'appui : "C'est pas responsif. C'est toujours en zoom." sur la page
+   Mes matières) : .prem-carte-seance aligne sur UNE SEULE ligne une icône
+   fixe (44px), le titre/repère (le seul élément qui pouvait rétrécir), le
+   bouton "épingler" fixe (30px) et le bouton "Commencer/Revoir" fixe
+   (~120px, jamais compressible) — sur un téléphone (~360-410px de large),
+   une fois les 28px de padding de #contenu (ligne 294 ci-dessus) et le
+   numéro de chronologie (32px) soustraits, il ne restait plus assez de
+   place pour ces éléments fixes ET un titre lisible : le bouton
+   "Commencer" débordait hors de l'écran (au lieu de passer à la ligne),
+   d'où l'impression d'une page non responsive qui reste "zoomée". Ce
+   correctif réduit le padding de page sous 480px et fait passer la carte
+   de séance sur deux lignes (icône + titre + épingle en haut, bouton
+   "Commencer" en pleine largeur en dessous) plutôt qu'une seule ligne trop
+   étroite — même contenu, mêmes classes, juste réorganisé pour l'écran
+   disponible. Les onglets d'unité et la sidebar avaient déjà leur propre
+   traitement mobile (voir @media plus haut) ; celui-ci comblait le seul
+   trou restant. */
+@media (max-width: 480px) {
+  body.theme-premium-actif #contenu,
+  body.theme-premium-actif .conteneur-tableau-bord,
+  body.theme-premium-actif .welcome-container-eleve {
+    padding: 0 14px 30px;
+  }
+
+  .prem-hero-matiere { padding: 20px 18px; min-height: 0; gap: 10px; }
+  .prem-hero-matiere-texte h1 { font-size: 20px; }
+  .prem-hero-matiere-texte p { font-size: 12.5px; }
+  .prem-hero-matiere-illustration { font-size: 46px; }
+
+  .prem-barre-filtres { gap: 8px; }
+  .prem-barre-filtres select, .prem-barre-filtres input[type="search"] { font-size: 12.5px; padding: 9px 12px; }
+
+  .prem-timeline-item { gap: 10px; }
+  .prem-timeline-num { width: 26px; height: 26px; font-size: 11.5px; }
+  .prem-timeline-item::before { left: 12px; }
+
+  .prem-carte-seance { flex-wrap: wrap; padding: 11px 13px; gap: 8px 10px; }
+  .prem-carte-seance-icone { width: 36px; height: 36px; border-radius: 11px; }
+  .prem-carte-seance-corps { flex: 1 1 180px; }
+  .prem-carte-seance-titre { font-size: 13px; }
+  .prem-carte-seance-repere { font-size: 11px; }
+  .prem-btn-commencer { flex: 1 1 100%; justify-content: center; padding: 9px 14px; font-size: 12.5px; }
+}
+
 /* --- Panneau latéral droit (progrès / badges / série / aide) --- */
 .prem-panneau-lateral { display: flex; flex-direction: column; gap: 16px; }
 .prem-carte-panneau { background: var(--prem-carte); border-radius: 18px; padding: 20px; box-shadow: var(--prem-ombre); border: 1px solid var(--prem-bordure); }

@@ -1,3 +1,31 @@
+KEKELI — Livraison du 24 septembre 2026 (second lot) — affichage mobile de la page "Mes matières" corrigé
+===========================================================================
+
+LA PAGE "MES MATIÈRES" S'AFFICHE ENFIN CORRECTEMENT SUR TÉLÉPHONE
+---------------------------------------------------------------
+Grâce à votre capture d'écran, le problème d'affichage mobile évoqué dans
+la livraison précédente est identifié et corrigé : c'était la page "Mes
+matières" (celle qui liste les séances d'une unité).
+
+Cause trouvée : la carte de chaque séance affichait, sur une seule ligne,
+l'icône, le titre, le bouton "épingler" (cœur) et le bouton "Commencer" —
+sur un téléphone, une fois la place prise par les éléments qui ne peuvent
+pas rétrécir, il ne restait plus assez de place pour le titre ET le
+bouton : ce dernier débordait hors de l'écran au lieu de passer à la
+ligne, ce qui donnait l'impression d'une page mal adaptée, toujours
+"zoomée".
+
+C'est corrigé : sur téléphone, la carte de chaque séance passe maintenant
+sur deux lignes (icône, titre et bouton "épingler" en haut ; bouton
+"Commencer" en pleine largeur juste en dessous), les marges de la page
+sont réduites, et les textes sont légèrement plus petits pour mieux
+profiter de l'espace disponible. L'affichage sur ordinateur et tablette ne
+change pas.
+
+Fichier modifié : css/theme-premium-eleve.css. Simple ajustement d'affichage,
+aucun changement en base de données.
+
+===========================================================================
 KEKELI — Livraison du 24 septembre 2026 — Cadran opératoire (réglages, clavier mobile, masquage), jeux ES/EST séparés et Atelier du Français relié aux vraies séances
 ===========================================================================
 
