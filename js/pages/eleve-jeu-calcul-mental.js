@@ -59,11 +59,33 @@
 // bord). Voir cadranGenererOperationCombinee()/cadranRunDialSequenceCombinee()
 // plus bas — n'affecte ni Azɔ̀ví/Dèví (une seule opération, inchangé), ni le
 // mode "Problèmes & Calculs".
+//
+// Réponses toujours entières et non négatives (24 septembre 2026, dixième
+// lot) : signalement "Pour les réponse du cadran supprime les réponse
+// négatives et les réponses décimales". Le réglage "Autoriser les réponses
+// décimales" (cadran_reponse_decimale) est entièrement retiré — le mode
+// combiné Ògán/Axɔ́sú utilise désormais TOUJOURS l'algorithme "entier
+// strict" (diviseurs exacts uniquement), qui existait déjà comme option mais
+// n'était pas systématique. Trois correctifs supplémentaires, sur les trois
+// chemins de génération de réponse du Cadran qui pouvaient produire un
+// résultat négatif : (1) mode simple Azɔ̀ví/Dèví (cadranRunDialSequence),
+// la soustraction tirait un chiffre du bord dans tout l'intervalle 0-12 sans
+// jamais vérifier qu'il ne dépassait pas le chiffre central — corrigé en
+// tirant le chiffre du bord dans [0, chiffre central] uniquement pour cette
+// opération ; (2) mode combiné Ògán/Axɔ́sú (cadranGenererOperationCombinee),
+// la soustraction pouvait faire chuter le résultat cumulé sous zéro à
+// n'importe quelle étape — corrigé en tirant le chiffre à soustraire dans
+// [1, résultat cumulé] (jamais plus que ce qui est disponible), avec repli
+// sur une addition si le résultat cumulé est déjà à 1 ; (3) mode "Problèmes
+// & Calculs", le modèle de problème "Léa a N bonbons, elle en donne M à son
+// frère" pouvait tirer M > N — corrigé en plafonnant M à N-1. Le calcul
+// direct de ce même mode (cadranRunMentalSequence, cas non-problème)
+// échangeait déjà les deux nombres si besoin pour la soustraction (inchangé,
+// déjà correct).
 
 let cadranProfil = null;
 let cadranMasquerOperation = false;
 let cadranRevoirActif = true;
-let cadranReponseDecimale = false;
 let cadranRecapTexteActif = true;
 
 (async function () {
@@ -77,13 +99,12 @@ let cadranRecapTexteActif = true;
   let cadranNiveauInitial = 'azovi';
   try {
     const { data } = await supabaseClient.from('preferences_navigation')
-      .select('masquer_operation_jeux, cadran_revoir_actif, cadran_dernier_niveau, cadran_reponse_decimale, cadran_recap_texte_actif').eq('utilisateur_id', cadranProfil.id).maybeSingle();
+      .select('masquer_operation_jeux, cadran_revoir_actif, cadran_dernier_niveau, cadran_recap_texte_actif').eq('utilisateur_id', cadranProfil.id).maybeSingle();
     cadranMasquerOperation = !!data?.masquer_operation_jeux;
     cadranRevoirActif = data?.cadran_revoir_actif !== false; // défaut true
-    cadranReponseDecimale = !!data?.cadran_reponse_decimale; // défaut false (entier)
     cadranRecapTexteActif = data?.cadran_recap_texte_actif !== false; // défaut true
     if (data?.cadran_dernier_niveau) cadranNiveauInitial = data.cadran_dernier_niveau;
-  } catch (e) { cadranMasquerOperation = false; cadranRevoirActif = true; cadranReponseDecimale = false; cadranRecapTexteActif = true; }
+  } catch (e) { cadranMasquerOperation = false; cadranRevoirActif = true; cadranRecapTexteActif = true; }
 
   cadranInitJeu(cadranNiveauInitial);
 })();
@@ -188,7 +209,6 @@ function cadranInitJeu(cadranNiveauInitial) {
   const elRangeSelect = document.getElementById('cadranRangeSelect');
   const elMentalTypeSelect = document.getElementById('cadranMentalTypeSelect');
   const elRecapCombinee = document.getElementById('cadranRecapCombinee');
-  const elReponseDecimaleToggle = document.getElementById('cadranReponseDecimaleToggle');
   const elRecapToggle = document.getElementById('cadranRecapToggle');
   const elNoteOpCombinee = document.getElementById('cadranNoteOpCombinee');
   const elSummaryModal = document.getElementById('cadranSummaryModal');
@@ -566,7 +586,15 @@ function cadranInitJeu(cadranNiveauInitial) {
         cadranPlaySound('select');
 
         setTimeout(() => {
-          currentTarget = Math.floor(Math.random() * 13);
+          // Jamais de réponse négative (24 septembre 2026, dixième lot) :
+          // pour une soustraction, le chiffre du bord ne peut jamais
+          // dépasser le chiffre central, sinon "centerVal - currentTarget"
+          // deviendrait négatif. Sans effet sur les 3 autres opérations
+          // (addition/multiplication toujours positives ; division déjà
+          // toujours entière et positive via Math.floor ci-dessous).
+          currentTarget = (currentOp === 'minus')
+            ? Math.floor(Math.random() * (centerVal + 1)) // 0 à centerVal
+            : Math.floor(Math.random() * 13);
           const targetSlot = Array.from(document.querySelectorAll('.cadran-outer-num')).find(el => parseInt(el.getAttribute('data-val')) === currentTarget);
           if (targetSlot) targetSlot.classList.add('cadran-active');
 
@@ -597,8 +625,9 @@ function cadranInitJeu(cadranNiveauInitial) {
   // 2 + 4 x 5 - 2 ÷ 2 [...] L'opération peut même commencer par les
   // chiffres du bord et toutes les combinaisons sont possibles". Clarifié
   // avec le porteur du projet avant développement : 2 à 3 opérateurs
-  // enchaînés pour Ògán, 3 à 5 pour Axɔ́sú ; réponse entière (défaut) ou
-  // décimale selon le réglage cadranReponseDecimale ; le chiffre central
+  // enchaînés pour Ògán, 3 à 5 pour Axɔ́sú ; réponse toujours entière (le
+  // réglage "réponses décimales" a depuis été retiré, voir plus bas) ; le
+  // chiffre central
   // n'est utilisé que dans environ une question sur deux (l'autre moitié du
   // temps, le point de départ est un chiffre du bord tiré au hasard, comme
   // tous les nombres suivants de la chaîne) ; récapitulatif texte optionnel
@@ -673,16 +702,19 @@ function cadranInitJeu(cadranNiveauInitial) {
     return resultat;
   }
 
-  // Construit une opération combinée aléatoire. En mode "entier strict"
-  // (cadranReponseDecimale === false, par défaut), chaque division choisit
-  // son diviseur parmi les diviseurs exacts (1 à 12) du résultat CUMULÉ DE
-  // GAUCHE À DROITE à cet instant précis (voir cadranEvaluerExpression
-  // ci-dessus — plus de notion de "terme" depuis le 24 septembre 2026,
-  // huitième lot), pour garantir un résultat final toujours entier ; si
-  // aucun diviseur exact n'existe dans 0-12 (cas rare), le "÷" est remplacé
-  // par un "+" pour cette étape plutôt que de produire une décimale —
-  // jamais de blocage. En mode décimales autorisées, le diviseur est un
-  // chiffre du bord quelconque (hors 0, pour éviter une division par zéro).
+  // Construit une opération combinée aléatoire, toujours en mode "entier
+  // strict" (24 septembre 2026, dixième lot : le réglage "réponses
+  // décimales" est retiré, ce mode est désormais le seul) : chaque division
+  // choisit son diviseur parmi les diviseurs exacts (1 à 12) du résultat
+  // CUMULÉ DE GAUCHE À DROITE à cet instant précis (voir
+  // cadranEvaluerExpression ci-dessus — plus de notion de "terme" depuis le
+  // 24 septembre 2026, huitième lot), pour garantir un résultat final
+  // toujours entier ; si aucun diviseur exact n'existe dans 1-12 (cas rare),
+  // le "÷" est remplacé par un "+" pour cette étape plutôt que de produire
+  // une décimale — jamais de blocage. Chaque soustraction, de la même
+  // façon, choisit le chiffre à soustraire de façon à ne jamais faire
+  // passer le résultat cumulé sous zéro (repli sur "+" si impossible) —
+  // voir le détail dans la boucle ci-dessous.
   function cadranGenererOperationCombinee(niveau) {
     const plageOperateurs = CADRAN_PLAGE_OPERATEURS[niveau] || CADRAN_PLAGE_OPERATEURS.ogan;
     const nbOperateurs = plageOperateurs[Math.floor(Math.random() * plageOperateurs.length)];
@@ -705,14 +737,25 @@ function cadranInitJeu(cadranNiveauInitial) {
       let candidat;
 
       if (op === 'div') {
-        if (!cadranReponseDecimale) {
-          const diviseurs = [];
-          for (let d = 1; d <= 12; d++) { if (valeurCourante % d === 0) diviseurs.push(d); }
-          if (diviseurs.length === 0) { op = 'plus'; candidat = cadranTirerNombreBordCombinee(); }
-          else candidat = diviseurs[Math.floor(Math.random() * diviseurs.length)];
-        } else {
-          candidat = cadranTirerNombreBordCombinee(); // déjà 1-12, jamais 0
-        }
+        // Toujours en mode "entier strict" (24 septembre 2026, dixième lot :
+        // le réglage "réponses décimales" est retiré, cette branche est
+        // désormais la seule) : le diviseur est toujours choisi parmi les
+        // diviseurs exacts (1 à 12) du résultat cumulé, pour garantir un
+        // résultat final toujours entier.
+        const diviseurs = [];
+        for (let d = 1; d <= 12; d++) { if (valeurCourante % d === 0) diviseurs.push(d); }
+        if (diviseurs.length === 0) { op = 'plus'; candidat = cadranTirerNombreBordCombinee(); }
+        else candidat = diviseurs[Math.floor(Math.random() * diviseurs.length)];
+      } else if (op === 'minus') {
+        // Jamais de réponse négative (24 septembre 2026, dixième lot) : le
+        // chiffre à soustraire ne peut jamais dépasser le résultat cumulé
+        // jusqu'ici, sinon l'expression passerait sous zéro à cette étape.
+        // Si le résultat cumulé est déjà à 1 (rien à soustraire sans passer
+        // en dessous de zéro), on remplace par une addition — même principe
+        // de repli que pour la division sans diviseur exact ci-dessus.
+        const maxSoustrait = Math.min(12, Math.floor(valeurCourante));
+        if (maxSoustrait < 1) { op = 'plus'; candidat = cadranTirerNombreBordCombinee(); }
+        else candidat = Math.floor(Math.random() * maxSoustrait) + 1; // 1 à maxSoustrait
       } else {
         candidat = cadranTirerNombreBordCombinee();
       }
@@ -728,7 +771,10 @@ function cadranInitJeu(cadranNiveauInitial) {
     }
 
     const brut = cadranEvaluerExpression(nombres, operateurs);
-    const expectedAnswerCombinee = cadranReponseDecimale ? Math.round(brut * 10) / 10 : Math.round(brut);
+    // Toujours entier (24 septembre 2026, dixième lot) : plus de branche
+    // décimale, Math.round() suffit désormais à lui seul en filet de
+    // sécurité contre un éventuel résidu de calcul flottant.
+    const expectedAnswerCombinee = Math.round(brut);
 
     return { nombres, operateurs, sourcesNombres, expectedAnswerCombinee };
   }
@@ -804,8 +850,15 @@ function cadranInitJeu(cadranNiveauInitial) {
     if (isProblem) {
       const n1 = Math.floor(Math.random() * (maxVal / 2)) + 5;
       const n2 = Math.floor(Math.random() * (maxVal / 4)) + 2;
+      // Jamais de réponse négative (24 septembre 2026, dixième lot) : dans
+      // le modèle "Léa a N bonbons, elle en donne M", M pouvait dépasser N
+      // (n2 et n1 sont tirés indépendamment) — plafonné à n1-1 pour ce
+      // modèle précis uniquement, sans toucher à n2 pour les deux autres
+      // modèles (addition/multiplication), qui n'ont aucun risque de
+      // négatif et restaient déjà corrects.
+      const n2Soustrait = Math.min(n2, Math.max(1, n1 - 1));
       const templates = [
-        { q: `Léa a ${n1} bonbons. Elle en donne ${n2} à son frère. Combien lui en reste-t-il ?`, a: n1 - n2 },
+        { q: `Léa a ${n1} bonbons. Elle en donne ${n2Soustrait} à son frère. Combien lui en reste-t-il ?`, a: n1 - n2Soustrait },
         { q: `Un bus transporte ${n1} passagers. ${n2} personnes montent. Combien sont-ils ?`, a: n1 + n2 },
         { q: `Paul a ${n2} paquets de ${Math.min(n1, 10)} gâteaux. Combien de gâteaux au total ?`, a: n2 * Math.min(n1, 10) }
       ];
@@ -866,11 +919,12 @@ function cadranInitJeu(cadranNiveauInitial) {
 
   function cadranValidateAnswer() {
     clearInterval(timerInterval);
-    // parseFloat + comparaison à tolérance (24 septembre 2026, opérations
-    // combinées) au lieu d'un simple parseInt/===, pour accepter une
-    // réponse décimale (ex. "3.5") quand cadranReponseDecimale est actif ;
-    // sans effet sur le mode simple (réponse toujours entière, une
-    // tolérance de 0.05 exige toujours une saisie exacte).
+    // parseFloat + comparaison à tolérance (24 septembre 2026) au lieu d'un
+    // simple parseInt/===, en filet de sécurité contre un éventuel résidu de
+    // calcul flottant (ex. une division qui donnerait 9.999999999998 au
+    // lieu de 10) — la réponse attendue elle-même est désormais TOUJOURS un
+    // entier (dixième lot, réponses décimales retirées), donc une tolérance
+    // de 0.05 exige en pratique toujours une saisie exacte.
     const userVal = parseFloat(elUserAnswer.value);
 
     if (!isNaN(userVal) && Math.abs(userVal - expectedAnswer) < 0.05) {
@@ -999,20 +1053,12 @@ function cadranInitJeu(cadranNiveauInitial) {
     } catch (err) { /* non bloquant */ }
   });
 
-  // ----- Réglages des opérations combinées (Ògán/Axɔ́sú, 24 septembre 2026,
-  // troisième lot) — mêmes colonnes preferences_navigation que ci-dessus. -----
-  if (elReponseDecimaleToggle) elReponseDecimaleToggle.checked = cadranReponseDecimale;
+  // ----- Réglage du récapitulatif texte des opérations combinées
+  // (Ògán/Axɔ́sú, 24 septembre 2026, troisième lot) — même colonne
+  // preferences_navigation que ci-dessus. Le réglage "réponses décimales"
+  // (cadran_reponse_decimale) a été retiré le 24 septembre 2026 (dixième
+  // lot) : les réponses du Cadran sont désormais toujours entières. -----
   if (elRecapToggle) elRecapToggle.checked = cadranRecapTexteActif;
-
-  elReponseDecimaleToggle?.addEventListener('change', async (e) => {
-    const actif = e.target.checked;
-    cadranReponseDecimale = actif;
-    try {
-      const { error } = await supabaseClient.from('preferences_navigation')
-        .upsert({ utilisateur_id: cadranProfil.id, cadran_reponse_decimale: actif, maj_le: new Date().toISOString() });
-      if (error) throw error;
-    } catch (err) { /* non bloquant */ }
-  });
 
   elRecapToggle?.addEventListener('change', async (e) => {
     const actif = e.target.checked;

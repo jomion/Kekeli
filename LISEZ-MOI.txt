@@ -1,3 +1,33 @@
+KEKELI — Livraison du 24 septembre 2026 (dixième lot) — Cadran opératoire : plus aucune réponse négative ni décimale
+===========================================================================
+
+CHANGEMENT : LE CADRAN NE PROPOSE PLUS JAMAIS DE RÉPONSE NÉGATIVE NI DÉCIMALE
+------------------------------------------------------------------------------
+Comme demandé, toutes les réponses attendues du Cadran opératoire (les
+deux modes, "Cadran" et "Problèmes & Calculs", tous niveaux confondus) sont
+désormais toujours des nombres entiers positifs ou nuls — plus jamais de
+réponse négative, plus jamais de réponse décimale.
+
+Trois endroits pouvaient jusqu'ici produire un tel résultat, tous corrigés :
+- Niveaux Azɔ̀ví/Dèví (mode Cadran, soustraction) : le chiffre du bord ne
+  peut plus dépasser le chiffre central.
+- Niveaux Ògán/Axɔ́sú (opérations combinées) : chaque soustraction de la
+  chaîne est désormais choisie pour ne jamais faire descendre le résultat
+  sous zéro.
+- Mode "Problèmes & Calculs", exercice "Léa a des bonbons, elle en donne
+  à son frère" : la quantité donnée ne peut plus dépasser la quantité de
+  départ.
+
+Le réglage "Autoriser les réponses décimales", qui existait dans les
+Réglages du Cadran pour les niveaux Ògán/Axɔ́sú, est retiré : le mode
+"entier strict" (déjà la garantie d'un résultat toujours entier) est
+maintenant systématique, sans possibilité de l'activer/le désactiver.
+
+Vérifié par un script de test automatisé (800 000 réponses générées, tous
+niveaux et réglages mélangés) : zéro réponse négative, zéro réponse
+décimale.
+
+===========================================================================
 KEKELI — Livraison du 24 septembre 2026 (neuvième lot) — Réglages regroupés, contenu limité par unité/SA, Entraînement IA fusionné et gratuit
 ===========================================================================
 
