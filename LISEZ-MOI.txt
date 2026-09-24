@@ -1,3 +1,54 @@
+KEKELI — Livraison du 24 septembre 2026 (quatorzième lot) — Le cahier d'écriture s'intègre vraiment à Kekeli (logo, menu) et propose une réglure par classe
+===========================================================================
+
+LE CAHIER D'ÉCRITURE S'OUVRE MAINTENANT DANS UNE VRAIE PAGE KEKELI
+------------------------------------------------------------------------------
+Demande : "Je veux que ça soit vraiment intégrer à kekeli avec l'affichage
+du logo et du menu de navigation. Ajoute également les classes du CI au CM2
+en prévoyant des réglures par défaut pour chaque classe."
+
+Jusqu'ici (treizième lot), cliquer sur "✍️ Cahier d'écriture" ouvrait
+directement l'outil dans son propre onglet/écran, avec un simple petit lien
+"← Retour à Kekeli" en haut à gauche — pas le vrai en-tête ni le vrai menu du
+site. C'est corrigé : le clic ouvre maintenant une page Kekeli normale, avec
+le logo, le menu de navigation et le pied de page habituels (identique aux
+autres pages élève), et l'outil d'écriture s'affiche à l'intérieur de cette
+page, dans son propre cadre.
+
+UN CHOIX DE CLASSE, DE CI À CM2, AVEC UNE RÉGLURE ADAPTÉE PAR DÉFAUT
+------------------------------------------------------------------------------
+En haut de la page, l'élève voit les 6 classes de Kekeli (CI, CP, CE1, CE2,
+CM1, CM2) sous forme de boutons — sa propre classe est repérée par une
+étoile ("★ ma classe") et sélectionnée automatiquement à l'ouverture. Il
+peut aussi choisir une autre classe (par exemple pour préparer une feuille
+pour un frère ou une sœur plus jeune).
+
+Chaque classe propose un type de lignage différent par défaut, choisi selon
+l'étape d'apprentissage de l'écriture :
+  - CI  (5-6 ans)   : lignage "terre" — le repère le plus visuel (sol/ciel)
+                       pour les tout premiers tracés de lettres ;
+  - CP  (6-7 ans)   : lignage Seyes "trois couleurs" — le support classique
+                       pour apprendre les 3 zones de l'écriture cursive ;
+  - CE1 (7-8 ans)   : lignage Seyes "gris" — un repère plus discret ;
+  - CE2 (8-9 ans)   : lignage Seyes standard — la réglure de référence ;
+  - CM1 (9-10 ans)  : lignage Seyes "noir" — le grand quadrillage complet ;
+  - CM2 (10-11 ans) : lignage "petit" — un quadrillage plus resserré, pour
+                       une écriture plus mûre.
+Ce ne sont que des valeurs de départ : l'élève garde entièrement la main
+pour changer de lignage à tout moment depuis le menu de l'outil lui-même
+("Type de lignage"), quelle que soit la classe choisie.
+
+CÔTÉ TECHNIQUE (rien à installer, rien à valider en base de données)
+------------------------------------------------------------------------------
+L'outil Seyes/Éducajou lui-même n'a reçu AUCUNE modification de code pour
+cette fonctionnalité : il sait déjà lire son type de lignage par défaut
+depuis l'adresse de la page (un paramètre qu'il utilisait déjà pour
+d'autres réglages). Le choix de classe ne fait qu'utiliser ce mécanisme
+existant. Le seul changement dans le dossier de l'outil est le retrait du
+petit lien "← Retour à Kekeli", devenu inutile maintenant qu'il s'affiche
+dans une vraie page Kekeli.
+
+===========================================================================
 KEKELI — Livraison du 24 septembre 2026 (treizième lot) — Nouveau cahier d'écriture (Seyes/Éducajou)
 ===========================================================================
 

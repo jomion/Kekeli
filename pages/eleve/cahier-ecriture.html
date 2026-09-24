@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KEKELI - Cahier d'écriture</title>
+<link rel="icon" type="image/png" href="../../assets/logo/logo.png">
+<link rel="stylesheet" href="../../css/style-public.css">
+<link rel="stylesheet" href="../../css/theme-premium-eleve.css">
+<link rel="stylesheet" href="../../css/pied-de-page.css">
+<style>
+  /* 24 septembre 2026 : intégration "vraie" du cahier d'écriture (avec logo
+     + menu Kekeli), en remplacement du lien direct vers l'outil autonome
+     (voir js/pages/eleve-cahier-ecriture.js). L'outil Seyes/Éducajou reste
+     un fichier index.html séparé et inchangé dans son propre dossier
+     (pages/eleve/cahier-ecriture/) ; cette page l'embarque dans un
+     <iframe> à l'intérieur du vrai habillage du site, plutôt que de le
+     fusionner dans le DOM (son CSS suppose un contrôle plein-écran qui
+     entrerait en conflit avec l'en-tête/le pied de page de Kekeli). */
+  .cahier-selecteur-classe {
+    display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 18px;
+  }
+  .cahier-bouton-classe {
+    border: 2px solid #e2e8f0; background: #fff; border-radius: 12px;
+    padding: 10px 16px; font-weight: 700; font-size: 14px; cursor: pointer;
+    color: #334155; transition: all .15s ease; text-align: left;
+    display: flex; flex-direction: column; gap: 2px; min-width: 92px;
+  }
+  .cahier-bouton-classe .cahier-bouton-classe-age {
+    font-weight: 500; font-size: 11px; color: #94a3b8;
+  }
+  .cahier-bouton-classe:hover { border-color: #93c5fd; }
+  .cahier-bouton-classe.selectionnee {
+    border-color: #1e293b; background: #1e293b; color: #fff;
+  }
+  .cahier-bouton-classe.selectionnee .cahier-bouton-classe-age { color: #cbd5e1; }
+  .cahier-bouton-classe.classe-eleve::after {
+    content: "★ ma classe"; display: block; font-size: 10px; font-weight: 700;
+    color: #22c55e; margin-top: 2px;
+  }
+  .cahier-bouton-classe.selectionnee.classe-eleve::after { color: #86efac; }
+  .cahier-note-reglure {
+    font-size: 12.5px; color: var(--text-gris, #64748b); margin: 0 0 16px;
+  }
+  .cahier-cadre-outil {
+    background: #fff; border-radius: 14px; overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,.08); border: 1px solid #e2e8f0;
+  }
+  .cahier-cadre-outil iframe {
+    width: 100%; height: 78vh; min-height: 560px; border: none; display: block;
+  }
+</style>
+</head>
+<body>
+  <header></header>
+
+  <div class="conteneur-tableau-bord" id="contenu">
+    <p style="text-align:center;color:var(--text-gris)">Chargement...</p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="../../js/config.js"></script>
+  <script src="../../js/supabaseClient.js"></script>
+  <script>const RACINE_SITE = "../../";</script>
+  <script src="../../js/auth-utilisateur.js"></script>
+  <script src="../../js/notifications.js"></script>
+  <script src="../../js/navigation-config.js"></script>
+  <script src="../../js/banniere-site.js"></script>
+  <script src="../../js/entete-navigation.js"></script>
+  <script src="../../js/theme-premium-eleve.js"></script>
+  <script src="../../js/pages/eleve-cahier-ecriture.js"></script>
+  <footer></footer>
+  <script src="../../js/pied-de-page.js"></script>
+</body>
+</html>

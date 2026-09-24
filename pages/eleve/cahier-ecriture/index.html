@@ -22,11 +22,14 @@
        vers un serveur externe non lié au site. Reste du fichier inchangé. -->
 </head>
 
+<!-- Intégration KEKELI (24 septembre 2026, requête complémentaire) : le lien
+     flottant "← Retour à Kekeli" ajouté lors de la première intégration a
+     été retiré ici — l'outil est désormais embarqué dans un <iframe> à
+     l'intérieur d'une vraie page Kekeli avec en-tête/menu réels (voir
+     pages/eleve/cahier-ecriture.html et js/pages/eleve-cahier-ecriture.js),
+     donc un lien de retour à l'intérieur du cadre de l'outil n'a plus de
+     sens (il naviguerait l'iframe elle-même, pas la page Kekeli). -->
 <body>
-
-  <a href="../tableau-de-bord.html" id="kekeli-retour"
-    title="Retour à Kekeli"
-    style="position:fixed;top:8px;left:8px;z-index:10001;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:#1e293b;color:#fff;border-radius:8px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;text-decoration:none;box-shadow:0 2px 6px rgba(0,0,0,.25)">← Retour à Kekeli</a>
 
   <nav role="navigation">
     <div id="dev">

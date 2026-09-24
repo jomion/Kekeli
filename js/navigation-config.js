@@ -49,16 +49,21 @@ const LIENS_PAR_ROLE = {
     // 24 septembre 2026 : intégration du cahier d'écriture Seyes/Éducajou
     // (outil libre GPL, écrit par Arnaud Champollion) — page quadrillée
     // Seyes éditable, polices cursives, export PDF/impression, sauvegarde
-    // locale/lien de partage. Copié tel quel dans
+    // locale/lien de partage. L'outil lui-même est copié tel quel dans
     // pages/eleve/cahier-ecriture/ (dossier autonome avec son propre
     // css/js/images/polices), à la demande explicite de l'utilisateur
-    // ("adapter exactement ce fichier") — aucune modification fonctionnelle,
-    // seuls le suivi Matomo du Ministère de l'Éducation nationale français
-    // (sans rapport avec Kekeli) et l'ajout d'un lien de retour ont été
-    // touchés. C'est un lien direct plutôt qu'une page listant "Chargement…"
-    // comme les autres pages élève, car l'outil est un fichier index.html
-    // autonome, pas une page pilotée par js/pages/*.js.
-    { id: 'cahier-ecriture', href: 'cahier-ecriture/index.html', icone: '✍️', label: "Cahier d'écriture" },
+    // ("adapter exactement ce fichier") — aucune modification fonctionnelle
+    // de son code, seul le suivi Matomo du Ministère de l'Éducation
+    // nationale français (sans rapport avec Kekeli) en a été retiré.
+    //
+    // Le lien pointe vers pages/eleve/cahier-ecriture.html (mise à jour du
+    // même jour, requête complémentaire "je veux que ça soit vraiment
+    // intégré à Kekeli avec l'affichage du logo et du menu de navigation") :
+    // une page normale du site (en-tête/pied de page/sidebar réels, comme
+    // toutes les autres pages élève, pilotée par js/pages/eleve-cahier-
+    // ecriture.js) qui embarque l'outil dans un <iframe> et propose un choix
+    // de classe CI à CM2 avec un lignage par défaut adapté à chacune.
+    { id: 'cahier-ecriture', href: 'cahier-ecriture.html', icone: '✍️', label: "Cahier d'écriture" },
     // 19 septembre 2026 : "Mes progrès"/"Favoris"/"Mon profil" existaient déjà
     // (visuels seulement) dans la sidebar/nav mobile basse du thème premium
     // (voir js/theme-premium-eleve.js) — ajoutés ici aussi pour que l'élève
