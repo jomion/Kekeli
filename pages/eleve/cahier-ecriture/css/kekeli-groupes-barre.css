@@ -1,0 +1,77 @@
+/* Intégration KEKELI (24 septembre 2026) : regroupement par catégories des
+   nombreux boutons de la barre d'outils du cahier d'écriture, pour réduire
+   le nombre d'éléments affichés en permanence — demande explicite : « Tu
+   n'as pas regroupé les boutons en catégories. Je parle des boutons de
+   formatage du cahier d'écriture ». Même principe déjà appliqué à la
+   navigation du site Kekeli lui-même (entête classique / sidebar premium
+   élève, voir js/entete-navigation.js et js/theme-premium-eleve.js).
+   Ce fichier est un AJOUT Kekeli, entièrement indépendant du code interne
+   de Seyes : aucune règle de css/styles.min.css n'est modifiée, celui-ci
+   reste intact. Les boutons déplacés dans les panneaux ci-dessous gardent
+   leur habillage d'origine (fond transparent, icône en image de fond,
+   35x35px) grâce aux sélecteurs déjà génériques "#barre button"/"#barre
+   label" de styles.min.css, qui s'appliquent à n'importe quel descendant
+   de #barre quelle que soit sa profondeur — vérifié avant d'écrire ce
+   fichier (aucun sélecteur "#barre > bouton" à enfant direct dans la
+   feuille de style d'origine). */
+
+#barre .kekeli-groupe-toggle {
+  align-items: center;
+  background-color: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #3b3b3b;
+  cursor: pointer;
+  display: inline-flex;
+  flex-shrink: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  gap: 4px;
+  height: 35px;
+  margin: 3px 2px;
+  padding: 0 10px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+#barre .kekeli-groupe-toggle:hover,
+#barre .kekeli-groupe-toggle.kekeli-groupe-ouvert {
+  background-color: #ffffff8c;
+  box-shadow: 0 0 2px #000;
+}
+
+#barre .kekeli-groupe-toggle .kekeli-groupe-chevron {
+  font-size: 10px;
+  transition: transform 0.15s ease;
+}
+
+#barre .kekeli-groupe-toggle.kekeli-groupe-ouvert .kekeli-groupe-chevron {
+  transform: rotate(180deg);
+}
+
+.kekeli-groupe-panel {
+  align-items: center;
+  background-color: #bdd6fa;
+  border: 3px solid #000;
+  border-radius: 5px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: min(92vw, 560px);
+  padding: 10px;
+  position: fixed;
+  z-index: 1000;
+}
+
+.kekeli-groupe-panel.hide {
+  display: none;
+}
+
+/* Le groupe "Fichier" déplace la section d'origine (span.section) en un
+   seul bloc, pour ne jamais séparer un bouton de sa fenêtre associée
+   (confirmation, import CodiMD, export du lien) — elle garde son style
+   d'origine (bordure pointillée à droite), sans incidence visuelle une
+   fois seule dans son panneau. */
+.kekeli-groupe-panel .section {
+  margin: 0;
+}

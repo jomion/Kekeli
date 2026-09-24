@@ -10,6 +10,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Seyes permet d'écrire du texte sur une page quadrillée de type cahier" />
   <link href="./css/styles.min.css" rel="stylesheet" type="text/css">
+  <!-- Intégration KEKELI (24 septembre 2026) : feuille de style additive
+       pour le regroupement par catégories des boutons de la barre
+       d'outils (voir js/kekeli-groupes-barre.js) — n'écrase aucune règle
+       de styles.min.css, qui reste intact. -->
+  <link href="./css/kekeli-groupes-barre.css" rel="stylesheet" type="text/css">
   <link rel="preload" fetchpriority="high" as="image" href="./images/carreau_seyes.svg" type="image/svg+xml">
   <link rel="preload" fetchpriority="high" as="image" href="./images/carreau_marge_seyes.svg" type="image/svg+xml">
   <link rel="preload" fetchpriority="high" as="image" href="./images/seyes.png" type="image/png" media="(width >= 1400px)">
@@ -537,6 +542,11 @@
   </footer>
 
   <script src="./script.min.js"></script>
+  <!-- Intégration KEKELI (24 septembre 2026) : regroupement par catégories
+       des boutons de la barre d'outils, chargé APRÈS script.min.js — ne
+       modifie ni ne remplace ce dernier, se contente de déplacer les
+       boutons déjà existants (voir le commentaire d'en-tête du fichier). -->
+  <script src="./js/kekeli-groupes-barre.js"></script>
 </body>
 
 </html>
