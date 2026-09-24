@@ -1,0 +1,1693 @@
+/*
+Seyes est un logiciel libre
+sous licence GNU GPL
+écrit par Arnaud Champollion
+*/
+
+@font-face {
+	font-family: "Marelle";
+	src: url("../polices/Marelle-Regular.woff2") format("woff2");
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Marelle Bâton";
+	src: url("../polices/MarelleBaton-Regular.woff2") format("woff2");
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "AA Cursive";
+	src: url("../polices/ABcursive-Bold.woff2") format("woff2");
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Open Dyslexic";
+	src: url("../polices/OpenDyslexic-Regular.woff2") format("woff2");
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Luciole";
+	src: url("../polices/Luciole-Regular.woff2") format("woff2");
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Romain";
+	src: url("../polices/EcritureA-Romain.woff2") format("woff2");
+	font-display: swap;
+}
+
+:root {
+	--couleur-texte: blue;
+	--decalage-depart: 0px;
+	--decalage-position: 0px;
+	--largeur-marge-secondaire: 100px;
+	--ligatures: "calt" 1;
+	--largeur-carreau-impression: 12mm;
+	--taille-police-impression: 12mm;
+	--marge-impression: 1mm;
+	--hauteur-ligne-impression: 12mm;
+	--marge-top-impression: 1mm;
+	--largeur-page-impression: 1mm;
+	--largeur-marge-impression: 1mm;
+	--largeur-marge2-impression: 1mm;
+	--distance-soulignement-exposant: 0.3em;
+	--distance-barre: 45%;
+}
+
+::selection {
+	background-color: rgba(0, 255, 255, 0.568);
+}
+
+* {
+	margin: 0;
+	padding: 0;
+}
+
+html {
+	height: 100%;
+	margin: 0;
+	padding: 0;
+}
+
+body {
+	display: flex;
+	flex-direction: column; /* Ajoute une flexbox verticale pour placer l'en-tête au-dessus */
+	height: 100dvh; /* 100% de la hauteur de la fenêtre */
+	margin: 0;
+	font-size: 0;
+	background-color: rgb(255, 255, 255);
+	overflow-y: hidden;
+}
+
+/* Forcer le fond blanc pour les utilisateurs en mode sombre */
+@media (prefers-color-scheme: dark) {
+	body {
+		background-color: white !important;
+	}
+}
+
+#entete {
+	display: none;
+	width: 100%; /* L'en-tête doit prendre toute la largeur */
+	height: 80px;
+	font-size: 16px; /* Ajuster la taille de police */
+	text-align: center;
+	font-size: 0;
+	background-color: rgb(210, 243, 209);
+	border-bottom: 3px #000000 solid;
+	align-items: stretch;
+}
+
+#haut-marge {
+	width: 100%; /* L'en-tête doit prendre toute la largeur */
+	height: 40px;
+}
+
+#bas-marge {
+	width: 100%; /* L'en-tête doit prendre toute la largeur */
+	height: 40px;
+	display: flex;
+	align-items: stretch;
+	display: flex;
+	flex-direction: row;
+}
+
+#marge-entete {
+	width: 20%;
+	height: 100%;
+	font-family: Arial, Helvetica, sans-serif;
+	font-weight: bolder;
+	font-size: 28px;
+	color: #0d2e0a;
+}
+
+#case1 {
+	flex: 1;
+	height: calc(100% - 3px);
+	border-top: 3px #000000 solid;
+	border-right: 3px solid #000000;
+	background-color: rgb(255, 255, 255);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow-x: hidden;
+}
+
+#case2 {
+	text-align: center;
+	width: var(--largeur-marge-secondaire);
+	height: calc(100% - 3px);
+	border-top: 3px #000000 solid;
+	border-radius: 0px 10px 0px 0px;
+	border-right: 3px solid #000000;
+	background-color: rgb(255, 255, 255);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+#case3 {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	position: relative;
+	width: 80%;
+	height: 100%;
+	margin: 0px;
+	text-align: center;
+	font-family: Arial, Helvetica, sans-serif;
+	font-weight: bolder;
+	color: #0d2e0a;
+	z-index: 1;
+}
+
+#select-jours {
+	font-size: 45px; /* Taille de la police */
+	font-family: Arial, Helvetica, sans-serif;
+	font-weight: bolder;
+	text-align: center; /* Alignement du texte au centre */
+	width: fit-content; /* Largeur basée sur le contenu */
+	padding: 4px; /* Espacement intérieur */
+	border: 2px solid #3498db; /* Bordure de couleur */
+	border-radius: 10px; /* Coins arrondis */
+	background-color: #ecf0f1; /* Couleur de fond */
+	color: #2c3e50; /* Couleur du texte */
+	appearance: none; /* Supprimer le style par défaut du sélecteur */
+	-webkit-appearance: none; /* Compatibilité avec Safari */
+	-moz-appearance: none; /* Compatibilité avec Firefox */
+	cursor: pointer; /* Curseur en forme de main */
+	transition: all 0.3s ease; /* Transition pour les effets */
+}
+
+#select-jours:hover {
+	background-color: #3498db; /* Couleur de fond au survol */
+	color: white; /* Couleur du texte au survol */
+	border-color: #2980b9; /* Couleur de la bordure au survol */
+	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Ombre au survol */
+}
+
+#choix-couleur-entete {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	height: 54px;
+	width: 54px;
+	outline: none;
+	border: #000000 solid 3px;
+	border-radius: 25%;
+}
+
+#choix-couleur-entete::-webkit-color-swatch,
+#choix-couleur-entete::-moz-color-swatch {
+	border-color: transparent;
+}
+
+#contenu {
+	display: block;
+	flex: 1;
+	overflow-y: auto;
+	scroll-behavior: smooth;
+	position: relative;
+}
+
+#conteneur-extensible {
+	flex: 1; /* Remplit l'espace restant */
+	display: flex; /* Utilise Flexbox pour aligner ses enfants */
+	flex-direction: row; /* #marge et #page côte à côte */
+	min-height: 100%; /* Force la hauteur */
+	position: relative;
+}
+
+#marques-impression {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	z-index: 1000000;
+	overflow: hidden;
+}
+
+.marque-impression {
+	width: 100%;
+	aspect-ratio: 210/297;
+	border-bottom: 5px red dotted;
+}
+
+#barre {
+	height: 60px;
+	border-bottom: 2px #ffffff outset;
+	background-color: #d9d9f7;
+	align-items: center;
+	gap: 3px;
+	padding-left: 5px;
+	scrollbar-width: thin;
+	overflow-x: auto;
+	overflow-y: hidden;
+	white-space: nowrap;
+}
+
+@media screen and (min-width: 1400px) {
+	#barre {
+		height: 45px;
+		background-image: url(../images/seyes.png);
+		background-size: 106px;
+		background-position: 2px center;
+		background-repeat: no-repeat;
+		padding-left: 120px;
+	}
+}
+
+#barre button {
+	flex-shrink: 0;
+}
+
+#dev {
+	position: absolute;
+	top: 80%;
+	right: 5%;
+	transform: translateY(-50%);
+	z-index: 10000;
+	font-size: 3vw;
+	font-weight: bold;
+	color: orange;
+	padding: 1em;
+	background-color: #ffffff9d;
+	border-radius: 1em;
+	border: 3px solid black;
+	font-family: Marelle;
+	pointer-events: none;
+	display: none;
+}
+
+body.dev #dev {
+	display: block;
+}
+
+body.dev #barre {
+	position: relative;
+	background-color: #ffed89;
+}
+
+body.primtux #barre {
+	background-image: none !important;
+}
+
+.section {
+	display: inline-block;
+	padding: 0px 2px 0px 2px;
+	border-right: 3px #746d6d dotted;
+}
+
+#panneauOptions {
+	position: absolute;
+	z-index: 10000;
+	right: 0px;
+	top: 60px;
+	height: calc(100% - 60px);
+	padding-top: 10px;
+	min-width: 300px;
+	background-color: #0000008e;
+	border-left: 3px rgb(68, 45, 45) outset;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 18px;
+	overflow: auto;
+}
+
+#panneauOptions h2 {
+	text-align: center;
+	color: #ffffff;
+}
+
+#panneauOptions .section {
+	padding: 5px;
+	background-color: #ffffff8c;
+	border: 3px #ffffff solid;
+	border-radius: 5px;
+	margin: 10px;
+	display: flex;
+	flex-direction: column;
+}
+
+#inputLargeurImpression {
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 18px !important;
+	width: 2.8em;
+	height: 1.5em;
+	text-align: center;
+}
+
+#marge {
+	display: inline-flex;
+	vertical-align: top;
+	flex-direction: row;
+	border-right: 3px solid red;
+	min-height: 100%;
+}
+
+#marge1 {
+	min-height: 100%;
+	flex: 1;
+}
+
+#marge2 {
+	display: none;
+	min-height: 100%;
+	text-align: center;
+	width: var(--largeur-marge-secondaire);
+	border-left: 3px solid #000000;
+	position: relative;
+}
+
+#marge2::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: -3px; /* Largeur de la "bordure" virtuelle */
+	height: 100%;
+	width: 5px; /* Largeur de la "bordure" virtuelle */
+	cursor: ew-resize; /* Changer le curseur pour indiquer un redimensionnement horizontal */
+	z-index: 1000;
+}
+
+#page {
+	vertical-align: top;
+	position: relative;
+	width: 80%;
+	min-height: 100%;
+}
+
+#page::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: -3px; /* Largeur de la "bordure" virtuelle */
+	height: 100%;
+	width: 5px; /* Largeur de la "bordure" virtuelle */
+	cursor: ew-resize; /* Changer le curseur pour indiquer un redimensionnement horizontal */
+}
+
+#barre button:not(#carreaux):not(#fullscreen),
+#barre input:not(#inputNombreDeCarreaux):not(#inputCodi),
+#zone_couleur,
+#barre label,
+#opacite {
+	display: inline-block;
+	width: 35px;
+	height: 35px;
+	margin: 3px;
+	background-color: transparent;
+	background-repeat: no-repeat;
+	background-position: center;
+	border: none;
+	background-size: contain;
+	vertical-align: middle;
+}
+
+#confirmation-nouveau button,
+#zone_menu_copie_lien button,
+#divCodi button {
+	width: auto !important;
+	margin-top: 15px !important;
+	padding: 5px !important;
+	background-color: #efefef !important;
+	border: 1px solid #000000 !important;
+	border-radius: 5px;
+}
+
+#zoneInputNombreDeCarreaux {
+	display: inline-flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+}
+
+#inputNombreDeCarreaux {
+	background-color: #ffffff;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 22px;
+	line-height: 20px;
+	width: 2.5em;
+	text-align: center;
+}
+
+#texteInputNombreDeCarreaux {
+	content: "carreaux";
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 13px;
+	font-weight: bold;
+	text-align: center;
+	color: #000000;
+}
+
+#bouton_lirecouleur {
+	background-image: url(../images/LireCouleur.png);
+}
+
+.syllabe-1 {
+	color: #ea0000;
+}
+.syllabe-2 {
+	color: #0000e1;
+}
+.syllabe-muet {
+	color: #aaaaaa;
+}
+
+#page,
+#marge1,
+#marge2 {
+	transition: background-size 0.3s ease;
+}
+
+#opacite {
+	background-image: url(../images/carreau_degrade.svg);
+	background-repeat: no-repeat;
+	border-radius: 10%;
+	height: 23px;
+	width: 23px;
+	border: 2px solid black;
+}
+
+#reglage_opacite {
+	width: 43px !important;
+	margin: 0 !important;
+	vertical-align: middle !important;
+}
+
+/* Masquer l'input de type fichier */
+input[type="file"] {
+	display: none !important;
+}
+
+.bouton-musique {
+	position: absolute;
+	left: 5px;
+	height: 38px;
+	width: 38px;
+	border: none;
+	outline: none;
+	padding: 0px;
+	z-index: 1000;
+	background-position: top left;
+}
+
+#bouton-audio {
+	bottom: 48px;
+	background-image: url(../images/play.png);
+	background-color: transparent;
+}
+
+.bouton-musique > div {
+	width: 40px;
+	height: 40px;
+	position: absolute;
+	top: 50%;
+	left: 43px;
+	transform: translateY(-50%);
+	background-size: contain;
+}
+
+.bouton-musique > div:hover {
+	background-image: url(../images/move.svg);
+}
+
+.new {
+	border-radius: 50%;
+	box-shadow: 0 0 20px 10px rgba(255, 0, 0, 0.6); /* Ombre rouge circulaire */
+}
+
+.new::after {
+	content: "nouveau";
+	position: absolute;
+	top: -20px;
+	left: 0px;
+	font-weight: bold;
+	color: red;
+}
+
+#bouton-stop {
+	bottom: 5px;
+	background-image: url(../images/stop.png);
+	background-color: transparent;
+}
+
+#bouton-audio.pause {
+	background-position: bottom left !important;
+}
+
+#bouton_image {
+	background-image: url(../images/image.svg);
+}
+
+#regle {
+	background-image: url(../images/regle.svg);
+}
+
+#zoom_in {
+	background-image: url(../images/zoom_in.svg);
+}
+
+#zoom_out {
+	background-image: url(../images/zoom_out.svg);
+}
+
+#carreaux {
+	background-image: url(../images/carreau_seyes.svg);
+	position: relative;
+	border: 2px #000000 solid !important;
+	background-color: #ffffff;
+	display: inline-block;
+	min-width: 35px;
+	height: 35px;
+	margin: 2px;
+	background-size: contain;
+	vertical-align: middle;
+}
+
+.fleche_bas {
+	display: inline-block;
+	vertical-align: middle;
+	width: 10px;
+	height: 100%;
+	background-image: url(../images/fleche_bas.svg);
+	background-size: contain;
+	background-position: bottom;
+	background-repeat: no-repeat;
+	z-index: 50;
+}
+
+.multibouton {
+	display: inline-block;
+	height: 35px;
+	flex-shrink: 0;
+}
+
+.multibouton:hover,
+.multibouton:hover > .fleche_bas {
+	box-shadow: 0 0 2px rgb(0, 0, 0);
+	border-radius: 2px;
+	background-color: #ffffff36;
+}
+
+#barre button:hover,
+#barre label:hover {
+	box-shadow: 0 0 2px rgb(0, 0, 0);
+	border-radius: 2px;
+	background-color: #ffffff36;
+}
+
+.bouton-couleur {
+	height: 30px;
+	width: 30px;
+	border-radius: 50%;
+	vertical-align: middle;
+	margin-right: 5px;
+}
+
+.bouton-couleur:hover {
+	box-shadow: 0px 0px 10px #1d3b4e;
+}
+
+#bouton_deroule_carreaux {
+	position: absolute;
+	bottom: 53px;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 40px;
+	height: 20px;
+	background-image: url(../images/fleche_transp..svg);
+	background-size: contain;
+	background-repeat: no-repeat;
+	z-index: 50;
+}
+
+.deroule_carreaux {
+	width: 50px;
+	height: 50px;
+	background-size: 90%;
+	background-position: center;
+	background-repeat: no-repeat;
+}
+
+.deroule_carreaux:hover {
+	filter: brightness(80%);
+}
+
+#carreau_terre {
+	background-size: 60%;
+}
+
+#nouveau {
+	background-image: url(../images/nouveau.svg);
+}
+
+#ouvrir {
+	background-image: url(../images/ouvrir.svg);
+}
+
+#codi {
+	background-image: url(../images/cloud.svg);
+}
+
+#imprimer {
+	background-image: url(../images/imprimer.svg);
+}
+
+#enregistrer {
+	background-image: url(../images/enregistrer.svg);
+}
+
+#date {
+	background-image: url(../images/date.svg);
+}
+
+#copielien {
+	background-image: url(../images/copielien.svg);
+}
+
+#timer {
+	background-image: url(../images/timer.svg);
+}
+
+#options {
+	background-image: url(../images/options.svg);
+}
+
+#zone_couleur {
+	border-radius: 50%;
+	width: 23px;
+	height: 23px;
+	border: 2px solid black;
+	overflow: hidden;
+	vertical-align: bottom;
+}
+
+#applique_couleur {
+	text-align: center;
+	margin: 0 !important;
+	height: 23px !important;
+	border-radius: 0% 0% 100% 100%;
+}
+
+#lance_couleur {
+	display: inline-block;
+	background-image: url(../images/fleche.svg);
+	height: 23px !important;
+	background-repeat: no-repeat !important;
+	margin: 0 !important;
+	border-radius: 100% 100% 0% 0%;
+}
+
+#choix_police {
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 22px;
+	vertical-align: middle;
+	padding-left: 3px;
+	width: 180px;
+}
+
+#bouton_ligatures {
+	background-image: url(../images/ligatures.svg);
+	background-size: 25px 20px !important;
+	background-position: 0% 100%;
+}
+
+#a_propos {
+	background-image: url(../images/question.svg);
+}
+
+#aide {
+	background-image: url(../images/help.svg);
+}
+
+#left {
+	background-image: url(../images/left.svg);
+}
+
+#right {
+	background-image: url(../images/right.svg);
+}
+
+#boutonBarre {
+	background-image: url(../images/barre.svg);
+}
+
+#bouton_clear_format {
+	background-image: url(../images/clear-format.svg);
+}
+
+#center {
+	background-image: url(../images/center.svg);
+}
+
+#fullscreen {
+	background-image: url(../images/fullscreen.svg);
+	background-size: 100% 200% !important;
+	background-position: 0% 100%;
+	display: inline-block;
+	width: 35px;
+	height: 35px;
+	margin: 3px;
+	background-color: transparent;
+	background-repeat: no-repeat;
+	border: none;
+	background-size: contain;
+	vertical-align: middle;
+}
+
+#zone_boutons_soulignement,
+#zone_choix_carreaux {
+	display: inline-block;
+}
+
+.deroule {
+	position: absolute;
+	top: 0%;
+	margin: 0;
+	background-color: #bdd6fa;
+	border-radius: 5px 5px 0px 0px;
+	border: 3px solid #000;
+	text-align: left;
+	padding: 20px;
+	z-index: 1000;
+}
+
+#couleur-texte,
+#souligne,
+#bouton_entoure,
+#couleur-surlignement {
+	font-family: Arial, Helvetica, sans-serif;
+	font-weight: bold;
+	font-size: 32px;
+	line-height: 32px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin: 0 !important;
+	position: relative;
+}
+
+#bouton_entoure::after {
+	content: ""; /* Nécessaire pour que l'élément ::after apparaisse */
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 100%;
+	height: 100%;
+	border: 2px solid red; /* Bordure rouge */
+	border-radius: 50%; /* Cercle */
+	transform: translate(
+		-50%,
+		-50%
+	); /* Centrer le cercle par rapport au bouton */
+	box-sizing: border-box; /* Pour que la bordure ne modifie pas la taille du cercle */
+}
+
+#souligne {
+	text-decoration: underline;
+}
+
+#divCodi .bouton-fermer,
+#panneauOptions .bouton-fermer,
+#boutons_carreaux .bouton-fermer {
+	position: absolute;
+	top: 0px;
+	right: 0px;
+	width: 30px !important;
+	height: 30px !important;
+	background-image: url(../images/bouton_fermer.svg);
+	background-size: contain;
+	background-color: transparent !important;
+	border: none !important;
+	outline: none;
+}
+
+#boutons_carreaux button:not(.bouton-fermer) {
+	background-color: #ffffff;
+}
+
+#boutons-couleur-texte,
+#boutons_carreaux,
+#boutons_soulignement,
+#boutons-couleur-surlignement {
+	position: fixed;
+	top: 46px;
+}
+
+#boutons-couleur-texte > h3,
+#boutons_carreaux > h3,
+#boutons_soulignement > h3,
+#boutons-couleur-surlignement h3 {
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 20px;
+	color: rgb(117, 117, 117);
+	margin-bottom: 10px;
+}
+
+#graphismes,
+#images {
+	height: 100%;
+	width: 100%;
+	margin: 0;
+	padding: 0;
+	position: absolute;
+	top: 0px;
+	left: 0px;
+}
+
+.trace {
+	cursor:
+		url(../images/crayon.png) 0 30,
+		auto;
+}
+
+.trait {
+	border-radius: 3px;
+	user-select: none;
+	transition:
+		width 0.2s linear,
+		height 0.2s linear;
+}
+
+.trait:hover {
+	box-shadow: 0 0 15px 10px rgb(34, 233, 16);
+	cursor: pointer;
+}
+
+.trait.horizontal {
+	transform: translateX(var(--decalage-depart))
+		translateY(var(--decalage-position));
+}
+
+.trait.vertical {
+	transform: translateY(var(--decalage-depart))
+		translateX(var(--decalage-position));
+}
+
+.bouton-supprimer-trait,
+.bouton-couleur-trait {
+	position: absolute;
+	display: none;
+	height: 10px;
+	width: 10px;
+	box-sizing: content-box;
+	padding: 10px;
+	border-radius: 50%;
+	border: none;
+	outline: none;
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+	pointer-events: all;
+	font-weight: bold;
+}
+
+.bouton-supprimer-trait {
+	background-image: url(../images/supprime.svg);
+}
+
+.bouton-couleur-trait {
+	background-image: url(../images/couleurs.svg);
+}
+
+.select > .bouton-supprimer-trait,
+.select > .bouton-couleur-trait {
+	display: block;
+}
+
+.trait.horizontal > .bouton-supprimer-trait {
+	top: 10px;
+	left: 50%;
+	transform: translateX(-50%);
+}
+
+.trait.vertical > .bouton-supprimer-trait {
+	left: 10px;
+	top: 50%;
+	transform: translateY(-50%);
+}
+
+.trait.horizontal > .bouton-couleur-trait {
+	top: -40px;
+	left: 50%;
+	transform: translateX(-50%);
+}
+
+.trait.vertical > .bouton-couleur-trait {
+	left: -40px;
+	top: 50%;
+	transform: translateY(-50%);
+}
+
+.select {
+	box-shadow: 0 0 15px 10px rgb(233, 255, 36) !important;
+	cursor: pointer;
+}
+
+#page.trace .trait:hover {
+	box-shadow: none !important;
+}
+
+.texte {
+	position: relative;
+	color: var(--couleur-texte);
+	overflow-wrap: anywhere;
+	z-index: 1;
+	font-feature-settings: var(--ligatures) !important;
+	-webkit-font-feature-settings: var(--ligatures) !important;
+	transition:
+		font-size 0.3s ease,
+		line-height 0.3s ease,
+		margin-top 0.3s ease;
+}
+
+.texte span {
+	font-feature-settings: var(--ligatures);
+	-webkit-font-feature-settings: var(--ligatures);
+}
+
+.texte:focus {
+	outline: none;
+}
+
+.souligne-red {
+	text-decoration: underline;
+	text-decoration-color: red;
+	text-decoration-thickness: 0.1em;
+}
+.souligne-blue {
+	text-decoration: underline;
+	text-decoration-color: blue;
+	text-decoration-thickness: 0.1em;
+}
+.souligne-green {
+	text-decoration: underline;
+	text-decoration-color: green;
+	text-decoration-thickness: 0.1em;
+}
+.souligne-yellow {
+	text-decoration: underline;
+	text-decoration-color: yellow;
+	text-decoration-thickness: 0.1em;
+}
+.souligne-pink {
+	text-decoration: underline;
+	text-decoration-color: pink;
+	text-decoration-thickness: 0.1em;
+}
+.souligne-black {
+	text-decoration: underline;
+	text-decoration-color: black;
+	text-decoration-thickness: 0.1em;
+}
+.souligne-purple {
+	text-decoration: underline;
+	text-decoration-color: purple;
+	text-decoration-thickness: 0.1em;
+}
+.souligne-orange {
+	text-decoration: underline;
+	text-decoration-color: orange;
+	text-decoration-thickness: 0.1em;
+}
+
+.textebarre {
+	position: relative; /* nécessaire pour le ::after */
+}
+
+.textebarre::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: var(--distance-barre);
+	height: max(3px, 5%);
+	transform: translateY(-50);
+	background-color: currentColor;
+	pointer-events: none;
+}
+
+.couleur-red {
+	color: red;
+}
+.couleur-coral {
+	color: coral;
+}
+.couleur-salmon {
+	color: salmon;
+}
+.couleur-orange {
+	color: orange;
+}
+.couleur-gold {
+	color: gold;
+}
+.couleur-yellow {
+	color: yellow;
+}
+.couleur-lime {
+	color: lime;
+}
+.couleur-green {
+	color: green;
+}
+.couleur-olive {
+	color: olive;
+}
+.couleur-teal {
+	color: teal;
+}
+.couleur-cyan {
+	color: cyan;
+}
+.couleur-blue {
+	color: blue;
+}
+.couleur-navy {
+	color: navy;
+}
+.couleur-indigo {
+	color: indigo;
+}
+.couleur-purple {
+	color: purple;
+}
+.couleur-magenta {
+	color: magenta;
+}
+.couleur-pink {
+	color: pink;
+}
+.couleur-beige {
+	color: beige;
+}
+.couleur-brown {
+	color: brown;
+}
+.couleur-gray {
+	color: gray;
+}
+.couleur-silver {
+	color: silver;
+}
+.couleur-black {
+	color: black;
+}
+.couleur-white {
+	color: white;
+}
+.couleur-transparent {
+	color: transparent;
+}
+
+.surlignement-red {
+	background-color: rgba(255, 0, 0, 0.5);
+}
+.surlignement-coral {
+	background-color: rgba(255, 127, 80, 0.5);
+}
+.surlignement-salmon {
+	background-color: rgba(250, 128, 114, 0.5);
+}
+.surlignement-orange {
+	background-color: rgba(255, 165, 0, 0.5);
+}
+.surlignement-gold {
+	background-color: rgba(255, 215, 0, 0.5);
+}
+.surlignement-yellow {
+	background-color: rgba(255, 255, 0, 0.5);
+}
+.surlignement-lime {
+	background-color: rgba(0, 255, 0, 0.5);
+}
+.surlignement-green {
+	background-color: rgba(0, 128, 0, 0.5);
+}
+.surlignement-olive {
+	background-color: rgba(128, 128, 0, 0.5);
+}
+.surlignement-teal {
+	background-color: rgba(0, 128, 128, 0.5);
+}
+.surlignement-cyan {
+	background-color: rgba(0, 255, 255, 0.5);
+}
+.surlignement-blue {
+	background-color: rgba(0, 0, 255, 0.5);
+}
+.surlignement-navy {
+	background-color: rgba(0, 0, 128, 0.5);
+}
+.surlignement-indigo {
+	background-color: rgba(75, 0, 130, 0.5);
+}
+.surlignement-purple {
+	background-color: rgba(128, 0, 128, 0.5);
+}
+.surlignement-magenta {
+	background-color: rgba(255, 0, 255, 0.5);
+}
+.surlignement-pink {
+	background-color: rgba(255, 192, 203, 0.5);
+}
+.surlignement-beige {
+	background-color: rgba(245, 245, 220, 0.5);
+}
+.surlignement-brown {
+	background-color: rgba(165, 42, 42, 0.5);
+}
+.surlignement-gray {
+	background-color: rgba(128, 128, 128, 0.5);
+}
+.surlignement-silver {
+	background-color: rgba(192, 192, 192, 0.5);
+}
+.surlignement-black {
+	background-color: rgba(0, 0, 0, 0.5);
+}
+.surlignement-white {
+	background-color: rgba(255, 255, 255, 0.5);
+}
+.surlignement-transparent {
+	background-color: transparent;
+}
+
+.arial {
+	font-family: Arial, Helvetica, sans-serif;
+	line-height: 0px;
+}
+
+.entoure {
+	position: relative; /* Nécessaire pour les pseudo-éléments */
+	border-radius: 1em / 50%; /* Arrondi des coins */
+}
+
+.entoure::after {
+	content: ""; /* Crée un pseudo-élément vide */
+	position: absolute;
+	top: -0.3em; /* Distance verticale (haut) */
+	left: -0.3em; /* Distance horizontale (gauche) */
+	right: -0.3em; /* Distance horizontale (droite) */
+	bottom: -0.3em; /* Distance verticale (bas) */
+	border: 5px solid red; /* Épaisseur et couleur de l'outline */
+	border-radius: 1em / 50%; /* Suivre le bord arrondi de l'élément */
+	pointer-events: none; /* Évite toute interaction avec cet élément */
+}
+
+.boite {
+	position: fixed;
+	top: 100px;
+	left: 50%;
+	transform: translateX(-50%);
+	background-color: #ffffff;
+	border: 3px #000000 solid;
+	padding: 10px;
+	border-radius: 15px;
+	font-size: 14px;
+	text-align: center;
+}
+
+.boite button {
+	padding: 5px;
+}
+
+.voile {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	background-color: rgba(255, 255, 255, 0);
+	z-index: 0;
+	pointer-events: none;
+}
+
+#voile_marge2 {
+	width: calc(100% + 3px);
+	left: -3px;
+}
+
+.draggable {
+	z-index: 10;
+}
+
+#zone_menu_copie_lien {
+	height: fit-content;
+}
+
+#zone_menu_copie_lien .contenu-lightbox,
+#confirmation-nouveau .contenu-lightbox {
+	text-align: center !important;
+}
+
+#zone_lien {
+	font-family: "Courier New", Courier, monospace;
+	font-size: 12px;
+	user-select: all;
+	background-color: rgb(216, 204, 204);
+	text-align: left;
+	max-height: 5em;
+	margin-left: auto;
+	margin-right: auto;
+	width: 90%;
+	padding: 1%;
+	border: 1px solid #000;
+	overflow-x: auto;
+	word-break: break-all;
+	margin-top: 5px;
+	margin-bottom: 5px;
+}
+
+.exposant {
+	/*font-size: 75%;*/
+	position: relative;
+	/* top: -0.6em; */
+}
+
+.context-menu {
+	position: absolute;
+	background-color: white;
+	border: 1px solid #ccc;
+	padding: 10px;
+	box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+	z-index: 1000;
+	width: 150px; /* Définir une largeur */
+	display: block;
+}
+
+.context-menu-option {
+	padding: 8px 12px;
+	cursor: pointer;
+}
+
+.context-menu-option:hover {
+	background-color: #f1f1f1;
+}
+
+.flatpickr-calendar {
+	position: absolute !important;
+	top: 35px;
+	height: fit-content;
+	z-index: 1000;
+	border: 1px solid #000000 !important;
+	background-color: rgb(255, 255, 255);
+	box-shadow: 3px 3px 6px rgba(0, 0, 0, 0.61) !important;
+	font-family: Arial, Helvetica, sans-serif;
+}
+
+#darkbox {
+	/* Elle doit prendre toute la largeur et toute la hauteyr  */
+	position: fixed;
+	z-index: 999; /* O la place sous la lightbox */
+	width: 100%;
+	height: 100%;
+	top: 0px;
+	left: 0px;
+	background-color: rgba(0, 0, 0, 0.5);
+}
+
+.lightbox {
+	position: fixed;
+	z-index: 1000; /* O la place sur la lightbox */
+	display: flex;
+	flex-direction: column;
+	max-width: 80%;
+	max-height: 90%;
+	top: 50%;
+	left: 50%;
+	padding: 10px; /* Marge intérieure */
+	border-radius: 20px; /* Coins arrondis */
+	box-shadow: 0px 0px 15px #ffffff; /* Ombre transparente blanche */
+	border: 2px solid #000000; /* Bordure de 2px noire */
+	transform: translateX(-50%) translateY(-50%); /* Pour centrer dans la page */
+	background-color: #ffffff; /* Couleur de fond */
+}
+
+.lightbox h1 {
+	/* Le titre */
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 36px;
+	min-height: 36px;
+	margin: 10px;
+}
+
+.contenu-lightbox {
+	flex: 1;
+	font-size: 16px;
+	font-family: Arial, Helvetica, sans-serif;
+	overflow-y: auto;
+	text-align: left;
+	width: fit-content;
+	margin: auto;
+	margin-top: 1em;
+	margin-bottom: 1em;
+}
+
+#zone_menu_copie_lien .contenu-lightbox {
+	width: 60vw;
+	max-width: 600px;
+}
+
+.contenu-lightbox p {
+	margin-top: 10px;
+	margin-bottom: 10px;
+}
+
+.contenu-lightbox ul {
+	list-style-type: circle;
+}
+
+.lightbox .bouton-fermer {
+	position: fixed;
+	top: 10px;
+	right: 10px;
+	width: 30px;
+	height: 30px;
+	background-image: url(../images/bouton_fermer.svg);
+	background-size: contain;
+	background-color: transparent;
+	border: none;
+	outline: none;
+}
+
+.cartouche {
+	padding-left: 20px;
+	background-repeat: no-repeat;
+	background-size: contain;
+	background-position: left;
+}
+
+#message {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translateX(-50%) translateY(-50%);
+	width: 600px;
+	max-width: 100%;
+	max-height: 100%;
+	padding: 15px;
+	box-sizing: border-box;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 18px;
+	background-color: #ffffff;
+	color: #000000;
+	border: 3px outset #000000;
+	border-radius: 15px;
+	z-index: 1000000;
+	opacity: 0;
+	transition: opacity 0.5s ease;
+}
+
+#message img {
+	float: left;
+	margin-right: 10px;
+}
+#message .contenu-lightbox > p:last-of-type {
+	margin-top: 1.5em;
+	background: antiquewhite;
+	padding: 10px;
+	text-align: center;
+}
+
+#understood-button {
+	display: block;
+	width: fit-content;
+	font-size: 24px;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+#divCodi {
+	padding-top: 20px !important;
+}
+
+#inputCodi {
+	width: calc(100% - 10px);
+	box-sizing: border-box;
+	border-radius: 5px;
+	height: 2em;
+	padding: 3px;
+	margin-top: 10px;
+	margin-bottom: 10px;
+	margin-left: 2px;
+	background-color: #ffffff;
+}
+
+#resultatCodi {
+	padding: 3px;
+	border-radius: 3px;
+}
+
+#resultatCodi.correct {
+	background-color: greenyellow;
+}
+
+#resultatCodi.incorrect {
+	background-color: orange;
+}
+
+#lienCodi {
+	font-family: "Courier New", Courier, monospace;
+	color: rgb(41, 40, 40);
+	font-size: 0.8em;
+	padding: 1em;
+	border: 1px #000000 solid;
+	border-radius: 5px;
+	margin-top: 1em;
+	margin-bottom: 1em;
+}
+
+#boutonCodi,
+#boutonFermeCodi {
+	font-size: 1em;
+	position: relative;
+	margin-top: 0.5em;
+}
+
+.conteneur-image {
+	position: absolute;
+	transform: translateX(-50%) translateY(-50%);
+	left: 50%;
+	cursor: grab;
+}
+
+.conteneur-image.selectionne::before {
+	content: "";
+	box-shadow: 0 0 0 30px rgba(128, 128, 128, 0.6) inset;
+	border-radius: 10px;
+	width: calc(100% + 60px);
+	height: calc(100% + 60px);
+	position: absolute;
+	top: -30px;
+	left: -30px;
+	z-index: -1;
+	cursor: grab;
+}
+
+.image {
+	pointer-events: none;
+	user-select: none;
+	cursor: grab;
+	z-index: 3;
+}
+
+.timer {
+	height: 300px;
+	width: 300px;
+	border: none;
+	pointer-events: none;
+}
+
+.selectionne .timer {
+	pointer-events: auto;
+}
+
+.encadre .timer {
+	border: 5px #000000 solid;
+	background-color: #ffffff;
+}
+
+.encadre .image {
+	border: 5px solid #000000;
+}
+
+.bouton-supprimer-image {
+	position: absolute;
+	display: none;
+	height: 20px;
+	width: 20px;
+	top: 50%;
+	left: calc(100% + 5px);
+	transform: translateY(-50%);
+	border-radius: 50%;
+	border: none;
+	outline: none;
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+	pointer-events: all;
+	font-weight: bold;
+	background-image: url(../images/supprime.svg);
+	z-index: 2;
+}
+
+.selectionne .bouton-supprimer-image {
+	display: block;
+}
+
+.bouton-cadre-image {
+	position: absolute;
+	display: none;
+	height: 20px;
+	width: 20px;
+	top: 50%;
+	right: calc(100% + 5px);
+	transform: translateY(-50%);
+	border: none;
+	outline: none;
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+	pointer-events: all;
+	font-weight: bold;
+	background-image: url(../images/cadre.svg);
+	z-index: 2;
+}
+
+.selectionne .bouton-cadre-image {
+	display: block;
+}
+
+.poignee {
+	position: absolute;
+	display: none;
+	height: 40px;
+	width: 40px;
+	border: none;
+	outline: none;
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+	pointer-events: all;
+	background-image: url(../images/poignee.svg);
+	z-index: 2;
+}
+
+.poignee.nw {
+	top: -25px;
+	left: -25px;
+	cursor: nw-resize;
+}
+
+.poignee.ne {
+	top: -25px;
+	right: -25px;
+	transform: scaleX(-1);
+	cursor: ne-resize;
+}
+
+.poignee.sw {
+	bottom: -25px;
+	left: -25px;
+	transform: scaleY(-1);
+	cursor: sw-resize;
+}
+
+.poignee.se {
+	bottom: -25px;
+	right: -25px;
+	transform: rotate(180deg);
+	cursor: se-resize;
+}
+
+.selectionne .poignee {
+	display: block;
+}
+
+.hide {
+	display: none !important;
+}
+
+@media print {
+	@page {
+		margin: 1.41cm 1cm;
+	}
+
+	body,
+	html {
+		height: auto;
+	}
+
+	main {
+		scrollbar-width: none;
+		flex: auto !important;
+	}
+
+	#barre,
+	#panneauOptions {
+		display: none !important;
+	}
+
+	#texte_principal,
+	#texte_marge,
+	#texte_marge_seconsaire {
+		font-size: var(--taille-police-impression) !important;
+		margin-left: var(--marge-impression) !important;
+		margin-right: var(--marge-impression) !important;
+		margin-top: var(--marge-top-impression) !important;
+		line-height: var(--hauteur-ligne-impression) !important;
+	}
+
+	#page,
+	#marge1,
+	#marge2 {
+		background-size: var(--largeur-carreau-impression) !important;
+	}
+
+	#page {
+		width: var(--largeur-page-impression) !important;
+	}
+
+	#marge {
+		width: var(--largeur-marge-impression) !important;
+	}
+
+	#marge2 {
+		width: var(--largeur-marge2-impression) !important;
+	}
+
+	.customfont {
+		font-size: var(--taille-police-impression) !important;
+		line-height: var(--hauteur-ligne-impression) !important;
+	}
+}
+
+#creditNum40 {
+	font-size: 24px !important;
+	text-align: center;
+	background-color: #bdd6fa;
+	border-radius: 10px;
+}
+
+.couleur-transparent::selection {
+	color: #7575756e !important;
+}
+
+.sr-only {
+	position: absolute !important;
+	width: 1px !important;
+	height: 1px !important;
+	padding: 0 !important;
+	margin: -1px !important;
+	overflow: hidden !important;
+	clip: rect(0 0 0 0) !important;
+	white-space: nowrap !important;
+	border: 0 !important;
+}

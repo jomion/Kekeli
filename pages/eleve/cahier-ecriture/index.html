@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="fr">
+<!--
+    Seyes est une application libre
+    sous licence GNU GPL
+    écrite par Arnaud Champollion -->
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Seyes permet d'écrire du texte sur une page quadrillée de type cahier" />
+  <link href="./css/styles.min.css" rel="stylesheet" type="text/css">
+  <link rel="preload" fetchpriority="high" as="image" href="./images/carreau_seyes.svg" type="image/svg+xml">
+  <link rel="preload" fetchpriority="high" as="image" href="./images/carreau_marge_seyes.svg" type="image/svg+xml">
+  <link rel="preload" fetchpriority="high" as="image" href="./images/seyes.png" type="image/png" media="(width >= 1400px)">
+  <link rel="icon" href="./images/favicon.ico" sizes="any" />
+  <title i18_content="title">Éducajou - Seyes</title>
+  <!-- Intégration KEKELI (24 septembre 2026) : le suivi Matomo du serveur du
+       Ministère de l'Éducation nationale français (wa.phm.education.gouv.fr,
+       sans rapport avec Kekeli) a été retiré ici, à la demande explicite de
+       l'utilisateur, pour qu'aucune donnée de navigation d'élève ne parte
+       vers un serveur externe non lié au site. Reste du fichier inchangé. -->
+</head>
+
+<body>
+
+  <a href="../tableau-de-bord.html" id="kekeli-retour"
+    title="Retour à Kekeli"
+    style="position:fixed;top:8px;left:8px;z-index:10001;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:#1e293b;color:#fff;border-radius:8px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;text-decoration:none;box-shadow:0 2px 6px rgba(0,0,0,.25)">← Retour à Kekeli</a>
+
+  <nav role="navigation">
+    <div id="dev">
+      🧪 Version DEV 1.7 pour tests
+    </div>
+
+    <div id="barre">
+      <span class="section">
+        <button type="button" id="nouveau" title="Nouveau document" i18_title="nouveau_title"></button>
+        <div id="confirmation-nouveau" class="lightbox hide">
+          <div class="contenu-lightbox">
+            <span i18_content="confirmation_nouveau_message">Voulez-vous effacer tout le contenu ?</span>
+            <p>
+              <button type="button" id="oui" style="font-size: 20px;" title="Oui" i18_title="oui_title">OUI</button>
+              <button type="button" id="non" style="font-size: 20px;" title="Non" i18_title="non_title">NON</button>
+            </p>
+          </div>
+        </div>
+
+        <button type="button" id="enregistrer" title="Enregistrer au format sey" i18_title="enregistrer_title"></button>
+        <button type="button" id="ouvrir" title="Ouvrir un fichier txt, docx, sey ou json"
+          i18_title="ouvrir_title"></button>
+        <button type="button" id="codi" title="Importer depuis CodiMD" i18_title="codi_title"></button>
+
+        <div id="divCodi" class="lightbox hide">
+          <button class="bouton-fermer" title="Fermer" i18_title="bouton_fermer_title"></button>
+          <h1 i18_content="divCodi_title">Importer un texte</h1>
+          <div class="contenu-lightbox">
+            <p i18_content="divCodi_message">Vous pouvez importer un texte depuis <a target="_blank"
+                href="https://codimd.apps.education.fr/">CodiMD</a>, <a target="_blank"
+                href="https://framapad.org">Framapad</a> ou <a target="_blank" href="https://digipage.app/">Digipage</a>
+              et
+              l'afficher sur Seyes avec un lien permanent.</p>
+            <p i18_content="divCodi_example_message">Voir <a target="_blank"
+                href="https://codimd.apps.education.fr/njrVz0XoQMKgvWhPL3gBZg?both">cet exemple</a>.</p>
+            <p i18_content="divCodi_input_message">Collez ci-dessous le lien de votre document.</p>
+            <p>
+              <input type="text" id="inputCodi" placeholder="https://codimd.apps.education.fr/..."
+                i18_placeholder="inputCodi_placeholder">
+            </p>
+            <p><span id="resultatCodi"></span></p>
+            <div id="suiteCodi" class="hide">
+              <span i18_content="suiteCodi_message">Lien permanent :</span>
+              <div id="lienCodi"></div>
+              <button id="boutonCodi" title="Copier ce lien" i18_title="boutonCodi_title"
+                i18_content="boutonCodi_content">Copier ce lien</button>
+              <br>
+              <button id="boutonFermeCodi" title="Fermer cette fenêtre et accéder au texte"
+                i18_title="boutonFermeCodi_title" i18_content="boutonFermeCodi_content">Fermer cette fenêtre et accéder
+                au texte</button>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" id="imprimer" title="Imprimer" i18_title="imprimer_title"></button>
+        <button type="button" id="export-pdf" title="Exporter en PDF"></button>
+        <button type="button" id="copielien" title="Exporter comme lien" i18_title="copielien_title"></button>
+        <div id="zone_menu_copie_lien" class="lightbox hide">
+          <div class="contenu-lightbox">
+            <span i18_content="zone_menu_copie_lien_message">Pour exporter votre page, copiez le lien ci-dessous.</span>
+            <div id="zone_lien"></div>
+            <button type="button" id="copier" style="font-size: 20px;" title="Copier" i18_content="copier_content"
+              18_title="copier_title">Copier</button>
+            <button type="button" id="ferme_menu_copie_lien" style="font-size: 20px;" title="Fermer"
+              i18_content="ferme_menu_copie_lien_content" i18_title="ferme_menu_copie_lien_title">Fermer</button>
+          </div>
+        </div>
+
+      </span>
+
+      <span class="multibouton gestion-texte">
+        <button type="button" id="date" title="Appliquer la date courante" i18_title="date_title"></button>
+        <div id="bouton_deroule_date" class="fleche_bas" title="Choisir une date" i18_title="bouton_deroule_date_title">
+        </div>
+      </span>
+
+      <button type="button" id="zoom_out" title="Diminuer la taille" i18_title="zoom_out_title"></button>
+      <button type="button" id="zoom_in" title="Augmenter la taille" i18_title="zoom_in_title"></button>
+
+      <span id="zoneInputNombreDeCarreaux">
+        <input type="number" id="inputNombreDeCarreaux" min="3" max="30" step="1" title="Nombre de carreaux par ligne"
+          i18_title="inputNombreDeCarreaux_title">
+        <span id="texteInputNombreDeCarreaux" i18_content="texteInputNombreDeCarreaux">carreaux</span>
+      </span>
+      <button type="button" id="carreaux" class="deroule_carreaux" title="Changer de lignage"
+        i18_title="carreaux_title"></button>
+
+
+      <button type="button" id="bouton_ligatures" title="Améliorer les ligatures"
+        i18_title="bouton_ligatures_title"></button>
+
+      <label for="choix_police" id="label_choix_police" class="sr-only" i18_content="choix_police_label">Choisir une
+        police</label>
+      <select id="choix_police" aria-labelledby="label_choix_police">
+        <option id="optionMarelle" value="Marelle" i18_value="marelle_value" i18_content="marelle_content">Marelle</option>
+        <option id="optionMarelleBaton" value="Marelle Bâton" i18_value="marelleBaton_value" i18_content="marelleBaton_content">Marelle Bâton</option>
+
+        <option value="Arial" i18_value="arial_value" i18_content="arial_content">Arial</option>
+        <option value="AA Cursive" i18_value="aa_cursive_value" i18_content="aa_cursive_content">AA Cursive</option>
+        <option value="Open Dyslexic" i18_value="open_dyslexic_value" i18_content="open_dyslexic_content">Open Dyslexic
+        </option>        
+        <option value="Romain" i18_value="romain_value" i18_content="romain_content">Eduscol Romain A</option>
+        <option value="Luciole" i18_value="luciole_value" i18_content="luciole_content">Luciole</option>
+        <option value="Acceseditionscursive" i18_value="acces_editions_cursive_value"
+          i18_content="acces_editions_cursive_content">Acces Editions Élémentaire *</option>
+      </select>
+
+      <button type="button" id="left" title="Aligner à gauche le texte" i18_title="left_title"></button>
+      <button type="button" id="center" title="Centrer le texte" i18_title="center_title"></button>
+      <button type="button" id="right" title="Aligner à droite le texte" i18_title="right_title"></button>
+      <button type="button" id="bouton_lirecouleur" class="gestion-texte" title="Colorier les syllabes (LireCouleur)"></button>
+      <button type="button" id="boutonBarre" title="Barrer le texte" i18_title="cross_title"></button>
+
+      <span class="multibouton gestion-texte">
+        <button type="button" id="couleur-texte" class="gestion-texte" value="blue" style="color: blue;"
+          title="Couleur du texte" i18_title="couleur_texte_title">A</button>
+        <div id="bouton_deroule_couleurs" class="fleche_bas gestion-texte" title="Choisir une couleur de texte"
+          i18_title="bouton_deroule_couleurs_title"></div>
+      </span>
+
+      <span class="multibouton gestion-texte">
+        <button type="button" id="souligne" class="gestion-texte" title="Couleur du soulignement"
+          i18_title="souligne_title" style="color: blue; text-decoration-color: red;" value="red">A</button>
+        <div id="bouton_deroule_souligne" class="fleche_bas gestion-texte" title="Choisir une couleur de soulignement"
+          i18_title="bouton_deroule_souligne_title"></div>
+      </span>
+
+      <span class="multibouton gestion-texte">
+        <button type="button" id="couleur-surlignement" class="gestion-texte"
+          value="yellow" style="background-color: rgba(255, 255, 0, 0.5);"
+          title="Couleur de surlignement" i18_title="couleur_surlignement_title">A</button>
+        <div id="bouton_deroule_surlignement" class="fleche_bas gestion-texte"
+          title="Choisir une couleur de surlignement"
+          i18_title="bouton_deroule_surlignement_title"></div>
+    </span>
+
+      <button type="button" id="bouton_entoure" class="gestion-texte" title="Entourer" i18_title="bouton_entoure_title"
+        style="color: blue">A</button>
+      <button type="button" id="bouton_clear_format" class="gestion-texte" title="Supprimer le formatage"></button>
+
+      <label for="inputFichier" id="bouton_image" title="Ajouter une image" i18_title="bouton_image_title"></label>
+      <input type="file" id="inputFichier" name="inputFichier" accept="image/*" title="Ajouter une image"
+        i18_title="inputFichier_title" />
+      <button type="button" id="regle" title="Tracer des traits droits" i18_title="regle_title"></button>
+      <button type="button" id="fullscreen" title="Plein écran / Réduire" i18_title="fullscreen_title"></button>
+      <button type="button" id="a_propos" title="Informations sur Seyes" i18_title="a_propos_title"></button>
+      <button type="button" id="aide" title="Aide" i18_title="aide_title"></button>
+      <button type="button" id="timer" title="Timer" i18_title="timer_title"></button>
+      <button type="button" id="options" title="Options" i18_title="options_title"></button>
+
+      <input type="color" id="inputCouleurTrait" style="display: none;" title="Choisir une couleur de trait"
+        i18_title="inputCouleurTrait_title">
+    </div>
+
+    <div id="entete">
+      <div id="marge-entete">
+        <div id="haut-marge"></div>
+        <div id="bas-marge">
+          <div id="case1" i18_content="case1">MATIÈRE</div>
+          <div id="case2" i18_content="case2">POUR LE</div>
+        </div>
+      </div>
+
+      <div id="case3">
+        <select id="select-jours">
+          <option value="lundi" i18_value="lundi_value" i18_content="lundi_content">LUNDI</option>
+          <option value="mardi" i18_value="mardi_value" i18_content="mardi_content">MARDI</option>
+          <option value="mercredi" i18_value="mercredi_value" i18_content="mercredi_content">MERCREDI</option>
+          <option value="jeudi" i18_value="jeudi_value" i18_content="jeudi_content">JEUDI</option>
+          <option value="vendredi" i18_value="vendredi_value" i18_content="vendredi_content">VENDREDI</option>
+          <option value="samedi" i18_value="samedi_value" i18_content="samedi_content">SAMEDI</option>
+        </select>
+        <input type="color" id="choix-couleur-entete" title="Choisir une couleur pour l'en-tête"
+          i18_title="choix_couleur_entete_title">
+      </div>
+    </div>
+
+    <input type="text" id="date-input" class="hide" placeholder="Sélectionner une date"
+      i18_placeholder="date_input_placeholder">
+    <div id="datepicker" class="hide"></div>
+
+    <div id="boutons_soulignement" class="hide deroule">
+      <h3 i18_content="boutons_soulignement_title">Couleur de soulignement</h3>
+      <button type="button" class="deroule-souligne gestion-texte bouton-couleur" style="background-color: red"
+        value="red" title="Couleur de soulignement rouge" i18_title="boutons_soulignement_red_title"></button>
+      <button type="button" class="deroule-souligne gestion-texte bouton-couleur" style="background-color: green"
+        value="green" title="Couleur de soulignement vert" i18_title="boutons_soulignement_green_title"></button>
+      <button type="button" class="deroule-souligne gestion-texte bouton-couleur" style="background-color: black"
+        value="black" title="Couleur de soulignement noir" i18_title="boutons_soulignement_black_title"></button>
+      <button type="button" class="deroule-souligne gestion-texte bouton-couleur" style="background-color: blue"
+        value="blue" title="Couleur de soulignement bleu" i18_title="boutons_soulignement_blue_title"></button>
+      <button type="button" class="deroule-souligne gestion-texte bouton-couleur" style="background-color: purple"
+        value="purple" title="Couleur de soulignement violet" i18_title="boutons_soulignement_purple_title"></button>
+      <button type="button" class="deroule-souligne gestion-texte bouton-couleur" style="background-color: orange"
+        value="orange" title="Couleur de soulignement orange" i18_title="boutons_soulignement_orange_title"></button>
+      <button type="button" class="deroule-souligne gestion-texte bouton-couleur" style="background-color: white"
+        value="white" title="Couleur de soulignement blanc" i18_title="boutons_soulignement_white_title">X</button>
+    </div>
+
+    <div id="boutons-couleur-texte" class="hide deroule">
+
+      <h3 i18_content="boutons_couleur_texte_title">Couleur de texte</h3>
+
+      <!-- Teintes rouges / chaudes -->
+      <button type="button" class="deroule-couleur gestion-texte bouton-couleur" style="background-color: red"
+        value="red" title="Couleur de texte rouge"></button>
+      <button type="button" class="deroule-couleur gestion-texte bouton-couleur" style="background-color: coral"
+        value="coral" title="Couleur de texte corail"></button>
+      <button type="button" class="deroule-couleur gestion-texte bouton-couleur" style="background-color: salmon"
+        value="salmon" title="Couleur de texte saumon"></button>
+      <button type="button" class="deroule-couleur gestion-texte bouton-couleur" style="background-color: orange"
+        value="orange" title="Couleur de texte orange"></button>
+      <button type="button" class="deroule-couleur gestion-texte bouton-couleur" style="background-color: gold"
+        value="gold" title="Couleur de texte or"></button>
+      <button type="button" class="deroule-couleur gestion-texte bouton-couleur" style="background-color: yellow"
+        value="yellow" title="Couleur de texte jaune"></button>
+
+      <!-- Teintes vertes -->
+      <button type="button" class="deroule-couleur gestion-texte bouton-couleur" style="background-color: lime"
+        value="lime" title="Couleur de texte citron vert"></button>
+      <button type="button" class="deroule-couleur gestion-texte bouton-couleur" style="background-color: green"
+        value="green" title="Couleur de texte vert"></button>
+      <button type="button" class="deroule-couleur gestion-texte bouton-couleur" style="background-color: olive"
+        value="olive" title="Couleur de texte olive"></button>
+      <button type="button" class="deroule-couleur gestion-texte bouton-couleur" style="background-color: teal"
+        value="teal" title="Couleur de texte sarcelle"></button>
+      <button type="button" class="deroule-couleur gestion-texte bouton-couleur" style="background-color: cyan"
+        value="cyan" title="Couleur de texte cyan"></button>
+      <button type="button" class="deroule-couleur gestion-texte bouton-couleur" style="background-color: blue"
+        value="blue" title="Couleur de texte bleu"></button>
+
+      <!-- Teintes violettes / froides -->
+      <button type="button" class="deroule-couleur gestion-texte bouton-couleur" style="background-color: navy"
+        value="navy" title="Couleur de texte bleu marine"></button>
+      <button type="button" class="deroule-couleur gestion-texte bouton-couleur" style="background-color: indigo"
+        value="indigo" title="Couleur de texte indigo"></button>
+      <button type="button" class="deroule-couleur gestion-texte bouton-couleur" style="background-color: purple"
+        value="purple" title="Couleur de texte violet"></button>
+      <button type="button" class="deroule-couleur gestion-texte bouton-couleur" style="background-color: magenta"
+        value="magenta" title="Couleur de texte magenta"></button>
+      <button type="button" class="deroule-couleur gestion-texte bouton-couleur" style="background-color: pink"
+        value="pink" title="Couleur de texte rose"></button>
+      <button type="button" class="deroule-couleur gestion-texte bouton-couleur" style="background-color: beige"
+        value="beige" title="Couleur de texte beige"></button>
+
+      <!-- Neutres + transparent -->
+      <button type="button" class="deroule-couleur gestion-texte bouton-couleur" style="background-color: brown"
+        value="brown" title="Couleur de texte marron"></button>
+      <button type="button" class="deroule-couleur gestion-texte bouton-couleur" style="background-color: gray"
+        value="gray" title="Couleur de texte gris"></button>
+      <button type="button" class="deroule-couleur gestion-texte bouton-couleur" style="background-color: silver"
+        value="silver" title="Couleur de texte argent"></button>
+      <button type="button" class="deroule-couleur gestion-texte bouton-couleur" style="background-color: black"
+        value="black" title="Couleur de texte noir"></button>
+      <button type="button" class="deroule-couleur gestion-texte bouton-couleur" style="background-color: white"
+        value="white" title="Couleur de texte blanc"></button>
+      <button type="button" class="deroule-couleur gestion-texte bouton-couleur"
+        style="background: repeating-conic-gradient(#ccc 0% 25%, #fff 25% 50%) 0 / 10px 10px;" value="transparent"
+        title="Couleur de texte transparente"></button>
+
+    </div>
+
+    <div id="boutons-couleur-surlignement" class="hide deroule">
+
+  <h3 i18_content="boutons_couleur_surlignement_title">Couleur de surlignement</h3>
+
+  <!-- Teintes rouges / chaudes -->
+  <button type="button" class="deroule-surlignement gestion-texte bouton-couleur" style="background-color: red"
+    value="red" title="Couleur de surlignement rouge"></button>
+  <button type="button" class="deroule-surlignement gestion-texte bouton-couleur" style="background-color: coral"
+    value="coral" title="Couleur de surlignement corail"></button>
+  <button type="button" class="deroule-surlignement gestion-texte bouton-couleur" style="background-color: salmon"
+    value="salmon" title="Couleur de surlignement saumon"></button>
+  <button type="button" class="deroule-surlignement gestion-texte bouton-couleur" style="background-color: orange"
+    value="orange" title="Couleur de surlignement orange"></button>
+  <button type="button" class="deroule-surlignement gestion-texte bouton-couleur" style="background-color: gold"
+    value="gold" title="Couleur de surlignement or"></button>
+  <button type="button" class="deroule-surlignement gestion-texte bouton-couleur" style="background-color: yellow"
+    value="yellow" title="Couleur de surlignement jaune"></button>
+
+  <!-- Teintes vertes -->
+  <button type="button" class="deroule-surlignement gestion-texte bouton-couleur" style="background-color: lime"
+    value="lime" title="Couleur de surlignement citron vert"></button>
+  <button type="button" class="deroule-surlignement gestion-texte bouton-couleur" style="background-color: green"
+    value="green" title="Couleur de surlignement vert"></button>
+  <button type="button" class="deroule-surlignement gestion-texte bouton-couleur" style="background-color: olive"
+    value="olive" title="Couleur de surlignement olive"></button>
+  <button type="button" class="deroule-surlignement gestion-texte bouton-couleur" style="background-color: teal"
+    value="teal" title="Couleur de surlignement sarcelle"></button>
+  <button type="button" class="deroule-surlignement gestion-texte bouton-couleur" style="background-color: cyan"
+    value="cyan" title="Couleur de surlignement cyan"></button>
+  <button type="button" class="deroule-surlignement gestion-texte bouton-couleur" style="background-color: blue"
+    value="blue" title="Couleur de surlignement bleu"></button>
+
+  <!-- Teintes violettes / froides -->
+  <button type="button" class="deroule-surlignement gestion-texte bouton-couleur" style="background-color: navy"
+    value="navy" title="Couleur de surlignement bleu marine"></button>
+  <button type="button" class="deroule-surlignement gestion-texte bouton-couleur" style="background-color: indigo"
+    value="indigo" title="Couleur de surlignement indigo"></button>
+  <button type="button" class="deroule-surlignement gestion-texte bouton-couleur" style="background-color: purple"
+    value="purple" title="Couleur de surlignement violet"></button>
+  <button type="button" class="deroule-surlignement gestion-texte bouton-couleur" style="background-color: magenta"
+    value="magenta" title="Couleur de surlignement magenta"></button>
+  <button type="button" class="deroule-surlignement gestion-texte bouton-couleur" style="background-color: pink"
+    value="pink" title="Couleur de surlignement rose"></button>
+  <button type="button" class="deroule-surlignement gestion-texte bouton-couleur" style="background-color: beige"
+    value="beige" title="Couleur de surlignement beige"></button>
+
+  <!-- Neutres + transparent -->
+  <button type="button" class="deroule-surlignement gestion-texte bouton-couleur" style="background-color: brown"
+    value="brown" title="Couleur de surlignement marron"></button>
+  <button type="button" class="deroule-surlignement gestion-texte bouton-couleur" style="background-color: gray"
+    value="gray" title="Couleur de surlignement gris"></button>
+  <button type="button" class="deroule-surlignement gestion-texte bouton-couleur" style="background-color: silver"
+    value="silver" title="Couleur de surlignement argent"></button>
+  <button type="button" class="deroule-surlignement gestion-texte bouton-couleur" style="background-color: black"
+    value="black" title="Couleur de surlignement noir"></button>
+  <button type="button" class="deroule-surlignement gestion-texte bouton-couleur" style="background-color: white"
+    value="white" title="Couleur de surlignement blanc"></button>
+  <button type="button" class="deroule-surlignement gestion-texte bouton-couleur"
+    style="background: repeating-conic-gradient(#ccc 0% 25%, #fff 25% 50%) 0 / 10px 10px;" value="transparent"
+    title="Pas de surlignement"></button>
+
+</div>
+
+    <div id="boutons_carreaux" class="hide deroule">
+      <h3 i18_content="boutons_carreaux_title">Type de lignage</h3>
+      <button type="button" id="carreau_seyes" class="deroule_carreaux" title="Lignage Seyes"
+        i18_title="carreau_seyes_title"></button>
+      <button type="button" id="carreau_seyes_noir" class="deroule_carreaux" title="Lignage Seyes noir"
+        i18_title="carreau_seyes_noir_title"></button>
+      <button type="button" id="carreau_seyes_gris" class="deroule_carreaux" title="Lignage Seyes gris"
+        i18_title="carreau_seyes_gris_title"></button>
+      <button type="button" id="carreau_ligne_base" class="deroule_carreaux" title="Ligne de base"
+        i18_title="carreau_ligne_base_title"></button>
+      <button type="button" id="carreau_simple_ligne" class="deroule_carreaux" title="Lignage simple ligne"
+        i18_title="carreau_simple_ligne_title"></button>
+      <button type="button" id="carreau_double_ligne" class="deroule_carreaux" title="Lignage double ligne"
+        i18_title="carreau_double_ligne_title"></button>
+      <button type="button" id="carreau_petit" class="deroule_carreaux" title="Lignage petit"
+        i18_title="carreau_petit_title"></button>
+      <button type="button" id="carreau_terre" class="deroule_carreaux" title="Lignage terre"
+        i18_title="carreau_terre_title"></button>
+      <button type="button" id="carreau_trois_couleurs" class="deroule_carreaux" title="Lignage Seyes trois couleurs"
+        i18_title="carreau_trois_couleurs_title"></button>
+      <button type="button" id="carreau_quatre_couleurs" class="deroule_carreaux" title="Lignage Seyes quatre couleurs"
+        i18_title="carreau_quatre_couleurs_title"></button>
+      <button type="button" id="carreau_bleuviolet" class="deroule_carreaux" title="Lignage Seyes coloré bleu violet"
+        i18_title="carreau_bleuviolet_title"></button>
+      <button type="button" id="carreau_cahier_de_textes" class="deroule_carreaux" title="Lignage cahier de textes"
+        i18_title="carreau_cahier_de_textes_title"></button>
+      <button class="bouton-fermer" title="Fermer" i18_title="bouton_fermer_title"></button>
+    </div>
+
+    <div id="panneauOptions" class="hide">
+      <button class="bouton-fermer" id="panneauOptions_close_button" title="Fermer"
+        i18_title="bouton_fermer_title"></button>
+      <h2 i18_content="panneauOptions_title">Options</h2>
+      <div class="section">
+        <span i18_content="espacement_lettres">Espacement des lettres</span>
+        <input id="inputEspacement" type="range" min="0" max="50" step="0.5">
+      </div>
+      <div class="section">
+        <span i18_content="titre_Marelle">Options pour Marelle</span>
+        <p>
+          <input type="checkbox" id="checkboxFermerLeS">
+          <span i18_content="fermer_le_s">Fermer le s</span>
+        </p>
+      </div>
+      <div class="section">
+        <span i18_content="espacement_mots">Espacement des mots</span>
+        <input id="inputEspacementMots" type="range" min="00" max="3" step="0.1">
+        <p>
+          <input type="checkbox" id="checkboxInterligneDouble">
+          <span i18_content="double_interligne">Double interligne</span>
+        </p>
+      </div>
+      <div class="section">
+        <span i18_content="opacite_lignage">Opacité du lignage</span>
+        <input type="range" id="inputOpacite" min="0" max="1" value="1" step="0.05" />
+      </div>
+      <div class="section">
+        <p>
+          <input type="checkbox" id="checkboxAjouterDate">
+          <span i18_content="ajouter_date">Ajouter la date aux nouveaux documents</span>
+        </p>
+        <p>
+          <input type="checkbox" id="checkboxSoulignerDate">
+          <span i18_content="souligner_date">Souligner la date</span>
+        </p>
+        <p>
+          <input type="checkbox" id="checkboxMajDateAuto">
+          <span i18_content="majDateAuto_date">Mettre à jour la date automatiquement</span>
+        </p>
+      </div>
+      <div class="section">
+        <p>
+          <input type="checkbox" id="checkboxVerifierOrthographe">
+          <span i18_content="verifier_orthographe">Vérifier l'orthographe</span>
+        </p>
+      </div>
+      <div class="section">
+        <p i18_content="largeur_lignage_impression">Largeur du lignage à l'impression</p>
+        <p>
+          <input type="number" id="inputLargeurImpression" min="2" max="5" step="0.5">
+          <span i18_content="largeur_lignage_impression_unit">mm</span>
+        </p>
+      </div>
+      <div class="section">
+        <p>
+          <input type="checkbox" id="inputEcrireACheval">
+          <span i18_content="ecrire_a_cheval">Écrire à cheval sur la marge</span>
+        </p>
+      </div>
+      <div class="section">
+        <p i18_content="Langue">Langue</p>
+        <select id="selectLangue">
+          <option value="auto" i18_content="Automatique">Automatique</option>
+          <option value="fr" i18_content="Français">Français</option>
+          <option value="en" i18_content="Anglais">Anglais</option>
+          <option value="it" i18_content="Italien">Italien</option>
+          <option value="oc" i18_content="Occitan">Occitan</option>
+        </select>
+      </div>
+
+
+    </div>
+
+  </nav>
+
+  <main id="contenu" role="main">
+
+    <div id="conteneur-extensible">
+
+      <div id="marge">
+        <div id="voile_marge" class="voile"></div>
+        <div id="marge1">
+          <div class="texte" id="texte_marge" contenteditable="true" spellcheck="false"></div>
+        </div>
+
+        <div id="marge2">
+          <div id="voile_marge2" class="voile"></div>
+          <div class="texte" id="texte_marge_complementaire" contenteditable="true" spellcheck="false"></div>
+        </div>
+      </div>
+
+      <div id="page">
+        <div id="voile_page" class="voile"></div>
+        <div id="graphismes"></div>
+        <div id="images"></div>
+
+        <div contenteditable="true" class="texte" id="texte_principal" spellcheck="false"></div>
+      </div>
+
+    </div>
+
+    <div id="darkbox" class="hide"></div>
+
+  </main>
+
+
+
+  <footer role="contentinfo">
+    <div id="apropos" class="lightbox hide">
+      <button class="bouton-fermer" title="Fermer" i18_title="bouton_fermer_title"></button>
+      <h1 i18_content="apropos_title">Seyes</h1>
+      <div class="contenu-lightbox">
+      </div>
+    </div>
+
+    <div id="message" class="lightbox">
+      <button class="bouton-fermer" title="Fermer" i18_title="bouton_fermer_title"></button>
+      <p>
+        <label>
+          <input type="checkbox" id="show-warning-next-time">
+          <span i18_content="show_warning_next_time">Afficher encore ce message la prochaine fois</span>
+        </label>
+      </p>
+      <div class="contenu-lightbox">
+
+        <p>
+
+          <h2>🌟 Nouveauté 7 juin</h2>
+          <br>
+          Ajout d'une fonction "surligner"
+
+        </p>
+
+       
+        <p>Pour ne plus voir ce message, décochez la case en haut ☺️.<br>Bonne journée ! 🌞</p>
+
+
+      </div>
+    </div>
+
+
+    <div id="divIllustration" class="lightbox hide">
+      <button class="bouton-fermer" title="Fermer" i18_title="bouton_fermer_title"></button>
+      <img id="imgIllustration" src="images/illustration.jpeg" loading="lazy" alt="">
+      <p id="creditNum40">Merci à <a target="_blank"
+          href="https://blogacabdx.ac-bordeaux.fr/numerique40/2023/11/22/application-seyes-deducajou/">l'Équipe
+          numérique
+          40</a> pour cette illustration explicative.</p>
+    </div>
+  </footer>
+
+  <script src="./script.min.js"></script>
+</body>
+
+</html>

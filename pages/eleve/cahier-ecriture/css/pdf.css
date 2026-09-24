@@ -1,0 +1,614 @@
+/*
+ * Styles pour le dialogue d'export PDF Seyes
+ * Copyright (C) 2025 - Licence GNU GPL v2
+ */
+
+/* Bouton Export PDF dans la barre d'outils */
+#export-pdf {
+    background-image: url(../images/pdf-icon.svg);
+}
+
+/* Dialogue PDF - lightbox élargie
+   clamp(min, fluide, max) : 900 px sur 1200 px viewport, scale avec 75 vw,
+   borné à 1400 px pour ne pas écraser les options sur ultra-wide.
+   height 92vh + flex column : la modale occupe presque toute la hauteur
+   viewport ; le contenu central grossit via flex:1. */
+#divDialoguePDF {
+    width: clamp(900px, 75vw, 1400px);
+    height: 92vh;
+    max-width: 95%;
+    max-height: 95%;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+/* Layout 2 colonnes */
+.dialogue-pdf-contenu {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Colonne aperçu (gauche) */
+/* min-width: 0 : hygiène flex. Sans cela, le min-content d'un descendant
+   (inline width sur #apercu-page-pdf) propage et bloque la colonne à une
+   taille >= contenu, empêchant le respect du ratio flex 3:2. */
+.dialogue-pdf-apercu {
+    flex: 3;
+    display: flex;
+    flex-direction: column;
+    background: #f5f5f5;
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    padding: 10px;
+    min-width: 0;
+    min-height: 0;
+}
+
+.apercu-conteneur {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+}
+
+/* Feuille papier simulée en CSS absolu — les <img> SVG internes sont
+   positionnées en pourcentages depuis dialogue-pdf.mjs. Les dimensions en
+   px du div sont fixées dynamiquement par _afficherPage pour fitter le
+   conteneur parent. */
+#apercu-page-pdf {
+    position: relative;
+    max-width: 100%;
+    max-height: 100%;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    background: white;
+    border: 1px solid #e0e0e0;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+#apercu-image-pdf,
+#apercu-image-pdf-2 {
+    position: absolute;
+    /* Les positions/dimensions sont posées en inline par _afficherPage
+       (pourcentages du parent) pour rester fluides si le div est
+       redimensionné (focus, resize, responsive). */
+}
+
+/* Navigation en overlay (visible au hover) */
+.apercu-overlay {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.apercu-conteneur:hover .apercu-overlay {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.apercu-overlay .nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    border: none;
+    padding: 15px 12px;
+    font-size: 18px;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-radius: 4px;
+}
+
+.apercu-overlay .nav-btn:hover {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.apercu-overlay .nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.apercu-overlay .nav-precedent {
+    left: 10px;
+}
+
+.apercu-overlay .nav-suivant {
+    right: 10px;
+}
+
+/* Bouton bascule "Agrandir l'aperçu" — positionné en haut à droite de
+   l'overlay, indépendant du centrage vertical des nav-btn. */
+.apercu-overlay .btn-focus-apercu {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    transform: none;
+    padding: 8px 10px;
+    font-size: 14px;
+    line-height: 1;
+}
+
+/* Mode focus : masquer la colonne options, l'aperçu prend toute la largeur.
+   La modale garde son aspect fenêtre (pas de plein écran). */
+.dialogue-pdf-contenu.apercu-focus .dialogue-pdf-options {
+    display: none;
+}
+
+.dialogue-pdf-contenu.apercu-focus .dialogue-pdf-apercu {
+    flex: 1 1 100%;
+}
+
+/* En mode focus, garder l'overlay visible en permanence pour que
+   l'utilisateur puisse revenir à la vue split (et naviguer entre pages). */
+.dialogue-pdf-contenu.apercu-focus .apercu-overlay {
+    opacity: 1;
+    pointer-events: none;
+}
+
+.dialogue-pdf-contenu.apercu-focus .apercu-overlay .nav-btn,
+.dialogue-pdf-contenu.apercu-focus .apercu-overlay .indicateur-page {
+    pointer-events: auto;
+}
+
+.apercu-overlay .indicateur-page {
+    position: absolute;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Indicateur de chargement - Aperçu */
+.apercu-chargement {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    background: rgba(255, 255, 255, 0.92);
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 16px;
+    color: #333;
+    z-index: 10;
+    box-sizing: border-box;
+}
+
+/* Spinner CSS animé */
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #e0e0e0;
+    border-top-color: #c00;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Overlay de génération PDF (couvre tout le dialogue) */
+.pdf-generation-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    background: rgba(255, 255, 255, 0.95);
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 18px;
+    color: #333;
+    z-index: 100;
+    border-radius: 8px;
+}
+
+.pdf-generation-overlay .spinner {
+    width: 50px;
+    height: 50px;
+    border-width: 5px;
+}
+
+/* Colonne options (droite) */
+.dialogue-pdf-options {
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    overflow-y: auto;
+    padding: 5px;
+}
+
+.option-groupe {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 10px 15px;
+    background: #fafafa;
+    margin: 0;
+}
+
+.option-groupe legend {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+    color: #333;
+    padding: 0 5px;
+}
+
+.option-groupe label {
+    display: block;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 14px;
+    margin: 8px 0;
+    cursor: pointer;
+}
+
+.option-groupe input[type="radio"] {
+    margin-right: 8px;
+    cursor: pointer;
+}
+
+.option-groupe select {
+    width: 100%;
+    padding: 8px;
+    font-size: 14px;
+    font-family: Arial, Helvetica, sans-serif;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.option-groupe select option:disabled {
+    color: #999;
+    background-color: #f0f0f0;
+}
+
+/* Avertissement format cahier */
+.avertissement-format {
+    margin-top: 8px;
+    padding: 8px;
+    font-size: 12px;
+    font-family: Arial, Helvetica, sans-serif;
+    color: #856404;
+    background-color: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 4px;
+}
+
+/* Input marge personnalisée en dépassement (valeur > espace disponible).
+ * Posé dynamiquement par _gererMargesIncompatibles() — la valeur saisie
+ * par l'utilisateur n'est PAS modifiée, seul le visuel signale le
+ * dépassement (les marges restent indicatives, l'image est centrée). */
+.marge-depassement {
+    border-color: #ffa500;
+    background-color: #fff4e6;
+    box-shadow: 0 0 0 2px rgba(255, 165, 0, 0.2);
+}
+
+/* Grille marges personnalisées */
+#marges-personnalisees {
+    margin-top: 10px;
+}
+
+.grille-marges {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.marge-input {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.marge-input label {
+    font-size: 12px;
+    color: #666;
+    margin: 0;
+    display: inline;
+}
+
+.marge-input input {
+    width: 60px;
+    padding: 6px;
+    font-size: 14px;
+    text-align: center;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.marge-input input:invalid {
+    border-color: red;
+    background-color: #fff0f0;
+}
+
+.marge-input .unite {
+    font-size: 12px;
+    color: #666;
+    margin-left: 4px;
+}
+
+/* Nom du fichier PDF */
+.nom-fichier-groupe {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #ddd;
+}
+
+.nom-fichier-groupe > label {
+    display: block;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+.nom-fichier-input {
+    display: flex;
+    align-items: center;
+}
+
+.nom-fichier-input input {
+    flex: 1;
+    padding: 10px;
+    font-size: 14px;
+    font-family: Arial, Helvetica, sans-serif;
+    border: 1px solid #ccc;
+    border-radius: 4px 0 0 4px;
+    border-right: none;
+}
+
+.nom-fichier-input input:focus {
+    outline: none;
+    border-color: #666;
+}
+
+.nom-fichier-input .extension {
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #e0e0e0;
+    border: 1px solid #ccc;
+    border-radius: 0 4px 4px 0;
+    color: #666;
+}
+
+/* Boutons action */
+.dialogue-pdf-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    padding: 15px 0 5px;
+    border-top: 1px solid #ccc;
+    margin-top: auto;
+}
+
+.btn-annuler,
+.btn-exporter {
+    padding: 12px 25px;
+    font-size: 16px;
+    font-family: Arial, Helvetica, sans-serif;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.btn-annuler {
+    background-color: #f0f0f0;
+    border: 1px solid #999;
+    color: #333;
+}
+
+.btn-annuler:hover {
+    background-color: #e0e0e0;
+}
+
+.btn-exporter {
+    background-color: #c00;
+    border: 1px solid #900;
+    color: white;
+    font-weight: bold;
+}
+
+.btn-exporter:hover {
+    background-color: #a00;
+}
+
+.btn-exporter:disabled {
+    background-color: #ccc;
+    border-color: #999;
+    cursor: not-allowed;
+}
+
+/* Responsive : écrans étroits (largeur) */
+@media (max-width: 950px) {
+    /* Override du conteneur lightbox parent */
+    #divDialoguePDF.lightbox {
+        width: 100%;
+        max-width: 100%;
+        left: 0;
+        top: 0;
+        transform: none;
+        margin: 0;
+        padding: 10px;
+        border-radius: 0;
+        border: none;
+        box-shadow: none;
+        box-sizing: border-box;
+        overflow-x: hidden;
+    }
+
+    .dialogue-pdf-contenu {
+        flex-direction: column;
+        width: 100%;
+        gap: 10px;
+        box-sizing: border-box;
+    }
+
+    .dialogue-pdf-apercu {
+        width: 100%;
+        flex: none;
+        padding: 5px;
+        border: none;
+        box-sizing: border-box;
+    }
+
+    .apercu-conteneur {
+        min-height: auto;
+        max-height: none;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow: hidden;
+    }
+
+    #apercu-page-pdf {
+        width: 100%;
+        height: auto;
+        max-width: 100%;
+        max-height: none;
+    }
+
+    /* En responsive, l'aperçu occupe déjà toute la largeur : le bouton focus
+       (qui sert à élargir l'aperçu en desktop) n'a plus de valeur ajoutée.
+       On le masque et on neutralise l'effet de la classe .apercu-focus sur
+       les options (filet de sécurité si l'utilisateur était déjà en focus
+       sur desktop et a rétréci la fenêtre). */
+    #btn-focus-apercu {
+        display: none;
+    }
+
+    .dialogue-pdf-contenu.apercu-focus .dialogue-pdf-options {
+        display: flex;
+    }
+
+    /* En responsive, la zone d'aperçu peut dépasser le viewport verticalement.
+       Les boutons nav sont toujours visibles (opacity 1 sans hover), leur
+       position précise est calculée en JS dans _positionnerNavigationResponsive
+       pour suivre le centre vertical de la partie visible de .apercu-conteneur
+       (et se cacher si la zone sort complètement du viewport). */
+    .apercu-overlay {
+        opacity: 1;
+        pointer-events: none;
+    }
+
+    .dialogue-pdf-options {
+        flex: none;
+        max-height: none;
+        overflow-y: visible;
+    }
+
+    .dialogue-pdf-actions {
+        position: sticky;
+        bottom: 0;
+        background: #fff;
+        padding-bottom: 10px;
+        z-index: 10;
+    }
+}
+
+/* Responsive : petits écrans (hauteur) */
+@media (max-height: 700px) {
+    /* Override du conteneur lightbox parent */
+    #divDialoguePDF.lightbox {
+        width: 100%;
+        max-width: 100%;
+        left: 0;
+        top: 0;
+        transform: none;
+        margin: 0;
+        padding: 10px;
+        border-radius: 0;
+        border: none;
+        box-shadow: none;
+        box-sizing: border-box;
+        overflow-x: hidden;
+    }
+
+    .dialogue-pdf-contenu {
+        flex-direction: column;
+        width: 100%;
+        gap: 10px;
+        box-sizing: border-box;
+    }
+
+    .dialogue-pdf-apercu {
+        width: 100%;
+        flex: none;
+        padding: 5px;
+        border: none;
+        box-sizing: border-box;
+    }
+
+    .apercu-conteneur {
+        min-height: auto;
+        max-height: none;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow: hidden;
+    }
+
+    #apercu-page-pdf {
+        width: 100%;
+        height: auto;
+        max-width: 100%;
+        max-height: none;
+    }
+
+    /* Cf. commentaire dans le @media (max-width: 950px) ci-dessus. */
+    #btn-focus-apercu {
+        display: none;
+    }
+
+    .dialogue-pdf-contenu.apercu-focus .dialogue-pdf-options {
+        display: flex;
+    }
+
+    .dialogue-pdf-options {
+        max-height: none;
+        overflow-y: visible;
+        box-sizing: border-box;
+    }
+
+    .dialogue-pdf-actions {
+        position: sticky;
+        bottom: 0;
+        background: #fff;
+        padding-bottom: 10px;
+    }
+}
