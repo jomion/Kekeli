@@ -1,3 +1,53 @@
+KEKELI — Livraison du 24 septembre 2026 (dix-huitième lot) — Correctif visuel : les boutons de catégorie du cahier d'écriture ne se chevauchent plus
+===========================================================================
+
+CORRECTIF : L'AFFICHAGE DU DIX-SEPTIÈME LOT ÉTAIT CASSÉ
+------------------------------------------------------------------------------
+Signalement : "L'affichage des boutons de formatage n'est pas du tout bon.
+Tout est mélangé."
+
+Le regroupement par catégorie livré dans le dix-septième lot (voir
+ci-dessous) fonctionnait bien au niveau du comportement (ouverture/
+fermeture des panneaux, bons boutons dans chaque catégorie), mais son
+apparence était effectivement cassée : les 6 nouveaux boutons de catégorie
+("📁 Fichier ▾", "🔍 Affichage ▾"...) s'affichaient les uns par-dessus les
+autres, avec du texte qui débordait sur les boutons voisins — exactement
+ce que décrit le signalement.
+
+Cause exacte : le code d'origine du cahier d'écriture (Seyes, non modifié)
+contient une règle qui force TOUT bouton de sa barre d'outils dans une
+boîte fixe de 35x35 pixels, pensée pour de simples icônes sans texte. Cette
+règle, plus "prioritaire" au sens des règles CSS que celle écrite pour nos
+nouveaux boutons de catégorie, s'appliquait aussi à eux sans qu'on l'ait
+prévu — écrasant leur texte dans une boîte bien trop petite pour lui.
+
+Une erreur d'appréciation de ma part : la vérification faite avant la
+livraison du dix-septième lot ne portait que sur le fonctionnement (clics,
+contenu des panneaux, absence d'erreur technique), jamais sur une capture
+d'écran réelle — c'est ce qui a permis à un problème purement visuel de
+passer inaperçu. C'est corrigé, et la vérification de ce correctif s'appuie
+cette fois sur des captures d'écran avant/après, en plus des tests
+habituels.
+
+CE QUI CHANGE CONCRÈTEMENT
+------------------------------------------------------------------------------
+Un seul fichier est modifié (css/kekeli-groupes-barre.css, ajouté par le
+dix-septième lot) : les boutons de catégorie de la barre d'outils du cahier
+d'écriture s'adaptent maintenant à la largeur de leur propre texte, au lieu
+d'être écrasés dans une boîte fixe de 35 pixels prévue pour de simples
+icônes. Aucun autre fichier n'est touché : ni le code d'origine du cahier
+d'écriture (Seyes), ni le fichier qui définit quels boutons appartiennent à
+quelle catégorie (js/kekeli-groupes-barre.js), qui reste inchangé.
+
+Vérifié avant cette livraison : capture d'écran des 6 catégories, ouvertes
+une par une, en desktop (1280 pixels de large) et en mobile (420 pixels,
+largeur proche de celle du cahier d'écriture affiché dans un cadre sur le
+site) — plus aucun chevauchement, chaque bouton de catégorie garde une
+taille adaptée à son texte, et chaque panneau ouvert affiche toujours
+exactement les bons boutons, sans régression sur le comportement déjà
+vérifié dans le dix-septième lot.
+
+
 KEKELI — Livraison du 24 septembre 2026 (dix-septième lot) — Les boutons de formatage du cahier d'écriture sont maintenant regroupés par catégorie
 ===========================================================================
 
