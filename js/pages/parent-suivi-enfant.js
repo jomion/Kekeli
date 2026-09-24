@@ -64,7 +64,7 @@ function formaterDateSuivi(iso) {
 async function afficherSuiviEnfant() {
   const conteneur = document.getElementById('contenu');
   const enfant = enfantsSuiviEnfant.find(e => e.id === enfantSelectionneSuivi);
-  const { data: fiche } = await supabaseClient.from('eleves').select('classe_id, mascotte').eq('id', enfantSelectionneSuivi).single();
+  const { data: fiche } = await supabaseClient.from('eleves').select('classe_id, mascotte, cahier_ecriture_visible_enseignant').eq('id', enfantSelectionneSuivi).single();
 
   let nomClasse = '';
   if (fiche?.classe_id) {
@@ -182,6 +182,21 @@ async function afficherSuiviEnfant() {
 
     <div class="titre-section-pub">🎯 Progression par palier (badges)</div>
     ${html_progressionPaliersSuivi()}
+
+    <div class="titre-section-pub">✍️ Cahier d'écriture</div>
+    <div class="bloc-ligne-seance-partagee" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <p style="margin:0;color:var(--text-gris);font-size:13px">Consultez le cahier d'écriture sauvegardé en ligne de ${echapperSuivi(enfant?.prenom) || "l'enfant"}.</p>
+      <button type="button" class="btn btn-primaire" id="btnVoirCahierSuivi">👁️ Voir le cahier</button>
+    </div>
+
+    <div class="titre-section-pub">🔒 Contrôle parental</div>
+    <div class="bloc-ligne-seance-partagee">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
+        <input type="checkbox" id="caseCahierVisibleEns" ${fiche?.cahier_ecriture_visible_enseignant ? 'checked' : ''}>
+        Autoriser l'enseignant de ${echapperSuivi(enfant?.prenom) || "l'enfant"} à consulter son cahier d'écriture (en plus de vous-même et de l'élève)
+      </label>
+      <p id="messageSuccesCahierVisibleEns" style="display:none;color:#15803D;font-size:12.5px;margin:6px 0 0">✅ Préférence enregistrée.</p>
+    </div>
   `;
 
   const selecteur = document.getElementById('selecteurEnfantSuivi');
@@ -191,6 +206,28 @@ async function afficherSuiviEnfant() {
   document.querySelectorAll('[data-filtre-palier-suivi]').forEach(btn => {
     btn.addEventListener('click', () => { filtrePalierSuiviEnfant = btn.dataset.filtrePalierSuivi; afficherSuiviEnfant(); });
   });
+
+  const btnVoirCahier = document.getElementById('btnVoirCahierSuivi');
+  if (btnVoirCahier) btnVoirCahier.addEventListener('click', () => {
+    chargerEtAfficherCahierEleve(enfantSelectionneSuivi, `${enfant?.prenom || ''} ${enfant?.nom || ''}`.trim());
+  });
+
+  const caseCahierVisibleEns = document.getElementById('caseCahierVisibleEns');
+  if (caseCahierVisibleEns) caseCahierVisibleEns.addEventListener('change', enregistrerVisibiliteCahierEnseignantSuivi);
+}
+
+// Contrôle parental (demande explicite du 24 septembre 2026 : "prévois dans
+// le contrôle parental qui pourra consulter le cahier en plus de l'élève") —
+// même schéma que enregistrerThemePremium() dans js/pages/parametres.js :
+// écriture directe, revert de la case à cocher en cas d'erreur.
+async function enregistrerVisibiliteCahierEnseignantSuivi(e) {
+  const visible = e.target.checked;
+  const messageSucces = document.getElementById('messageSuccesCahierVisibleEns');
+  const { error } = await supabaseClient.rpc('definir_visibilite_cahier_enseignant', {
+    p_eleve_id: enfantSelectionneSuivi, p_visible: visible,
+  });
+  if (error) { alert(error.message); e.target.checked = !visible; return; }
+  if (messageSucces) { messageSucces.style.display = 'block'; setTimeout(() => { messageSucces.style.display = 'none'; }, 3000); }
 }
 
 // Même principe que rendreBadges() dans js/pages/eleve-badges.js (voir ce

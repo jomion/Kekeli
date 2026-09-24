@@ -6,17 +6,13 @@
 <title>KEKELI - Cahier d'écriture</title>
 <link rel="icon" type="image/png" href="../../assets/logo/logo.png">
 <link rel="stylesheet" href="../../css/style-public.css">
-<link rel="stylesheet" href="../../css/theme-premium-eleve.css">
 <link rel="stylesheet" href="../../css/pied-de-page.css">
 <style>
-  /* 24 septembre 2026 : intégration "vraie" du cahier d'écriture (avec logo
-     + menu Kekeli), en remplacement du lien direct vers l'outil autonome
-     (voir js/pages/eleve-cahier-ecriture.js). L'outil Seyes/Éducajou reste
-     un fichier index.html séparé et inchangé dans son propre dossier
-     (pages/eleve/cahier-ecriture/) ; cette page l'embarque dans un
-     <iframe> à l'intérieur du vrai habillage du site, plutôt que de le
-     fusionner dans le DOM (son CSS suppose un contrôle plein-écran qui
-     entrerait en conflit avec l'en-tête/le pied de page de Kekeli). */
+  /* 24 septembre 2026 : cahier d'écriture personnel du parent, généralisation
+     du même outil déjà intégré côté élève (voir pages/eleve/cahier-
+     ecriture.html — mêmes styles, repris tels quels). L'outil Seyes/Éducajou
+     lui-même reste unique et partagé (pages/eleve/cahier-ecriture/), embarqué
+     ici aussi via <iframe>. */
   .cahier-selecteur-classe {
     display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 18px;
   }
@@ -42,9 +38,6 @@
   .cahier-note-reglure {
     font-size: 12.5px; color: var(--text-gris, #64748b); margin: 0 0 16px;
   }
-  /* 24 septembre 2026 : bandeau d'état de la sauvegarde cloud (voir js/
-     cahier-ecriture-partage.js) — purement informatif, jamais utilisé pour
-     bloquer quoi que ce soit côté client. */
   .cahier-etat-cloud { font-size: 12.5px; color: var(--text-gris, #64748b); margin: 0 0 10px; }
   .cahier-etat-cloud.cahier-etat-cloud-verrouille { color: #b45309; }
   .cahier-cadre-outil {
@@ -56,7 +49,7 @@
   }
 </style>
 </head>
-<body>
+<body class="theme-clair-compte">
   <header></header>
 
   <div class="conteneur-tableau-bord" id="contenu">
@@ -66,15 +59,14 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
   <script src="../../js/config.js"></script>
   <script src="../../js/supabaseClient.js"></script>
-  <script>const RACINE_SITE = "../../"; const CHEMIN_OUTIL_CAHIER_ECRITURE = "cahier-ecriture/index.html";</script>
+  <script>const RACINE_SITE = "../../"; const CHEMIN_OUTIL_CAHIER_ECRITURE = "../eleve/cahier-ecriture/index.html";</script>
   <script src="../../js/auth-utilisateur.js"></script>
   <script src="../../js/notifications.js"></script>
   <script src="../../js/navigation-config.js"></script>
   <script src="../../js/banniere-site.js"></script>
   <script src="../../js/entete-navigation.js"></script>
-  <script src="../../js/theme-premium-eleve.js"></script>
   <script src="../../js/cahier-ecriture-partage.js"></script>
-  <script src="../../js/pages/eleve-cahier-ecriture.js"></script>
+  <script src="../../js/pages/parent-cahier-ecriture.js"></script>
   <footer></footer>
   <script src="../../js/pied-de-page.js"></script>
 </body>

@@ -35,6 +35,13 @@ const LIBELLES_SERVICE = {
   // service_premium.entrainement_ia elle-même est laissée en place (inerte,
   // sans effet — retirer une valeur d'enum est une opération à risque, jamais
   // justifiée pour une valeur simplement devenue inutilisée).
+  //
+  // 24 septembre 2026 : sauvegarde cloud du cahier d'écriture — Premium pour
+  // l'ÉLÈVE UNIQUEMENT (voir js/cahier-ecriture-partage.js et la fonction SQL
+  // sauvegarder_cahier_ecriture) ; gratuite et illimitée pour les autres
+  // rôles (parent/enseignant/admin/autorité), qui n'ont pas de système de
+  // facturation Premium personnel sur cette plateforme.
+  cahier_ecriture_cloud: "Sauvegarde cloud du cahier d'écriture",
 };
 const LIBELLES_TYPE_FACTURATION = {
   abonnement_mensuel: 'Abonnement mensuel', abonnement_annuel: 'Abonnement annuel', forfait_prepaye: 'Forfait prépayé'

@@ -107,6 +107,11 @@ const LIENS_PAR_ROLE = {
     { id: 'seances', href: 'pages/seances.html', racine: true, icone: '📌', label: 'Séances' },
     { id: 'emploi-du-temps', href: 'pages/emploi-du-temps.html', racine: true, icone: '🗓️', label: 'Emploi du temps' },
     { id: 'devoirs-notes', href: 'devoirs-notes.html', icone: '📊', label: 'Devoirs & notes' },
+    // 24 septembre 2026 : cahier d'écriture personnel du parent —
+    // généralisation à tous les rôles (voir js/cahier-ecriture-partage.js),
+    // jusque-là réservé à l'élève. Sauvegarde cloud gratuite et illimitée
+    // pour ce rôle.
+    { id: 'cahier-ecriture', href: 'cahier-ecriture.html', icone: '✍️', label: "Cahier d'écriture" },
     { id: 'paiements', href: 'paiements.html', icone: '💳', label: 'Paiements' },
     { id: 'messagerie', href: 'messagerie.html', icone: '💬', label: 'Messagerie' }
   ],
@@ -120,13 +125,21 @@ const LIENS_PAR_ROLE = {
     // l'emploi du temps dans gestion administrative") — regroupé ici plutôt
     // qu'en lien top-level, avec registre d'appel et planification.
     { id: 'emploi-du-temps', href: 'pages/emploi-du-temps.html', racine: true, icone: '🗓️', label: 'Emploi du temps', categorie: 'gestionAdministrative' },
+    // 24 septembre 2026 : cahier d'écriture personnel de l'enseignant, plus
+    // une section "Cahiers de mes élèves" (consultation en lecture seule des
+    // élèves qui l'y ont autorisé via le contrôle parental) — voir
+    // js/pages/enseignant-cahier-ecriture.js.
+    { id: 'cahier-ecriture', href: 'cahier-ecriture.html', icone: '✍️', label: "Cahier d'écriture", categorie: 'gestionAdministrative' },
     { id: 'messagerie', href: 'messagerie.html', icone: '💬', label: 'Messagerie' },
     { id: 'messagerie-admin', href: 'messagerie-admin.html', icone: '📨', label: "Contacter l'administration" }
   ],
   autorite: [
     { id: 'bienvenue', href: 'bienvenue.html', icone: '🏠', label: 'Tableau de bord', essentiel: true },
     { id: 'seances', href: 'pages/seances.html', racine: true, icone: '📌', label: 'Séances' },
-    { id: 'emploi-du-temps', href: 'pages/emploi-du-temps.html', racine: true, icone: '🗓️', label: 'Emploi du temps' }
+    { id: 'emploi-du-temps', href: 'pages/emploi-du-temps.html', racine: true, icone: '🗓️', label: 'Emploi du temps' },
+    // 24 septembre 2026 : cahier d'écriture personnel — généralisation à
+    // tous les rôles (voir js/cahier-ecriture-partage.js).
+    { id: 'cahier-ecriture', href: 'cahier-ecriture.html', icone: '✍️', label: "Cahier d'écriture" }
   ],
   admin: [
     { id: 'tableau-de-bord', href: 'tableau-de-bord.html', icone: '🏠', label: 'Tableau de bord', essentiel: true },
@@ -143,16 +156,14 @@ const LIENS_PAR_ROLE = {
     // relues et validées ici avant qu'un élève ne puisse y accéder — voir
     // js/pages/admin-questions-ia-jeux.js.
     { id: 'questions-ia-jeux', href: 'questions-ia-jeux.html', icone: '🤖', label: 'Questions IA (jeux) ✨', categorie: 'pedagogie' },
-    // 24 septembre 2026 : plateforme de formation (marketplace multi-
-    // formateurs, voir pages/formations/) — validation des formateurs et des
-    // formations, catégories, inscriptions. Accès vérifié par la page
-    // elle-même (droit « gerer_formations » ou super_admin).
-    { id: 'formations', href: 'formations.html', icone: '🎓', label: 'Plateforme de formation', categorie: 'pedagogie' },
     { id: 'enseignants-classes', href: 'enseignants-classes.html', icone: '🏫', label: 'Enseignants & classes', categorie: 'comptes' },
     { id: 'gestion-administrateurs', href: 'gestion-administrateurs.html', icone: '🛠️', label: 'Administrateurs', categorie: 'comptes', superAdminSeulement: true },
     { id: 'roles', href: 'roles.html', icone: '🎛️', label: 'Rôles admin', categorie: 'comptes', superAdminSeulement: true },
     { id: 'abonnements', href: 'abonnements.html', icone: '💳', label: 'Abonnements', categorie: 'finances' },
     { id: 'paiements', href: 'paiements.html', icone: '💰', label: 'Paiements', categorie: 'finances' },
+    // 24 septembre 2026 : cahier d'écriture personnel — généralisation à
+    // tous les rôles (voir js/cahier-ecriture-partage.js).
+    { id: 'cahier-ecriture', href: 'cahier-ecriture.html', icone: '✍️', label: "Cahier d'écriture", categorie: 'pedagogie' },
     { id: 'messagerie', href: 'messagerie.html', icone: '💬', label: 'Messagerie' },
     { id: 'bannieres', href: 'bannieres.html', icone: '📣', label: 'Bannière', superAdminSeulement: true },
     { id: 'section-accueil', href: 'section-accueil.html', icone: '🖼️', label: "Accueil (bandeau)", superAdminSeulement: true }

@@ -1,117 +1,126 @@
-KEKELI — Livraison du 25 septembre 2026 (dix-neuvième lot) — Accès direct à KEKELI Formation depuis le menu du nom, tableaux, couleurs de fond, encadrés colorés et blocs à barre dans l'éditeur de formation
+KEKELI — Livraison du 24 septembre 2026 (dix-neuvième lot) — Le cahier d'écriture, pour tous les rôles, avec sauvegarde en ligne
 ===========================================================================
 
-1) PASSER DE KEKELI PRIMAIRE À KEKELI FORMATION EN CLIQUANT SUR SON NOM
+CE QUI A ÉTÉ DEMANDÉ
 ------------------------------------------------------------------------------
-Dans les espaces KEKELI Primaire (parent, enseignant, autorité, admin), le
-menu qui s'ouvre en cliquant sur son nom (en haut à droite) affiche
-maintenant, seulement pour les personnes concernées :
-  - « 🎓 Mes formations (KEKELI Formation) » si le compte suit au moins une
-    formation ;
-  - « 👨‍🏫 Mon espace formateur » si le compte est formateur validé
-    (« ⏳ Ma candidature formateur » si la candidature est en attente).
-Même connexion, aucun mot de passe à retaper. Jamais affiché pour un compte
-élève. Dans l'autre sens, le menu du nom sur KEKELI Formation propose déjà
-« 🏫 Mon espace KEKELI ».
+"Ajoute l'enregistrement en base de données en mode premium" — précisé
+ensuite : "Ajoute le cahier d'écriture à tous les rôles et ajoute
+l'enregistrement en base à tout le monde en premium. Pour l'élève prévois
+dans le contrôle parental qui pourra consulter le cahier en plus de
+l'élève."
 
-2) ÉDITEUR DE FORMATION (leçons et description) : TABLEAUX, FONDS, ENCADRÉS
+CE QUI CHANGE CONCRÈTEMENT
 ------------------------------------------------------------------------------
-  - ▦ Tableau : insérer un tableau (nombre de lignes/colonnes, ligne d'en-tête
-    au choix), puis, curseur dans une case : ajouter une ligne dessus/dessous,
-    une colonne à gauche/droite, supprimer la ligne, la colonne ou le tableau.
-  - 🎨 Couleur de fond : colore le fond du paragraphe, du titre, de la case
-    de tableau ou de l'encadré où se trouve le curseur (palette + couleur
-    libre, ✕ pour retirer). Le surlignage 🖍️ reste pour colorer seulement
-    quelques mots.
-  - 🟩 Encadré : petits blocs colorés prêts à l'emploi (💡 Astuce,
-    ℹ️ Information, ✅ À retenir, ⚠️ Attention, 📝 Exemple) ou encadré de
-    couleur libre avec un titre au choix. Sa couleur se change ensuite avec
-    🎨. Les tableaux, encadrés et contenus importés s'insèrent sous le
-    paragraphe où se trouve le curseur.
-  - ▍ Bloc à barre : le même bloc que le « > texte » du Markdown (fond clair
-    + barre de couleur à gauche, comme dans le texte généré par IA collé
-    dans une leçon). Curseur dans un paragraphe : il est entouré d'une barre ;
-    curseur ailleurs : un nouveau bloc est inséré ; curseur dans un bloc à
-    barre : sa couleur change (verte, bleue, orange, rouge, violette, jaune,
-    grise) ou la barre est retirée.
-Tout s'affiche à l'identique pour l'étudiant dans la leçon.
+1. Le cahier d'écriture (jusque-là réservé à l'élève) est maintenant
+   accessible à TOUS les rôles : parent, enseignant, administrateur et
+   autorité pédagogique ont chacun leur propre cahier personnel, avec le
+   même sélecteur de classe/réglure Seyes que l'élève (lien "✍️ Cahier
+   d'écriture" dans leur menu).
 
-Fichiers modifiés : js/entete-navigation.js, js/formations/commun.js,
-css/formations.css, LISEZ-MOI.txt. Aucune modification de la base.
+2. Sauvegarde en ligne (en plus de la sauvegarde sur l'appareil, qui reste
+   la source principale — rien ne change si l'appareil est hors-ligne) :
+   le cahier de chacun est maintenant aussi sauvegardé automatiquement dans
+   la base de données, ce qui permet de le retrouver depuis un autre
+   appareil. Gratuite et illimitée pour parent/enseignant/admin/autorité.
+   Pour l'ÉLÈVE uniquement, c'est une fonctionnalité Premium (un nouveau
+   service dans le catalogue Abonnements : "Sauvegarde cloud du cahier
+   d'écriture") — un élève non-Premium garde sa sauvegarde locale normale,
+   simplement pas la copie en ligne.
 
+3. Contrôle parental : sur la page "Suivi de l'enfant", le parent peut
+   maintenant consulter le cahier d'écriture sauvegardé en ligne de son
+   enfant (aperçu en lecture seule), et choisir d'autoriser EN PLUS
+   l'enseignant de l'enfant à le consulter lui aussi (case à cocher "🔒
+   Contrôle parental"). Sans cette autorisation, seuls l'élève et son/ses
+   parent(s) y ont accès. Un enseignant autorisé retrouve les cahiers
+   correspondants dans une nouvelle section "📔 Cahiers de mes élèves" sur
+   sa propre page Cahier d'écriture.
+
+CHOIX TECHNIQUES, EN TOUTE TRANSPARENCE
+------------------------------------------------------------------------------
+- La consultation par le parent/l'enseignant se fait en LECTURE SEULE (le
+  texte sauvegardé, affiché tel quel dans une fenêtre), PAS dans l'outil
+  interactif complet. Raison : l'outil du cahier d'écriture partage sa
+  mémoire locale (localStorage) avec la page qui l'affiche — y rejouer le
+  cahier d'un élève aurait risqué d'écraser le propre cahier personnel du
+  parent/enseignant en train d'être affiché sur la même page. L'aperçu en
+  lecture seule évite ce risque tout en répondant au besoin ("consulter le
+  cahier").
+- Un administrateur peut, comme pour le reste du site, consulter tous les
+  cahiers sauvegardés en ligne (pas seulement le sien) — une décision prise
+  par cohérence avec le reste de la plateforme (support technique), pas une
+  demande explicite de ce lot précis.
+- Le contrôle d'accès Premium de l'élève est entièrement fait CÔTÉ SERVEUR
+  (jamais dans le code affiché au navigateur) : même un élève qui
+  modifierait le code de la page ne pourrait pas débloquer la sauvegarde en
+  ligne sans un vrai accès Premium.
+
+VÉRIFIÉ AVANT CETTE LIVRAISON
+------------------------------------------------------------------------------
+Test réel en base de données (comptes existants, entièrement nettoyé
+après coup — aucune trace laissée) : sauvegarde du cahier personnel d'un
+enseignant (rôle gratuit) réussie et correctement mise à jour ; élève sans
+lien avec l'enfant testé bloqué (aucun accès à son cahier) ; parent de
+l'enfant : accès confirmé ; enseignant de l'enfant : accès refusé avant
+autorisation du parent, puis accès confirmé juste après l'avoir accordée ;
+tentative d'un tiers non autorisé de changer ce réglage : refusée ;
+administrateur : accès confirmé. Vérification de sécurité de la base
+(get_advisors) effectuée après la migration : aucune alerte nouvelle en
+dehors de celles, déjà connues sur tout le reste du site, qui signalent
+qu'une fonction est appelable par un compte connecté (c'est voulu ici :
+authentifié, oui — anonyme, explicitement bloqué).
+
+
+KEKELI — Livraison du 24 septembre 2026 (dix-huitième lot) — Correctif visuel : les boutons de catégorie du cahier d'écriture ne se chevauchent plus
 ===========================================================================
-KEKELI — Livraison du 25 septembre 2026 (dix-huitième lot) — Trois pages d'accueil, formations fermées aux élèves, compte « Étudiant », éditeur de leçon enrichi, 12 types de questions
-===========================================================================
 
-1) KEKELI FORMATION FERMÉE AUX COMPTES ÉLÈVES
+CORRECTIF : L'AFFICHAGE DU DIX-SEPTIÈME LOT ÉTAIT CASSÉ
 ------------------------------------------------------------------------------
-Un compte élève (enfant) ne peut plus rien voir de la plateforme de
-formation : blocage fait par la base de données (règles restrictives sur
-toutes les tables de formation, fichiers, programme, quiz), et message
-« Espace réservé aux adultes » avec retour à l'espace élève si un élève
-ouvre une page de formation. Les liens vers KEKELI Formation sont masqués
-pour un élève (pied de page, accueil mixte).
+Signalement : "L'affichage des boutons de formatage n'est pas du tout bon.
+Tout est mélangé."
 
-2) TROIS PAGES D'ACCUEIL
+Le regroupement par catégorie livré dans le dix-septième lot (voir
+ci-dessous) fonctionnait bien au niveau du comportement (ouverture/
+fermeture des panneaux, bons boutons dans chaque catégorie), mais son
+apparence était effectivement cassée : les 6 nouveaux boutons de catégorie
+("📁 Fichier ▾", "🔍 Affichage ▾"...) s'affichaient les uns par-dessus les
+autres, avec du texte qui débordait sur les boutons voisins — exactement
+ce que décrit le signalement.
+
+Cause exacte : le code d'origine du cahier d'écriture (Seyes, non modifié)
+contient une règle qui force TOUT bouton de sa barre d'outils dans une
+boîte fixe de 35x35 pixels, pensée pour de simples icônes sans texte. Cette
+règle, plus "prioritaire" au sens des règles CSS que celle écrite pour nos
+nouveaux boutons de catégorie, s'appliquait aussi à eux sans qu'on l'ait
+prévu — écrasant leur texte dans une boîte bien trop petite pour lui.
+
+Une erreur d'appréciation de ma part : la vérification faite avant la
+livraison du dix-septième lot ne portait que sur le fonctionnement (clics,
+contenu des panneaux, absence d'erreur technique), jamais sur une capture
+d'écran réelle — c'est ce qui a permis à un problème purement visuel de
+passer inaperçu. C'est corrigé, et la vérification de ce correctif s'appuie
+cette fois sur des captures d'écran avant/après, en plus des tests
+habituels.
+
+CE QUI CHANGE CONCRÈTEMENT
 ------------------------------------------------------------------------------
-  - index.html (adresse principale) = accueil MIXTE : présente KEKELI
-    Primaire et KEKELI Formation côte à côte, "Qui êtes-vous ?", dernières
-    formations, bouton "Continuer mon espace" si déjà connecté.
-  - primaire.html = accueil KEKELI Primaire (l'ancienne index.html : classes,
-    matières CM2, paliers, bandeau géré par le super admin).
-  - pages/formations/index.html = accueil KEKELI Formation (inchangé).
-Le logo des espaces connectés (élève, parent, enseignant, admin) mène
-désormais à primaire.html. Les liens "Paliers"/"Matière" du pied de page
-pointent vers primaire.html.
+Un seul fichier est modifié (css/kekeli-groupes-barre.css, ajouté par le
+dix-septième lot) : les boutons de catégorie de la barre d'outils du cahier
+d'écriture s'adaptent maintenant à la largeur de leur propre texte, au lieu
+d'être écrasés dans une boîte fixe de 35 pixels prévue pour de simples
+icônes. Aucun autre fichier n'est touché : ni le code d'origine du cahier
+d'écriture (Seyes), ni le fichier qui définit quels boutons appartiennent à
+quelle catégorie (js/kekeli-groupes-barre.js), qui reste inchangé.
 
-3) COMPTE « ÉTUDIANT » (ANCIENNEMENT « APPRENANT »)
-------------------------------------------------------------------------------
-Le type de compte est renommé "Étudiant" (en base : etudiant). Il n'est
-plus proposé sur les pages de connexion/inscription de KEKELI Primaire :
-il n'apparaît QUE lorsqu'on arrive depuis KEKELI Formation (boutons
-Connexion / S'inscrire du site de formation, ou "Créer un compte étudiant"
-de l'accueil mixte). Un étudiant qui se connecte depuis la page normale est
-envoyé directement sur son espace de formation.
+Vérifié avant cette livraison : capture d'écran des 6 catégories, ouvertes
+une par une, en desktop (1280 pixels de large) et en mobile (420 pixels,
+largeur proche de celle du cahier d'écriture affiché dans un cadre sur le
+site) — plus aucun chevauchement, chaque bouton de catégorie garde une
+taille adaptée à son texte, et chaque panneau ouvert affiche toujours
+exactement les bons boutons, sans régression sur le comportement déjà
+vérifié dans le dix-septième lot.
 
-4) ÉDITEUR DE LEÇON (et de description de formation)
-------------------------------------------------------------------------------
-  - Barre d'outils FIXE : elle reste visible en haut pendant qu'on fait
-    défiler une longue leçon.
-  - Couleur du texte (palette + couleur libre), surlignage, alignement à
-    gauche / centré / à droite / justifié, barré, titres, citation, code,
-    séparateur, annuler / rétablir.
-  - Markdown et HTML : bouton "📥 Importer .md / .html" (fichier .md,
-    .markdown, .txt, .html, 2 Mo max), bouton "📋 Coller MD / HTML" avec
-    aperçu avant insertion, bouton "</> Code" pour voir et modifier le HTML
-    de la leçon. Un Markdown collé directement dans la leçon est aussi
-    reconnu. Tout est nettoyé (aucun script ne passe ; seuls couleurs,
-    surlignage et alignement sont gardés comme styles).
 
-5) TYPES DE QUESTIONS DE QUIZ (repris du site KEKELI)
-------------------------------------------------------------------------------
-En plus de QCM, QCM multiple et Vrai/Faux : réponse courte, réponse
-numérique (avec tolérance et unité), texte à trous (___), texte à trous
-avec banque de mots, remise en ordre, association (relier des paires),
-classement (trier en catégories), trouve l'intrus, sélection de mots dans
-un texte. Même saisie que sur KEKELI (« ___ » pour un trou, « * » devant
-l'intrus...). Corrigés automatiquement par le serveur, avec points
-partiels quand une question a plusieurs parties ; la correction détaillée
-montre la bonne réponse de chaque type. Non repris : "réponse longue" et
-"vrai/faux justifié", qui demandent une correction par IA.
-Réponse courte : majuscules, accents, tirets et ponctuation ignorés
-(« porto novo » = « Porto-Novo »).
-
-Fichiers ajoutés : index.html (nouvelle, mixte), primaire.html (ancienne
-index.html), css/accueil-mixte.css, js/accueil-mixte.js.
-Fichiers modifiés : css/formations.css, js/formations/commun.js,
-js/formations/formateur-edition.js, js/formations/app-lecteur.js,
-js/auth-utilisateur.js, pages/login.html, pages/inscription.html,
-js/pied-de-page.js, js/entete-navigation.js, js/theme-premium-eleve.js,
-pages/conditions-utilisation.html, pages/politique-confidentialite.html.
-Base de données : rôle apprenant renommé etudiant, blocage des élèves,
-colonne formation_questions.config + fonctions de correction par type.
-
-===========================================================================
 KEKELI — Livraison du 24 septembre 2026 (dix-septième lot) — Les boutons de formatage du cahier d'écriture sont maintenant regroupés par catégorie
 ===========================================================================
 
