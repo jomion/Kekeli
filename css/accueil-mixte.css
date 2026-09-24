@@ -1,0 +1,73 @@
+/* Accueil mixte KEKELI (index.html, 25 septembre 2026) : présente
+   KEKELI Primaire (palette bleue du site) et KEKELI Formation (palette
+   verte de pages/formations/). S'appuie sur les variables --clair-* de
+   css/style-public.css. */
+.accueil-mixte { --mx-vert: #0b7a5c; --mx-vert-fonce: #07553f; --mx-vert-clair: #dff2eb; }
+.mixte-conteneur { width: min(1180px, 92%); margin: 0 auto; }
+.mixte-hero { background: radial-gradient(circle at 92% 12%, rgba(255, 196, 0, .22), transparent 30%), linear-gradient(120deg, #eaf8ff 0%, #f3fbf7 55%, #fff 100%); padding: 56px 0 64px; }
+.mixte-hero h1 { font-size: clamp(34px, 5vw, 56px); line-height: 1.08; letter-spacing: -1.5px; margin: 6px 0 14px; color: #0b3f7a; font-weight: 900; }
+.mx-bleu { color: var(--clair-bleu); }
+.mx-vert { color: var(--mx-vert); }
+.mixte-intro { font-size: 18px; color: #3f5a79; max-width: 720px; line-height: 1.6; margin: 0 0 18px; }
+.mixte-continuer { background: #fff; border: 1px solid var(--clair-bordure); border-radius: 12px; display: inline-block; padding: 10px 14px; font-weight: 700; color: var(--clair-texte); }
+.mixte-continuer a { color: var(--clair-bleu); }
+.mixte-offres { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 28px; }
+.mixte-offres.une-seule { grid-template-columns: minmax(0, 620px); }
+.mixte-offre { background: #fff; border-radius: 24px; padding: 28px; box-shadow: 0 16px 40px rgba(10, 50, 90, .09); border-top: 6px solid var(--clair-bleu); display: flex; flex-direction: column; }
+.offre-formation { border-top-color: var(--mx-vert); }
+.mixte-offre-tete { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; }
+.mixte-offre-tete h2 { margin: 0; font-size: 24px; font-weight: 900; color: var(--clair-titre); }
+.offre-formation .mixte-offre-tete h2 { color: var(--mx-vert-fonce); }
+.mixte-offre-tete p { margin: 2px 0 0; color: var(--clair-muted); font-weight: 700; font-size: 14px; }
+.mixte-offre-icone { font-size: 30px; width: 58px; height: 58px; border-radius: 16px; display: grid; place-items: center; background: var(--clair-fond-alt); flex-shrink: 0; }
+.offre-formation .mixte-offre-icone { background: var(--mx-vert-clair); }
+.mixte-points { list-style: none; padding: 0; margin: 0 0 16px; }
+.mixte-points li { padding: 7px 0 7px 28px; position: relative; color: #29445f; font-weight: 600; }
+.mixte-points li::before { content: "✓"; position: absolute; left: 4px; color: var(--clair-bleu); font-weight: 900; }
+.offre-formation .mixte-points li::before { color: var(--mx-vert); }
+.mixte-chiffre { color: var(--clair-muted); font-size: 14px; margin-bottom: 16px; min-height: 20px; }
+.mixte-chiffre b { font-size: 20px; color: var(--clair-titre); }
+.offre-formation .mixte-chiffre b { color: var(--mx-vert-fonce); }
+.mixte-actions { display: flex; flex-direction: column; gap: 10px; margin-top: auto; }
+.mx-btn { display: block; text-align: center; padding: 13px 18px; border-radius: 999px; font-weight: 800; text-decoration: none; transition: .15s; }
+.mx-btn-bleu { background: var(--clair-bleu); color: #fff; }
+.mx-btn-bleu:hover { background: var(--clair-deep); }
+.mx-btn-vert { background: var(--mx-vert); color: #fff; }
+.mx-btn-vert:hover { background: var(--mx-vert-fonce); }
+.mx-btn-contour-bleu { border: 1.6px solid var(--clair-bleu); color: var(--clair-bleu); background: #fff; }
+.mx-btn-contour-vert { border: 1.6px solid var(--mx-vert); color: var(--mx-vert); background: #fff; }
+.mx-btn:focus-visible, .mixte-profil:focus-visible, .mixte-formation:focus-visible { outline: 3px solid var(--clair-jaune); outline-offset: 2px; }
+.mixte-section { padding: 56px 0; background: #fff; }
+.mixte-section-alt { background: var(--clair-fond-section); }
+.mixte-profils { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 22px; }
+.mixte-profil { background: #fff; border: 1px solid var(--clair-bordure); border-radius: 18px; padding: 22px 18px; text-decoration: none; color: inherit; display: flex; flex-direction: column; gap: 6px; transition: .2s; }
+.mixte-profil:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(10, 50, 90, .08); }
+.mixte-profil span { font-size: 32px; }
+.mixte-profil strong { color: var(--clair-titre); font-size: 17px; }
+.mixte-profil small { color: var(--clair-muted); font-weight: 600; }
+.mixte-profil em { font-style: normal; font-weight: 800; color: var(--clair-bleu); font-size: 13px; margin-top: auto; }
+.mixte-titre-ligne { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.mx-lien { color: var(--mx-vert); font-weight: 800; text-decoration: none; }
+.mixte-formations { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 18px; }
+.mixte-formation { background: #fff; border: 1px solid #e4ebe8; border-radius: 18px; overflow: hidden; text-decoration: none; color: #18302a; display: flex; flex-direction: column; transition: .2s; }
+.mixte-formation:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(20, 50, 40, .09); }
+.mixte-formation-img { height: 120px; background: linear-gradient(135deg, #0b7a5c, #2b9b7d) center / cover; display: grid; place-items: center; font-size: 42px; }
+.mixte-formation-corps { padding: 14px; display: flex; flex-direction: column; gap: 4px; }
+.mixte-formation-corps small { color: var(--mx-vert); font-weight: 800; font-size: 11px; text-transform: uppercase; }
+.mixte-formation-corps span { color: #5f6f6a; font-size: 13px; }
+.mixte-slogan { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--clair-titre); }
+.mixte-slogan img { width: 70px; }
+@media (max-width: 1000px) {
+  .mixte-profils, .mixte-formations { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 760px) {
+  .mixte-offres { grid-template-columns: 1fr; }
+  .mixte-hero { padding: 36px 0 44px; }
+  .mixte-intro { font-size: 16px; }
+  .mixte-offre { padding: 20px; }
+}
+@media (max-width: 480px) {
+  .mixte-profils, .mixte-formations { grid-template-columns: 1fr; }
+}
+.mixte-continuer[hidden], .mixte-section[hidden] { display: none; }
+.mixte-centre { text-align: center; margin-left: auto; margin-right: auto; }

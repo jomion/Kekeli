@@ -63,7 +63,10 @@ function initPiedDePage() {
   // sait qu'il s'agit bien d'un élève ou d'un parent connecté (voir la fin
   // de cette fonction).
   const estAccueil = racine === '';
-  const lienMatiere = estAccueil ? '#matieresCM2' : `${racine}pages/navigation.html`;
+  // 25 septembre 2026 : trois pages d'accueil (index.html = accueil mixte,
+  // primaire.html = KEKELI Primaire, pages/formations/index.html = KEKELI
+  // Formation). Les ancres CM2/paliers vivent désormais sur primaire.html.
+  const lienMatiere = estAccueil ? `${racine}primaire.html#matieresCM2` : `${racine}pages/navigation.html`;
 
   pied.className = 'pied-de-page-public';
   pied.innerHTML = `
@@ -77,9 +80,10 @@ function initPiedDePage() {
         <h3>Navigation</h3>
         <ul>
           <li><a href="${racine}index.html">Accueil</a></li>
+          <li><a href="${racine}primaire.html">KEKELI Primaire</a></li>
           <li><a href="${lienMatiere}" id="piedLienMatiere">Matière</a></li>
-          <li><a href="${racine}index.html#paliers">Paliers</a></li>
-          <li><a href="${racine}pages/formations/index.html">Formations</a></li>
+          <li><a href="${racine}primaire.html#paliers">Paliers</a></li>
+          <li id="piedLienFormations"><a href="${racine}pages/formations/index.html">KEKELI Formation</a></li>
         </ul>
       </div>
       <div class="pied-page-colonne">
@@ -106,6 +110,18 @@ function initPiedDePage() {
   // page ci-dessus, et échoue silencieusement (visiteur non connecté, session
   // expirée, erreur réseau...) en gardant la destination par défaut déjà en
   // place.
+  // Comptes élèves : pas d'accès à KEKELI Formation (25 septembre 2026) —
+  // le lien est retiré du pied de page dès que le rôle est connu.
+  if (typeof supabaseClient !== 'undefined') {
+    (async () => {
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) return;
+        const { data: profil } = await supabaseClient.from('profils').select('role').eq('id', session.user.id).maybeSingle();
+        if (profil?.role === 'eleve') document.getElementById('piedLienFormations')?.remove();
+      } catch (_e) { /* on garde le lien */ }
+    })();
+  }
   if (!estAccueil && typeof supabaseClient !== 'undefined') {
     (async () => {
       try {

@@ -3,211 +3,120 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KEKELI</title>
+<title>KEKELI — L'éducation qui éclaire l'avenir</title>
+<meta name="description" content="KEKELI réunit KEKELI Primaire (cours et exercices du CI au CM2) et KEKELI Formation (formations en ligne pour les adultes, créées par des formateurs vérifiés).">
+<meta property="og:title" content="KEKELI — L'éducation qui éclaire l'avenir">
+<meta property="og:description" content="KEKELI Primaire pour les enfants, KEKELI Formation pour les adultes.">
+<meta property="og:image" content="assets/logo/logo.png">
 <link rel="icon" type="image/png" href="assets/logo/logo.png">
 <link rel="stylesheet" href="css/style-public.css">
 <link rel="stylesheet" href="css/pied-de-page.css">
+<link rel="stylesheet" href="css/accueil-mixte.css">
 </head>
-<body class="page-accueil-claire">
+<!-- 25 septembre 2026 : accueil MIXTE — adresse principale du site. Présente
+     les deux offres et oriente vers leur propre page d'accueil :
+       - KEKELI Primaire : primaire.html (ancienne index.html) ;
+       - KEKELI Formation : pages/formations/index.html. -->
+<body class="page-accueil-claire accueil-mixte">
 
   <header class="entete-publique entete-claire">
     <a href="index.html" class="logo">
       <img src="assets/logo/logo.png" alt="Logo KEKELI">
       <span>KEKELI<span class="logo-tagline">L'éducation qui éclaire l'avenir</span></span>
     </a>
-    <nav class="nav-publique">
+    <nav class="nav-publique" aria-label="Navigation principale">
       <ul>
-        <li><a href="index.html" class="actif">Accueil</a></li>
-        <li><a href="#classesGrades">Classes</a></li>
-        <li><a href="#paliers">Paliers</a></li>
-        <li><a href="pages/formations/index.html">🎓 Formations</a></li>
+        <li><a href="index.html" class="actif" aria-current="page">Accueil</a></li>
+        <li><a href="primaire.html">📚 KEKELI Primaire</a></li>
+        <li><a href="pages/formations/index.html" id="navFormation">🎓 KEKELI Formation</a></li>
       </ul>
     </nav>
-    <div class="auth-buttons">
+    <div class="auth-buttons" id="zoneAuth">
       <a href="pages/login.html" class="btn btn-outline">Se connecter</a>
-      <a href="pages/inscription.html" class="btn btn-filled">S'inscrire</a>
+      <a href="#choisir" class="btn btn-filled">S'inscrire</a>
     </div>
   </header>
 
-  <section class="hero hero-clair" id="heroSection">
-    <div id="heroSlideUnique" style="display:contents">
-      <div class="hero-text hero-clair-texte">
-        <!-- Contenu statique de secours : reste affiché tel quel si la section
-             dynamique (js/accueil-hero.js, blocs gérés par le super admin depuis
-             pages/admin/section-accueil.html) échoue à charger ou si aucun bloc
-             n'est configuré. Le badge et les 2 boutons sont des éléments fixes,
-             hors des champs gérés par un bloc (même principe déjà appliqué à
-             "Accéder à mon espace", voir js/accueil-hero.js). -->
+  <main>
+    <section class="mixte-hero">
+      <div class="mixte-conteneur">
         <span class="hero-clair-badge">Bienvenue sur KEKELI</span>
-        <div id="heroTexteDynamique">
-          <h1>Apprendre aujourd'hui, <span>réussir</span> demain.</h1>
-          <p>KEKELI est une plateforme éducative conçue pour accompagner les élèves du primaire dans leur apprentissage. Des cours clairs, des exercices variés par paliers et un suivi pour progresser à son rythme.</p>
-        </div>
-        <div class="hero-clair-boutons">
-          <a href="pages/login.html" class="btn-clair-plein" id="lienAccederEspace">📖 Accéder à mon espace</a>
-          <a href="#classesGrades" class="btn-clair-contour">▶ Découvrir les classes</a>
-        </div>
-        <div class="hero-points" id="heroPoints"></div>
-      </div>
-      <div class="hero-image hero-clair-photo" id="heroImageDynamique">
-        <!-- Illustration maison (pas d'outil de génération/récupération de
-             photo disponible dans cet environnement — voir LISEZ-MOI). -->
-        <span class="bulle-hero-centre" aria-hidden="true">📚</span>
-        <span class="bulle-hero bulle-hero-1" aria-hidden="true">🌱</span>
-        <span class="bulle-hero bulle-hero-2" aria-hidden="true">🪘</span>
-        <span class="bulle-hero bulle-hero-3" aria-hidden="true">🦁</span>
-        <span class="bulle-hero bulle-hero-4" aria-hidden="true">👑</span>
-        <span class="etincelle etincelle-1" aria-hidden="true">✨</span>
-        <span class="etincelle etincelle-2" aria-hidden="true">✨</span>
-      </div>
-    </div>
-    <!-- Rempli par js/accueil-hero.js uniquement quand la disposition choisie
-         par le super admin est "Grille" ou "Sections compactes" (plusieurs
-         blocs affichés en même temps, sans défilement) — voir
-         pages/admin/section-accueil.html. Masqué et vide sinon. -->
-    <div class="hero-blocs-multiples" id="heroBlocsMultiples" style="display:none"></div>
-  </section>
+        <h1>Une seule maison,<br><span class="mx-bleu">deux façons</span> d'<span class="mx-vert">apprendre</span>.</h1>
+        <p class="mixte-intro">Les enfants progressent du CI au CM2 avec <b>KEKELI Primaire</b>. Les adultes se forment, ou transmettent leur savoir, avec <b>KEKELI Formation</b>.</p>
+        <p class="mixte-continuer" id="zoneContinuer" hidden></p>
 
-  <section class="section-claire" id="classesGrades">
-    <h2 class="titre-claire">Nos classes</h2>
-    <p class="sous-titre-claire">KEKELI couvre tout le primaire, du CI au CM2. Le programme de CM2 est déjà entièrement disponible ; les autres classes arrivent progressivement.</p>
-    <div class="grille-classes-claire">
-      <div class="carte-classe-claire"><span class="pastille-classe">CI</span><strong>Cours d'Initiation</strong><span class="etat-classe">Bientôt disponible</span></div>
-      <div class="carte-classe-claire"><span class="pastille-classe">CP</span><strong>Cours Préparatoire</strong><span class="etat-classe">Bientôt disponible</span></div>
-      <div class="carte-classe-claire"><span class="pastille-classe">CE1</span><strong>Cours Élémentaire 1</strong><span class="etat-classe">Bientôt disponible</span></div>
-      <div class="carte-classe-claire"><span class="pastille-classe">CE2</span><strong>Cours Élémentaire 2</strong><span class="etat-classe">Bientôt disponible</span></div>
-      <div class="carte-classe-claire"><span class="pastille-classe">CM1</span><strong>Cours Moyen 1</strong><span class="etat-classe">Bientôt disponible</span></div>
-      <a href="pages/login.html" class="carte-classe-claire disponible"><span class="pastille-classe">CM2</span><strong>Cours Moyen 2</strong><span class="etat-classe">✅ Disponible maintenant</span></a>
-    </div>
-  </section>
+        <div class="mixte-offres" id="choisir">
+          <article class="mixte-offre offre-primaire">
+            <div class="mixte-offre-tete">
+              <span class="mixte-offre-icone" aria-hidden="true">📚</span>
+              <div><h2>KEKELI Primaire</h2><p>Pour les élèves, les parents et les enseignants</p></div>
+            </div>
+            <ul class="mixte-points">
+              <li>Programme officiel du CI au CM2 (CM2 déjà complet)</li>
+              <li>Exercices par paliers, d'Azɔ̀ví à Axɔ́sú</li>
+              <li>Badges, jeux éducatifs, cahier d'écriture</li>
+              <li>Suivi partagé élève · parent · enseignant</li>
+            </ul>
+            <div class="mixte-chiffre" id="chiffrePrimaire">&nbsp;</div>
+            <div class="mixte-actions">
+              <a class="mx-btn mx-btn-bleu" href="primaire.html">Découvrir KEKELI Primaire</a>
+              <a class="mx-btn mx-btn-contour-bleu" href="pages/inscription.html">Créer un compte parent ou enseignant</a>
+            </div>
+          </article>
 
-  <section class="section-claire" id="matieresCM2">
-    <h2 class="titre-claire">Les matières du programme CM2</h2>
-    <p class="sous-titre-claire">Un aperçu de ce qui est déjà disponible pour les élèves de CM2 sur KEKELI.</p>
-    <div class="grille-matieres-cercles">
-      <a href="pages/login.html" class="cercle-matiere">
-        <span class="cercle-icone cercle-bleu">📖</span>
-        <strong>Français</strong>
-        <span class="cercle-desc">Lecture • Grammaire • Expression</span>
-        <span class="cercle-total">12 séances publiées</span>
-      </a>
-      <a href="pages/login.html" class="cercle-matiere">
-        <span class="cercle-icone cercle-vert">🔢</span>
-        <strong>Mathématiques</strong>
-        <span class="cercle-desc">Calcul • Mesures • Problèmes</span>
-        <span class="cercle-total">5 séances publiées</span>
-      </a>
-      <a href="pages/login.html" class="cercle-matiere">
-        <span class="cercle-icone cercle-sarcelle">🌍</span>
-        <strong>Éducation Sociale</strong>
-        <span class="cercle-desc">Histoire • Géographie • Société</span>
-        <span class="cercle-total">5 séances publiées</span>
-      </a>
-      <a href="pages/login.html" class="cercle-matiere">
-        <span class="cercle-icone cercle-orange">🔬</span>
-        <strong>Éducation Scientifique et Technologique</strong>
-        <span class="cercle-desc">Sciences • Technologie</span>
-        <span class="cercle-total">2 séances publiées</span>
-      </a>
-      <span class="cercle-matiere cercle-indisponible">
-        <span class="cercle-icone cercle-violet">🎨</span>
-        <strong>Éducation Artistique</strong>
-        <span class="cercle-desc">Créativité • Patrimoine</span>
-        <span class="cercle-total">Bientôt disponible</span>
-      </span>
-      <span class="cercle-matiere cercle-indisponible">
-        <span class="cercle-icone cercle-rose">🏃</span>
-        <strong>Éducation Physique et Sportive</strong>
-        <span class="cercle-desc">Motricité • Santé</span>
-        <span class="cercle-total">Bientôt disponible</span>
-      </span>
-    </div>
-  </section>
-
-  <section class="section-claire" id="paliers">
-    <h2 class="titre-claire">Une progression par paliers</h2>
-    <p class="sous-titre-claire">Chaque activité peut être classée par niveau de difficulté, pour avancer sans se décourager. Cliquez sur un palier pour découvrir son contenu.</p>
-    <div class="grille-paliers-accueil">
-      <a href="pages/login.html" class="carte-palier-accueil" aria-label="Palier Azɔ̀ví, très facile — 18 exercices publiés">
-        <img src="assets/paliers-accueil/azovi.png" alt="Palier Azɔ̀ví, très facile" loading="lazy">
-        <span class="corrige-libelle-azovi">Azɔ̀ví</span>
-        <span class="total-palier-accueil">18</span>
-      </a>
-      <a href="pages/login.html" class="carte-palier-accueil" aria-label="Palier Dèví, moyen facile — 18 exercices publiés">
-        <img src="assets/paliers-accueil/devi.png" alt="Palier Dèví, moyen facile" loading="lazy">
-        <span class="total-palier-accueil">18</span>
-      </a>
-      <a href="pages/login.html" class="carte-palier-accueil" aria-label="Palier Ògán, difficile — 11 exercices publiés">
-        <img src="assets/paliers-accueil/ogan.png" alt="Palier Ògán, difficile" loading="lazy">
-        <span class="total-palier-accueil">11</span>
-      </a>
-      <a href="pages/login.html" class="carte-palier-accueil" aria-label="Palier Axɔ́sú, très difficile — 9 exercices publiés">
-        <img src="assets/paliers-accueil/axosu.png" alt="Palier Axɔ́sú, très difficile" loading="lazy">
-        <span class="total-palier-accueil">9</span>
-      </a>
-    </div>
-  </section>
-
-  <!-- 24 septembre 2026 : accès à la plateforme de formation en ligne
-       (marketplace multi-formateurs, pages/formations/) depuis l'accueil.
-       Les 3 dernières formations publiées sont chargées dynamiquement
-       (voir le script en bas de page) ; le bloc reste utile même vide. -->
-  <section class="section-claire bandeau-formations" id="formations">
-    <div class="bandeau-formations-grille">
-      <div>
-        <span class="bandeau-formations-badge">NOUVEAU · KEKELI FORMATION</span>
-        <h2 class="titre-claire titre-claire-gauche">Apprenez. Formez. Partagez.</h2>
-        <p class="bandeau-formations-texte">Au-delà du primaire, KEKELI ouvre une plateforme de formation en ligne pour les adultes : parents, enseignants, entrepreneurs… Suivez des formations créées par des formateurs vérifiés, ou partagez votre propre savoir.</p>
-        <div class="hero-clair-boutons">
-          <a href="pages/formations/catalogue.html" class="btn-clair-plein">🎓 Découvrir les formations</a>
-          <a href="pages/formations/devenir-formateur.html" class="btn-clair-contour">👨‍🏫 Devenir formateur</a>
+          <article class="mixte-offre offre-formation">
+            <div class="mixte-offre-tete">
+              <span class="mixte-offre-icone" aria-hidden="true">🎓</span>
+              <div><h2>KEKELI Formation</h2><p>Pour les adultes : apprendre et former</p></div>
+            </div>
+            <ul class="mixte-points">
+              <li>Informatique, éducation, entrepreneuriat, langues…</li>
+              <li>Leçons vidéo, audio, documents et quiz</li>
+              <li>Formateurs et formations vérifiés par KEKELI</li>
+              <li>Devenez formateur et partagez votre savoir</li>
+            </ul>
+            <div class="mixte-chiffre" id="chiffreFormation">&nbsp;</div>
+            <div class="mixte-actions">
+              <a class="mx-btn mx-btn-vert" href="pages/formations/index.html">Découvrir KEKELI Formation</a>
+              <a class="mx-btn mx-btn-contour-vert" href="pages/inscription.html?espace=formation&role=etudiant&retour=pages%2Fformations%2Fapp%2Ftableau-de-bord.html">Créer un compte étudiant</a>
+            </div>
+          </article>
         </div>
       </div>
-      <div class="bandeau-formations-liste" id="dernieresFormations">
-        <a class="bandeau-formations-item" href="pages/formations/index.html"><span>📚</span><div><strong>Des formations par catégorie</strong><small>Informatique, éducation, entrepreneuriat, langues, agriculture…</small></div></a>
-        <a class="bandeau-formations-item" href="pages/formations/index.html"><span>✅</span><div><strong>Quiz et suivi de progression</strong><small>Apprenez à votre rythme, sur mobile comme sur ordinateur</small></div></a>
-        <a class="bandeau-formations-item" href="pages/formations/devenir-formateur.html"><span>🛡️</span><div><strong>Formateurs et contenus vérifiés</strong><small>Chaque formation est validée par KEKELI avant publication</small></div></a>
-      </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="section-claire pourquoi-claire">
-    <div class="pourquoi-grille">
-      <div>
-        <h2 class="titre-claire titre-claire-gauche">Pourquoi choisir KEKELI ?</h2>
-        <ul class="liste-check-claire">
-          <li>✅ Des contenus alignés sur les programmes officiels</li>
-          <li>✅ Des exercices progressifs et interactifs, classés par palier</li>
-          <li>✅ Une interface simple, adaptée à tous les appareils</li>
-          <li>✅ Un suivi partagé entre l'élève, le parent et l'enseignant</li>
-        </ul>
+    <section class="mixte-section">
+      <div class="mixte-conteneur">
+        <h2 class="titre-claire mixte-centre">Qui êtes-vous ?</h2>
+        <p class="sous-titre-claire mixte-centre">Chacun trouve sa place sur KEKELI.</p>
+        <div class="mixte-profils">
+          <a class="mixte-profil" href="primaire.html"><span aria-hidden="true">🧒</span><strong>Élève</strong><small>Mes cours, mes exercices, mes badges</small><em>→ KEKELI Primaire</em></a>
+          <a class="mixte-profil" href="primaire.html"><span aria-hidden="true">👨‍👩‍👧</span><strong>Parent</strong><small>Inscrire et suivre mon enfant</small><em>→ KEKELI Primaire</em></a>
+          <a class="mixte-profil" href="primaire.html"><span aria-hidden="true">🧑‍🏫</span><strong>Enseignant</strong><small>Ma classe, mes séances… et ma formation continue</small><em>→ Primaire &amp; Formation</em></a>
+          <a class="mixte-profil" href="pages/formations/index.html"><span aria-hidden="true">💼</span><strong>Adulte, professionnel</strong><small>Apprendre une compétence, former les autres</small><em>→ KEKELI Formation</em></a>
+        </div>
       </div>
-      <div class="carte-slogan-claire">
+    </section>
+
+    <section class="mixte-section mixte-section-alt" id="sectionFormations" hidden>
+      <div class="mixte-conteneur">
+        <div class="mixte-titre-ligne">
+          <div><h2 class="titre-claire titre-claire-gauche">Nouvelles formations</h2>
+            <p class="sous-titre-claire" style="text-align:left;margin-left:0">Les dernières formations publiées sur KEKELI Formation.</p></div>
+          <a class="mx-lien" href="pages/formations/catalogue.html">Voir toutes les formations →</a>
+        </div>
+        <div class="mixte-formations" id="listeFormations"></div>
+      </div>
+    </section>
+
+    <section class="mixte-section">
+      <div class="mixte-conteneur mixte-slogan">
+        <img src="assets/logo/logo.png" alt="">
         <p class="slogan-manuscrit">Ensemble pour une éducation de qualité !</p>
-        <img src="assets/logo/logo.png" alt="KEKELI">
-        <strong>KEKELI</strong>
-        <span>L'éducation qui éclaire l'avenir</span>
+        <strong>KEKELI — L'éducation qui éclaire l'avenir</strong>
       </div>
-    </div>
-  </section>
-
-  <section class="section-claire actualites-claire">
-    <h2 class="titre-claire titre-claire-gauche">📣 Actualités et nouveautés</h2>
-    <div class="liste-actualites">
-      <div class="item-actualite">
-        <span class="icone-actu">📘</span>
-        <div><strong>Le programme de CM2 est disponible</strong><p>Français, Mathématiques, Éducation Sociale et Éducation Scientifique et Technologique sont déjà en ligne.</p></div>
-      </div>
-      <div class="item-actualite">
-        <span class="icone-actu">🏅</span>
-        <div><strong>Une progression par paliers</strong><p>De Azɔ̀ví à Axɔ́sú, chaque exercice est classé par niveau de difficulté pour avancer sans se décourager.</p></div>
-      </div>
-      <div class="item-actualite">
-        <span class="icone-actu">🎁</span>
-        <div><strong>Ressources gratuites</strong><p>Des fiches et des guides accessibles dès l'inscription, pour bien démarrer.</p></div>
-      </div>
-    </div>
-  </section>
+    </section>
+  </main>
 
   <footer></footer>
   <script src="js/pied-de-page.js"></script>
@@ -218,62 +127,6 @@
   <script>const RACINE_SITE = "";</script>
   <script src="js/auth-utilisateur.js"></script>
   <script src="js/banniere-site.js"></script>
-  <script src="js/accueil-hero.js"></script>
-  <script>initAccueilHero();</script>
-  <script>
-    // Plateforme de formation : les 3 dernières formations publiées
-    // remplacent les arguments génériques du bandeau, dès qu'il y en a.
-    (async function () {
-      try {
-        const { data } = await supabaseClient.from('formations')
-          .select('slug, titre, nb_lecons, prix, formation_categories(icone)')
-          .eq('statut', 'publiee').eq('visibilite', 'publique').order('publiee_le', { ascending: false }).limit(3);
-        if (!data || !data.length) return;
-        const e = v => (v ?? '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-        document.getElementById('dernieresFormations').innerHTML = data.map(f => `
-          <a class="bandeau-formations-item" href="pages/formations/formation.html?slug=${encodeURIComponent(f.slug)}">
-            <span>${e(f.formation_categories?.icone || '🎓')}</span>
-            <div><strong>${e(f.titre)}</strong><small>${f.nb_lecons} leçon${f.nb_lecons > 1 ? 's' : ''} · ${f.prix ? Number(f.prix).toLocaleString('fr-FR') + ' FCFA' : 'Gratuit'}</small></div>
-          </a>`).join('') + '<a class="bandeau-formations-item bandeau-formations-tout" href="pages/formations/catalogue.html">Voir toutes les formations →</a>';
-      } catch (_e) { /* bandeau statique conservé */ }
-    })();
-  </script>
-  <script>
-    // Bannière dynamique du super admin (voir js/banniere-site.js) : sur
-    // l'accueil publique, un visiteur non connecté est ciblé comme
-    // 'visiteur' ; un visiteur déjà connecté (qui n'a pas encore cliqué
-    // "Continuer mon espace") reçoit directement la bannière de son rôle.
-    (async function () {
-      try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        const profil = session ? await chargerProfil(session.user.id) : null;
-        // profils.role peut valoir 'super_admin' (littéral) pour un compte
-        // admin — les bannières ciblent seulement 'admin' (comme le fait
-        // déjà chaque page admin, qui passe toujours role: 'admin' à
-        // initEnteteNavigation, super admin inclus).
-        const roleBanniere = profil ? (profil.role === 'super_admin' ? 'admin' : profil.role) : 'visiteur';
-        initBanniereSite(roleBanniere);
-      } catch (_e) { initBanniereSite('visiteur'); }
-    })();
-  </script>
-  <script>
-    // Si un utilisateur déjà connecté revient sur l'accueil, "Accéder à mon
-    // espace" doit le ramener où il était (pas repasser par l'écran de
-    // connexion) — voir memoriserDernierePageVisitee() dans
-    // js/auth-utilisateur.js (et son équivalent dans js/auth-admin.js) qui
-    // enregistre cette page à chaque chargement d'une page protégée.
-    (async function () {
-      try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (!session) return;
-        const profil = await chargerProfil(session.user.id);
-        if (!profil || !profil.actif) return;
-        const lien = document.getElementById('lienAccederEspace');
-        if (!lien) return;
-        lien.href = localStorage.getItem('kekeli_derniere_page') || urlTableauDeBord(profil.role);
-        lien.textContent = 'Continuer mon espace →';
-      } catch (_e) { /* pas de session exploitable -> on garde le lien par défaut vers la connexion */ }
-    })();
-  </script>
+  <script src="js/accueil-mixte.js"></script>
 </body>
 </html>

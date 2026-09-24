@@ -283,7 +283,7 @@ async function initEnteteNavigation(config) {
 
   header.classList.add('entete-kekeli');
   header.innerHTML = `
-    <a href="${racine}index.html" class="entete-kekeli-logo">
+    <a href="${racine}primaire.html" class="entete-kekeli-logo">
       <img src="${racine}assets/logo/logo.png" alt="KEKELI"> KEKELI${config.role === 'admin' ? ' Admin' : ''}
     </a>
 

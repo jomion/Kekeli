@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KEKELI Primaire — du CI au CM2</title>
+<meta name="description" content="KEKELI Primaire : cours, exercices par paliers et suivi partagé élève-parent-enseignant, du CI au CM2.">
+<link rel="icon" type="image/png" href="assets/logo/logo.png">
+<link rel="stylesheet" href="css/style-public.css">
+<link rel="stylesheet" href="css/pied-de-page.css">
+</head>
+<!-- 25 septembre 2026 : page d'accueil dédiée à KEKELI Primaire (ancienne
+     index.html). L'adresse principale index.html est désormais l'accueil
+     mixte qui présente KEKELI Primaire et KEKELI Formation. -->
+<body class="page-accueil-claire">
+
+  <header class="entete-publique entete-claire">
+    <a href="primaire.html" class="logo">
+      <img src="assets/logo/logo.png" alt="Logo KEKELI">
+      <span>KEKELI Primaire<span class="logo-tagline">L'éducation qui éclaire l'avenir</span></span>
+    </a>
+    <nav class="nav-publique">
+      <ul>
+        <li><a href="index.html">Accueil KEKELI</a></li>
+        <li><a href="#classesGrades">Classes</a></li>
+        <li><a href="#matieresCM2">Matières</a></li>
+        <li><a href="#paliers">Paliers</a></li>
+      </ul>
+    </nav>
+    <div class="auth-buttons">
+      <a href="pages/login.html" class="btn btn-outline">Se connecter</a>
+      <a href="pages/inscription.html" class="btn btn-filled">S'inscrire</a>
+    </div>
+  </header>
+
+  <section class="hero hero-clair" id="heroSection">
+    <div id="heroSlideUnique" style="display:contents">
+      <div class="hero-text hero-clair-texte">
+        <!-- Contenu statique de secours : reste affiché tel quel si la section
+             dynamique (js/accueil-hero.js, blocs gérés par le super admin depuis
+             pages/admin/section-accueil.html) échoue à charger ou si aucun bloc
+             n'est configuré. Le badge et les 2 boutons sont des éléments fixes,
+             hors des champs gérés par un bloc (même principe déjà appliqué à
+             "Accéder à mon espace", voir js/accueil-hero.js). -->
+        <span class="hero-clair-badge">Bienvenue sur KEKELI</span>
+        <div id="heroTexteDynamique">
+          <h1>Apprendre aujourd'hui, <span>réussir</span> demain.</h1>
+          <p>KEKELI est une plateforme éducative conçue pour accompagner les élèves du primaire dans leur apprentissage. Des cours clairs, des exercices variés par paliers et un suivi pour progresser à son rythme.</p>
+        </div>
+        <div class="hero-clair-boutons">
+          <a href="pages/login.html" class="btn-clair-plein" id="lienAccederEspace">📖 Accéder à mon espace</a>
+          <a href="#classesGrades" class="btn-clair-contour">▶ Découvrir les classes</a>
+        </div>
+        <div class="hero-points" id="heroPoints"></div>
+      </div>
+      <div class="hero-image hero-clair-photo" id="heroImageDynamique">
+        <!-- Illustration maison (pas d'outil de génération/récupération de
+             photo disponible dans cet environnement — voir LISEZ-MOI). -->
+        <span class="bulle-hero-centre" aria-hidden="true">📚</span>
+        <span class="bulle-hero bulle-hero-1" aria-hidden="true">🌱</span>
+        <span class="bulle-hero bulle-hero-2" aria-hidden="true">🪘</span>
+        <span class="bulle-hero bulle-hero-3" aria-hidden="true">🦁</span>
+        <span class="bulle-hero bulle-hero-4" aria-hidden="true">👑</span>
+        <span class="etincelle etincelle-1" aria-hidden="true">✨</span>
+        <span class="etincelle etincelle-2" aria-hidden="true">✨</span>
+      </div>
+    </div>
+    <!-- Rempli par js/accueil-hero.js uniquement quand la disposition choisie
+         par le super admin est "Grille" ou "Sections compactes" (plusieurs
+         blocs affichés en même temps, sans défilement) — voir
+         pages/admin/section-accueil.html. Masqué et vide sinon. -->
+    <div class="hero-blocs-multiples" id="heroBlocsMultiples" style="display:none"></div>
+  </section>
+
+  <section class="section-claire" id="classesGrades">
+    <h2 class="titre-claire">Nos classes</h2>
+    <p class="sous-titre-claire">KEKELI couvre tout le primaire, du CI au CM2. Le programme de CM2 est déjà entièrement disponible ; les autres classes arrivent progressivement.</p>
+    <div class="grille-classes-claire">
+      <div class="carte-classe-claire"><span class="pastille-classe">CI</span><strong>Cours d'Initiation</strong><span class="etat-classe">Bientôt disponible</span></div>
+      <div class="carte-classe-claire"><span class="pastille-classe">CP</span><strong>Cours Préparatoire</strong><span class="etat-classe">Bientôt disponible</span></div>
+      <div class="carte-classe-claire"><span class="pastille-classe">CE1</span><strong>Cours Élémentaire 1</strong><span class="etat-classe">Bientôt disponible</span></div>
+      <div class="carte-classe-claire"><span class="pastille-classe">CE2</span><strong>Cours Élémentaire 2</strong><span class="etat-classe">Bientôt disponible</span></div>
+      <div class="carte-classe-claire"><span class="pastille-classe">CM1</span><strong>Cours Moyen 1</strong><span class="etat-classe">Bientôt disponible</span></div>
+      <a href="pages/login.html" class="carte-classe-claire disponible"><span class="pastille-classe">CM2</span><strong>Cours Moyen 2</strong><span class="etat-classe">✅ Disponible maintenant</span></a>
+    </div>
+  </section>
+
+  <section class="section-claire" id="matieresCM2">
+    <h2 class="titre-claire">Les matières du programme CM2</h2>
+    <p class="sous-titre-claire">Un aperçu de ce qui est déjà disponible pour les élèves de CM2 sur KEKELI.</p>
+    <div class="grille-matieres-cercles">
+      <a href="pages/login.html" class="cercle-matiere">
+        <span class="cercle-icone cercle-bleu">📖</span>
+        <strong>Français</strong>
+        <span class="cercle-desc">Lecture • Grammaire • Expression</span>
+        <span class="cercle-total">12 séances publiées</span>
+      </a>
+      <a href="pages/login.html" class="cercle-matiere">
+        <span class="cercle-icone cercle-vert">🔢</span>
+        <strong>Mathématiques</strong>
+        <span class="cercle-desc">Calcul • Mesures • Problèmes</span>
+        <span class="cercle-total">5 séances publiées</span>
+      </a>
+      <a href="pages/login.html" class="cercle-matiere">
+        <span class="cercle-icone cercle-sarcelle">🌍</span>
+        <strong>Éducation Sociale</strong>
+        <span class="cercle-desc">Histoire • Géographie • Société</span>
+        <span class="cercle-total">5 séances publiées</span>
+      </a>
+      <a href="pages/login.html" class="cercle-matiere">
+        <span class="cercle-icone cercle-orange">🔬</span>
+        <strong>Éducation Scientifique et Technologique</strong>
+        <span class="cercle-desc">Sciences • Technologie</span>
+        <span class="cercle-total">2 séances publiées</span>
+      </a>
+      <span class="cercle-matiere cercle-indisponible">
+        <span class="cercle-icone cercle-violet">🎨</span>
+        <strong>Éducation Artistique</strong>
+        <span class="cercle-desc">Créativité • Patrimoine</span>
+        <span class="cercle-total">Bientôt disponible</span>
+      </span>
+      <span class="cercle-matiere cercle-indisponible">
+        <span class="cercle-icone cercle-rose">🏃</span>
+        <strong>Éducation Physique et Sportive</strong>
+        <span class="cercle-desc">Motricité • Santé</span>
+        <span class="cercle-total">Bientôt disponible</span>
+      </span>
+    </div>
+  </section>
+
+  <section class="section-claire" id="paliers">
+    <h2 class="titre-claire">Une progression par paliers</h2>
+    <p class="sous-titre-claire">Chaque activité peut être classée par niveau de difficulté, pour avancer sans se décourager. Cliquez sur un palier pour découvrir son contenu.</p>
+    <div class="grille-paliers-accueil">
+      <a href="pages/login.html" class="carte-palier-accueil" aria-label="Palier Azɔ̀ví, très facile — 18 exercices publiés">
+        <img src="assets/paliers-accueil/azovi.png" alt="Palier Azɔ̀ví, très facile" loading="lazy">
+        <span class="corrige-libelle-azovi">Azɔ̀ví</span>
+        <span class="total-palier-accueil">18</span>
+      </a>
+      <a href="pages/login.html" class="carte-palier-accueil" aria-label="Palier Dèví, moyen facile — 18 exercices publiés">
+        <img src="assets/paliers-accueil/devi.png" alt="Palier Dèví, moyen facile" loading="lazy">
+        <span class="total-palier-accueil">18</span>
+      </a>
+      <a href="pages/login.html" class="carte-palier-accueil" aria-label="Palier Ògán, difficile — 11 exercices publiés">
+        <img src="assets/paliers-accueil/ogan.png" alt="Palier Ògán, difficile" loading="lazy">
+        <span class="total-palier-accueil">11</span>
+      </a>
+      <a href="pages/login.html" class="carte-palier-accueil" aria-label="Palier Axɔ́sú, très difficile — 9 exercices publiés">
+        <img src="assets/paliers-accueil/axosu.png" alt="Palier Axɔ́sú, très difficile" loading="lazy">
+        <span class="total-palier-accueil">9</span>
+      </a>
+    </div>
+  </section>
+
+  <section class="section-claire pourquoi-claire">
+    <div class="pourquoi-grille">
+      <div>
+        <h2 class="titre-claire titre-claire-gauche">Pourquoi choisir KEKELI ?</h2>
+        <ul class="liste-check-claire">
+          <li>✅ Des contenus alignés sur les programmes officiels</li>
+          <li>✅ Des exercices progressifs et interactifs, classés par palier</li>
+          <li>✅ Une interface simple, adaptée à tous les appareils</li>
+          <li>✅ Un suivi partagé entre l'élève, le parent et l'enseignant</li>
+        </ul>
+      </div>
+      <div class="carte-slogan-claire">
+        <p class="slogan-manuscrit">Ensemble pour une éducation de qualité !</p>
+        <img src="assets/logo/logo.png" alt="KEKELI">
+        <strong>KEKELI</strong>
+        <span>L'éducation qui éclaire l'avenir</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-claire actualites-claire">
+    <h2 class="titre-claire titre-claire-gauche">📣 Actualités et nouveautés</h2>
+    <div class="liste-actualites">
+      <div class="item-actualite">
+        <span class="icone-actu">📘</span>
+        <div><strong>Le programme de CM2 est disponible</strong><p>Français, Mathématiques, Éducation Sociale et Éducation Scientifique et Technologique sont déjà en ligne.</p></div>
+      </div>
+      <div class="item-actualite">
+        <span class="icone-actu">🏅</span>
+        <div><strong>Une progression par paliers</strong><p>De Azɔ̀ví à Axɔ́sú, chaque exercice est classé par niveau de difficulté pour avancer sans se décourager.</p></div>
+      </div>
+      <div class="item-actualite">
+        <span class="icone-actu">🎁</span>
+        <div><strong>Ressources gratuites</strong><p>Des fiches et des guides accessibles dès l'inscription, pour bien démarrer.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <footer></footer>
+  <script src="js/pied-de-page.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/supabaseClient.js"></script>
+  <script>const RACINE_SITE = "";</script>
+  <script src="js/auth-utilisateur.js"></script>
+  <script src="js/banniere-site.js"></script>
+  <script src="js/accueil-hero.js"></script>
+  <script>initAccueilHero();</script>
+  <script>
+    // Bannière dynamique du super admin (voir js/banniere-site.js) : sur
+    // l'accueil publique, un visiteur non connecté est ciblé comme
+    // 'visiteur' ; un visiteur déjà connecté (qui n'a pas encore cliqué
+    // "Continuer mon espace") reçoit directement la bannière de son rôle.
+    (async function () {
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const profil = session ? await chargerProfil(session.user.id) : null;
+        // profils.role peut valoir 'super_admin' (littéral) pour un compte
+        // admin — les bannières ciblent seulement 'admin' (comme le fait
+        // déjà chaque page admin, qui passe toujours role: 'admin' à
+        // initEnteteNavigation, super admin inclus).
+        const roleBanniere = profil ? (profil.role === 'super_admin' ? 'admin' : profil.role) : 'visiteur';
+        initBanniereSite(roleBanniere);
+      } catch (_e) { initBanniereSite('visiteur'); }
+    })();
+  </script>
+  <script>
+    // Si un utilisateur déjà connecté revient sur l'accueil, "Accéder à mon
+    // espace" doit le ramener où il était (pas repasser par l'écran de
+    // connexion) — voir memoriserDernierePageVisitee() dans
+    // js/auth-utilisateur.js (et son équivalent dans js/auth-admin.js) qui
+    // enregistre cette page à chaque chargement d'une page protégée.
+    (async function () {
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) return;
+        const profil = await chargerProfil(session.user.id);
+        if (!profil || !profil.actif) return;
+        const lien = document.getElementById('lienAccederEspace');
+        if (!lien) return;
+        lien.href = localStorage.getItem('kekeli_derniere_page') || urlTableauDeBord(profil.role);
+        lien.textContent = 'Continuer mon espace →';
+      } catch (_e) { /* pas de session exploitable -> on garde le lien par défaut vers la connexion */ }
+    })();
+  </script>
+</body>
+</html>

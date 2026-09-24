@@ -110,7 +110,7 @@ function ongletInfos() {
       <div class="fk-actions-form"><button class="fk-btn fk-btn-primary" type="submit" data-edition>Enregistrer</button></div>
     </form>`;
   const ed = fkEditeurRiche(document.getElementById('editeurDescription'), f.description, 'Présentez votre formation…');
-  if (FKE.verrouille) ed.zone.contentEditable = 'false';
+  if (FKE.verrouille) ed.desactiver();
 
   document.getElementById('formInfos').addEventListener('submit', async e => {
     e.preventDefault();
@@ -274,6 +274,7 @@ function modaleLecon(l, moduleId) {
     </form>`, { protegee: true });
   md.boite.style.width = 'min(860px, 100%)';
   const ed = fkEditeurRiche(md.boite.querySelector('#editeurLecon'), l?.contenu, 'Rédigez le contenu de la leçon…');
+  if (FKE.verrouille) ed.desactiver();
   const medias = { video: video.startsWith('fichier:') ? video : null, audio: audio.startsWith('fichier:') ? audio : null };
   const aSupprimer = [];
 
@@ -420,6 +421,24 @@ function modaleQuiz(q) {
   });
 }
 
+function resumeQuestionHtml(x) {
+  const c = x.config || {};
+  const li = arr => `<ul style="margin:8px 0 0;padding-left:18px">${arr.map(v => `<li>${v}</li>`).join('')}</ul>`;
+  const e = fkEchapper;
+  switch (x.type) {
+    case 'reponse_courte': return li((c.acceptees || []).map(a => `✅ ${e(a)}`));
+    case 'reponse_numerique': return li([`✅ ${e(c.valeur)} ${e(c.unite || '')}${c.tolerance ? ` (± ${e(c.tolerance)})` : ''}`]);
+    case 'texte_a_trous': return li((c.trous || []).map((t, i) => `Trou ${i + 1} : ✅ ${e((t || []).join(' / '))}`));
+    case 'texte_a_trous_glisser': return li([...(c.trous || []).map((t, i) => `Trou ${i + 1} : ✅ ${e(t)}`), ...((c.banque || []).length ? [`Intrus : ${e(c.banque.join(', '))}`] : [])]);
+    case 'remise_en_ordre': return `<ol style="margin:8px 0 0;padding-left:22px">${(c.elements || []).map(v => `<li>${e(v)}</li>`).join('')}</ol>`;
+    case 'association': return li((c.paires || []).map(p => `${e(p.gauche)} ↔ ${e(p.droite)}`));
+    case 'classement': return li((c.categories || []).map(cat => `<b>${e(cat)}</b> : ${e((c.elements || []).filter(el => el.categorie === cat).map(el => el.texte).join(', '))}`));
+    case 'intrus_lexical': return li((c.series || []).map(s => (s.mots || []).map((m, i) => i === Number(s.intrus) ? `<b>✅ ${e(m)}</b>` : e(m)).join(', ')));
+    case 'selection_mots': { const mots = fkMots(x.enonce); return li([`✅ ${e((c.corrects || []).map(i => mots[Number(i)]).filter(Boolean).join(', '))}`]); }
+    default: return li((x.formation_reponses || []).map(r => `${r.est_correcte ? '✅' : '▫️'} ${e(r.texte)}`));
+  }
+}
+
 async function modaleQuestions(q) {
   const { data: questions, error } = await supabaseClient.from('formation_questions')
     .select('*, formation_reponses(*)').eq('quiz_id', q.id).order('position').order('id');
@@ -429,10 +448,10 @@ async function modaleQuestions(q) {
     <div id="listeQuestions">${liste.length ? liste.map((x, i) => `
       <div class="fk-question">
         <div style="display:flex;justify-content:space-between;gap:10px"><h3>${i + 1}. ${fkEchapper(x.enonce)}</h3>
-          <span style="white-space:nowrap"><button class="fk-btn fk-btn-ghost fk-btn-petit" data-editer-q="${x.id}" ${FKE.verrouille ? 'disabled' : ''}>✏️</button>
+          <span style="white-space:nowrap"><button class="fk-btn fk-btn-ghost fk-btn-petit" data-editer-q="${x.id}" ${FKE.verrouille ? 'disabled' : ''} aria-label="Modifier">✏️</button>
           <button class="fk-btn fk-btn-ghost fk-btn-petit" data-suppr-q="${x.id}" ${FKE.verrouille ? 'disabled' : ''} aria-label="Supprimer">🗑️</button></span></div>
-        <small style="color:var(--f-muted)">${{ choix_unique: 'Choix unique', choix_multiple: 'Choix multiple', vrai_faux: 'Vrai / Faux' }[x.type]} · ${x.points} pt${x.points > 1 ? 's' : ''}</small>
-        <ul style="margin:8px 0 0;padding-left:18px">${x.formation_reponses.map(r => `<li>${r.est_correcte ? '✅' : '▫️'} ${fkEchapper(r.texte)}</li>`).join('')}</ul>
+        <small style="color:var(--f-muted)">${FK_TYPES_QUESTIONS[x.type]?.icone || ''} ${FK_TYPES_QUESTIONS[x.type]?.label || x.type} · ${x.points} pt${x.points > 1 ? 's' : ''}</small>
+        ${resumeQuestionHtml(x)}
       </div>`).join('') : '<p class="fk-vide">Aucune question.</p>'}</div>
     <div class="fk-actions-form"><button class="fk-btn fk-btn-ghost" data-fermer>Fermer</button><button class="fk-btn fk-btn-primary" id="btnAjoutQ" ${FKE.verrouille ? 'disabled' : ''}>＋ Ajouter une question</button></div>`);
   md.boite.style.width = 'min(820px, 100%)';
@@ -448,58 +467,210 @@ async function modaleQuestions(q) {
   }));
 }
 
+// Éditeur d'une question, tous types confondus. Les choix (QCM, vrai/faux)
+// restent dans formation_reponses ; les autres types rangent leur corrigé
+// dans formation_questions.config (jamais envoyé aux étudiants : le serveur
+// n'en extrait que la partie publique, voir formation_question_publique).
 function modaleQuestion(q, x, nb) {
-  let reponses = x ? x.formation_reponses.map(r => ({ texte: r.texte, ok: r.est_correcte })) : [{ texte: '', ok: true }, { texte: '', ok: false }];
+  const e = fkEchapper;
+  const cfg = JSON.parse(JSON.stringify(x?.config || {}));
+  let reponses = x && x.formation_reponses.length ? x.formation_reponses.map(r => ({ texte: r.texte, ok: r.est_correcte })) : [{ texte: '', ok: true }, { texte: '', ok: false }];
+  let paires = (cfg.paires || []).length ? cfg.paires : [{ gauche: '', droite: '' }, { gauche: '', droite: '' }];
+  let elementsClassement = (cfg.elements && cfg.elements[0] && typeof cfg.elements[0] === 'object') ? cfg.elements : [{ texte: '', categorie: '' }, { texte: '', categorie: '' }];
+  let corrects = new Set((cfg.corrects || []).map(String));
   const md = fkModale(x ? 'Modifier la question' : 'Nouvelle question', `
     <form>
-      <label class="fk-champ"><span>Énoncé *</span><textarea name="enonce" required maxlength="1000" style="min-height:80px">${fkEchapper(x?.enonce || '')}</textarea></label>
       <div class="fk-grille-2">
-        <label class="fk-champ"><span>Type</span><select name="type">
-          <option value="choix_unique" ${x?.type === 'choix_unique' ? 'selected' : ''}>Choix unique</option>
-          <option value="choix_multiple" ${x?.type === 'choix_multiple' ? 'selected' : ''}>Choix multiple</option>
-          <option value="vrai_faux" ${x?.type === 'vrai_faux' ? 'selected' : ''}>Vrai / Faux</option></select></label>
+        <label class="fk-champ"><span>Type de question</span><select name="type">
+          ${Object.entries(FK_TYPES_QUESTIONS).map(([k, v]) => `<option value="${k}" ${k === (x?.type || 'choix_unique') ? 'selected' : ''}>${v.icone} ${v.label}</option>`).join('')}</select></label>
         <label class="fk-champ"><span>Points</span><input type="number" name="points" min="1" max="20" value="${x?.points || 1}"></label>
       </div>
-      <span style="display:block;font-weight:700;font-size:14px;margin-bottom:6px">Réponses (cochez la ou les bonnes)</span>
-      <div id="zoneReponses"></div>
-      <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" id="btnAjoutR">＋ Ajouter une réponse</button>
-      <label class="fk-champ" style="margin-top:14px"><span>Explication (affichée avec la correction)</span><textarea name="explication" maxlength="1000" style="min-height:70px">${fkEchapper(x?.explication || '')}</textarea></label>
+      <label class="fk-champ"><span>Énoncé *</span><textarea name="enonce" required maxlength="2000" style="min-height:90px">${e(x?.enonce || '')}</textarea><small data-aide-enonce></small></label>
+      <div data-corps></div>
+      <label class="fk-champ" style="margin-top:14px"><span>Explication (affichée avec la correction)</span><textarea name="explication" maxlength="1000" style="min-height:70px">${e(x?.explication || '')}</textarea></label>
       <div class="fk-actions-form"><button type="button" class="fk-btn fk-btn-ghost" data-annuler>Annuler</button><button class="fk-btn fk-btn-primary" type="submit">Enregistrer</button></div>
     </form>`, { protegee: true });
+  md.boite.style.width = 'min(820px, 100%)';
   const form = md.boite.querySelector('form');
-  const zoneR = md.boite.querySelector('#zoneReponses');
+  const corps = md.boite.querySelector('[data-corps]');
+  const aide = md.boite.querySelector('[data-aide-enonce]');
   const type = () => form.type.value;
+  const lignes = t => String(t || '').split('\n').map(v => v.trim()).filter(Boolean);
+
   function dessiner() {
-    const unique = type() !== 'choix_multiple';
-    zoneR.innerHTML = reponses.map((r, i) => `
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-        <input type="${unique ? 'radio' : 'checkbox'}" name="bonne" ${r.ok ? 'checked' : ''} data-i="${i}" aria-label="Bonne réponse">
-        <input class="fk-input" type="text" value="${fkEchapper(r.texte)}" data-texte="${i}" maxlength="300" placeholder="Réponse ${i + 1}" ${type() === 'vrai_faux' ? 'readonly' : ''}>
-        ${type() === 'vrai_faux' ? '' : `<button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-suppr-r="${i}" aria-label="Retirer">✕</button>`}
-      </div>`).join('');
-    zoneR.querySelectorAll('[data-texte]').forEach(inp => inp.addEventListener('input', () => { reponses[Number(inp.dataset.texte)].texte = inp.value; }));
-    zoneR.querySelectorAll('[name=bonne]').forEach(inp => inp.addEventListener('change', () => {
-      if (unique) reponses.forEach((r, i) => { r.ok = i === Number(inp.dataset.i); });
-      else reponses[Number(inp.dataset.i)].ok = inp.checked;
-    }));
-    zoneR.querySelectorAll('[data-suppr-r]').forEach(b => b.addEventListener('click', () => { reponses.splice(Number(b.dataset.supprR), 1); dessiner(); }));
-    md.boite.querySelector('#btnAjoutR').style.display = type() === 'vrai_faux' ? 'none' : '';
+    const t = type();
+    aide.textContent = {
+      texte_a_trous: 'Écrivez ___ (3 tirets bas) à la place de chaque mot à trouver.',
+      texte_a_trous_glisser: 'Écrivez ___ (3 tirets bas) à la place de chaque mot ; l\'étudiant le choisira dans une banque de mots.',
+      selection_mots: 'Texte simple : l\'étudiant cliquera sur les bons mots. Cochez-les ci-dessous.'
+    }[t] || '';
+    if (FK_TYPES_CHOIX.includes(t)) {
+      const unique = t !== 'choix_multiple';
+      corps.innerHTML = `<span style="display:block;font-weight:700;font-size:14px;margin-bottom:6px">Réponses (cochez la ou les bonnes)</span>
+        ${reponses.map((r, i) => `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+          <input type="${unique ? 'radio' : 'checkbox'}" name="bonne" ${r.ok ? 'checked' : ''} data-i="${i}" aria-label="Bonne réponse">
+          <input class="fk-input" type="text" value="${e(r.texte)}" data-texte="${i}" maxlength="300" placeholder="Réponse ${i + 1}" ${t === 'vrai_faux' ? 'readonly' : ''}>
+          ${t === 'vrai_faux' ? '' : `<button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-suppr-r="${i}" aria-label="Retirer">✕</button>`}</div>`).join('')}
+        ${t === 'vrai_faux' ? '' : '<button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-ajout-r>＋ Ajouter une réponse</button>'}`;
+      corps.querySelectorAll('[data-texte]').forEach(inp => inp.addEventListener('input', () => { reponses[Number(inp.dataset.texte)].texte = inp.value; }));
+      corps.querySelectorAll('[name=bonne]').forEach(inp => inp.addEventListener('change', () => {
+        if (unique) reponses.forEach((r, i) => { r.ok = i === Number(inp.dataset.i); }); else reponses[Number(inp.dataset.i)].ok = inp.checked;
+      }));
+      corps.querySelectorAll('[data-suppr-r]').forEach(b => b.addEventListener('click', () => { reponses.splice(Number(b.dataset.supprR), 1); dessiner(); }));
+      corps.querySelector('[data-ajout-r]')?.addEventListener('click', () => { if (reponses.length < 8) { reponses.push({ texte: '', ok: false }); dessiner(); } });
+    } else if (t === 'reponse_courte') {
+      corps.innerHTML = `<label class="fk-champ"><span>Réponses acceptées (une par ligne)</span><textarea data-c="acceptees" style="min-height:80px" placeholder="Porto-Novo">${e((cfg.acceptees || []).join('\n'))}</textarea>
+        <small>Majuscules, accents, tirets et ponctuation ne sont pas pris en compte (« porto novo » = « Porto-Novo »).</small></label>`;
+    } else if (t === 'reponse_numerique') {
+      corps.innerHTML = `<div class="fk-grille-3">
+        <label class="fk-champ"><span>Réponse exacte *</span><input type="number" step="any" data-c="valeur" value="${e(cfg.valeur ?? '')}"></label>
+        <label class="fk-champ"><span>Tolérance (±)</span><input type="number" step="any" min="0" data-c="tolerance" value="${e(cfg.tolerance ?? 0)}"></label>
+        <label class="fk-champ"><span>Unité (affichée)</span><input type="text" maxlength="20" data-c="unite" value="${e(cfg.unite || '')}" placeholder="kg, FCFA, m²…"></label></div>
+        <small style="color:var(--f-muted)">La virgule est acceptée comme séparateur décimal (3,5 = 3.5).</small>`;
+    } else if (t === 'texte_a_trous') {
+      const n = fkNbTrous(form.enonce.value);
+      const trous = cfg.trous || [];
+      corps.innerHTML = n ? Array.from({ length: n }, (_, i) => `<label class="fk-champ"><span>Trou ${i + 1} — réponse(s) acceptée(s), séparées par |</span>
+        <input type="text" data-trou="${i}" value="${e((trous[i] || []).join(' | '))}" placeholder="chat | chaton"></label>`).join('')
+        : '<p class="fk-alerte fk-alerte-info">Ajoutez des ___ dans l\'énoncé pour créer les trous.</p>';
+      corps.querySelectorAll('[data-trou]').forEach(inp => inp.addEventListener('input', () => {
+        cfg.trous = cfg.trous || []; cfg.trous[Number(inp.dataset.trou)] = inp.value.split('|').map(v => v.trim()).filter(Boolean);
+      }));
+    } else if (t === 'texte_a_trous_glisser') {
+      const n = fkNbTrous(form.enonce.value);
+      const trous = cfg.trous || [];
+      corps.innerHTML = (n ? Array.from({ length: n }, (_, i) => `<label class="fk-champ"><span>Trou ${i + 1} — bon mot</span>
+        <input type="text" data-trou="${i}" value="${e(trous[i] || '')}"></label>`).join('') : '<p class="fk-alerte fk-alerte-info">Ajoutez des ___ dans l\'énoncé pour créer les trous.</p>')
+        + `<label class="fk-champ"><span>Mots intrus ajoutés à la banque (séparés par une virgule, facultatif)</span><input type="text" data-c="banque" value="${e((cfg.banque || []).join(', '))}" placeholder="mange, dort"></label>`;
+      corps.querySelectorAll('[data-trou]').forEach(inp => inp.addEventListener('input', () => { cfg.trous = cfg.trous || []; cfg.trous[Number(inp.dataset.trou)] = inp.value.trim(); }));
+    } else if (t === 'remise_en_ordre') {
+      corps.innerHTML = `<label class="fk-champ"><span>Éléments dans le BON ordre (un par ligne)</span><textarea data-c="elements" style="min-height:110px" placeholder="Allumer l'ordinateur&#10;Ouvrir Excel&#10;Créer un classeur">${e((cfg.elements || []).join('\n'))}</textarea>
+        <small>Ils seront mélangés pour l'étudiant, qui devra les remettre dans cet ordre.</small></label>`;
+    } else if (t === 'association') {
+      corps.innerHTML = `<span style="display:block;font-weight:700;font-size:14px;margin-bottom:6px">Paires à relier</span>
+        ${paires.map((p, i) => `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+          <input class="fk-input" type="text" data-g="${i}" value="${e(p.gauche)}" placeholder="Élément ${i + 1}" maxlength="200">
+          <span aria-hidden="true">↔</span>
+          <input class="fk-input" type="text" data-d="${i}" value="${e(p.droite)}" placeholder="Correspondance" maxlength="200">
+          <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-suppr-p="${i}" aria-label="Retirer">✕</button></div>`).join('')}
+        <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-ajout-p>＋ Ajouter une paire</button>`;
+      corps.querySelectorAll('[data-g]').forEach(inp => inp.addEventListener('input', () => { paires[Number(inp.dataset.g)].gauche = inp.value; }));
+      corps.querySelectorAll('[data-d]').forEach(inp => inp.addEventListener('input', () => { paires[Number(inp.dataset.d)].droite = inp.value; }));
+      corps.querySelectorAll('[data-suppr-p]').forEach(b => b.addEventListener('click', () => { paires.splice(Number(b.dataset.supprP), 1); dessiner(); }));
+      corps.querySelector('[data-ajout-p]').addEventListener('click', () => { if (paires.length < 12) { paires.push({ gauche: '', droite: '' }); dessiner(); } });
+    } else if (t === 'classement') {
+      const cats = cfg.categories || [];
+      corps.innerHTML = `<label class="fk-champ"><span>Catégories (une par ligne, au moins deux)</span><textarea data-cats style="min-height:70px" placeholder="Fruit&#10;Légume">${e(cats.join('\n'))}</textarea></label>
+        <span style="display:block;font-weight:700;font-size:14px;margin-bottom:6px">Éléments à classer</span>
+        ${elementsClassement.map((el, i) => `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+          <input class="fk-input" type="text" data-el="${i}" value="${e(el.texte)}" placeholder="Élément ${i + 1}" maxlength="200">
+          <select class="fk-input" data-elcat="${i}" style="max-width:40%"><option value="">— Catégorie —</option>${cats.map(c => `<option ${c === el.categorie ? 'selected' : ''}>${e(c)}</option>`).join('')}</select>
+          <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-suppr-el="${i}" aria-label="Retirer">✕</button></div>`).join('')}
+        <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-ajout-el>＋ Ajouter un élément</button>`;
+      corps.querySelector('[data-cats]').addEventListener('change', ev => { cfg.categories = lignes(ev.target.value); dessiner(); });
+      corps.querySelectorAll('[data-el]').forEach(inp => inp.addEventListener('input', () => { elementsClassement[Number(inp.dataset.el)].texte = inp.value; }));
+      corps.querySelectorAll('[data-elcat]').forEach(sel => sel.addEventListener('change', () => { elementsClassement[Number(sel.dataset.elcat)].categorie = sel.value; }));
+      corps.querySelectorAll('[data-suppr-el]').forEach(b => b.addEventListener('click', () => { elementsClassement.splice(Number(b.dataset.supprEl), 1); dessiner(); }));
+      corps.querySelector('[data-ajout-el]').addEventListener('click', () => { if (elementsClassement.length < 20) { elementsClassement.push({ texte: '', categorie: '' }); dessiner(); } });
+    } else if (t === 'intrus_lexical') {
+      const txt = (cfg.series || []).map(s => (s.mots || []).map((m, i) => (i === Number(s.intrus) ? '*' : '') + m).join(', ')).join('\n');
+      corps.innerHTML = `<label class="fk-champ"><span>Séries de mots (une série par ligne, mots séparés par une virgule, intrus précédé de *)</span>
+        <textarea data-c="series" style="min-height:100px" placeholder="chat, chien, *table, lapin&#10;rouge, *vite, bleu, vert">${e(txt)}</textarea></label>`;
+    } else if (t === 'selection_mots') {
+      const mots = fkMots(form.enonce.value);
+      corps.innerHTML = mots.length ? `<span style="display:block;font-weight:700;font-size:14px;margin-bottom:6px">Cliquez sur les bons mots</span>
+        <div class="fk-mots">${mots.map((m, i) => `<button type="button" class="fk-mot ${corrects.has(String(i)) ? 'choisi' : ''}" data-mot="${i}" aria-pressed="${corrects.has(String(i))}">${e(m)}</button>`).join('')}</div>`
+        : '<p class="fk-alerte fk-alerte-info">Écrivez d\'abord le texte dans l\'énoncé.</p>';
+      corps.querySelectorAll('[data-mot]').forEach(b => b.addEventListener('click', () => {
+        const k = b.dataset.mot; corrects.has(k) ? corrects.delete(k) : corrects.add(k);
+        b.classList.toggle('choisi'); b.setAttribute('aria-pressed', String(corrects.has(k)));
+      }));
+    }
   }
+
   form.type.addEventListener('change', () => {
     if (type() === 'vrai_faux') reponses = [{ texte: 'Vrai', ok: true }, { texte: 'Faux', ok: false }];
     else if (type() === 'choix_unique') { let vu = false; reponses.forEach(r => { if (r.ok && !vu) vu = true; else r.ok = false; }); }
     dessiner();
   });
-  md.boite.querySelector('#btnAjoutR').addEventListener('click', () => { if (reponses.length < 8) { reponses.push({ texte: '', ok: false }); dessiner(); } });
+  let minuteur = null;
+  form.enonce.addEventListener('input', () => {
+    if (!['texte_a_trous', 'texte_a_trous_glisser', 'selection_mots'].includes(type())) return;
+    if (type() === 'selection_mots') corrects = new Set();
+    clearTimeout(minuteur); minuteur = setTimeout(dessiner, 400);
+  });
   md.boite.querySelector('[data-annuler]').addEventListener('click', () => { md.fermer(); modaleQuestions(q); });
   dessiner();
 
-  form.addEventListener('submit', async e => {
-    e.preventDefault();
-    const propres = reponses.map(r => ({ ...r, texte: r.texte.trim() })).filter(r => r.texte);
-    if (propres.length < 2) { fkToast('Au moins deux réponses.', 'erreur'); return; }
-    if (!propres.some(r => r.ok)) { fkToast('Cochez au moins une bonne réponse.', 'erreur'); return; }
-    const donnees = { enonce: form.enonce.value.trim(), type: type(), points: Math.max(1, parseInt(form.points.value, 10) || 1), explication: form.explication.value.trim() || null };
+  function lireConfig() {
+    const t = type();
+    const champ = k => corps.querySelector(`[data-c="${k}"]`)?.value ?? '';
+    if (t === 'reponse_courte') { const a = lignes(champ('acceptees')); return a.length ? { acceptees: a } : 'Indiquez au moins une réponse acceptée.'; }
+    if (t === 'reponse_numerique') {
+      const v = parseFloat(String(champ('valeur')).replace(',', '.'));
+      if (!Number.isFinite(v)) return 'Indiquez la réponse exacte (un nombre).';
+      return { valeur: v, tolerance: Math.abs(parseFloat(String(champ('tolerance')).replace(',', '.')) || 0), unite: champ('unite').trim() };
+    }
+    if (t === 'texte_a_trous') {
+      const n = fkNbTrous(form.enonce.value);
+      const trous = Array.from({ length: n }, (_, i) => (corps.querySelector(`[data-trou="${i}"]`)?.value || '').split('|').map(v => v.trim()).filter(Boolean));
+      if (!n) return 'Ajoutez au moins un ___ dans l\'énoncé.';
+      if (trous.some(tr => !tr.length)) return 'Indiquez une réponse pour chaque trou.';
+      return { trous };
+    }
+    if (t === 'texte_a_trous_glisser') {
+      const n = fkNbTrous(form.enonce.value);
+      const trous = Array.from({ length: n }, (_, i) => (corps.querySelector(`[data-trou="${i}"]`)?.value || '').trim());
+      if (!n) return 'Ajoutez au moins un ___ dans l\'énoncé.';
+      if (trous.some(tr => !tr)) return 'Indiquez le bon mot pour chaque trou.';
+      return { trous, banque: champ('banque').split(',').map(v => v.trim()).filter(Boolean) };
+    }
+    if (t === 'remise_en_ordre') { const el = lignes(champ('elements')); return el.length >= 2 ? { elements: el } : 'Au moins deux éléments à ordonner.'; }
+    if (t === 'association') {
+      const p = paires.map(x2 => ({ gauche: x2.gauche.trim(), droite: x2.droite.trim() })).filter(x2 => x2.gauche && x2.droite);
+      return p.length >= 2 ? { paires: p } : 'Au moins deux paires complètes.';
+    }
+    if (t === 'classement') {
+      const cats = lignes(corps.querySelector('[data-cats]').value);
+      const els = elementsClassement.map(x2 => ({ texte: x2.texte.trim(), categorie: x2.categorie })).filter(x2 => x2.texte);
+      if (cats.length < 2) return 'Au moins deux catégories.';
+      if (els.length < 2) return 'Au moins deux éléments à classer.';
+      if (els.some(x2 => !cats.includes(x2.categorie))) return 'Choisissez une catégorie pour chaque élément.';
+      if (new Set(els.map(x2 => x2.texte.toLowerCase())).size !== els.length) return 'Chaque élément à classer doit être différent.';
+      return { categories: cats, elements: els };
+    }
+    if (t === 'intrus_lexical') {
+      const series = lignes(champ('series')).map(l => {
+        const mots = l.split(',').map(v => v.trim()).filter(Boolean);
+        const intrus = mots.findIndex(m => m.startsWith('*'));
+        return { mots: mots.map(m => m.replace(/^\*/, '').trim()), intrus };
+      });
+      if (!series.length) return 'Ajoutez au moins une série.';
+      if (series.some(s => s.mots.length < 3 || s.intrus < 0)) return 'Chaque série : au moins 3 mots, dont un intrus marqué par *.';
+      return { series };
+    }
+    if (t === 'selection_mots') {
+      const max = fkMots(form.enonce.value).length;
+      const c = [...corrects].filter(i => Number(i) < max).sort((a, b) => a - b);
+      return c.length ? { corrects: c } : 'Cliquez sur au moins un mot correct.';
+    }
+    return {};
+  }
+
+  form.addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const t = type();
+    let propres = [];
+    let config = {};
+    if (FK_TYPES_CHOIX.includes(t)) {
+      propres = reponses.map(r => ({ ...r, texte: r.texte.trim() })).filter(r => r.texte);
+      if (propres.length < 2) { fkToast('Au moins deux réponses.', 'erreur'); return; }
+      if (!propres.some(r => r.ok)) { fkToast('Cochez au moins une bonne réponse.', 'erreur'); return; }
+    } else {
+      config = lireConfig();
+      if (typeof config === 'string') { fkToast(config, 'erreur'); return; }
+    }
+    const donnees = { enonce: form.enonce.value.trim(), type: t, points: Math.max(1, parseInt(form.points.value, 10) || 1), explication: form.explication.value.trim() || null, config };
     let qid = x?.id;
     if (x) {
       const { error } = await supabaseClient.from('formation_questions').update(donnees).eq('id', x.id);
@@ -511,8 +682,10 @@ function modaleQuestion(q, x, nb) {
       if (error) { fkToast(fkMessageErreur(error), 'erreur'); return; }
       qid = data.id;
     }
-    const { error: e3 } = await supabaseClient.from('formation_reponses').insert(propres.map((r, i) => ({ question_id: qid, texte: r.texte, est_correcte: r.ok, position: i + 1 })));
-    if (e3) { fkToast(fkMessageErreur(e3), 'erreur'); return; }
+    if (propres.length) {
+      const { error: e3 } = await supabaseClient.from('formation_reponses').insert(propres.map((r, i) => ({ question_id: qid, texte: r.texte, est_correcte: r.ok, position: i + 1 })));
+      if (e3) { fkToast(fkMessageErreur(e3), 'erreur'); return; }
+    }
     md.fermer();
     await recharger();
     modaleQuestions(q);

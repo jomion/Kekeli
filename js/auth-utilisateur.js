@@ -50,11 +50,14 @@ async function resoudreEmailConnexion(identifiantOuEmail) {
 // navigation dédiée soit bien définie — à réactiver dans le <select> quand
 // ce sera fait.
 
-// 24 septembre 2026 : ajout du rôle 'apprenant' — un adulte qui s'inscrit
-// uniquement pour suivre les formations de la plateforme de formation
-// (pages/formations/), sans enfant ni classe. Aucune table de détail : la
-// ligne `profils` suffit.
-const ROLES_INSCRIPTIBLES = ['parent', 'enseignant', 'autorite_pedagogique', 'apprenant'];
+// 24 septembre 2026 : ajout du rôle 'etudiant' (d'abord nommé 'apprenant',
+// renommé le 25 septembre 2026 à la demande du porteur du projet) — un adulte
+// qui s'inscrit uniquement pour suivre les formations de la plateforme KEKELI
+// Formation (pages/formations/), sans enfant ni classe. Aucune table de
+// détail : la ligne `profils` suffit. Ce type de compte n'est proposé, à
+// l'inscription comme à la connexion, QUE lorsqu'on arrive depuis le site de
+// formation (voir vientDuSiteFormation() plus bas).
+const ROLES_INSCRIPTIBLES = ['parent', 'enseignant', 'autorite_pedagogique', 'etudiant'];
 
 // Rôles pour lesquels la page "Mon profil" (pages/completer-profil.html)
 // propose des champs de localisation (et, pour l'enseignant, l'école/la
@@ -163,7 +166,7 @@ async function inscrire({ role, prenom, nom, identifiant, email, motDePasse, fon
     const { error: erreurRole } = await supabaseClient.from('parents').insert({ id: userId });
     if (erreurRole) return { error: erreurRole };
   }
-  // role === 'apprenant' : aucune table de détail à remplir.
+  // role === 'etudiant' : aucune table de détail à remplir.
 
   // data.session est déjà rempli si le projet Supabase n'exige pas (ou plus)
   // la confirmation d'e-mail — dans ce cas, aucun e-mail de vérification
@@ -277,7 +280,7 @@ function urlTableauDeBord(role) {
     case 'parent': return `${racine}pages/parent/tableau-de-bord.html`;
     case 'enseignant': return `${racine}pages/enseignant/bienvenue.html`;
     case 'autorite_pedagogique': return `${racine}pages/autorite/bienvenue.html`;
-    case 'apprenant': return `${racine}pages/formations/app/tableau-de-bord.html`;
+    case 'etudiant': return `${racine}pages/formations/app/tableau-de-bord.html`;
     case 'admin': case 'super_admin': return `${racine}pages/navigation.html`;
     default: return `${racine}index.html`;
   }
@@ -291,6 +294,15 @@ function urlLogin() {
 // utilisée par la plateforme de formation pour ramener l'utilisateur sur la
 // formation qu'il consultait. N'accepte qu'un chemin RELATIF au site (jamais
 // un autre domaine : ni "//", ni "http:", ni "javascript:").
+// Vrai si l'utilisateur arrive depuis la plateforme KEKELI Formation
+// (lien de connexion/inscription de pages/formations/, qui ajoute
+// ?retour=pages/formations/... ou ?espace=formation). Seul ce cas propose le
+// type de compte « Étudiant ».
+function vientDuSiteFormation() {
+  const p = new URLSearchParams(window.location.search);
+  return p.get('espace') === 'formation' || /^\/?pages\/formations\//.test(p.get('retour') || '') || p.get('role') === 'etudiant';
+}
+
 function urlRetourSecurisee() {
   try {
     const retour = new URLSearchParams(window.location.search).get('retour');

@@ -204,9 +204,100 @@ async function afficherQuiz(item) {
   });
 }
 
+// ---------- Rendu d'une question selon son type (25 septembre 2026) ----------
+// Tous les types du site KEKELI corrigés automatiquement. Les données
+// reçues (qu.donnees) ne contiennent jamais la bonne réponse : éléments et
+// banques de mots sont déjà mélangés par le serveur.
+function htmlChampQuestion(qu) {
+  const e = fkEchapper;
+  const d = qu.donnees || {};
+  const nom = `q${qu.id}`;
+  switch (qu.type) {
+    case 'choix_unique': case 'choix_multiple': case 'vrai_faux':
+      return qu.reponses.map(r => `<label class="fk-choix"><input type="${qu.type === 'choix_multiple' ? 'checkbox' : 'radio'}" name="${nom}" value="${r.id}"> ${e(r.texte)}</label>`).join('');
+    case 'reponse_courte':
+      return `<label class="fk-sr" for="${nom}">Votre réponse</label><input class="fk-input" id="${nom}" type="text" data-rep maxlength="200" autocomplete="off" placeholder="Votre réponse">`;
+    case 'reponse_numerique':
+      return `<div style="display:flex;gap:8px;align-items:center"><label class="fk-sr" for="${nom}">Votre réponse</label><input class="fk-input" id="${nom}" type="text" inputmode="decimal" data-rep maxlength="30" style="max-width:220px" placeholder="Nombre">${d.unite ? `<span>${e(d.unite)}</span>` : ''}</div>`;
+    case 'texte_a_trous': {
+      let i = 0;
+      return `<p class="fk-trous">${e(qu.enonce).split('___').map((morceau, k, tab) => morceau + (k < tab.length - 1 ? `<input class="fk-input fk-trou" type="text" data-trou="${i++}" aria-label="Trou ${i}" autocomplete="off">` : '')).join('')}</p>`;
+    }
+    case 'texte_a_trous_glisser': {
+      let i = 0;
+      const opts = `<option value="">…</option>${(d.banque || []).map(m => `<option>${e(m)}</option>`).join('')}`;
+      return `<p class="fk-trous">${e(qu.enonce).split('___').map((morceau, k, tab) => morceau + (k < tab.length - 1 ? `<select class="fk-input fk-trou" data-trou="${i++}" aria-label="Trou ${i}">${opts}</select>` : '')).join('')}</p>
+        <p class="fk-banque">Banque de mots : ${(d.banque || []).map(m => `<span>${e(m)}</span>`).join('')}</p>`;
+    }
+    case 'remise_en_ordre':
+      return `<ol class="fk-ordre" data-ordre>${(d.elements || []).map(m => `<li data-val="${e(m)}"><span>${e(m)}</span>
+        <span class="fk-ordre-btns"><button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-haut aria-label="Monter">↑</button><button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-bas aria-label="Descendre">↓</button></span></li>`).join('')}</ol>`;
+    case 'association':
+      return `<div class="fk-assoc">${(d.gauche || []).map((g, i) => `<label class="fk-assoc-ligne"><span>${e(g)}</span><select class="fk-input" data-assoc="${i}"><option value="">— Relier à… —</option>${(d.droite || []).map(x => `<option>${e(x)}</option>`).join('')}</select></label>`).join('')}</div>`;
+    case 'classement':
+      return `<div class="fk-assoc">${(d.elements || []).map(el => `<label class="fk-assoc-ligne"><span>${e(el)}</span><select class="fk-input" data-classe="${e(el)}"><option value="">— Catégorie —</option>${(d.categories || []).map(c => `<option>${e(c)}</option>`).join('')}</select></label>`).join('')}</div>`;
+    case 'intrus_lexical':
+      return (d.series || []).map((s, si) => `<div class="fk-serie" role="radiogroup" aria-label="Série ${si + 1}"><small>Série ${si + 1}</small><div class="fk-mots">${(s.mots || []).map((m, mi) => `<label class="fk-mot-radio"><input type="radio" name="${nom}_${si}" value="${mi}"> ${e(m)}</label>`).join('')}</div></div>`).join('');
+    case 'selection_mots':
+      return `<div class="fk-mots">${(d.mots || []).map((m, i) => `<button type="button" class="fk-mot" data-mot="${i}" aria-pressed="false">${e(m)}</button>`).join('')}</div>`;
+    default: return '<p>Type de question non pris en charge.</p>';
+  }
+}
+function brancherChampQuestion(fs) {
+  fs.querySelectorAll('[data-mot]').forEach(b => b.addEventListener('click', () => { const on = b.classList.toggle('choisi'); b.setAttribute('aria-pressed', String(on)); }));
+  fs.querySelectorAll('[data-ordre] li').forEach(li => {
+    li.querySelector('[data-haut]').addEventListener('click', () => { if (li.previousElementSibling) li.parentNode.insertBefore(li, li.previousElementSibling); li.querySelector('[data-haut]').focus(); });
+    li.querySelector('[data-bas]').addEventListener('click', () => { if (li.nextElementSibling) li.parentNode.insertBefore(li.nextElementSibling, li); li.querySelector('[data-bas]').focus(); });
+  });
+}
+// Lit la réponse d'une question ; renvoie { valeur, vide }.
+function lireReponseQuestion(qu, fs) {
+  const val = sel => [...fs.querySelectorAll(sel)];
+  switch (qu.type) {
+    case 'choix_unique': case 'choix_multiple': case 'vrai_faux': { const v = val(`[name="q${qu.id}"]:checked`).map(x => Number(x.value)); return { valeur: v, vide: !v.length }; }
+    case 'reponse_courte': case 'reponse_numerique': { const v = fs.querySelector('[data-rep]').value.trim(); return { valeur: v, vide: !v }; }
+    case 'texte_a_trous': case 'texte_a_trous_glisser': { const v = val('[data-trou]').map(x => x.value.trim()); return { valeur: v, vide: v.every(x => !x) }; }
+    case 'remise_en_ordre': return { valeur: val('[data-ordre] li').map(li => li.dataset.val), vide: false };
+    case 'association': { const v = val('[data-assoc]').map(x => x.value); return { valeur: v, vide: v.every(x => !x) }; }
+    case 'classement': { const v = {}; val('[data-classe]').forEach(x => { if (x.value) v[x.dataset.classe] = x.value; }); return { valeur: v, vide: !Object.keys(v).length }; }
+    case 'intrus_lexical': { const n = (qu.donnees?.series || []).length; const v = Array.from({ length: n }, (_, si) => fs.querySelector(`[name="q${qu.id}_${si}"]:checked`)?.value ?? null); return { valeur: v, vide: v.every(x => x === null) }; }
+    case 'selection_mots': { const v = val('[data-mot].choisi').map(b => b.dataset.mot); return { valeur: v, vide: !v.length }; }
+    default: return { valeur: null, vide: true };
+  }
+}
+// Correction lisible d'une question (après réussite ou essais épuisés).
+function htmlCorrectionQuestion(qu, c, rep) {
+  const e = fkEchapper;
+  if (!c) return '';
+  if (FK_TYPES_CHOIX.includes(qu.type)) {
+    return qu.reponses.map(r => {
+      const bonne = (c.correctes || []).includes(r.id);
+      const choisie = (rep || []).includes(r.id);
+      return `<div class="fk-choix ${bonne ? 'juste' : choisie ? 'faux' : ''}">${bonne ? '✔' : choisie ? '✘' : '·'} ${e(r.texte)}</div>`;
+    }).join('');
+  }
+  const a = c.attendu;
+  const ligne = (etiq, v) => `<div class="fk-corr"><span>${etiq}</span> ${v}</div>`;
+  const vous = v => ligne('Votre réponse :', `<b>${e(v === null || v === undefined || v === '' ? '—' : v)}</b>`);
+  switch (qu.type) {
+    case 'reponse_courte': return vous(rep) + ligne('Réponse attendue :', e((a || []).join(' ou ')));
+    case 'reponse_numerique': return vous(rep) + ligne('Réponse attendue :', `${e(a.valeur)} ${e(a.unite || '')}${Number(a.tolerance) ? ` (± ${e(a.tolerance)})` : ''}`);
+    case 'texte_a_trous': case 'texte_a_trous_glisser':
+      return (a || []).map((att, i) => ligne(`Trou ${i + 1} :`, `${e((rep || [])[i] || '—')} → <b>${e(att)}</b>`)).join('');
+    case 'remise_en_ordre': return ligne('Bon ordre :', `<ol style="margin:4px 0 0">${(a || []).map(x => `<li>${e(x)}</li>`).join('')}</ol>`);
+    case 'association': return (a || []).map((p, i) => ligne(`${e(p.gauche)} ↔`, `<b>${e(p.droite)}</b>${(rep || [])[i] && (rep || [])[i] !== p.droite ? ` <small>(vous : ${e(rep[i])})</small>` : ''}`)).join('');
+    case 'classement': return (a || []).map(el => ligne(`${e(el.texte)} →`, `<b>${e(el.categorie)}</b>${rep && rep[el.texte] && rep[el.texte] !== el.categorie ? ` <small>(vous : ${e(rep[el.texte])})</small>` : ''}`)).join('');
+    case 'intrus_lexical': return (a || []).map((x, i) => ligne(`Série ${i + 1} — intrus :`, `<b>${e(x)}</b>`)).join('');
+    case 'selection_mots': return ligne('Mots attendus :', `<b>${e((a || []).join(', '))}</b>`);
+    default: return '';
+  }
+}
+
 function passerQuiz(item, data, t) {
   const zone = document.getElementById('zoneLecon');
   const q = data.quiz;
+  const enonceDansChamp = ['texte_a_trous', 'texte_a_trous_glisser', 'selection_mots'];
+  const consigne = { texte_a_trous: 'Complétez le texte', texte_a_trous_glisser: 'Complétez avec les mots de la banque', selection_mots: 'Cliquez sur les bons mots', remise_en_ordre: 'remettez dans le bon ordre', association: 'reliez chaque élément', classement: 'classez chaque élément', intrus_lexical: 'trouvez l\'intrus de chaque série', choix_multiple: 'plusieurs réponses possibles' };
   zone.innerHTML = `
     <h1>📝 ${fkEchapper(q.titre)}</h1>
     ${q.duree_limite_minutes ? '<div class="fk-chrono" id="chrono" role="timer" aria-live="off"></div>' : ''}
@@ -214,12 +305,13 @@ function passerQuiz(item, data, t) {
       ${data.questions.map((qu, i) => `
         <fieldset class="fk-question" data-q="${qu.id}">
           <legend class="fk-sr">Question ${i + 1}</legend>
-          <h3>${i + 1}. ${fkEchapper(qu.enonce)} <small style="color:var(--f-muted);font-weight:500">(${qu.points} pt${qu.points > 1 ? 's' : ''}${qu.type === 'choix_multiple' ? ' · plusieurs réponses possibles' : ''})</small></h3>
-          ${qu.reponses.map(r => `<label class="fk-choix" data-r="${r.id}"><input type="${qu.type === 'choix_multiple' ? 'checkbox' : 'radio'}" name="q${qu.id}" value="${r.id}"> ${fkEchapper(r.texte)}</label>`).join('')}
+          <h3>${i + 1}. ${enonceDansChamp.includes(qu.type) ? fkEchapper(consigne[qu.type]) : fkEchapper(qu.enonce)} <small style="color:var(--f-muted);font-weight:500">(${qu.points} pt${qu.points > 1 ? 's' : ''}${!enonceDansChamp.includes(qu.type) && consigne[qu.type] ? ' · ' + consigne[qu.type] : ''})</small></h3>
+          ${htmlChampQuestion(qu)}
         </fieldset>`).join('')}
       <button class="fk-btn fk-btn-primary" type="submit">Valider mes réponses</button>
     </form>`;
   const form = zone.querySelector('#formQuiz');
+  form.querySelectorAll('fieldset[data-q]').forEach(brancherChampQuestion);
   if (q.duree_limite_minutes) {
     const fin = new Date(t.debute_le).getTime() + q.duree_limite_minutes * 60000;
     const chrono = zone.querySelector('#chrono');
@@ -234,8 +326,12 @@ function passerQuiz(item, data, t) {
   form.addEventListener('submit', async e => {
     e.preventDefault();
     const reponses = {};
-    data.questions.forEach(qu => { reponses[qu.id] = [...form.querySelectorAll(`[name="q${qu.id}"]:checked`)].map(x => Number(x.value)); });
-    const nonRepondues = data.questions.filter(qu => !reponses[qu.id].length).length;
+    let nonRepondues = 0;
+    data.questions.forEach(qu => {
+      const r = lireReponseQuestion(qu, form.querySelector(`fieldset[data-q="${qu.id}"]`));
+      reponses[qu.id] = r.valeur;
+      if (r.vide) nonRepondues++;
+    });
     if (nonRepondues && form.dataset.auto !== '1' && !await fkConfirmer(`${nonRepondues} question(s) sans réponse. Valider quand même ?`, 'Valider')) return;
     if (FKL.chrono) { clearInterval(FKL.chrono); FKL.chrono = null; }
     form.querySelector('button[type=submit]').disabled = true;
@@ -263,12 +359,9 @@ function afficherResultat(item, data, r, reponses) {
     </div>
     ${correction ? data.questions.map((qu, i) => {
       const c = correction.get(qu.id);
-      return `<div class="fk-question"><h3>${c?.juste ? '✅' : '❌'} ${i + 1}. ${fkEchapper(qu.enonce)}</h3>
-        ${qu.reponses.map(rep => {
-          const bonne = c?.correctes.includes(rep.id);
-          const choisie = (reponses[qu.id] || []).includes(rep.id);
-          return `<div class="fk-choix ${bonne ? 'juste' : choisie ? 'faux' : ''}">${bonne ? '✔' : choisie ? '✘' : '·'} ${fkEchapper(rep.texte)}</div>`;
-        }).join('')}
+      const icone = c?.juste ? '✅' : Number(c?.partiel) > 0 ? '🟡' : '❌';
+      return `<div class="fk-question"><h3>${icone} ${i + 1}. ${fkEchapper(qu.enonce)}${c && !c.juste && Number(c.partiel) > 0 ? ` <small style="color:var(--f-muted);font-weight:500">(${Math.round(c.partiel * 100)} % juste)</small>` : ''}</h3>
+        ${htmlCorrectionQuestion(qu, c, reponses[qu.id])}
         ${c?.explication ? `<p style="color:var(--f-muted);font-size:14px">💡 ${fkEchapper(c.explication)}</p>` : ''}</div>`;
     }).join('') : '<p style="color:var(--f-muted)">La correction détaillée s\'affiche lorsque le quiz est réussi ou quand tous vos essais sont utilisés. Relisez les leçons du module et réessayez !</p>'}
     <div style="display:flex;gap:10px;flex-wrap:wrap">

@@ -365,7 +365,6 @@
         <select id="role" required>
           <option value="parent">👨‍👩‍👧 Parent</option>
           <option value="enseignant">🧑‍🏫 Enseignant</option>
-          <option value="apprenant">📘 Apprenant (formations uniquement)</option>
         </select>
         <p class="insc-help" id="noteRole"></p>
         <!-- L'inscription "🏛️ Autorité Pédagogique" est temporairement
@@ -477,7 +476,7 @@
       const estEnseignant = selectRole.value === 'enseignant';
       noteRole.textContent = selectRole.value === 'parent'
         ? "Vous pourrez ensuite inscrire votre (vos) enfant(s) depuis votre espace."
-        : selectRole.value === 'apprenant'
+        : selectRole.value === 'etudiant'
           ? "Pour suivre les formations de la plateforme KEKELI Formation (sans enfant ni classe)."
           : "";
       champsEnseignant.style.display = estEnseignant ? '' : 'none';
@@ -485,7 +484,15 @@
       champClasse.required = estEnseignant;
     }
     selectRole.addEventListener('change', majNote);
-    if (['apprenant', 'parent', 'enseignant'].includes(new URLSearchParams(window.location.search).get('role'))) {
+    // Type de compte « Étudiant » : proposé uniquement quand on arrive depuis
+    // la plateforme KEKELI Formation (voir vientDuSiteFormation()).
+    if (vientDuSiteFormation()) {
+      document.querySelectorAll('a[href="../index.html"]').forEach(a => { a.href = 'formations/index.html'; a.textContent = '← Retour à KEKELI Formation'; });
+      const opt = document.createElement('option');
+      opt.value = 'etudiant'; opt.textContent = '📘 Étudiant (formations KEKELI uniquement)';
+      selectRole.appendChild(opt);
+    }
+    if (['etudiant', 'parent', 'enseignant'].includes(new URLSearchParams(window.location.search).get('role'))) {
       selectRole.value = new URLSearchParams(window.location.search).get('role');
     }
     majNote();

@@ -46,14 +46,43 @@ function fkPourcentage(v) { return `${Math.round(Number(v) || 0)} %`; }
 
 // Nettoyage du HTML rédigé par un formateur : DOMPurify si disponible,
 // sinon repli sûr (texte brut échappé).
+// 25 septembre 2026 : l'attribut style est désormais accepté pour garder
+// les couleurs, le surlignage et l'alignement (gauche, centre, droite,
+// justifié) — mais filtré propriété par propriété (FK_STYLES_AUTORISES) :
+// aucune position, taille, image de fond ou url() ne peut passer.
+const FK_STYLES_AUTORISES = ['color', 'background-color', 'text-align', 'font-weight', 'font-style', 'text-decoration', 'text-decoration-line'];
+let _fkHookStyle = false;
+function fkFiltrerStyle(style) {
+  return String(style || '').split(';').map(d => {
+    const i = d.indexOf(':');
+    if (i < 0) return null;
+    const prop = d.slice(0, i).trim().toLowerCase();
+    const val = d.slice(i + 1).trim();
+    if (!FK_STYLES_AUTORISES.includes(prop)) return null;
+    if (!/^[#a-z0-9(),.%\s-]{1,60}$/i.test(val) || /url|expression|var\(/i.test(val)) return null;
+    return `${prop}: ${val}`;
+  }).filter(Boolean).join('; ');
+}
 function fkNettoyerHtml(html) {
   if (!html) return '';
   if (window.DOMPurify) {
+    if (!_fkHookStyle) {
+      _fkHookStyle = true;
+      window.DOMPurify.addHook('uponSanitizeAttribute', (_node, data) => {
+        if (data.attrName === 'style') {
+          data.attrValue = fkFiltrerStyle(data.attrValue);
+          if (!data.attrValue) data.keepAttr = false;
+        }
+      });
+      window.DOMPurify.addHook('afterSanitizeAttributes', node => {
+        if (node.tagName === 'A' && node.getAttribute('href')) { node.setAttribute('target', '_blank'); node.setAttribute('rel', 'noopener nofollow'); }
+      });
+    }
     return window.DOMPurify.sanitize(html, {
-      ALLOWED_TAGS: ['p', 'br', 'b', 'strong', 'i', 'em', 'u', 's', 'ul', 'ol', 'li', 'h2', 'h3', 'h4', 'blockquote', 'a', 'img', 'code', 'pre', 'span', 'div', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'hr', 'sub', 'sup'],
-      ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'colspan', 'rowspan'],
+      ALLOWED_TAGS: ['p', 'br', 'b', 'strong', 'i', 'em', 'u', 's', 'strike', 'del', 'mark', 'small', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'a', 'img', 'code', 'pre', 'span', 'div', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'hr', 'sub', 'sup', 'figure', 'figcaption', 'dl', 'dt', 'dd', 'input'],
+      ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'colspan', 'rowspan', 'style', 'target', 'rel', 'type', 'checked', 'disabled'],
       ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|#|\/|\.)/i
-    });
+    }).replace(/<input(?![^>]*type="checkbox")[^>]*>/gi, '');
   }
   return `<p>${fkEchapper(html.replace(/<[^>]*>/g, ' '))}</p>`;
 }
@@ -154,7 +183,7 @@ function fkUrlInscription() {
   const ici = window.location.pathname.split('/').filter(Boolean);
   const idx = ici.lastIndexOf('pages');
   const relatif = (idx >= 0 ? ici.slice(idx) : ici.slice(-2)).join('/') + window.location.search;
-  return `${FK_RACINE}pages/inscription.html?role=apprenant&retour=${encodeURIComponent(relatif)}`;
+  return `${FK_RACINE}pages/inscription.html?role=etudiant&retour=${encodeURIComponent(relatif)}`;
 }
 async function fkExigerConnexion() {
   const s = await fkSession();
@@ -185,7 +214,7 @@ async function fkRendreEntete(actif) {
   ].filter(Boolean);
 
   const initiales = p ? `${(p.prenom || '?')[0]}${(p.nom || '')[0] || ''}`.toUpperCase() : '';
-  const lienEspaceKekeli = p && p.role !== 'apprenant'
+  const lienEspaceKekeli = p && p.role !== 'etudiant'
     ? `<a href="${typeof urlTableauDeBord === 'function' ? urlTableauDeBord(p.role) : FK_RACINE + 'index.html'}">🏫 Mon espace KEKELI</a>` : '';
 
   header.className = 'fk-header';
@@ -214,7 +243,7 @@ async function fkRendreEntete(actif) {
               <a href="${FK_BASE}app/tableau-de-bord.html">📘 Mon apprentissage</a>
               ${estFormateur ? `<a href="${FK_BASE}formateur/tableau-de-bord.html">👨‍🏫 Espace formateur</a><a href="${FK_BASE}formateur/profil.html">🪪 Profil formateur</a>` : ''}
               ${lienEspaceKekeli}
-              <a href="${FK_RACINE}index.html">🏠 Site KEKELI</a>
+              <a href="${FK_RACINE}index.html">🏠 Accueil KEKELI</a>
               <hr>
               <button type="button" data-deconnexion>🚪 Déconnexion</button>
             </div>
@@ -264,7 +293,8 @@ function fkRendrePied() {
           <a href="${FK_BASE}formateur/tableau-de-bord.html">Créer une formation</a>
           <a href="${FK_BASE}index.html#comment">Comment ça marche</a></div>
         <div><h3>KEKELI</h3>
-          <a href="${FK_RACINE}index.html">Site éducatif KEKELI</a>
+          <a href="${FK_RACINE}index.html">Accueil KEKELI</a>
+          <a href="${FK_RACINE}primaire.html">KEKELI Primaire</a>
           <a href="${FK_RACINE}pages/conditions-utilisation.html">Conditions d'utilisation</a>
           <a href="${FK_RACINE}pages/politique-confidentialite.html">Confidentialité</a></div>
       </div>
@@ -330,6 +360,31 @@ async function fkChargerFavoris(profilId) {
   return new Set((data || []).map(x => x.formation_id));
 }
 
+// ---------- Types de questions de quiz ----------
+// 25 septembre 2026 : les types de questions du site KEKELI (voir
+// LIBELLES_TYPE_QUESTION dans js/editeur/blocs.js) sont disponibles dans
+// les quiz de formation, avec les mêmes conventions de saisie (« ___ » pour
+// un trou, etc.). Les types corrigés par IA (réponse longue, vrai/faux
+// justifié) ne sont pas repris : un quiz de formation est corrigé
+// automatiquement et immédiatement par le serveur.
+const FK_TYPES_QUESTIONS = {
+  choix_unique: { label: 'QCM (une seule bonne réponse)', icone: '🔘' },
+  choix_multiple: { label: 'QCM à réponses multiples', icone: '☑️' },
+  vrai_faux: { label: 'Vrai / Faux', icone: '⚖️' },
+  reponse_courte: { label: 'Réponse courte', icone: '✏️' },
+  reponse_numerique: { label: 'Réponse numérique / calcul', icone: '🔢' },
+  texte_a_trous: { label: 'Texte à trous', icone: '🕳️' },
+  texte_a_trous_glisser: { label: 'Texte à trous — banque de mots', icone: '🧩' },
+  remise_en_ordre: { label: 'Remise en ordre', icone: '↕️' },
+  association: { label: 'Association (relier des paires)', icone: '🔗' },
+  classement: { label: 'Classement (trier en catégories)', icone: '🗂️' },
+  intrus_lexical: { label: "Trouve l'intrus (séries de mots)", icone: '🕵️' },
+  selection_mots: { label: 'Sélectionner des mots dans un texte', icone: '👆' }
+};
+const FK_TYPES_CHOIX = ['choix_unique', 'choix_multiple', 'vrai_faux'];
+function fkNbTrous(t) { return (String(t || '').match(/___/g) || []).length; }
+function fkMots(t) { return String(t || '').trim().split(/\s+/).filter(Boolean); }
+
 // ---------- Médias ----------
 // URL temporaire (1 h) pour un fichier privé du bucket "formations" : le
 // serveur vérifie à chaque demande que l'utilisateur a le droit de le lire.
@@ -390,45 +445,269 @@ function fkNomFichierSur(nom) {
   return `${alea}-${base}.${ext}`;
 }
 
-// ---------- Éditeur riche minimal ----------
+// ---------- Éditeur riche ----------
+// 25 septembre 2026 (demande du porteur du projet) : barre d'outils FIXE
+// (reste visible en haut pendant qu'on fait défiler une longue leçon),
+// couleurs du texte et surlignage, alignement gauche / centre / droite /
+// justifié, titres, code, séparateur, annuler/rétablir, et lecture du
+// Markdown et du HTML : import d'un fichier .md/.html/.txt, collage de
+// Markdown ou de HTML, et bascule « Code HTML » pour voir/modifier la
+// source. Tout ce qui entre est nettoyé par fkNettoyerHtml().
+let _fkChargementsScripts = {};
+function fkChargerScript(url) {
+  if (!_fkChargementsScripts[url]) {
+    _fkChargementsScripts[url] = new Promise((ok, ko) => {
+      const s = document.createElement('script');
+      s.src = url; s.onload = ok; s.onerror = () => { delete _fkChargementsScripts[url]; ko(new Error('Chargement impossible')); };
+      document.head.appendChild(s);
+    });
+  }
+  return _fkChargementsScripts[url];
+}
+async function fkMarkdownVersHtml(texte) {
+  await fkChargerScript('https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js');
+  return window.marked.parse(String(texte || ''), { gfm: true, breaks: false });
+}
+// Devine le format d'un texte collé : HTML s'il contient des balises
+// courantes, sinon Markdown.
+function fkDevinerFormat(texte) {
+  return /<\s*(p|div|h[1-6]|ul|ol|li|table|strong|em|b|i|br|span|a|img|blockquote|pre|html|body)\b[^>]*>/i.test(texte) ? 'html' : 'markdown';
+}
+async function fkConvertirEnHtml(texte, format) {
+  const f = format === 'auto' || !format ? fkDevinerFormat(texte) : format;
+  if (f === 'markdown') return fkNettoyerHtml(await fkMarkdownVersHtml(texte));
+  if (f === 'texte') return fkTexteVersHtml(texte);
+  const corps = /<body[^>]*>([\s\S]*)<\/body>/i.exec(texte);
+  return fkNettoyerHtml(corps ? corps[1] : texte);
+}
+
+const FK_COULEURS = ['#18302a', '#0b7a5c', '#1769aa', '#673ab7', '#c0392b', '#e85d04', '#b27700', '#6c7b76'];
+
 function fkEditeurRiche(conteneur, htmlInitial, placeholder) {
   conteneur.innerHTML = `
     <div class="fk-riche">
       <div class="fk-riche-barre" role="toolbar" aria-label="Mise en forme">
-        <button type="button" data-cmd="bold" title="Gras"><b>G</b></button>
-        <button type="button" data-cmd="italic" title="Italique"><i>I</i></button>
-        <button type="button" data-cmd="underline" title="Souligné"><u>S</u></button>
-        <button type="button" data-cmd="formatBlock" data-val="h3" title="Sous-titre">Titre</button>
-        <button type="button" data-cmd="formatBlock" data-val="p" title="Paragraphe">¶</button>
-        <button type="button" data-cmd="insertUnorderedList" title="Liste à puces">• Liste</button>
-        <button type="button" data-cmd="insertOrderedList" title="Liste numérotée">1. Liste</button>
-        <button type="button" data-cmd="formatBlock" data-val="blockquote" title="Citation">❝</button>
-        <button type="button" data-cmd="createLink" title="Lien">🔗</button>
-        <button type="button" data-cmd="removeFormat" title="Effacer la mise en forme">⌫</button>
+        <select data-bloc title="Style du paragraphe" aria-label="Style du paragraphe">
+          <option value="p">Paragraphe</option><option value="h2">Titre</option><option value="h3">Sous-titre</option>
+          <option value="h4">Petit titre</option><option value="blockquote">Citation</option><option value="pre">Code</option>
+        </select>
+        <span class="fk-riche-sep"></span>
+        <button type="button" data-cmd="bold" title="Gras (Ctrl+B)" aria-label="Gras"><b>G</b></button>
+        <button type="button" data-cmd="italic" title="Italique (Ctrl+I)" aria-label="Italique"><i>I</i></button>
+        <button type="button" data-cmd="underline" title="Souligné (Ctrl+U)" aria-label="Souligné"><u>S</u></button>
+        <button type="button" data-cmd="strikeThrough" title="Barré" aria-label="Barré"><s>ab</s></button>
+        <span class="fk-riche-sep"></span>
+        <span class="fk-riche-menu">
+          <button type="button" data-menu="couleur" title="Couleur du texte" aria-label="Couleur du texte"><span class="fk-riche-a">A</span><span class="fk-riche-pastille" data-apercu="couleur" style="background:#c0392b"></span></button>
+          <span class="fk-riche-palette" data-palette="couleur" hidden>
+            ${FK_COULEURS.map(c => `<button type="button" data-couleur="${c}" style="background:${c}" aria-label="Couleur ${c}"></button>`).join('')}
+            <label title="Autre couleur">🎨<input type="color" data-couleur-libre value="#c0392b"></label>
+          </span>
+        </span>
+        <span class="fk-riche-menu">
+          <button type="button" data-menu="surlignage" title="Surligner" aria-label="Surligner">🖍️<span class="fk-riche-pastille" data-apercu="surlignage" style="background:#fff2a8"></span></button>
+          <span class="fk-riche-palette" data-palette="surlignage" hidden>
+            ${['#fff2a8', '#d4f5e4', '#dbeafe', '#fde2e2', '#f3e8ff', 'transparent'].map(c => `<button type="button" data-surlignage="${c}" style="background:${c === 'transparent' ? '#fff' : c}" aria-label="${c === 'transparent' ? 'Sans surlignage' : 'Surlignage ' + c}">${c === 'transparent' ? '✕' : ''}</button>`).join('')}
+          </span>
+        </span>
+        <span class="fk-riche-sep"></span>
+        <button type="button" data-cmd="justifyLeft" title="Aligner à gauche" aria-label="Aligner à gauche">⬅︎</button>
+        <button type="button" data-cmd="justifyCenter" title="Centrer" aria-label="Centrer">↔︎</button>
+        <button type="button" data-cmd="justifyRight" title="Aligner à droite" aria-label="Aligner à droite">➡︎</button>
+        <button type="button" data-cmd="justifyFull" title="Justifier" aria-label="Justifier">☰</button>
+        <span class="fk-riche-sep"></span>
+        <button type="button" data-cmd="insertUnorderedList" title="Liste à puces" aria-label="Liste à puces">• ≡</button>
+        <button type="button" data-cmd="insertOrderedList" title="Liste numérotée" aria-label="Liste numérotée">1. ≡</button>
+        <button type="button" data-cmd="createLink" title="Lien" aria-label="Insérer un lien">🔗</button>
+        <button type="button" data-cmd="insertHorizontalRule" title="Séparateur" aria-label="Séparateur">―</button>
+        <button type="button" data-cmd="removeFormat" title="Effacer la mise en forme" aria-label="Effacer la mise en forme">⌫</button>
+        <button type="button" data-cmd="undo" title="Annuler (Ctrl+Z)" aria-label="Annuler">↶</button>
+        <button type="button" data-cmd="redo" title="Rétablir (Ctrl+Y)" aria-label="Rétablir">↷</button>
+        <span class="fk-riche-sep"></span>
+        <label class="fk-riche-import" title="Importer un fichier Markdown (.md) ou HTML (.html)">📥 Importer .md / .html<input type="file" data-import accept=".md,.markdown,.txt,.html,.htm,text/markdown,text/html,text/plain" hidden></label>
+        <button type="button" data-coller title="Coller du Markdown ou du HTML">📋 Coller MD / HTML</button>
+        <button type="button" data-source aria-pressed="false" title="Voir et modifier le code HTML">&lt;/&gt; Code</button>
       </div>
       <div class="fk-riche-zone" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="${fkEchapper(placeholder || 'Rédigez ici…')}"></div>
+      <textarea class="fk-riche-source" spellcheck="false" aria-label="Code HTML" hidden></textarea>
     </div>`;
   const zone = conteneur.querySelector('.fk-riche-zone');
+  const source = conteneur.querySelector('.fk-riche-source');
+  const barre = conteneur.querySelector('.fk-riche-barre');
   zone.innerHTML = fkNettoyerHtml(htmlInitial || '');
-  conteneur.querySelectorAll('[data-cmd]').forEach(b => b.addEventListener('click', () => {
+  let modeSource = false;
+  let selection = null;
+
+  const memoriser = () => {
+    const sel = window.getSelection();
+    if (sel.rangeCount && zone.contains(sel.anchorNode)) selection = sel.getRangeAt(0).cloneRange();
+  };
+  const restaurer = () => {
     zone.focus();
+    if (selection) { const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(selection); }
+  };
+  ['keyup', 'mouseup', 'input', 'focus'].forEach(ev => zone.addEventListener(ev, memoriser));
+  document.addEventListener('selectionchange', memoriser);
+  // Les boutons ne volent pas la sélection du texte.
+  barre.addEventListener('mousedown', e => { if (e.target.closest('button') && !e.target.closest('[data-source]')) e.preventDefault(); });
+
+  const exec = (cmd, val) => {
+    if (modeSource) { fkToast('Repassez en mode normal pour utiliser la mise en forme.', 'erreur'); return; }
+    restaurer();
+    try { document.execCommand('styleWithCSS', false, true); } catch (_e) { /* ancien navigateur */ }
+    document.execCommand(cmd, false, val ?? null);
+    memoriser();
+  };
+
+  barre.querySelectorAll('[data-cmd]').forEach(b => b.addEventListener('click', () => {
     if (b.dataset.cmd === 'createLink') {
       const url = prompt('Adresse du lien (https://…)');
-      if (url && /^https?:\/\//i.test(url)) document.execCommand('createLink', false, url);
+      if (url && /^https?:\/\//i.test(url)) exec('createLink', url);
+      else if (url) fkToast('Le lien doit commencer par https://', 'erreur');
       return;
     }
-    document.execCommand(b.dataset.cmd, false, b.dataset.val || null);
+    exec(b.dataset.cmd);
   }));
-  zone.addEventListener('paste', e => {
+  barre.querySelector('[data-bloc]').addEventListener('change', e => { exec('formatBlock', e.target.value); e.target.value = 'p'; });
+
+  const fermerPalettes = () => barre.querySelectorAll('[data-palette]').forEach(p => { p.hidden = true; });
+  barre.querySelectorAll('[data-menu]').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation();
+    const p = barre.querySelector(`[data-palette="${b.dataset.menu}"]`);
+    const etait = !p.hidden;
+    fermerPalettes();
+    p.hidden = etait;
+  }));
+  document.addEventListener('click', e => { if (!barre.contains(e.target)) fermerPalettes(); });
+  const appliquerCouleur = c => { exec('foreColor', c); barre.querySelector('[data-apercu="couleur"]').style.background = c; fermerPalettes(); };
+  barre.querySelectorAll('[data-couleur]').forEach(b => b.addEventListener('click', () => appliquerCouleur(b.dataset.couleur)));
+  barre.querySelector('[data-couleur-libre]').addEventListener('change', e => appliquerCouleur(e.target.value));
+  barre.querySelectorAll('[data-surlignage]').forEach(b => b.addEventListener('click', () => {
+    const c = b.dataset.surlignage;
+    exec('hiliteColor', c);
+    if (c !== 'transparent') barre.querySelector('[data-apercu="surlignage"]').style.background = c;
+    fermerPalettes();
+  }));
+
+  // Insertion d'un morceau de HTML déjà nettoyé : à la position du curseur,
+  // ou à la fin si le curseur n'est pas dans la zone.
+  function inserer(html, remplacer) {
+    if (modeSource) basculerSource();
+    if (remplacer) { zone.innerHTML = html; memoriser(); return; }
+    if (selection) { restaurer(); document.execCommand('insertHTML', false, html); }
+    else { zone.insertAdjacentHTML('beforeend', html); }
+    memoriser();
+  }
+
+  barre.querySelector('[data-import]').addEventListener('change', async e => {
+    const fichier = e.target.files[0];
+    e.target.value = '';
+    if (!fichier) return;
+    const ext = (fichier.name.split('.').pop() || '').toLowerCase();
+    if (!['md', 'markdown', 'txt', 'html', 'htm'].includes(ext)) { fkToast('Formats acceptés : .md, .markdown, .txt, .html, .htm', 'erreur'); return; }
+    if (fichier.size > 2 * 1024 * 1024) { fkToast('Fichier trop lourd (2 Mo maximum).', 'erreur'); return; }
+    try {
+      const texte = await fichier.text();
+      const html = await fkConvertirEnHtml(texte, ext === 'html' || ext === 'htm' ? 'html' : ext === 'txt' ? 'auto' : 'markdown');
+      if (!html.trim()) { fkToast('Le fichier ne contient aucun texte exploitable.', 'erreur'); return; }
+      const vide = !zone.textContent.trim();
+      const remplacer = vide ? true : await fkConfirmer(`Remplacer tout le contenu actuel par « ${fichier.name} » ? (Annuler = ajouter à la position du curseur)`, 'Remplacer');
+      inserer(html, remplacer);
+      fkToast(`« ${fichier.name} » importé.`, 'succes');
+    } catch (err) { fkToast(`Import impossible : ${err.message}`, 'erreur'); }
+  });
+
+  barre.querySelector('[data-coller]').addEventListener('click', () => {
+    const m = fkModale('Coller du Markdown ou du HTML', `
+      <label class="fk-champ"><span>Texte à convertir</span>
+        <textarea data-texte style="min-height:220px;font-family:ui-monospace,Consolas,monospace;font-size:13px" placeholder="# Titre&#10;&#10;Un paragraphe avec du **gras**, de l'*italique* et une liste :&#10;- premier point&#10;- second point"></textarea></label>
+      <div class="fk-grille-2">
+        <label class="fk-champ"><span>Format</span><select data-format>
+          <option value="auto">Détection automatique</option><option value="markdown">Markdown</option><option value="html">HTML</option><option value="texte">Texte brut</option></select></label>
+        <label class="fk-champ"><span>Où l'insérer ?</span><select data-ou>
+          <option value="curseur">À la position du curseur</option><option value="remplacer">Remplacer tout le contenu</option></select></label>
+      </div>
+      <div class="fk-champ"><span>Aperçu</span><div class="fk-lecon-corps fk-riche-apercu" data-apercu-conv><p style="color:var(--f-muted)">L'aperçu s'affiche ici.</p></div></div>
+      <div class="fk-actions-form"><button type="button" class="fk-btn fk-btn-ghost" data-fermer>Annuler</button><button type="button" class="fk-btn fk-btn-primary" data-ok>Insérer</button></div>`, { protegee: true });
+    m.boite.style.width = 'min(860px, 100%)';
+    const txt = m.boite.querySelector('[data-texte]');
+    const fmt = m.boite.querySelector('[data-format]');
+    const apercu = m.boite.querySelector('[data-apercu-conv]');
+    let minuteur = null;
+    const majApercu = () => {
+      clearTimeout(minuteur);
+      minuteur = setTimeout(async () => {
+        if (!txt.value.trim()) { apercu.innerHTML = '<p style="color:var(--f-muted)">L\'aperçu s\'affiche ici.</p>'; return; }
+        try { apercu.innerHTML = await fkConvertirEnHtml(txt.value, fmt.value); } catch (err) { apercu.textContent = err.message; }
+      }, 250);
+    };
+    txt.addEventListener('input', majApercu);
+    fmt.addEventListener('change', majApercu);
+    m.boite.querySelector('[data-ok]').addEventListener('click', async () => {
+      if (!txt.value.trim()) { fkToast('Collez d\'abord un texte.', 'erreur'); return; }
+      try {
+        const html = await fkConvertirEnHtml(txt.value, fmt.value);
+        m.fermer();
+        inserer(html, m.boite.querySelector('[data-ou]').value === 'remplacer');
+      } catch (err) { fkToast(`Conversion impossible : ${err.message}`, 'erreur'); }
+    });
+  });
+
+  const btnSource = barre.querySelector('[data-source]');
+  function basculerSource() {
+    modeSource = !modeSource;
+    if (modeSource) {
+      source.value = fkNettoyerHtml(zone.innerHTML).replace(/></g, '>\n<');
+      source.style.minHeight = Math.max(180, zone.offsetHeight) + 'px';
+    } else {
+      zone.innerHTML = fkNettoyerHtml(source.value);
+    }
+    source.hidden = !modeSource;
+    zone.hidden = modeSource;
+    btnSource.setAttribute('aria-pressed', String(modeSource));
+    btnSource.classList.toggle('actif', modeSource);
+    barre.classList.toggle('mode-source', modeSource);
+  }
+  btnSource.addEventListener('click', basculerSource);
+
+  // Collage : on garde la mise en forme (HTML nettoyé) ; du Markdown collé
+  // en texte brut est détecté et converti.
+  zone.addEventListener('paste', async e => {
+    const cd = e.clipboardData || window.clipboardData;
+    const html = cd.getData('text/html');
+    const texte = cd.getData('text/plain');
     e.preventDefault();
-    const texte = (e.clipboardData || window.clipboardData).getData('text/plain');
+    if (html) { document.execCommand('insertHTML', false, fkNettoyerHtml(html)); return; }
+    if (/^\s{0,3}(#{1,6}\s|[-*+]\s|\d+\.\s|>\s|```)|\*\*[^*]+\*\*|\[[^\]]+\]\(https?:/m.test(texte)) {
+      try { document.execCommand('insertHTML', false, await fkConvertirEnHtml(texte, 'markdown')); return; } catch (_e) { /* repli texte */ }
+    }
     document.execCommand('insertText', false, texte);
   });
-  return { zone, lireHtml: () => fkNettoyerHtml(zone.innerHTML).trim() };
+
+  return {
+    zone,
+    lireHtml: () => fkNettoyerHtml(modeSource ? source.value : zone.innerHTML).trim(),
+    desactiver: () => { zone.contentEditable = 'false'; barre.querySelectorAll('button, select, input').forEach(el => { el.disabled = true; }); }
+  };
 }
 
 // ---------- Initialisation commune d'une page ----------
+// 25 septembre 2026 : la plateforme de formation est fermée aux comptes
+// élèves (enfants). Le blocage réel est fait en base (politiques
+// restrictives *_interdit_eleves, est_compte_eleve()) ; ici on affiche
+// simplement un message clair et on arrête le chargement de la page.
 async function fkInitPage(actif) {
   fkRendrePied();
+  const s = await fkSession();
+  if (s.profil && s.profil.role === 'eleve') {
+    document.getElementById('fkPied').innerHTML = '';
+    document.getElementById('fkEntete').innerHTML = `<div class="fk-container fk-nav"><a class="fk-logo" href="${FK_RACINE}primaire.html"><img src="${FK_RACINE}assets/logo/logo.png" alt=""><div><strong>KEKELI</strong><small class="fk-logo-sous">Formation</small></div></a></div>`;
+    document.getElementById('fkContenu').innerHTML = `<div class="fk-page"><div class="fk-container" style="max-width:640px">
+      <div class="fk-carte fk-vide"><span class="fk-vide-icone">🔒</span>
+        <h1 class="fk-titre-page">Espace réservé aux adultes</h1>
+        <p>KEKELI Formation n'est pas accessible avec un compte élève.</p>
+        <a class="fk-btn fk-btn-primary" href="${urlTableauDeBord('eleve')}">Retour à mon espace élève</a></div></div></div>`;
+    throw new Error('KEKELI Formation : accès refusé aux comptes élèves.');
+  }
   await fkRendreEntete(actif);
 }

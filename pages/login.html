@@ -23,7 +23,6 @@
             <option value="parent">👨‍👩‍👧 Parent</option>
             <option value="enseignant">🧑‍🏫 Enseignant</option>
             <option value="autorite_pedagogique">🏛️ Autorité Pédagogique</option>
-            <option value="apprenant">📘 Apprenant (formations)</option>
           </select>
         </div>
         <div class="champ-auth">
@@ -55,8 +54,14 @@
       document.getElementById('bandeauSucces').style.display = 'block';
       document.getElementById('role').value = 'parent';
     }
-    if (new URLSearchParams(window.location.search).get('retour')) {
-      document.getElementById('role').value = 'apprenant';
+    // Le type de compte « Étudiant » (plateforme KEKELI Formation) n'est
+    // proposé que lorsqu'on arrive depuis le site de formation.
+    if (vientDuSiteFormation()) {
+      document.querySelectorAll('a[href="../index.html"]').forEach(a => { a.href = 'formations/index.html'; a.textContent = '← Retour à KEKELI Formation'; });
+      const opt = document.createElement('option');
+      opt.value = 'etudiant'; opt.textContent = '📘 Étudiant (KEKELI Formation)';
+      document.getElementById('role').appendChild(opt);
+      document.getElementById('role').value = 'etudiant';
     }
     const messageBloque = new URLSearchParams(window.location.search).get('bloque');
     if (messageBloque) {
@@ -92,6 +97,9 @@
       // compte adulte peut suivre une formation.
       const retour = urlRetourSecurisee();
       if (retour) { window.location.href = retour; return; }
+      // Un compte étudiant n'a qu'un seul espace (la plateforme de formation) :
+      // on l'y envoie quel que soit le type choisi dans la liste.
+      if (profil.role === 'etudiant') { window.location.href = urlTableauDeBord('etudiant'); return; }
       if (profil.role !== roleAttendu) {
         messageErreur.textContent = `Ce compte est enregistré comme "${profil.role}", pas "${roleAttendu}". Vérifiez votre sélection.`;
         await supabaseClient.auth.signOut();
