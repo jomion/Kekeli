@@ -1,3 +1,40 @@
+KEKELI — Livraison du 24 septembre 2026 (treizième lot) — Nouveau cahier d'écriture (Seyes/Éducajou)
+===========================================================================
+
+NOUVEAUTÉ : UN CAHIER D'ÉCRITURE QUADRILLÉ, DIRECTEMENT DANS L'ESPACE ÉLÈVE
+------------------------------------------------------------------------------
+Demande : intégrer telle quelle l'application "Seyes" (fournie par
+l'utilisateur) au site, pour servir de cahier d'écriture.
+
+Nouvelle entrée "✍️ Cahier d'écriture" dans le menu élève (barre du haut et
+sidebar en thème premium). Elle ouvre une page quadrillée façon cahier
+d'école, avec plusieurs types de lignage (dont le lignage Seyes classique),
+des polices cursives d'apprentissage de l'écriture (Marelle, Marelle Bâton,
+AA Cursive, Eduscol Romain A, Open Dyslexic...), la possibilité d'écrire sur
+la page principale et dans la marge, de mettre le texte en couleur, de le
+souligner ou de le surligner, d'insérer des images, de tracer des traits
+droits à la règle, d'ajouter un minuteur, puis d'exporter le résultat en PDF
+ou de l'imprimer. Le contenu se sauvegarde automatiquement dans le
+navigateur de l'élève et peut aussi être partagé via un lien.
+
+C'est l'application "Seyes" fournie par l'utilisateur, intégrée sans aucune
+modification de son fonctionnement — seuls deux ajustements techniques ont
+été faits pour l'accueillir sur le site :
+  - le suivi de fréquentation (Matomo) que l'outil envoyait par défaut vers
+    un serveur du Ministère de l'Éducation nationale français, sans rapport
+    avec Kekeli, a été retiré : aucune donnée de navigation des élèves ne
+    part vers l'extérieur ;
+  - un lien "← Retour à Kekeli" a été ajouté en haut à gauche de l'écran,
+    pour revenir au tableau de bord élève (l'outil d'origine, prévu pour
+    fonctionner seul dans un onglet, n'avait pas ce lien).
+
+Seyes est un logiciel libre sous licence GNU/GPL, écrit par Arnaud
+Champollion (voir le fichier LICENSE fourni avec le cahier d'écriture) — le
+contenu écrit par les élèves, lui, reste local à leur appareil (ou dans le
+lien de partage qu'ils créent), comme dans l'outil d'origine ; il n'est pas
+envoyé vers la base de données de Kekeli.
+
+===========================================================================
 KEKELI — Livraison du 24 septembre 2026 (douzième lot) — Les questions IA des jeux se présentent désormais comme n'importe quelle question d'activité
 ===========================================================================
 

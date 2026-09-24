@@ -100,6 +100,10 @@ function iconePrem(nom, taille) {
 const ICONE_LIEN_SIDEBAR_PREMIUM = {
   'tableau-de-bord': 'home', matieres: 'matieres', seances: 'seances',
   'devoirs-notes': 'devoirs', badges: 'badges', profil: 'utilisateur',
+  // 24 septembre 2026 : cahier d'écriture (intégration Seyes/Éducajou) —
+  // réutilise l'icône plume déjà définie dans ICONES_PREM plutôt que
+  // d'ajouter un tracé svg supplémentaire pour une seule icône.
+  'cahier-ecriture': 'plume',
 };
 const PRESENTATION_CHAMPS_PREMIUM = {
   francais:     { icone: '📚', couleur: '#3B5EFF' }, mathematique: { icone: '📐', couleur: '#14B8A6' },
