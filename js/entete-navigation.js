@@ -177,6 +177,23 @@ async function ouvrirEpinglagePageEntete(utilisateurId) {
   });
 }
 
+async function ajouterLiensFormationEntete(utilisateurId, racine) {
+  try {
+    const [{ data: formateur }, { count: nbInscriptions }] = await Promise.all([
+      supabaseClient.from('formateurs').select('statut').eq('id', utilisateurId).maybeSingle(),
+      supabaseClient.from('formation_inscriptions').select('id', { count: 'exact', head: true })
+        .eq('apprenant_id', utilisateurId).neq('statut', 'annulee')
+    ]);
+    const liens = [];
+    if (nbInscriptions > 0) liens.push(`<a href="${racine}pages/formations/app/tableau-de-bord.html">🎓 Mes formations (KEKELI Formation)</a>`);
+    if (formateur && formateur.statut === 'valide') liens.push(`<a href="${racine}pages/formations/formateur/tableau-de-bord.html">👨‍🏫 Mon espace formateur</a>`);
+    else if (formateur && formateur.statut === 'en_attente') liens.push(`<a href="${racine}pages/formations/devenir-formateur.html">⏳ Ma candidature formateur</a>`);
+    const menu = document.getElementById('menuCompteEntete');
+    if (!liens.length || !menu) return;
+    menu.insertAdjacentHTML('afterbegin', liens.join('') + '<hr style="border:0;border-top:1px solid #e2e8f0;margin:4px 0">');
+  } catch (_e) { /* lien facultatif : on n'affiche rien en cas d'erreur */ }
+}
+
 async function initEnteteNavigation(config) {
   const racine = typeof RACINE_SITE === 'string' ? RACINE_SITE : '';
   const header = document.querySelector('header');
@@ -303,7 +320,7 @@ async function initEnteteNavigation(config) {
             ${config.badgeHtml ? `<span class="entete-kekeli-badge">${config.badgeHtml}</span> ` : ''}<span class="entete-kekeli-caret">▾</span>
           </button>
           <div class="entete-kekeli-sousmenu">
-            <div class="entete-kekeli-sousmenu-inner">
+            <div class="entete-kekeli-sousmenu-inner" id="menuCompteEntete">
               ${['parent', 'enseignant', 'autorite'].includes(config.role) && typeof urlCompleterProfil === 'function' ? `<a href="${urlCompleterProfil()}">👤 Mon profil</a>` : ''}
               <a href="${racine}pages/parametres.html">⚙️ Paramètres</a>
               <a href="#" id="btnDeconnexionEntete">🚪 Déconnexion</a>
@@ -324,6 +341,12 @@ async function initEnteteNavigation(config) {
     e.preventDefault();
     if (typeof window[fnDeconnexion] === 'function') window[fnDeconnexion]();
   });
+
+  // 25 septembre 2026 : accès direct à KEKELI Formation depuis le menu du
+  // nom (en haut à droite), pour un compte KEKELI Primaire qui suit au moins
+  // une formation ou qui est formateur. Les comptes élèves n'y ont jamais
+  // accès (plateforme réservée aux adultes, bloquée aussi côté base).
+  if (config.utilisateurId && config.role !== 'eleve') ajouterLiensFormationEntete(config.utilisateurId, racine);
 
   const btnEpinglerPageEntete = document.getElementById('btnEpinglerPageEntete');
   if (btnEpinglerPageEntete) btnEpinglerPageEntete.addEventListener('click', () => ouvrirEpinglagePageEntete(config.utilisateurId));

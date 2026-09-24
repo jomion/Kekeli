@@ -255,6 +255,16 @@ body.fk {
 .fk-riche-zone th, .fk-lecon-corps th { background: #f3f7f5; }
 .fk-riche-zone h1, .fk-lecon-corps h1 { font-size: 1.6em; }
 .fk-riche-zone hr, .fk-lecon-corps hr { border: 0; border-top: 2px solid var(--f-border); margin: 18px 0; }
+.fk-riche-zone [data-bloc], .fk-lecon-corps [data-bloc], .fk-description [data-bloc] { padding: 10px 16px; border-radius: 12px; margin: 12px 0; }
+.fk-riche-zone [data-bloc="encadre"], .fk-lecon-corps [data-bloc="encadre"], .fk-description [data-bloc="encadre"] { border-left: 5px solid rgba(0,0,0,.14); }
+.fk-riche-zone [data-bloc] > :first-child, .fk-lecon-corps [data-bloc] > :first-child { margin-top: 4px; }
+.fk-riche-zone [data-bloc] > :last-child, .fk-lecon-corps [data-bloc] > :last-child { margin-bottom: 4px; }
+.fk-riche-zone table { min-width: 50%; }
+.fk-riche-zone td, .fk-riche-zone th { min-width: 60px; }
+.fk-riche-liste { grid-template-columns: 1fr !important; min-width: 250px; max-width: calc(100vw - 40px); }
+.fk-riche-liste button { width: auto !important; height: auto !important; border-radius: 8px !important; box-shadow: none !important; border: 0 !important; text-align: left; padding: 7px 10px !important; font-size: 13px !important; display: flex; align-items: center; gap: 8px; }
+.fk-riche-liste button:hover { background: var(--f-bg) !important; }
+.fk-riche-puce { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; box-shadow: 0 0 0 1px rgba(0,0,0,.1); }
 .fk-riche-zone img, .fk-lecon-corps img { max-width: 100%; height: auto; border-radius: 8px; }
 @media (max-width: 650px) {
   .fk-riche-barre { top: 64px; }

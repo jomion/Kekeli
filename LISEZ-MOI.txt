@@ -1,3 +1,39 @@
+KEKELI — Livraison du 25 septembre 2026 (dix-neuvième lot) — Accès direct à KEKELI Formation depuis le menu du nom, tableaux, couleurs de fond et encadrés colorés dans l'éditeur de formation
+===========================================================================
+
+1) PASSER DE KEKELI PRIMAIRE À KEKELI FORMATION EN CLIQUANT SUR SON NOM
+------------------------------------------------------------------------------
+Dans les espaces KEKELI Primaire (parent, enseignant, autorité, admin), le
+menu qui s'ouvre en cliquant sur son nom (en haut à droite) affiche
+maintenant, seulement pour les personnes concernées :
+  - « 🎓 Mes formations (KEKELI Formation) » si le compte suit au moins une
+    formation ;
+  - « 👨‍🏫 Mon espace formateur » si le compte est formateur validé
+    (« ⏳ Ma candidature formateur » si la candidature est en attente).
+Même connexion, aucun mot de passe à retaper. Jamais affiché pour un compte
+élève. Dans l'autre sens, le menu du nom sur KEKELI Formation propose déjà
+« 🏫 Mon espace KEKELI ».
+
+2) ÉDITEUR DE FORMATION (leçons et description) : TABLEAUX, FONDS, ENCADRÉS
+------------------------------------------------------------------------------
+  - ▦ Tableau : insérer un tableau (nombre de lignes/colonnes, ligne d'en-tête
+    au choix), puis, curseur dans une case : ajouter une ligne dessus/dessous,
+    une colonne à gauche/droite, supprimer la ligne, la colonne ou le tableau.
+  - 🎨 Couleur de fond : colore le fond du paragraphe, du titre, de la case
+    de tableau ou de l'encadré où se trouve le curseur (palette + couleur
+    libre, ✕ pour retirer). Le surlignage 🖍️ reste pour colorer seulement
+    quelques mots.
+  - 🟩 Encadré : petits blocs colorés prêts à l'emploi (💡 Astuce,
+    ℹ️ Information, ✅ À retenir, ⚠️ Attention, 📝 Exemple) ou encadré de
+    couleur libre avec un titre au choix. Sa couleur se change ensuite avec
+    🎨. Les tableaux, encadrés et contenus importés s'insèrent sous le
+    paragraphe où se trouve le curseur.
+Tout s'affiche à l'identique pour l'étudiant dans la leçon.
+
+Fichiers modifiés : js/entete-navigation.js, js/formations/commun.js,
+css/formations.css, LISEZ-MOI.txt. Aucune modification de la base.
+
+===========================================================================
 KEKELI — Livraison du 25 septembre 2026 (dix-huitième lot) — Trois pages d'accueil, formations fermées aux élèves, compte « Étudiant », éditeur de leçon enrichi, 12 types de questions
 ===========================================================================
 

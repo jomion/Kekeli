@@ -80,7 +80,7 @@ function fkNettoyerHtml(html) {
     }
     return window.DOMPurify.sanitize(html, {
       ALLOWED_TAGS: ['p', 'br', 'b', 'strong', 'i', 'em', 'u', 's', 'strike', 'del', 'mark', 'small', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'a', 'img', 'code', 'pre', 'span', 'div', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'hr', 'sub', 'sup', 'figure', 'figcaption', 'dl', 'dt', 'dd', 'input'],
-      ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'colspan', 'rowspan', 'style', 'target', 'rel', 'type', 'checked', 'disabled'],
+      ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'colspan', 'rowspan', 'style', 'data-bloc', 'target', 'rel', 'type', 'checked', 'disabled'],
       ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|#|\/|\.)/i
     }).replace(/<input(?![^>]*type="checkbox")[^>]*>/gi, '');
   }
@@ -481,6 +481,15 @@ async function fkConvertirEnHtml(texte, format) {
   return fkNettoyerHtml(corps ? corps[1] : texte);
 }
 
+// Couleurs de fond (paragraphes, cellules, encadrés) et encadrés prédéfinis.
+const FK_FONDS = ['#e8f5ef', '#fff6d6', '#e8f0fb', '#fdecea', '#f3e8ff', '#fff1e6', '#eef2f0', 'transparent'];
+const FK_ENCADRES = [
+  { cle: 'astuce', icone: '💡', titre: 'Astuce', fond: '#fff6d6' },
+  { cle: 'info', icone: 'ℹ️', titre: 'Information', fond: '#e8f0fb' },
+  { cle: 'retenir', icone: '✅', titre: 'À retenir', fond: '#e8f5ef' },
+  { cle: 'attention', icone: '⚠️', titre: 'Attention', fond: '#fdecea' },
+  { cle: 'exemple', icone: '📝', titre: 'Exemple', fond: '#f3e8ff' }
+];
 const FK_COULEURS = ['#18302a', '#0b7a5c', '#1769aa', '#673ab7', '#c0392b', '#e85d04', '#b27700', '#6c7b76'];
 
 function fkEditeurRiche(conteneur, htmlInitial, placeholder) {
@@ -508,6 +517,33 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder) {
           <button type="button" data-menu="surlignage" title="Surligner" aria-label="Surligner">🖍️<span class="fk-riche-pastille" data-apercu="surlignage" style="background:#fff2a8"></span></button>
           <span class="fk-riche-palette" data-palette="surlignage" hidden>
             ${['#fff2a8', '#d4f5e4', '#dbeafe', '#fde2e2', '#f3e8ff', 'transparent'].map(c => `<button type="button" data-surlignage="${c}" style="background:${c === 'transparent' ? '#fff' : c}" aria-label="${c === 'transparent' ? 'Sans surlignage' : 'Surlignage ' + c}">${c === 'transparent' ? '✕' : ''}</button>`).join('')}
+          </span>
+        </span>
+        <span class="fk-riche-menu">
+          <button type="button" data-menu="fond" title="Couleur de fond du paragraphe ou de l'encadré" aria-label="Couleur de fond">🎨<span class="fk-riche-pastille" data-apercu="fond" style="background:#e8f5ef"></span></button>
+          <span class="fk-riche-palette" data-palette="fond" hidden>
+            ${FK_FONDS.map(c => `<button type="button" data-fond="${c}" style="background:${c === 'transparent' ? '#fff' : c}" aria-label="${c === 'transparent' ? 'Sans fond' : 'Fond ' + c}">${c === 'transparent' ? '✕' : ''}</button>`).join('')}
+            <label title="Autre couleur">🎨<input type="color" data-fond-libre value="#e8f5ef"></label>
+          </span>
+        </span>
+        <span class="fk-riche-menu">
+          <button type="button" data-menu="bloc" title="Insérer un encadré coloré" aria-label="Insérer un encadré coloré">🟩 Encadré</button>
+          <span class="fk-riche-palette fk-riche-liste" data-palette="bloc" hidden>
+            ${FK_ENCADRES.map(b => `<button type="button" data-encadre="${b.cle}"><span class="fk-riche-puce" style="background:${b.fond}"></span>${b.icone} ${b.titre}</button>`).join('')}
+            <button type="button" data-encadre="libre"><span class="fk-riche-puce" style="background:linear-gradient(90deg,#fde2e2,#dbeafe,#d4f5e4)"></span>🎨 Encadré de couleur libre…</button>
+          </span>
+        </span>
+        <span class="fk-riche-menu">
+          <button type="button" data-menu="tableau" title="Tableau" aria-label="Tableau">▦ Tableau</button>
+          <span class="fk-riche-palette fk-riche-liste" data-palette="tableau" hidden>
+            <button type="button" data-tableau="inserer">➕ Insérer un tableau…</button>
+            <button type="button" data-tableau="ligne-dessous">⬇︎ Ajouter une ligne dessous</button>
+            <button type="button" data-tableau="ligne-dessus">⬆︎ Ajouter une ligne dessus</button>
+            <button type="button" data-tableau="colonne-droite">➡︎ Ajouter une colonne à droite</button>
+            <button type="button" data-tableau="colonne-gauche">⬅︎ Ajouter une colonne à gauche</button>
+            <button type="button" data-tableau="suppr-ligne">✕ Supprimer la ligne</button>
+            <button type="button" data-tableau="suppr-colonne">✕ Supprimer la colonne</button>
+            <button type="button" data-tableau="suppr-tableau">🗑️ Supprimer le tableau</button>
           </span>
         </span>
         <span class="fk-riche-sep"></span>
@@ -546,7 +582,7 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder) {
     zone.focus();
     if (selection) { const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(selection); }
   };
-  ['keyup', 'mouseup', 'input', 'focus'].forEach(ev => zone.addEventListener(ev, memoriser));
+  ['keyup', 'mouseup', 'input'].forEach(ev => zone.addEventListener(ev, memoriser));
   document.addEventListener('selectionchange', memoriser);
   // Les boutons ne volent pas la sélection du texte.
   barre.addEventListener('mousedown', e => { if (e.target.closest('button') && !e.target.closest('[data-source]')) e.preventDefault(); });
@@ -589,13 +625,124 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder) {
     fermerPalettes();
   }));
 
+  // ----- Couleur de fond (25 septembre 2026) -----
+  // S'applique au bloc où se trouve le curseur : l'encadré coloré s'il y en
+  // a un, sinon la cellule de tableau, sinon le paragraphe/titre/élément de
+  // liste. (Le surlignage 🖍️, lui, colore seulement le texte sélectionné.)
+  function blocCourant(selecteur) {
+    const sel = window.getSelection();
+    let n = sel.rangeCount && zone.contains(sel.anchorNode) ? sel.anchorNode : (selection ? selection.startContainer : null);
+    if (n && n.nodeType === 3) n = n.parentElement;
+    const el = n && n.closest ? n.closest(selecteur) : null;
+    return el && zone.contains(el) && el !== zone ? el : null;
+  }
+  const appliquerFond = c => {
+    if (modeSource) return;
+    restaurer();
+    const cible = blocCourant('[data-bloc]') || blocCourant('td, th') || blocCourant('p, h1, h2, h3, h4, h5, h6, li, blockquote, pre, div');
+    if (!cible) { fkToast('Placez d\'abord le curseur dans le paragraphe à colorer.', 'erreur'); return; }
+    cible.style.backgroundColor = c === 'transparent' ? '' : c;
+    if (c !== 'transparent' && !cible.matches('[data-bloc], td, th')) { cible.style.padding = ''; cible.setAttribute('data-bloc', 'fond'); }
+    if (c === 'transparent' && cible.getAttribute('data-bloc') === 'fond') cible.removeAttribute('data-bloc');
+    if (c !== 'transparent') barre.querySelector('[data-apercu="fond"]').style.background = c;
+    fermerPalettes(); memoriser();
+  };
+  barre.querySelectorAll('[data-fond]').forEach(b => b.addEventListener('click', () => appliquerFond(b.dataset.fond)));
+  barre.querySelector('[data-fond-libre]').addEventListener('change', e => appliquerFond(e.target.value));
+
+  // ----- Encadrés colorés -----
+  function insererEncadre(fond, icone, titre) {
+    const tete = titre ? `<p><strong>${fkEchapper(icone ? icone + ' ' : '')}${fkEchapper(titre)}</strong></p>` : '';
+    inserer(`<div data-bloc="encadre" style="background-color: ${fond}">${tete}<p>Votre texte…</p></div><p><br></p>`);
+    fermerPalettes();
+  }
+  barre.querySelectorAll('[data-encadre]').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.encadre !== 'libre') { const e = FK_ENCADRES.find(x => x.cle === b.dataset.encadre); insererEncadre(e.fond, e.icone, e.titre); return; }
+    fermerPalettes();
+    const m = fkModale('Encadré de couleur', `
+      <div class="fk-grille-2">
+        <label class="fk-champ"><span>Couleur de fond</span><input type="color" data-c value="#e8f0fb" style="width:100%;height:42px;border:1px solid #cfdbd6;border-radius:10px"></label>
+        <label class="fk-champ"><span>Titre (facultatif)</span><input type="text" data-t maxlength="60" placeholder="Ex. Le saviez-vous ?"></label>
+      </div>
+      <div class="fk-actions-form"><button type="button" class="fk-btn fk-btn-ghost" data-fermer>Annuler</button><button type="button" class="fk-btn fk-btn-primary" data-ok>Insérer</button></div>`);
+    m.boite.querySelector('[data-ok]').addEventListener('click', () => {
+      const c = m.boite.querySelector('[data-c]').value; const t = m.boite.querySelector('[data-t]').value.trim();
+      m.fermer(); insererEncadre(c, '', t);
+    });
+  }));
+
+  // ----- Tableaux -----
+  function actionTableau(action) {
+    fermerPalettes();
+    if (modeSource) { fkToast('Repassez en mode normal pour modifier un tableau.', 'erreur'); return; }
+    if (action === 'inserer') {
+      const m = fkModale('Insérer un tableau', `
+        <div class="fk-grille-2">
+          <label class="fk-champ"><span>Lignes</span><input type="number" data-l min="1" max="30" value="3"></label>
+          <label class="fk-champ"><span>Colonnes</span><input type="number" data-c min="1" max="10" value="3"></label>
+        </div>
+        <label class="fk-case"><input type="checkbox" data-e checked> Première ligne = en-tête</label>
+        <div class="fk-actions-form"><button type="button" class="fk-btn fk-btn-ghost" data-fermer>Annuler</button><button type="button" class="fk-btn fk-btn-primary" data-ok>Insérer</button></div>`);
+      m.boite.querySelector('[data-ok]').addEventListener('click', () => {
+        const nl = Math.min(30, Math.max(1, parseInt(m.boite.querySelector('[data-l]').value, 10) || 3));
+        const nc = Math.min(10, Math.max(1, parseInt(m.boite.querySelector('[data-c]').value, 10) || 3));
+        const entete = m.boite.querySelector('[data-e]').checked;
+        const cell = t => `<${t}><br></${t}>`;
+        const html = `<table>${entete ? `<thead><tr>${Array.from({ length: nc }, (_, i) => `<th>Titre ${i + 1}</th>`).join('')}</tr></thead>` : ''}<tbody>${Array.from({ length: entete ? Math.max(nl - 1, 1) : nl }, () => `<tr>${Array.from({ length: nc }, () => cell('td')).join('')}</tr>`).join('')}</tbody></table><p><br></p>`;
+        m.fermer(); inserer(html);
+      });
+      return;
+    }
+    restaurer();
+    const cellule = blocCourant('td, th');
+    if (!cellule) { fkToast('Placez d\'abord le curseur dans une case du tableau.', 'erreur'); return; }
+    const ligne = cellule.parentElement;
+    const tableau = cellule.closest('table');
+    const index = [...ligne.children].indexOf(cellule);
+    if (action === 'ligne-dessous' || action === 'ligne-dessus') {
+      const nouvelle = document.createElement('tr');
+      [...ligne.children].forEach(() => { const td = document.createElement('td'); td.innerHTML = '<br>'; nouvelle.appendChild(td); });
+      if (ligne.parentElement.tagName === 'THEAD') { const corps = tableau.tBodies[0] || tableau.appendChild(document.createElement('tbody')); corps.insertBefore(nouvelle, corps.firstChild); }
+      else ligne.parentElement.insertBefore(nouvelle, action === 'ligne-dessous' ? ligne.nextSibling : ligne);
+    } else if (action === 'colonne-droite' || action === 'colonne-gauche') {
+      [...tableau.rows].forEach(tr => {
+        const ref = tr.children[index];
+        const c = document.createElement(tr.parentElement.tagName === 'THEAD' ? 'th' : 'td'); c.innerHTML = '<br>';
+        tr.insertBefore(c, action === 'colonne-droite' ? (ref ? ref.nextSibling : null) : ref);
+      });
+    } else if (action === 'suppr-ligne') {
+      if (tableau.rows.length <= 1) tableau.remove(); else ligne.remove();
+    } else if (action === 'suppr-colonne') {
+      if (ligne.children.length <= 1) tableau.remove(); else [...tableau.rows].forEach(tr => tr.children[index]?.remove());
+    } else if (action === 'suppr-tableau') {
+      tableau.remove();
+    }
+    memoriser();
+  }
+  barre.querySelectorAll('[data-tableau]').forEach(b => b.addEventListener('click', () => actionTableau(b.dataset.tableau)));
+
   // Insertion d'un morceau de HTML déjà nettoyé : à la position du curseur,
   // ou à la fin si le curseur n'est pas dans la zone.
   function inserer(html, remplacer) {
     if (modeSource) basculerSource();
     if (remplacer) { zone.innerHTML = html; memoriser(); return; }
-    if (selection) { restaurer(); document.execCommand('insertHTML', false, html); }
-    else { zone.insertAdjacentHTML('beforeend', html); }
+    // Contenu en blocs (tableau, encadré, Markdown/HTML importé) : inséré
+    // APRÈS le bloc de premier niveau où se trouve le curseur, jamais au
+    // milieu d'un paragraphe ou d'une liste (execCommand('insertHTML')
+    // découpe mal les blocs imbriqués).
+    const modele = document.createElement('template');
+    modele.innerHTML = html;
+    const premier = modele.content.firstElementChild;
+    let noeud = selection ? selection.startContainer : null;
+    while (noeud && noeud.parentNode && noeud.parentNode !== zone) noeud = noeud.parentNode;
+    if (noeud && noeud.parentNode === zone) zone.insertBefore(modele.content, noeud.nextSibling);
+    else zone.appendChild(modele.content);
+    // Curseur placé dans le premier élément inséré (1re case vide, sinon fin).
+    const cible = premier && (premier.querySelector('td, [data-bloc] p:last-child') || premier);
+    if (cible) {
+      const r = document.createRange(); r.selectNodeContents(cible); r.collapse(!cible.matches('td') ? false : true);
+      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); zone.focus();
+    }
     memoriser();
   }
 
