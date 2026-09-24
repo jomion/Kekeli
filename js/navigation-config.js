@@ -143,6 +143,11 @@ const LIENS_PAR_ROLE = {
     // relues et validées ici avant qu'un élève ne puisse y accéder — voir
     // js/pages/admin-questions-ia-jeux.js.
     { id: 'questions-ia-jeux', href: 'questions-ia-jeux.html', icone: '🤖', label: 'Questions IA (jeux) ✨', categorie: 'pedagogie' },
+    // 24 septembre 2026 : plateforme de formation (marketplace multi-
+    // formateurs, voir pages/formations/) — validation des formateurs et des
+    // formations, catégories, inscriptions. Accès vérifié par la page
+    // elle-même (droit « gerer_formations » ou super_admin).
+    { id: 'formations', href: 'formations.html', icone: '🎓', label: 'Plateforme de formation', categorie: 'pedagogie' },
     { id: 'enseignants-classes', href: 'enseignants-classes.html', icone: '🏫', label: 'Enseignants & classes', categorie: 'comptes' },
     { id: 'gestion-administrateurs', href: 'gestion-administrateurs.html', icone: '🛠️', label: 'Administrateurs', categorie: 'comptes', superAdminSeulement: true },
     { id: 'roles', href: 'roles.html', icone: '🎛️', label: 'Rôles admin', categorie: 'comptes', superAdminSeulement: true },

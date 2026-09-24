@@ -23,6 +23,7 @@
             <option value="parent">👨‍👩‍👧 Parent</option>
             <option value="enseignant">🧑‍🏫 Enseignant</option>
             <option value="autorite_pedagogique">🏛️ Autorité Pédagogique</option>
+            <option value="apprenant">📘 Apprenant (formations)</option>
           </select>
         </div>
         <div class="champ-auth">
@@ -54,6 +55,9 @@
       document.getElementById('bandeauSucces').style.display = 'block';
       document.getElementById('role').value = 'parent';
     }
+    if (new URLSearchParams(window.location.search).get('retour')) {
+      document.getElementById('role').value = 'apprenant';
+    }
     const messageBloque = new URLSearchParams(window.location.search).get('bloque');
     if (messageBloque) {
       const bandeauBloque = document.getElementById('bandeauBloque');
@@ -83,6 +87,11 @@
         btn.disabled = false; btn.textContent = 'Se connecter';
         return;
       }
+      // Retour vers la page d'origine (ex. une formation de la plateforme de
+      // formation) : dans ce cas le type de compte choisi importe peu, tout
+      // compte adulte peut suivre une formation.
+      const retour = urlRetourSecurisee();
+      if (retour) { window.location.href = retour; return; }
       if (profil.role !== roleAttendu) {
         messageErreur.textContent = `Ce compte est enregistré comme "${profil.role}", pas "${roleAttendu}". Vérifiez votre sélection.`;
         await supabaseClient.auth.signOut();

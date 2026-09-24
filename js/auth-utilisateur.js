@@ -50,7 +50,11 @@ async function resoudreEmailConnexion(identifiantOuEmail) {
 // navigation dédiée soit bien définie — à réactiver dans le <select> quand
 // ce sera fait.
 
-const ROLES_INSCRIPTIBLES = ['parent', 'enseignant', 'autorite_pedagogique'];
+// 24 septembre 2026 : ajout du rôle 'apprenant' — un adulte qui s'inscrit
+// uniquement pour suivre les formations de la plateforme de formation
+// (pages/formations/), sans enfant ni classe. Aucune table de détail : la
+// ligne `profils` suffit.
+const ROLES_INSCRIPTIBLES = ['parent', 'enseignant', 'autorite_pedagogique', 'apprenant'];
 
 // Rôles pour lesquels la page "Mon profil" (pages/completer-profil.html)
 // propose des champs de localisation (et, pour l'enseignant, l'école/la
@@ -155,10 +159,11 @@ async function inscrire({ role, prenom, nom, identifiant, email, motDePasse, fon
     // création du compte : elle est juste signalée.
     const { error: erreurClasse } = await supabaseClient.rpc('attribuer_classe_initiale_enseignant', { p_classe_id: parseInt(classeId, 10) });
     if (erreurClasse) return { data, avertissement: "Votre compte a été créé, mais la classe n'a pas pu être attribuée automatiquement (" + erreurClasse.message + "). Vous pourrez en faire la demande depuis votre espace.", emailEnvoye: !data.session };
-  } else {
+  } else if (role === 'parent') {
     const { error: erreurRole } = await supabaseClient.from('parents').insert({ id: userId });
     if (erreurRole) return { error: erreurRole };
   }
+  // role === 'apprenant' : aucune table de détail à remplir.
 
   // data.session est déjà rempli si le projet Supabase n'exige pas (ou plus)
   // la confirmation d'e-mail — dans ce cas, aucun e-mail de vérification
@@ -272,6 +277,7 @@ function urlTableauDeBord(role) {
     case 'parent': return `${racine}pages/parent/tableau-de-bord.html`;
     case 'enseignant': return `${racine}pages/enseignant/bienvenue.html`;
     case 'autorite_pedagogique': return `${racine}pages/autorite/bienvenue.html`;
+    case 'apprenant': return `${racine}pages/formations/app/tableau-de-bord.html`;
     case 'admin': case 'super_admin': return `${racine}pages/navigation.html`;
     default: return `${racine}index.html`;
   }
@@ -279,6 +285,18 @@ function urlTableauDeBord(role) {
 
 function urlLogin() {
   return `${_racine()}pages/login.html`;
+}
+
+// Adresse de retour après connexion/inscription (paramètre ?retour=...),
+// utilisée par la plateforme de formation pour ramener l'utilisateur sur la
+// formation qu'il consultait. N'accepte qu'un chemin RELATIF au site (jamais
+// un autre domaine : ni "//", ni "http:", ni "javascript:").
+function urlRetourSecurisee() {
+  try {
+    const retour = new URLSearchParams(window.location.search).get('retour');
+    if (!retour || /^[a-z][a-z0-9+.-]*:/i.test(retour) || retour.startsWith('//') || retour.includes('\\')) return null;
+    return `${_racine()}${retour.replace(/^\/+/, '')}`;
+  } catch (_e) { return null; }
 }
 
 function urlCompleterProfil() {

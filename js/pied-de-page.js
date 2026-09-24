@@ -79,6 +79,7 @@ function initPiedDePage() {
           <li><a href="${racine}index.html">Accueil</a></li>
           <li><a href="${lienMatiere}" id="piedLienMatiere">Matière</a></li>
           <li><a href="${racine}index.html#paliers">Paliers</a></li>
+          <li><a href="${racine}pages/formations/index.html">Formations</a></li>
         </ul>
       </div>
       <div class="pied-page-colonne">

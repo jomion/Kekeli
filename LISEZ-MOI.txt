@@ -1,3 +1,131 @@
+KEKELI — Livraison du 24 septembre 2026 (seizième lot) — Plateforme de formation KEKELI Formation (phases 1 à 4, formations gratuites)
+===========================================================================
+
+Demande : "Je veux créer une page Formation qui sera ajoutée à la page
+d'accueil pour permettre de faire des formations", avec le cahier des
+charges technique "KEKELI Learning Platform" (marketplace multi-formateurs)
+et une maquette graphique, adaptable librement.
+
+Choix validés avant développement :
+  - construite DANS le site Kekeli actuel (HTML/CSS/JS + Supabase), pas
+    une application Next.js séparée : même connexion, même base, pas de
+    nouveau serveur à héberger ;
+  - première livraison = phases 1 à 4 du cahier (formateurs, formations,
+    apprentissage, administration), formations GRATUITES ; le paiement
+    (phase 5, prestataire encore à choisir), les commissions/retraits et
+    les certificats (phase 6) viendront ensuite ;
+  - n'importe quel adulte peut postuler comme formateur, l'administration
+    valide chaque candidature.
+
+OÙ LA TROUVER
+------------------------------------------------------------------------------
+  - Page d'accueil du site : nouveau lien "🎓 Formations" dans le menu, et
+    un bandeau "KEKELI Formation" (entre les paliers et "Pourquoi choisir")
+    qui affiche automatiquement les 3 dernières formations publiées.
+  - Pied de page : lien "Formations".
+  - Adresse directe : pages/formations/index.html
+
+LES PAGES
+------------------------------------------------------------------------------
+Site public (visible sans compte) — pages/formations/
+  index.html ............ accueil de la plateforme (maquette fournie,
+                          alimentée par les vraies données)
+  catalogue.html ........ recherche, catégories/sous-catégories, niveau,
+                          gratuites, tri (récentes, populaires, mieux
+                          notées, prix), 12 par page
+  formation.html?slug=... fiche d'une formation : programme, aperçus
+                          gratuits, formateur, avis, bouton d'inscription
+  formateur.html?slug=... profil public d'un formateur
+  devenir-formateur.html  présentation + formulaire de candidature
+
+Espace apprenant — pages/formations/app/
+  tableau-de-bord.html .. formations en cours / terminées / favoris
+  formation.html?id=... . lecteur : sommaire, leçons (texte, vidéo YouTube/
+                          Vimeo ou fichier hébergé, audio, documents à
+                          télécharger), "marquer comme terminée", reprise
+                          là où on s'est arrêté, quiz chronométrés
+
+Espace formateur — pages/formations/formateur/
+  tableau-de-bord.html .. statistiques, liste des formations, création
+  formation.html?id=... . onglets Informations / Programme (modules,
+                          leçons, ressources, réordonnancement) / Quiz
+                          (choix unique, multiple, vrai-faux) / Apprenants /
+                          Publication (liste de vérification, soumission)
+  profil.html ........... profil public + photo
+
+Administration — pages/admin/formations.html (menu Pédagogie →
+"Plateforme de formation") : formations à valider (publier / refuser avec
+motif / archiver), toutes les formations, candidatures formateurs
+(valider / refuser / suspendre), catégories, inscriptions, journal.
+
+QUI PEUT FAIRE QUOI
+------------------------------------------------------------------------------
+  - Visiteur : consulter le catalogue, les fiches et les leçons d'aperçu.
+  - Apprenant : tout compte adulte connecté (parent, enseignant, autorité
+    pédagogique, ou nouveau type de compte "📘 Apprenant (formations
+    uniquement)" ajouté à l'inscription et à la connexion). Les comptes
+    élève (enfants) n'ont pas accès aux formations.
+  - Formateur : après validation de sa candidature par l'administration.
+  - Administration : le super admin, ou tout admin dont le rôle a le
+    nouveau droit "Gérer la plateforme de formation" (page "Rôles admin").
+
+CIRCUIT D'UNE FORMATION
+------------------------------------------------------------------------------
+Formateur crée (brouillon) → ajoute modules, leçons, quiz → soumet →
+KEKELI vérifie (la formation n'est plus modifiable pendant ce temps) →
+publie ou renvoie "à revoir" avec un motif → les apprenants s'inscrivent,
+progressent, passent les quiz → formation "terminée" à 100 %.
+Des notifications (cloche 🔔) sont envoyées à chaque étape.
+
+La progression = leçons obligatoires terminées + quiz réussis.
+Quiz : seuil de réussite, nombre d'essais et durée réglables par quiz ; la
+correction détaillée n'apparaît que si le quiz est réussi ou si tous les
+essais sont utilisés.
+
+SÉCURITÉ (comme exigé par le cahier des charges)
+------------------------------------------------------------------------------
+  - Toutes les règles sont vérifiées CÔTÉ SERVEUR (base de données), jamais
+    seulement en cachant un bouton : contenu des leçons lisible uniquement
+    par les inscrits (sauf aperçus), bonnes réponses des quiz jamais
+    envoyées au navigateur avant la correction, notation faite par le
+    serveur, un formateur ne peut ni se valider lui-même ni publier seul.
+  - Fichiers privés (vidéos, audios, documents) dans un espace de stockage
+    privé, servis par des liens temporaires (1 h) ; formats et taille
+    (50 Mo) contrôlés à l'envoi ET par le serveur.
+  - Textes rédigés par les formateurs nettoyés avant affichage (aucun
+    script ne peut être injecté).
+  - Inscription en double impossible (contrainte en base).
+  - Journal des actions sensibles consultable par l'administration.
+
+CE QUI RESTE POUR LES PROCHAINES ÉTAPES
+------------------------------------------------------------------------------
+  - Paiement en ligne (Mobile Money / carte) + commissions + revenus et
+    retraits formateur : une formation peut déjà avoir un prix, mais ses
+    inscriptions restent fermées ("Paiement bientôt disponible") tant que
+    le prestataire n'est pas choisi et branché.
+  - Certificats PDF avec code de vérification.
+  - Adresses du type /formation/excel-pour-debutants : le site étant
+    hébergé sur GitHub Pages (sans serveur), les adresses sont de la forme
+    formation.html?slug=excel-pour-debutants (le "slug" lisible est bien
+    là, et chaque fiche déclare son adresse canonique et ses données
+    structurées pour Google).
+  - Authentification à deux facteurs, e-mails personnalisés.
+
+À FAIRE UNE FOIS (optionnel) : dans "Rôles admin", cocher "Gérer la
+plateforme de formation" pour les admins (non super admin) qui doivent
+valider les formateurs et les formations.
+
+Fichiers ajoutés : css/formations.css, js/formations/*.js (11 fichiers),
+pages/formations/**/*.html (10 pages), pages/admin/formations.html,
+js/pages/admin-formations.js.
+Fichiers modifiés : index.html, css/style-public.css, js/auth-utilisateur.js,
+pages/login.html, pages/inscription.html, js/navigation-config.js,
+js/pages/admin-roles.js, js/pied-de-page.js, LISEZ-MOI.txt.
+Base de données : 15 nouvelles tables formation_* / formateurs avec
+sécurité par ligne, 2 espaces de stockage (formations, formations-public),
+nouveau type de compte "apprenant", nouveau droit admin.
+
+===========================================================================
 KEKELI — Livraison du 24 septembre 2026 (quinzième lot) — CM2 en lignage Seyes + entête élève regroupée par catégorie
 ===========================================================================
 

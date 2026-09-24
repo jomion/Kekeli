@@ -20,6 +20,7 @@
         <li><a href="index.html" class="actif">Accueil</a></li>
         <li><a href="#classesGrades">Classes</a></li>
         <li><a href="#paliers">Paliers</a></li>
+        <li><a href="pages/formations/index.html">🎓 Formations</a></li>
       </ul>
     </nav>
     <div class="auth-buttons">
@@ -147,6 +148,29 @@
     </div>
   </section>
 
+  <!-- 24 septembre 2026 : accès à la plateforme de formation en ligne
+       (marketplace multi-formateurs, pages/formations/) depuis l'accueil.
+       Les 3 dernières formations publiées sont chargées dynamiquement
+       (voir le script en bas de page) ; le bloc reste utile même vide. -->
+  <section class="section-claire bandeau-formations" id="formations">
+    <div class="bandeau-formations-grille">
+      <div>
+        <span class="bandeau-formations-badge">NOUVEAU · KEKELI FORMATION</span>
+        <h2 class="titre-claire titre-claire-gauche">Apprenez. Formez. Partagez.</h2>
+        <p class="bandeau-formations-texte">Au-delà du primaire, KEKELI ouvre une plateforme de formation en ligne pour les adultes : parents, enseignants, entrepreneurs… Suivez des formations créées par des formateurs vérifiés, ou partagez votre propre savoir.</p>
+        <div class="hero-clair-boutons">
+          <a href="pages/formations/catalogue.html" class="btn-clair-plein">🎓 Découvrir les formations</a>
+          <a href="pages/formations/devenir-formateur.html" class="btn-clair-contour">👨‍🏫 Devenir formateur</a>
+        </div>
+      </div>
+      <div class="bandeau-formations-liste" id="dernieresFormations">
+        <a class="bandeau-formations-item" href="pages/formations/index.html"><span>📚</span><div><strong>Des formations par catégorie</strong><small>Informatique, éducation, entrepreneuriat, langues, agriculture…</small></div></a>
+        <a class="bandeau-formations-item" href="pages/formations/index.html"><span>✅</span><div><strong>Quiz et suivi de progression</strong><small>Apprenez à votre rythme, sur mobile comme sur ordinateur</small></div></a>
+        <a class="bandeau-formations-item" href="pages/formations/devenir-formateur.html"><span>🛡️</span><div><strong>Formateurs et contenus vérifiés</strong><small>Chaque formation est validée par KEKELI avant publication</small></div></a>
+      </div>
+    </div>
+  </section>
+
   <section class="section-claire pourquoi-claire">
     <div class="pourquoi-grille">
       <div>
@@ -196,6 +220,24 @@
   <script src="js/banniere-site.js"></script>
   <script src="js/accueil-hero.js"></script>
   <script>initAccueilHero();</script>
+  <script>
+    // Plateforme de formation : les 3 dernières formations publiées
+    // remplacent les arguments génériques du bandeau, dès qu'il y en a.
+    (async function () {
+      try {
+        const { data } = await supabaseClient.from('formations')
+          .select('slug, titre, nb_lecons, prix, formation_categories(icone)')
+          .eq('statut', 'publiee').eq('visibilite', 'publique').order('publiee_le', { ascending: false }).limit(3);
+        if (!data || !data.length) return;
+        const e = v => (v ?? '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+        document.getElementById('dernieresFormations').innerHTML = data.map(f => `
+          <a class="bandeau-formations-item" href="pages/formations/formation.html?slug=${encodeURIComponent(f.slug)}">
+            <span>${e(f.formation_categories?.icone || '🎓')}</span>
+            <div><strong>${e(f.titre)}</strong><small>${f.nb_lecons} leçon${f.nb_lecons > 1 ? 's' : ''} · ${f.prix ? Number(f.prix).toLocaleString('fr-FR') + ' FCFA' : 'Gratuit'}</small></div>
+          </a>`).join('') + '<a class="bandeau-formations-item bandeau-formations-tout" href="pages/formations/catalogue.html">Voir toutes les formations →</a>';
+      } catch (_e) { /* bandeau statique conservé */ }
+    })();
+  </script>
   <script>
     // Bannière dynamique du super admin (voir js/banniere-site.js) : sur
     // l'accueil publique, un visiteur non connecté est ciblé comme

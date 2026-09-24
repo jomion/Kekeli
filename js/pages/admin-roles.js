@@ -27,7 +27,9 @@ const DROITS_ROLES = [
   { cle: 'peut_gerer_abonnements', label: 'Gérer les abonnements & services premium', brancle: false },
   { cle: 'peut_gerer_badges', label: 'Voir les badges', brancle: false },
   { cle: 'peut_gerer_messagerie', label: 'Gérer la messagerie', brancle: false },
-  { cle: 'peut_gerer_enseignants_classes', label: 'Valider les demandes de classe des enseignants', brancle: false }
+  { cle: 'peut_gerer_enseignants_classes', label: 'Valider les demandes de classe des enseignants', brancle: false },
+  { cle: 'peut_gerer_formations', label: 'Gérer la plateforme de formation (formateurs, formations, catégories)', brancle: true,
+    note: 'Déjà appliqué : donne accès à la page « Plateforme de formation » et à la validation des formateurs/formations.' }
 ];
 
 let profilRoles = null;

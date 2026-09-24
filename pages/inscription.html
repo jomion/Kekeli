@@ -365,6 +365,7 @@
         <select id="role" required>
           <option value="parent">👨‍👩‍👧 Parent</option>
           <option value="enseignant">🧑‍🏫 Enseignant</option>
+          <option value="apprenant">📘 Apprenant (formations uniquement)</option>
         </select>
         <p class="insc-help" id="noteRole"></p>
         <!-- L'inscription "🏛️ Autorité Pédagogique" est temporairement
@@ -476,12 +477,17 @@
       const estEnseignant = selectRole.value === 'enseignant';
       noteRole.textContent = selectRole.value === 'parent'
         ? "Vous pourrez ensuite inscrire votre (vos) enfant(s) depuis votre espace."
-        : "";
+        : selectRole.value === 'apprenant'
+          ? "Pour suivre les formations de la plateforme KEKELI Formation (sans enfant ni classe)."
+          : "";
       champsEnseignant.style.display = estEnseignant ? '' : 'none';
       champEcole.required = estEnseignant;
       champClasse.required = estEnseignant;
     }
     selectRole.addEventListener('change', majNote);
+    if (['apprenant', 'parent', 'enseignant'].includes(new URLSearchParams(window.location.search).get('role'))) {
+      selectRole.value = new URLSearchParams(window.location.search).get('role');
+    }
     majNote();
 
     // Vérification en direct de la disponibilité de l'identifiant (au blur),
@@ -568,7 +574,7 @@
       } else {
         // Le projet n'exige pas (ou plus) la confirmation d'e-mail côté
         // Supabase Auth : la session est déjà ouverte, direction l'espace.
-        window.location.href = urlTableauDeBord(role);
+        window.location.href = urlRetourSecurisee() || urlTableauDeBord(role);
       }
     });
   </script>

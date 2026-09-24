@@ -1690,3 +1690,21 @@ body.theme-clair-compte .entete-kekeli-sousmenu a:hover { background: var(--clai
   .question-enonce { font-size: 14px; }
   .lignes-association select, .options-association select, .categories-classement select { font-size: 13.5px; padding: 3px 5px; }
 }
+
+
+/* ------------------------------------------------------------
+   24 septembre 2026 — Bandeau « KEKELI Formation » de l'accueil
+   (accès à la plateforme de formation, pages/formations/).
+   ------------------------------------------------------------ */
+.bandeau-formations { background: linear-gradient(135deg, #eaf7f2 0%, #f7fbf9 60%, #fff 100%); }
+.bandeau-formations-grille { display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center; max-width: 1180px; margin: 0 auto; }
+.bandeau-formations-badge { display: inline-block; background: #dff2eb; color: #07553f; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 800; letter-spacing: .3px; margin-bottom: 10px; }
+.bandeau-formations-texte { color: #5f6f6a; line-height: 1.7; font-size: 16px; }
+.bandeau-formations-liste { display: flex; flex-direction: column; gap: 12px; }
+.bandeau-formations-item { display: flex; gap: 14px; align-items: center; background: #fff; border: 1px solid #e4ebe8; border-radius: 16px; padding: 14px 16px; text-decoration: none; color: #18302a; transition: .2s; }
+.bandeau-formations-item:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(20, 50, 40, .09); }
+.bandeau-formations-item > span { font-size: 26px; width: 44px; height: 44px; border-radius: 12px; background: #dff2eb; display: grid; place-items: center; flex-shrink: 0; }
+.bandeau-formations-item strong { display: block; font-size: 15px; }
+.bandeau-formations-item small { color: #5f6f6a; font-size: 13px; }
+.bandeau-formations-tout { justify-content: center; font-weight: 800; color: #0b7a5c; }
+@media (max-width: 860px) { .bandeau-formations-grille { grid-template-columns: 1fr; gap: 24px; } }
