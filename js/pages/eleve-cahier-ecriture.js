@@ -37,8 +37,10 @@ let profilCahier = null;
 //     réglure de référence, à mesure que l'écriture devient autonome.
 //   - CM1 (9-10 ans) : lignage Seyes "noir" — le grand quadrillage complet
 //     classique des cahiers d'école à ce niveau.
-//   - CM2 (10-11 ans, rédaction libre) : lignage "petit" — un quadrillage
-//     plus resserré, adapté à une écriture plus mûre et plus compacte.
+//   - CM2 (10-11 ans, rédaction libre) : lignage Seyes standard (même
+//     réglure que CE2) — demande explicite du 24 septembre 2026 ("Pour le
+//     CM2 utilise le lignage seyes"), en remplacement du lignage "petit"
+//     initialement proposé.
 //
 // Ce ne sont que des PAR DÉFAUT : l'élève garde la main dans l'outil
 // lui-même pour changer de lignage à tout moment (menu "Type de lignage").
@@ -48,7 +50,7 @@ const CLASSES_CAHIER_ECRITURE = [
   { nom: 'CE1', age: '7 - 8 ans', reglure: 'seyes_gris' },
   { nom: 'CE2', age: '8 - 9 ans', reglure: 'seyes' },
   { nom: 'CM1', age: '9 - 10 ans', reglure: 'seyes_noir' },
-  { nom: 'CM2', age: '10 - 11 ans', reglure: 'petit' },
+  { nom: 'CM2', age: '10 - 11 ans', reglure: 'seyes' },
 ];
 
 const CLE_CLASSE_CHOISIE_CAHIER = 'kekeli-cahier-ecriture-classe-choisie';

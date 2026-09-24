@@ -1,3 +1,42 @@
+KEKELI — Livraison du 24 septembre 2026 (quinzième lot) — CM2 en lignage Seyes + entête élève regroupée par catégorie
+===========================================================================
+
+CM2 : LIGNAGE SEYES PAR DÉFAUT (AU LIEU DE "PETIT")
+------------------------------------------------------------------------------
+Demande : "Pour le CM2 utilise le lignage seyes."
+
+Le cahier d'écriture (voir quatorzième lot ci-dessous) proposait par défaut
+le lignage "petit" pour la classe de CM2. C'est corrigé : CM2 propose
+maintenant le lignage Seyes standard par défaut, la même réglure que CE2.
+Comme pour toutes les classes, ce n'est qu'une valeur de départ : l'élève
+garde la main pour changer de lignage à tout moment dans l'outil.
+
+L'ENTÊTE DE L'ESPACE ÉLÈVE REGROUPE MAINTENANT SES LIENS PAR CATÉGORIE
+------------------------------------------------------------------------------
+Demande : "regroupe les boutons de l'entête de même catégorie dans de
+catégorie différente pour réduire le nombre de bouton à l'affichage."
+
+L'espace élève avait grandi au fil des livraisons jusqu'à afficher 11
+boutons à plat dans la barre du haut (Tableau de bord, Mes matières,
+Séances, Emploi du temps, Devoirs & notes, Mes badges, Cahier d'écriture,
+Mes progrès, Favoris, Mon profil, Messagerie) — la barre devenait chargée.
+
+Elle utilise maintenant le même mécanisme de regroupement déjà en place
+côté administrateur et enseignant : les liens de même catégorie sont
+rassemblés sous un seul menu déroulant. Résultat, 5 éléments visibles au
+lieu de 11 :
+  - Tableau de bord (toujours visible) ;
+  - 📚 Pédagogie ▾ : Mes matières, Séances, Emploi du temps, Cahier
+    d'écriture ;
+  - 📈 Mon suivi ▾ : Devoirs & notes, Mes badges, Mes progrès, Favoris ;
+  - Mon profil ;
+  - Messagerie.
+Chaque lien reste accessible exactement comme avant, simplement rangé sous
+son menu — rien n'a été supprimé ni caché. Ce changement ne touche que la
+barre de menu "classique" ; l'affichage premium (sidebar) n'est pas
+concerné, il gardait déjà sa propre présentation.
+
+===========================================================================
 KEKELI — Livraison du 24 septembre 2026 (quatorzième lot) — Le cahier d'écriture s'intègre vraiment à Kekeli (logo, menu) et propose une réglure par classe
 ===========================================================================
 

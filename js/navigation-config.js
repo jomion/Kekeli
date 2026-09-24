@@ -31,21 +31,42 @@ const CATEGORIES_NAV = {
   // registre d'appel + bilan, planification mensuelle — regroupés ici pour
   // accueillir les prochains outils du même esprit (évaluation, fiche
   // pédagogique) sans reproduire le menu à plat.
-  gestionAdministrative: { label: 'Gestion administrative', icone: '🗂️' }
+  gestionAdministrative: { label: 'Gestion administrative', icone: '🗂️' },
+  // Espace élève, 24 septembre 2026 (demande explicite : "regroupe les
+  // boutons de l'entête de même catégorie... pour réduire le nombre de
+  // bouton à l'affichage") : suivi personnel de l'élève (résultats, badges,
+  // progrès, favoris) — distinct de "pedagogie" qui reste les outils de
+  // travail (matières, séances, emploi du temps, cahier d'écriture).
+  suivi: { label: 'Mon suivi', icone: '📈' }
 };
 
 const LIENS_PAR_ROLE = {
+  // 24 septembre 2026 (demande explicite : "regroupe les boutons de
+  // l'entête de même catégorie dans de catégorie différente pour réduire
+  // le nombre de bouton à l'affichage") : l'entête élève venait de passer
+  // à 11 liens à plat (le seul rôle sans regroupement par `categorie`,
+  // malgré le plus grand nombre de liens) — regroupés ici en 2 menus
+  // déroulants (mécanisme déjà existant, voir regrouperLiensParCategorie()
+  // dans js/entete-navigation.js, réutilisé tel quel) :
+  //   - "pedagogie" : les outils de travail (matières, séances, emploi du
+  //     temps, cahier d'écriture) ;
+  //   - "suivi" (nouvelle catégorie) : le suivi personnel de l'élève
+  //     (devoirs & notes, badges, progrès, favoris).
+  // "Tableau de bord" (essentiel), "Mon profil" et "Messagerie" restent à
+  // plat. Résultat : 5 éléments visibles dans la barre au lieu de 11.
+  // Sans effet sur la sidebar du thème premium (js/theme-premium-eleve.js),
+  // qui ne lit jamais `categorie` et construit sa propre liste à plat.
   eleve: [
     { id: 'tableau-de-bord', href: 'tableau-de-bord.html', icone: '🏠', label: 'Tableau de bord', essentiel: true },
-    { id: 'matieres', href: 'matiere.html', icone: '📘', label: 'Mes matières' },
-    { id: 'seances', href: 'pages/seances.html', racine: true, icone: '📌', label: 'Séances' },
+    { id: 'matieres', href: 'matiere.html', icone: '📘', label: 'Mes matières', categorie: 'pedagogie' },
+    { id: 'seances', href: 'pages/seances.html', racine: true, icone: '📌', label: 'Séances', categorie: 'pedagogie' },
     // 19 septembre 2026 : emploi du temps hebdomadaire officiel, partagé par
     // tous les rôles liés à la classe (CM1/CM2 pour l'instant), voir
     // js/pages/emploi-du-temps.js. Page partagée à la racine de pages/ comme
     // "seances" ci-dessus, donc racine: true.
-    { id: 'emploi-du-temps', href: 'pages/emploi-du-temps.html', racine: true, icone: '🗓️', label: 'Emploi du temps' },
-    { id: 'devoirs-notes', href: 'devoirs-notes.html', icone: '📊', label: 'Devoirs & notes' },
-    { id: 'badges', href: 'badges.html', icone: '🏅', label: 'Mes badges' },
+    { id: 'emploi-du-temps', href: 'pages/emploi-du-temps.html', racine: true, icone: '🗓️', label: 'Emploi du temps', categorie: 'pedagogie' },
+    { id: 'devoirs-notes', href: 'devoirs-notes.html', icone: '📊', label: 'Devoirs & notes', categorie: 'suivi' },
+    { id: 'badges', href: 'badges.html', icone: '🏅', label: 'Mes badges', categorie: 'suivi' },
     // 24 septembre 2026 : intégration du cahier d'écriture Seyes/Éducajou
     // (outil libre GPL, écrit par Arnaud Champollion) — page quadrillée
     // Seyes éditable, polices cursives, export PDF/impression, sauvegarde
@@ -63,14 +84,14 @@ const LIENS_PAR_ROLE = {
     // toutes les autres pages élève, pilotée par js/pages/eleve-cahier-
     // ecriture.js) qui embarque l'outil dans un <iframe> et propose un choix
     // de classe CI à CM2 avec un lignage par défaut adapté à chacune.
-    { id: 'cahier-ecriture', href: 'cahier-ecriture.html', icone: '✍️', label: "Cahier d'écriture" },
+    { id: 'cahier-ecriture', href: 'cahier-ecriture.html', icone: '✍️', label: "Cahier d'écriture", categorie: 'pedagogie' },
     // 19 septembre 2026 : "Mes progrès"/"Favoris"/"Mon profil" existaient déjà
     // (visuels seulement) dans la sidebar/nav mobile basse du thème premium
     // (voir js/theme-premium-eleve.js) — ajoutés ici aussi pour que l'élève
     // en thème classique (sans le look premium) puisse y accéder depuis
     // l'en-tête, comme n'importe quel autre lien réel du rôle.
-    { id: 'mes-progres', href: 'mes-progres.html', icone: '📈', label: 'Mes progrès' },
-    { id: 'favoris', href: 'favoris.html', icone: '❤️', label: 'Favoris' },
+    { id: 'mes-progres', href: 'mes-progres.html', icone: '📈', label: 'Mes progrès', categorie: 'suivi' },
+    { id: 'favoris', href: 'favoris.html', icone: '❤️', label: 'Favoris', categorie: 'suivi' },
     { id: 'profil', href: 'profil.html', icone: '🙂', label: 'Mon profil' },
     // Fonctionnalité Premium (voir messagerie.html) : le lien reste visible
     // pour tous — la page explique elle-même comment l'activer (abonnement
