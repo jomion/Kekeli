@@ -1,4 +1,4 @@
-KEKELI — Livraison du 25 septembre 2026 (dix-neuvième lot) — Accès direct à KEKELI Formation depuis le menu du nom, tableaux, couleurs de fond et encadrés colorés dans l'éditeur de formation
+KEKELI — Livraison du 25 septembre 2026 (dix-neuvième lot) — Accès direct à KEKELI Formation depuis le menu du nom, tableaux, couleurs de fond, encadrés colorés et blocs à barre dans l'éditeur de formation
 ===========================================================================
 
 1) PASSER DE KEKELI PRIMAIRE À KEKELI FORMATION EN CLIQUANT SUR SON NOM
@@ -28,6 +28,12 @@ Même connexion, aucun mot de passe à retaper. Jamais affiché pour un compte
     couleur libre avec un titre au choix. Sa couleur se change ensuite avec
     🎨. Les tableaux, encadrés et contenus importés s'insèrent sous le
     paragraphe où se trouve le curseur.
+  - ▍ Bloc à barre : le même bloc que le « > texte » du Markdown (fond clair
+    + barre de couleur à gauche, comme dans le texte généré par IA collé
+    dans une leçon). Curseur dans un paragraphe : il est entouré d'une barre ;
+    curseur ailleurs : un nouveau bloc est inséré ; curseur dans un bloc à
+    barre : sa couleur change (verte, bleue, orange, rouge, violette, jaune,
+    grise) ou la barre est retirée.
 Tout s'affiche à l'identique pour l'étudiant dans la leçon.
 
 Fichiers modifiés : js/entete-navigation.js, js/formations/commun.js,

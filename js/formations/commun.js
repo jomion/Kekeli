@@ -50,7 +50,7 @@ function fkPourcentage(v) { return `${Math.round(Number(v) || 0)} %`; }
 // les couleurs, le surlignage et l'alignement (gauche, centre, droite,
 // justifié) — mais filtré propriété par propriété (FK_STYLES_AUTORISES) :
 // aucune position, taille, image de fond ou url() ne peut passer.
-const FK_STYLES_AUTORISES = ['color', 'background-color', 'text-align', 'font-weight', 'font-style', 'text-decoration', 'text-decoration-line'];
+const FK_STYLES_AUTORISES = ['color', 'background-color', 'border-left-color', 'text-align', 'font-weight', 'font-style', 'text-decoration', 'text-decoration-line'];
 let _fkHookStyle = false;
 function fkFiltrerStyle(style) {
   return String(style || '').split(';').map(d => {
@@ -490,6 +490,11 @@ const FK_ENCADRES = [
   { cle: 'attention', icone: '⚠️', titre: 'Attention', fond: '#fdecea' },
   { cle: 'exemple', icone: '📝', titre: 'Exemple', fond: '#f3e8ff' }
 ];
+// Barres latérales (blockquote) : même rendu que le Markdown « > texte ».
+const FK_BARRES = [
+  { nom: 'verte', couleur: '#0b7a5c' }, { nom: 'bleue', couleur: '#1769aa' }, { nom: 'orange', couleur: '#e85d04' },
+  { nom: 'rouge', couleur: '#c0392b' }, { nom: 'violette', couleur: '#673ab7' }, { nom: 'jaune', couleur: '#e0a800' }, { nom: 'grise', couleur: '#6c7b76' }
+];
 const FK_COULEURS = ['#18302a', '#0b7a5c', '#1769aa', '#673ab7', '#c0392b', '#e85d04', '#b27700', '#6c7b76'];
 
 function fkEditeurRiche(conteneur, htmlInitial, placeholder) {
@@ -531,6 +536,13 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder) {
           <span class="fk-riche-palette fk-riche-liste" data-palette="bloc" hidden>
             ${FK_ENCADRES.map(b => `<button type="button" data-encadre="${b.cle}"><span class="fk-riche-puce" style="background:${b.fond}"></span>${b.icone} ${b.titre}</button>`).join('')}
             <button type="button" data-encadre="libre"><span class="fk-riche-puce" style="background:linear-gradient(90deg,#fde2e2,#dbeafe,#d4f5e4)"></span>🎨 Encadré de couleur libre…</button>
+          </span>
+        </span>
+        <span class="fk-riche-menu">
+          <button type="button" data-menu="barre" title="Bloc avec barre latérale (citation, idée à mettre en valeur)" aria-label="Bloc avec barre latérale">▍ Bloc à barre</button>
+          <span class="fk-riche-palette fk-riche-liste" data-palette="barre" hidden>
+            ${FK_BARRES.map(b => `<button type="button" data-barre="${b.couleur}"><span class="fk-riche-puce" style="background:${b.couleur}"></span>Barre ${b.nom}</button>`).join('')}
+            <button type="button" data-barre="retirer">✕ Retirer la barre du bloc</button>
           </span>
         </span>
         <span class="fk-riche-menu">
@@ -671,6 +683,38 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder) {
     });
   }));
 
+  // ----- Blocs à barre latérale (25 septembre 2026) -----
+  // Curseur dans un bloc à barre : change sa couleur (ou retire la barre).
+  // Curseur dans un paragraphe/titre avec du texte : l'entoure d'une barre.
+  // Sinon : insère un nouveau bloc vide à compléter.
+  function actionBarre(couleur) {
+    fermerPalettes();
+    if (modeSource) { fkToast('Repassez en mode normal pour ajouter un bloc.', 'erreur'); return; }
+    restaurer();
+    const existant = blocCourant('blockquote');
+    if (existant) {
+      if (couleur === 'retirer') {
+        const frag = document.createDocumentFragment();
+        [...existant.childNodes].forEach(n => frag.appendChild(n));
+        if (!existant.querySelector('p, h1, h2, h3, h4, ul, ol, div, table') && existant.textContent.trim()) {
+          const p = document.createElement('p'); p.append(frag); existant.replaceWith(p);
+        } else existant.replaceWith(frag);
+      } else existant.style.borderLeftColor = couleur;
+      memoriser(); return;
+    }
+    if (couleur === 'retirer') { fkToast('Le curseur n\'est pas dans un bloc à barre.', 'erreur'); return; }
+    const para = blocCourant('p, h1, h2, h3, h4, h5, h6, pre');
+    if (para && para.textContent.trim() && !para.closest('td, th, li')) {
+      const bq = document.createElement('blockquote');
+      bq.style.borderLeftColor = couleur;
+      para.replaceWith(bq);
+      bq.appendChild(para);
+      memoriser(); return;
+    }
+    inserer(`<blockquote style="border-left-color: ${couleur}"><p>Votre texte…</p></blockquote><p><br></p>`);
+  }
+  barre.querySelectorAll('[data-barre]').forEach(b => b.addEventListener('click', () => actionBarre(b.dataset.barre)));
+
   // ----- Tableaux -----
   function actionTableau(action) {
     fermerPalettes();
@@ -738,7 +782,7 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder) {
     if (noeud && noeud.parentNode === zone) zone.insertBefore(modele.content, noeud.nextSibling);
     else zone.appendChild(modele.content);
     // Curseur placé dans le premier élément inséré (1re case vide, sinon fin).
-    const cible = premier && (premier.querySelector('td, [data-bloc] p:last-child') || premier);
+    const cible = premier && (premier.querySelector('td, [data-bloc] p:last-child, blockquote > p:last-child') || premier);
     if (cible) {
       const r = document.createRange(); r.selectNodeContents(cible); r.collapse(!cible.matches('td') ? false : true);
       const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); zone.focus();
