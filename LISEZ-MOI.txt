@@ -1,3 +1,31 @@
+KEKELI — Livraison du 27 septembre 2026 — KEKELI Formation : chiffres et pastilles bien placés dans le HTML importé
+===========================================================================
+
+CE QUI A ÉTÉ SIGNALÉ
+------------------------------------------------------------------------------
+"Sur l'aperçu, des chiffres ne sont pas très bien positionnés, avec de
+légers décalages par rapport à l'affichage dans le navigateur."
+
+CE QUI CHANGE CONCRÈTEMENT (import / collage de HTML dans une leçon)
+------------------------------------------------------------------------------
+- Pastilles numérotées (ronds « 1 », « 2 »…), icônes et encadrés de
+  chiffres : leur largeur et leur hauteur sont conservées (avant, les ronds
+  s'écrasaient et les chiffres se décalaient).
+- Numéros d'étapes produits par la feuille de style (compteurs CSS, coches
+  « ✔ », icônes placées avant ou après un texte) : ils sont maintenant
+  recopiés dans le texte, au même endroit (avant, ils disparaissaient).
+- Numéros et puces de listes colorés ou en gras : conservés.
+- Petits décalages voulus (ex. un renvoi [1] légèrement remonté) : conservés.
+- Sécurité inchangée : seul un petit décalage « relatif » (30 px maximum)
+  est accepté, jamais de superposition.
+Pour les leçons déjà importées : réimportez le fichier HTML pour profiter
+de la correction.
+
+FICHIERS MODIFIÉS
+------------------------------------------------------------------------------
+js/formations/commun.js, LISEZ-MOI.txt
+
+
 KEKELI — Livraison du 26 septembre 2026 (suite 3) — KEKELI Formation : HTML importé affiché fidèlement
 ===========================================================================
 

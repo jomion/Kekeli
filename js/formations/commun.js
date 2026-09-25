@@ -59,12 +59,14 @@ const FK_STYLES_AUTORISES = ['color', 'background-color', 'border-left-color', '
   // 26 septembre 2026 : rendu fidèle des pages HTML importées (cartes, grilles, dégradés…).
   'background-image', 'border-radius', 'box-shadow', 'text-shadow', 'padding-top', 'padding-right', 'padding-bottom',
   'margin', 'margin-top', 'margin-bottom', 'margin-right', 'display', 'flex-direction', 'flex-wrap', 'justify-content', 'align-items', 'gap', 'flex',
-  'grid-template-columns', 'max-width', 'white-space', 'word-spacing', 'list-style-type', 'opacity'];
+  'grid-template-columns', 'max-width', 'white-space', 'word-spacing', 'list-style-type', 'opacity',
+  // 27 septembre 2026 : tailles fixes (pastilles numérotées, icônes, encadrés de chiffres) et petits décalages.
+  'height', 'min-width', 'min-height', 'box-sizing', 'position', 'top', 'left', 'right', 'bottom', 'align-self', 'flex-shrink', 'flex-grow', 'flex-basis', 'text-indent'];
 // Propriétés dont la valeur peut être longue (dégradés, ombres).
 const FK_STYLES_LONGS = ['background-image', 'box-shadow', 'text-shadow', 'font-family', 'grid-template-columns'];
 let _fkHookStyle = false;
 function fkFiltrerStyle(style) {
-  return String(style || '').split(';').map(d => {
+  const sortie = String(style || '').split(';').map(d => {
     const i = d.indexOf(':');
     if (i < 0) return null;
     const prop = d.slice(0, i).trim().toLowerCase();
@@ -86,8 +88,19 @@ function fkFiltrerStyle(style) {
     if (['margin', 'margin-top', 'margin-bottom', 'margin-right', 'padding-top', 'padding-right', 'padding-bottom', 'gap', 'max-width', 'border-radius'].includes(p2)
       && !/^(([\d.]+(pt|px|em|rem|cm|mm|%)?|auto|none)\s*){1,4}$/i.test(v2)) return null;
     if (p2 === 'margin-left' && /^-/.test(v2)) return null;
+    if (['height', 'min-width', 'min-height', 'flex-basis'].includes(p2) && !/^(([\d.]+(px|pt|em|rem|%)?)|auto)$/i.test(v2)) return null;
+    if (['height', 'min-height'].includes(p2) && /px$/i.test(v2) && parseFloat(v2) > 600) return null;
+    if (p2 === 'box-sizing' && !/^(border-box|content-box)$/i.test(v2)) return null;
+    // Position : seulement « relative » avec un petit décalage (jamais de superposition).
+    if (p2 === 'position' && !/^relative$/i.test(v2)) return null;
+    if (['top', 'left', 'right', 'bottom'].includes(p2) && !(/^-?[\d.]+(px|em)$/i.test(v2) && Math.abs(parseFloat(v2)) <= (/em$/i.test(v2) ? 2 : 30))) return null;
+    if (['flex-shrink', 'flex-grow'].includes(p2) && !/^\d+(\.\d+)?$/.test(v2)) return null;
+    if (p2 === 'align-self' && !/^(auto|flex-start|flex-end|center|baseline|stretch|start|end)$/i.test(v2)) return null;
     return `${p2}: ${v2}`;
-  }).filter(Boolean).join('; ');
+  }).filter(Boolean);
+  // top/left/right/bottom n'ont d'effet (et ne sont gardés) qu'avec « position: relative ».
+  const relatif = sortie.some(d => /^position: relative$/i.test(d));
+  return sortie.filter(d => relatif || !/^(top|left|right|bottom):/.test(d)).join('; ');
 }
 function fkNettoyerHtml(html) {
   if (!html) return '';
@@ -657,20 +670,28 @@ async function fkHtmlStylesEnLigne(html, largeur) {
     const vide = v => !v || v === 'none' || v === 'normal' || v === 'auto' || /^0(px)?$/.test(v) || v === 'rgba(0, 0, 0, 0)';
     const styles = new Map();
     const tous = [...doc.body.querySelectorAll('*')].filter(el => !/^(SCRIPT|STYLE|LINK|META|TITLE|NOSCRIPT|TEMPLATE|BR|WBR)$/.test(el.tagName));
-    const lire = el => {
-      const cs = vue.getComputedStyle(el);
-      const parent = vue.getComputedStyle(el.parentElement || doc.body);
-      const d = defaut(el.tagName.toLowerCase());
+    const px = v => parseFloat(v) || 0;
+    // Largeur / hauteur voulues par l'auteur (pastilles, icônes, encadrés de chiffres…) :
+    // on les repère en remettant provisoirement la dimension en « auto ».
+    const tailleVoulue = (el, cs, prop) => {
+      if (cs.display === 'inline' || /^(TD|TH|TR|TBODY|THEAD|TFOOT|TABLE|LI|UL|OL)$/.test(el.tagName)) return null;
+      const avant = el.getAttribute('style');
+      const r0 = el.getBoundingClientRect()[prop];
+      el.style.setProperty(prop, 'auto', 'important');
+      const r1 = el.getBoundingClientRect()[prop];
+      if (avant === null) el.removeAttribute('style'); else el.setAttribute('style', avant);
+      return Math.abs(r1 - r0) > 1 ? r0 : null;
+    };
+    const lireBoite = (cs, parentCs, d, el, pseudo) => {
       const decl = [];
       FK_STYLES_HERITES.forEach(p => {
         const v = cs.getPropertyValue(p);
-        if (v && v !== parent.getPropertyValue(p)) decl.push([p, v]);
+        if (v && v !== parentCs.getPropertyValue(p)) decl.push([p, v]);
       });
       FK_STYLES_BOITE.forEach(p => {
         let v = cs.getPropertyValue(p);
         if (v === d[p]) return;
-        // Bordure absente : ignorée, sauf dans un tableau (pour neutraliser le quadrillage par défaut des leçons).
-        if (/^border-(top|right|bottom|left)$/.test(p) && /^0px|none/.test(v)) { if (/^(TABLE|TD|TH)$/.test(el.tagName)) decl.push([p, 'none']); return; }
+        if (/^border-(top|right|bottom|left)$/.test(p) && /^0px|none/.test(v)) { if (!pseudo && /^(TABLE|TD|TH)$/.test(el.tagName)) decl.push([p, 'none']); return; }
         if (p !== 'display' && p !== 'border-collapse' && !/^(margin|padding)/.test(p) && vide(v)) return;
         if (p === 'display' && !/^(block|inline|inline-block|flex|inline-flex|grid|inline-grid|list-item|table|table-row|table-cell|none)$/.test(v)) return;
         if (p === 'background-image' && /url\(/i.test(v)) return;
@@ -680,10 +701,35 @@ async function fkHtmlStylesEnLigne(html, largeur) {
         }
         decl.push([p, v]);
       });
+      ['min-width', 'min-height', 'align-self', 'flex-shrink', 'flex-grow'].forEach(p => {
+        const v = cs.getPropertyValue(p);
+        if (v && !/^(0px|auto|normal)$/.test(v) && !(p === 'flex-shrink' && v === '1') && !(p === 'flex-grow' && v === '0')) decl.push([p, v]);
+      });
+      // box-sizing toujours explicite quand il y a une taille (les leçons KEKELI sont en border-box).
+      if (cs.getPropertyValue('box-sizing') === 'border-box' || /^(min-width|min-height)$/.test((decl.find(([p]) => /^min-/.test(p)) || [])[0] || '')) decl.push(['box-sizing', cs.getPropertyValue('box-sizing')]);
+      return decl;
+    };
+    const lire = el => {
+      const cs = vue.getComputedStyle(el);
+      const parent = vue.getComputedStyle(el.parentElement || doc.body);
+      const decl = lireBoite(cs, parent, defaut(el.tagName.toLowerCase()), el, false);
+      // Dimensions fixées par l'auteur.
+      const w = tailleVoulue(el, cs, 'width');
+      if (w !== null && el.parentElement) {
+        const dispo = el.parentElement.clientWidth - px(parent.paddingLeft) - px(parent.paddingRight);
+        decl.push(['width', w > 160 && dispo > 0 ? `${Math.min(100, Math.round(w / dispo * 1000) / 10)}%` : cs.width]);
+      }
+      const h = tailleVoulue(el, cs, 'height');
+      if (h !== null) decl.push([h <= 160 ? 'height' : 'min-height', cs.height]);
+      if (w !== null || h !== null) decl.push(['box-sizing', cs.getPropertyValue('box-sizing')]);
+      // Petit décalage « position: relative; top: -4px ».
+      if (cs.position === 'relative') {
+        const dec = ['top', 'left'].map(p => [p, cs.getPropertyValue(p)]).filter(([, v]) => v !== 'auto' && px(v) !== 0 && Math.abs(px(v)) <= 30);
+        if (dec.length) decl.push(['position', 'relative'], ...dec);
+      }
       // Tableau pleine largeur.
       if (el.tagName === 'TABLE' && el.parentElement) {
-        const pcs = vue.getComputedStyle(el.parentElement);
-        const dispo = el.parentElement.clientWidth - parseFloat(pcs.paddingLeft) - parseFloat(pcs.paddingRight);
+        const dispo = el.parentElement.clientWidth - px(parent.paddingLeft) - px(parent.paddingRight);
         if (dispo > 0 && el.offsetWidth / dispo > 0.97) decl.push(['width', '100%']);
       }
       // Centrage « margin: 0 auto » : le navigateur le calcule en pixels.
@@ -692,6 +738,111 @@ async function fkHtmlStylesEnLigne(html, largeur) {
       return decl;
     };
     tous.forEach(el => styles.set(el, lire(el)));
+
+    // ::before / ::after (numéros d'étapes, coches ✔, icônes…) : le navigateur les
+    // dessine sans qu'ils existent dans le texte — on les transforme en vrais <span>.
+    // Les compteurs CSS (counter()) sont recalculés dans l'ordre du document.
+    const compteurs = {};
+    const lirePaires = v => {
+      const r = [];
+      if (!v || v === 'none') return r;
+      const t = v.trim().split(/\s+/);
+      for (let k = 0; k < t.length; k++) {
+        const nom = t[k];
+        let n = null;
+        if (/^-?\d+$/.test(t[k + 1] || '')) { n = Number(t[k + 1]); k++; }
+        r.push([nom, n]);
+      }
+      return r;
+    };
+    const romain = n => { const t = [[1000, 'm'], [900, 'cm'], [500, 'd'], [400, 'cd'], [100, 'c'], [90, 'xc'], [50, 'l'], [40, 'xl'], [10, 'x'], [9, 'ix'], [5, 'v'], [4, 'iv'], [1, 'i']]; let r = ''; t.forEach(([v, l]) => { while (n >= v) { r += l; n -= v; } }); return r; };
+    const formater = (n, style) => {
+      switch (style) {
+        case 'decimal-leading-zero': return String(n).padStart(2, '0');
+        case 'lower-alpha': case 'lower-latin': return String.fromCharCode(96 + ((n - 1) % 26) + 1);
+        case 'upper-alpha': case 'upper-latin': return String.fromCharCode(64 + ((n - 1) % 26) + 1);
+        case 'lower-roman': return romain(n);
+        case 'upper-roman': return romain(n).toUpperCase();
+        default: return String(n);
+      }
+    };
+    const texteContenu = (c, el) => {
+      if (!c || c === 'none' || c === 'normal') return null;
+      let r = '', trouve = false;
+      c.replace(/"((?:[^"\\]|\\.)*)"|counters?\(\s*([\w-]+)\s*(?:,\s*"([^"]*)")?\s*(?:,\s*([\w-]+))?\s*\)|attr\(\s*([\w-]+)\s*\)/g, (m, str, nom, sep, style, att) => {
+        trouve = true;
+        if (str !== undefined) r += str.replace(/\\([0-9a-f]{1,6})\s?/gi, (x, h) => String.fromCodePoint(parseInt(h, 16))).replace(/\\(.)/g, '$1');
+        else if (nom) r += formater(compteurs[nom] ?? 0, style);
+        else if (att) r += el.getAttribute(att) || '';
+        return '';
+      });
+      return trouve ? r : null;
+    };
+    const pseudos = [];
+    tous.forEach(el => {
+      const cs = vue.getComputedStyle(el);
+      lirePaires(cs.counterReset).forEach(([n, v]) => { compteurs[n] = v ?? 0; });
+      lirePaires(cs.counterIncrement).forEach(([n, v]) => { compteurs[n] = (compteurs[n] ?? 0) + (v ?? 1); });
+      ['::before', '::after'].forEach(quel => {
+        const ps = vue.getComputedStyle(el, quel);
+        if (ps.display === 'none') return;
+        const texte = texteContenu(ps.content, el);
+        if (texte === null) return;
+        const boite = ps.backgroundColor !== 'rgba(0, 0, 0, 0)' || ps.backgroundImage !== 'none' || px(ps.borderTopWidth) > 0 || px(ps.borderLeftWidth) > 0;
+        if (!texte.trim() && !boite) return;
+        const absolu = /^(absolute|fixed)$/.test(ps.position);
+        if (absolu && !texte.trim() && quel === '::after') return; // décor flottant sans texte
+        const decl = lireBoite(ps, cs, defaut('span'), el, true).filter(([p]) => !/^(margin-left|margin-right)$/.test(p) || !absolu);
+        if (ps.display !== 'inline' || absolu) {
+          const k = decl.findIndex(([p]) => p === 'display');
+          if (k >= 0) decl.splice(k, 1);
+          decl.push(['display', absolu ? (/flex/.test(ps.display) ? 'inline-flex' : 'inline-block') : ps.display]);
+          decl.push(['box-sizing', ps.boxSizing]);
+          if (ps.width !== 'auto' && px(ps.width) > 0) decl.push(['width', ps.width]);
+          if (ps.height !== 'auto' && px(ps.height) > 0 && px(ps.height) <= 160) decl.push(['height', ps.height]);
+          decl.push(['vertical-align', absolu ? 'middle' : ps.verticalAlign]);
+        }
+        const info = { el, quel, texte, decl };
+        // Pastille placée en « position: absolute » dans la marge gauche de son parent
+        // (liste d'étapes numérotées) : on la remet dans le texte, à la même place.
+        if (absolu && quel === '::before' && ps.left !== 'auto') {
+          const pl = px(cs.paddingLeft), l = Math.max(0, px(ps.left)), w = px(ps.width) || 0;
+          if (pl >= l + w) info.retrait = { padding: `${l}px`, marge: `${Math.round(pl - l - w)}px` };
+        }
+        pseudos.push(info);
+      });
+    });
+
+    // Puces et numéros de liste colorés (::marker) : remplacés par un <span>.
+    const marqueurs = [];
+    doc.body.querySelectorAll('ol > li, ul > li').forEach(li => {
+      const cs = vue.getComputedStyle(li), mk = vue.getComputedStyle(li, '::marker');
+      if (cs.display !== 'list-item' || cs.listStyleType === 'none') return;
+      if (mk.color === cs.color && mk.fontWeight === cs.fontWeight && mk.fontSize === cs.fontSize) return;
+      const liste = li.parentElement;
+      const rang = [...liste.children].filter(x => x.tagName === 'LI').indexOf(li);
+      const t = liste.tagName === 'OL' ? `${formater((Number(liste.getAttribute('start')) || 1) + rang, cs.listStyleType)}.` : ({ circle: '◦', square: '▪' }[cs.listStyleType] || '•');
+      marqueurs.push({ li, liste, t, decl: [['color', mk.color], ['font-weight', mk.fontWeight], ['font-size', mk.fontSize]], largeur: px(vue.getComputedStyle(liste).paddingLeft) });
+    });
+
+    // Application (après toutes les lectures, pour ne pas fausser les mesures).
+    pseudos.forEach(({ el, quel, texte, decl, retrait }) => {
+      const sp = doc.createElement('span');
+      sp.textContent = texte;
+      if (retrait) { styles.get(el).push(['padding-left', retrait.padding]); decl.push(['margin-right', retrait.marge]); }
+      styles.set(sp, decl);
+      if (quel === '::before') el.insertBefore(sp, el.firstChild); else el.appendChild(sp);
+    });
+    marqueurs.forEach(({ li, liste, t, decl, largeur }) => {
+      const sp = doc.createElement('span');
+      sp.textContent = t;
+      styles.set(sp, [...decl, ['display', 'inline-block'], ['box-sizing', 'border-box'], ['width', `${largeur}px`], ['text-align', 'right'], ['padding-right', '0.4em']]);
+      li.insertBefore(sp, li.firstChild);
+      styles.get(li).push(['list-style-type', 'none']);
+      styles.get(liste).push(['padding-left', '0px']);
+    });
+    // Une même propriété déclarée deux fois : la dernière gagne.
+    styles.forEach((decl, el) => styles.set(el, [...new Map(decl.map(x => [x[0], x])).values()]));
     // Le fond, la police et la couleur de la page elle-même : sur un bloc qui entoure le tout.
     const csBody = vue.getComputedStyle(doc.body);
     const csRacine = vue.getComputedStyle(doc.documentElement);
