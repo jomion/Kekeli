@@ -36,6 +36,19 @@ function creerJeuArcade(config) {
   //     troisième sélecteur "🌐 Tout le programme / <portées>" alimenté par
   //     jeuListerPorteeContenu (js/jeux/moteur-jeu-arcade.js). Absent : pas de
   //     sélecteur de portée, comportement inchangé (tout le programme).
+  //
+  //     25 septembre 2026 : demande explicite — "permettre à l'enfant de
+  //     faire des révisions ciblées sur une séquence donnée ou sur plusieurs
+  //     séquences données". Ce sélecteur, jusqu'ici à choix UNIQUE (un
+  //     <select>), devient une liste à COCHER (une ou plusieurs portées à la
+  //     fois) — voir etat.porteeCodes (tableau, remplace l'ancien
+  //     etat.porteeCode). Question de clarification posée et tranchée par le
+  //     porteur du projet : la granularité de chaque jeu ne change pas (SA
+  //     pour ES/EST, unité/thème pour le Français — Français NE bascule PAS
+  //     au niveau SA) ; seul le fait de pouvoir cocher plusieurs portées à la
+  //     fois, au sein de la granularité déjà en place pour chaque jeu, était
+  //     demandé. Aucune case cochée = "🌐 Tout le programme" (comportement
+  //     par défaut inchangé, aucun filtre).
   //   entrainementIA: { champFormationId, avecCategorie? } (optionnel,
   //     ajouté le 24 septembre 2026 — fusion des questions IA validées dans
   //     la rotation normale, voir choisirPalier/lancer/questions()/
@@ -84,7 +97,7 @@ function creerJeuArcade(config) {
     palier: null,
     categorie: 'all', // code de config.categoriesDisponibles, ou 'all' (aucun filtre)
     portees: [], // liste renvoyée par jeuListerPorteeContenu (si config.porteeGranularite)
-    porteeCode: 'all', // code d'une portée, ou 'all' (aucun filtre — tout le programme)
+    porteeCodes: [], // 25 septembre 2026 : tableau de codes de portées cochées (remplace l'ancien porteeCode unique) — vide = "Tout le programme", aucun filtre
     accesCorrection: { autorise: false },
     ronde: null, // { bloc, seance, essaisPrecedents, termine }
     index: 0,
@@ -161,33 +174,68 @@ function creerJeuArcade(config) {
     afficherPorteeSelector();
   }
 
+  // 25 septembre 2026 : liste à cocher (une ou plusieurs portées à la fois)
+  // remplaçant l'ancien <select> à choix unique — voir la note de tête de
+  // fichier (config.porteeGranularite) pour le contexte de la demande.
+  // Reconstruite en entier à chaque changement (même principe que
+  // afficherPalierSelector/afficherCategorieSelector ci-dessus), simple ici
+  // aussi puisque le nombre de portées d'une classe/matière reste modeste.
   function afficherPorteeSelector() {
     if (!config.porteeGranularite || !els.porteeSelector) return;
     if (!etat.portees.length) { els.porteeSelector.innerHTML = ''; els.porteeSelector.hidden = true; return; }
     els.porteeSelector.hidden = false;
-    const options = [{ code: 'all', label: '🌐 Tout le programme' }, ...etat.portees];
-    els.porteeSelector.innerHTML = `<select id="jeuPorteeSelect">${options.map(p =>
-      `<option value="${p.code}" ${etat.porteeCode === p.code ? 'selected' : ''}>${echapper(p.label)}</option>`).join('')}</select>`;
-    document.getElementById('jeuPorteeSelect').addEventListener('change', (e) => choisirPortee(e.target.value));
+    const toutLeProgramme = etat.porteeCodes.length === 0;
+    els.porteeSelector.innerHTML = `
+      <button type="button" class="jeu-portee-tout-btn${toutLeProgramme ? ' active' : ''}" id="jeuPorteeToutBtn">
+        🌐 Tout le programme${toutLeProgramme ? ' ✓' : ''}
+      </button>
+      <div class="jeu-portee-liste">
+        ${etat.portees.map(p => `
+          <label class="jeu-portee-case">
+            <input type="checkbox" value="${p.code}" ${etat.porteeCodes.includes(p.code) ? 'checked' : ''}>
+            <span>${echapper(p.label)}</span>
+          </label>`).join('')}
+      </div>`;
+    document.getElementById('jeuPorteeToutBtn').addEventListener('click', () => choisirPortees([]));
+    els.porteeSelector.querySelectorAll('.jeu-portee-case input[type="checkbox"]').forEach(caseACocher => {
+      caseACocher.addEventListener('change', () => {
+        const codes = Array.from(els.porteeSelector.querySelectorAll('.jeu-portee-case input[type="checkbox"]:checked'))
+          .map(el => el.value);
+        choisirPortees(codes);
+      });
+    });
   }
 
+  // Union des saIds de TOUTES les portées cochées (dédoublonnée) — filtre
+  // supplémentaire appliqué SUR ce que le palier/la catégorie ont déjà
+  // sélectionné, exactement comme avant pour une seule portée (voir
+  // jeuTrouverBlocsCandidats, js/jeux/moteur-jeu-arcade.js, qui accepte déjà
+  // un tableau de saIds sans aucun changement nécessaire de ce côté).
   function construireFiltreSaIds() {
-    if (!config.porteeGranularite || etat.porteeCode === 'all') return null;
-    const portee = etat.portees.find(p => p.code === etat.porteeCode);
-    return (portee && Array.isArray(portee.saIds) && portee.saIds.length) ? portee.saIds : null;
+    if (!config.porteeGranularite || !etat.porteeCodes.length) return null;
+    const idsRetenus = new Set();
+    etat.porteeCodes.forEach(code => {
+      const portee = etat.portees.find(p => p.code === code);
+      if (portee && Array.isArray(portee.saIds)) portee.saIds.forEach(id => idsRetenus.add(id));
+    });
+    return idsRetenus.size ? Array.from(idsRetenus) : null;
   }
 
   function libellePorteeActuelle() {
-    if (!config.porteeGranularite || etat.porteeCode === 'all') return '';
-    const portee = etat.portees.find(p => p.code === etat.porteeCode);
-    return portee ? ` — ${portee.label}` : '';
+    if (!config.porteeGranularite || !etat.porteeCodes.length) return '';
+    if (etat.porteeCodes.length === 1) {
+      const portee = etat.portees.find(p => p.code === etat.porteeCodes[0]);
+      return portee ? ` — ${portee.label}` : '';
+    }
+    return ` — ${etat.porteeCodes.length} séquences sélectionnées`;
   }
 
-  async function choisirPortee(code) {
-    etat.porteeCode = code;
+  async function choisirPortees(codes) {
+    etat.porteeCodes = codes;
+    afficherPorteeSelector(); // remet à jour le bouton "Tout le programme"/les cases cochées
     // Le contenu dépend des trois filtres à la fois : si un palier est déjà
-    // choisi, on relance la recherche avec la nouvelle portée ; sinon on se
-    // contente de mémoriser le choix, comme choisirCategorie() ci-dessus.
+    // choisi, on relance la recherche avec la nouvelle sélection ; sinon on
+    // se contente de mémoriser le choix, comme choisirCategorie() ci-dessus.
     if (etat.palier) await choisirPalier(etat.palier);
     else majEtatActuel();
   }

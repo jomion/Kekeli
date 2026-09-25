@@ -78,8 +78,24 @@ body.avec-banniere-site .cadran-page { height: calc(100vh - 68px - var(--hauteur
    plein écran) et la pose dans --cadran-hauteur-visible ; cette règle
    prend alors le dessus sur 100dvh, qui peut être resté figé sur la
    hauteur totale de l'écran. Sans JS (navigateur trop ancien), la classe
-   n'est jamais posée et le comportement précédent reste inchangé. */
-.cadran-page.cadran-plein-ecran-actif.cadran-hauteur-mesuree { height: var(--cadran-hauteur-visible) !important; }
+   n'est jamais posée et le comportement précédent reste inchangé.
+
+   ÉTENDU le 25 septembre 2026 (nouveau signalement : "le cadran opératoire
+   sur mobile n'est toujours pas confortable") : cette règle exigeait aussi
+   .cadran-plein-ecran-actif, alors que l'API Fullscreen n'est disponible
+   sur AUCUNE version de Safari iOS pour un élément autre qu'une vidéo — sur
+   iPhone/iPad, cadranDemanderPleinEcran() échoue donc toujours en silence,
+   .cadran-plein-ecran-actif n'est jamais posée, et ce correctif ne
+   s'appliquait alors JAMAIS, alors même que Safari iOS souffre du même
+   problème (voire pire : le LAYOUT viewport, dont dépend 100dvh, ne se
+   réduit pas non plus à l'ouverture du clavier sur Safari iOS en mode
+   normal — seul le VISUAL viewport se réduit, ce que window.visualViewport
+   mesure justement). cadranAjusterHauteurClavier() calcule désormais la
+   hauteur visible aussi bien en plein écran qu'en mode normal (en
+   retranchant la position réelle mesurée du haut de .cadran-page, qui
+   inclut l'en-tête du site hors plein écran) — la classe
+   .cadran-hauteur-mesuree seule suffit donc ici. */
+.cadran-page.cadran-hauteur-mesuree { height: var(--cadran-hauteur-visible) !important; }
 
 .cadran-app {
   background: var(--cadran-panel-bg);

@@ -192,10 +192,22 @@
 
 /* Sélecteur de portée (24 septembre 2026 — "limite des questions par
    unité/thème/SA", voir config.porteeGranularite dans js/jeux/
-   coquille-jeu-arcade.js) : un simple <select>, réutilise déjà le style
-   ".jeu-arcade-page select" existant ci-dessus (ligne 128), rien à ajouter
-   pour l'élément lui-même. */
-.jeu-portee-selector { width: 100%; }
+   coquille-jeu-arcade.js). Devenu le 25 septembre 2026 une liste à COCHER
+   (une ou plusieurs portées à la fois, pour une révision ciblée) au lieu
+   d'un simple <select> à choix unique — voir afficherPorteeSelector() dans
+   js/jeux/coquille-jeu-arcade.js. */
+.jeu-portee-selector { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+.jeu-portee-tout-btn {
+  align-self: flex-start; background: #0f172a; border: 1px solid #475569; color: #94a3b8;
+  border-radius: 8px; padding: 5px 10px; font-weight: 700; font-size: 0.78rem; cursor: pointer; transition: all .2s;
+}
+.jeu-portee-tout-btn.active { border-color: var(--gold, #f59e0b); color: #000; background: var(--gold, #f59e0b); }
+.jeu-portee-liste {
+  display: flex; flex-direction: column; gap: 4px; max-height: 130px; overflow-y: auto;
+  background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 6px 8px;
+}
+.jeu-portee-case { display: flex; align-items: center; gap: 7px; font-size: 0.78rem; color: #cbd5e1; cursor: pointer; font-weight: 400; }
+.jeu-portee-case input[type="checkbox"] { accent-color: var(--gold, #f59e0b); width: 15px; height: 15px; flex-shrink: 0; }
 .jeu-verrou-premium {
   background: #1e293b; border: 2px dashed var(--gold); border-radius: 10px; padding: 12px; font-size: 0.82rem; color: #fbbf24;
 }

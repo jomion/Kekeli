@@ -1,74 +1,77 @@
-KEKELI FORMATION — Livraison du 26 septembre 2026 — Coller depuis Word en gardant la mise en forme
+KEKELI — Livraison du 25 septembre 2026 (vingtième lot) — Cahier d'écriture en enregistrement manuel, révision ciblée sur plusieurs séquences, correctif mobile du Cadran opératoire
 ===========================================================================
-Dans l'éditeur des leçons et de la description d'une formation, un texte
-copié depuis Word (ou Google Docs, LibreOffice) garde maintenant sa mise en
-forme d'origine quand on le colle :
-  - styles de titres de Word (Titre, Titre 1, 2…) avec leur taille, police
-    et couleur ;
-  - polices et tailles de caractères, couleurs du texte, surlignage,
-    gras / italique / souligné / barré, interlignes, retraits ;
-  - alignements (gauche, centré, droite, justifié) ;
-  - listes à puces et numérotées de Word, sous-niveaux compris (Word les
-    fabrique avec des paragraphes spéciaux : ils sont reconvertis en vraies
-    listes) ;
-  - tableaux avec bordures, couleurs de fond des cases et largeurs.
-Le collage se place sous le paragraphe où se trouve le curseur (ou remplace
-un paragraphe vide). Le même traitement s'applique au bouton « 📥 Importer »
-pour un fichier .html enregistré depuis Word.
-Limite : les images collées depuis Word restent sur l'ordinateur et ne
-peuvent pas être reprises automatiquement ; un message invite à les ajouter
-avec le bouton « 🖼️ Image ».
-Sécurité inchangée : seules des propriétés de mise en forme sont gardées
-(aucun script, aucun positionnement, aucune image de fond ni lien externe
-caché).
 
-Fichier modifié : js/formations/commun.js (+ LISEZ-MOI.txt). Aucune
-modification de la base.
-
-===========================================================================
-KEKELI FORMATION — Livraison du 25 septembre 2026 — Tests et questionnaires au cœur d'une leçon, images dans les leçons
-===========================================================================
-(Les livraisons précédentes de la plateforme de formation sont décrites
-dans le document de projet « plateforme-formation.md ».)
-
-1) TESTS AU CŒUR D'UNE LEÇON (bouton « 🧭 Test / questionnaire »)
+CE QUI A ÉTÉ DEMANDÉ
 ------------------------------------------------------------------------------
-Dans l'éditeur d'une leçon, le formateur place le curseur à l'endroit voulu
-et insère l'un des trois genres de test :
-  - 🧭 Point de contrôle : une question avec une bonne réponse (QCM, QCM
-    multiple, vrai/faux, réponse courte, réponse numérique), corrigée tout
-    de suite avec l'explication du formateur ;
-  - 💭 Réflexion : une question ouverte ; l'étudiant écrit sa réponse, puis
-    découvre le commentaire du formateur ;
-  - 📋 Questionnaire d'auto-évaluation (type questionnaire psychologique) :
-    plusieurs affirmations notées sur une échelle (accord, fréquence,
-    intensité, oui/non, ou échelle libre « libellé = points »), affirmations
-    inversées possibles avec « (-) », et un message selon le score total
-    (« 0-10 : … », « 11-20 : … »).
-Chaque test peut être 🔒 bloquant : la suite de la leçon reste cachée tant
-que l'étudiant n'a pas répondu. Dans l'éditeur, un test apparaît comme un
-cadre pointillé : cliquer dessus pour le modifier ou le supprimer ; l'effacer
-du texte le supprime à l'enregistrement de la leçon.
-Les réponses ne sont pas notées et ne changent pas la progression ; le
-formateur les consulte dans le nouvel onglet « 🧭 Tests en leçon » de sa
-formation (réponse de chaque étudiant, score des questionnaires, taux de
-bonnes réponses des points de contrôle). Les bonnes réponses ne sont jamais
-envoyées au navigateur de l'étudiant avant qu'il ait répondu.
+"Pour les jeux éducatifs en dehors du cadran opératoire, je veux que tu
+ajoutes le paramétrage afin de permettre à l'enfant de faire des révisions
+ciblées sur une séquence donnée ou sur plusieurs séquences données. Pour le
+cahier d'écriture l'enregistrement en base doit être déclenché par un
+bouton à appuyer. Supprime l'enregistrement automatique. Le cadran
+opératoire sur mobile n'est toujours pas confortable."
 
-2) IMAGES DANS LES LEÇONS (bouton « 🖼️ Image »)
+Trois demandes indépendantes, traitées séparément ci-dessous.
+
+CE QUI CHANGE CONCRÈTEMENT
 ------------------------------------------------------------------------------
-Image depuis l'appareil (PNG, JPG, WEBP, GIF, 5 Mo) ou adresse en ligne,
-description obligatoire (accessibilité), légende facultative, taille
-(petite / moyenne / pleine largeur) et position (gauche / centre / droite).
-Disponible dans l'éditeur des leçons et dans la description de la formation.
+1. CAHIER D'ÉCRITURE — enregistrement en ligne désormais MANUEL. La
+   sauvegarde automatique vers la base (toutes les 20 secondes, ou à la
+   fermeture/mise en arrière-plan de l'onglet) est entièrement supprimée,
+   pour tous les rôles (élève, parent, enseignant, administrateur, autorité
+   pédagogique). Un nouveau bouton "💾 Enregistrer en ligne" apparaît
+   au-dessus du choix de classe : c'est désormais lui, et lui seul, qui
+   déclenche la copie en ligne du cahier. Le bouton confirme le résultat
+   directement sur lui-même pendant quelques secondes : "✅ Enregistré",
+   "✅ Déjà à jour" (rien de nouveau à envoyer), "🔒 Premium requis" (élève
+   non abonné) ou "❌ Échec, réessaie". Rien d'autre ne change : la
+   sauvegarde sur l'appareil lui-même (celle de l'outil Seyes) reste
+   automatique comme avant, et la restauration depuis la base au premier
+   chargement sur un nouvel appareil reste également automatique — seul le
+   fait d'ENVOYER une nouvelle version vers la base devient manuel.
 
-Fichiers modifiés : js/formations/commun.js, js/formations/formateur-edition.js,
-js/formations/app-lecteur.js, css/formations.css, LISEZ-MOI.txt.
-Base de données : tables formation_activites_lecon et
-formation_reponses_activites, fonctions activites_lecon, repondre_activite,
-reponses_activites_formation, dossier d'images lecons/ dans le stockage.
+2. JEUX ÉDUCATIFS (Défi Éducation Sociale, Défi Éducation Scientifique et
+   Technologique, Atelier du Français) — révision ciblée sur PLUSIEURS
+   séquences à la fois. Dans "⚙️ Réglages", le réglage de portée (déjà
+   existant : limiter les questions à une SA ou à une unité/thème) permet
+   maintenant de COCHER une ou plusieurs séquences en même temps, au lieu
+   d'une seule à la fois — pratique pour réviser par exemple deux unités
+   précises avant une évaluation. Un bouton "🌐 Tout le programme" reste
+   disponible pour tout décocher d'un coup et revenir au programme complet.
+   Le niveau de détail de chaque jeu ne change pas : Défi ES et Défi EST
+   continuent de proposer une SA à la fois (ou plusieurs), l'Atelier du
+   Français continue de proposer une unité/un thème à la fois (ou
+   plusieurs) — le Cadran opératoire (calcul mental) n'est pas concerné, il
+   n'a jamais eu ce réglage (pas de contenu de séance à filtrer).
 
-===========================================================================
+3. CADRAN OPÉRATOIRE — nouveau correctif mobile. Deux correctifs mobiles
+   existaient déjà (hauteur d'écran adaptative, puis anti-recouvrement du
+   clavier en plein écran). En reprenant le code en détail : le second
+   correctif ne s'appliquait QUE lorsque le jeu réussissait à passer en
+   plein écran — or cela ne marche JAMAIS sur iPhone/iPad (Safari ne permet
+   tout simplement pas au site de passer un élément en plein écran, quelle
+   que soit la version). Sur ces appareils, le correctif ne s'activait donc
+   jamais, ce qui explique le problème persistant. Il s'applique désormais
+   aussi bien en plein écran qu'en mode normal, en mesurant la place
+   réellement disponible à l'écran plutôt que de dépendre du plein écran.
+   N'ayant pas d'iPhone à disposition ici pour rejouer le scénario en
+   conditions réelles (clavier virtuel), une vérification sur le téléphone
+   concerné reste recommandée après cette livraison — n'hésitez pas à
+   signaler si l'inconfort persiste, avec si possible le modèle de
+   téléphone et le navigateur utilisé (Safari, Chrome...).
+
+CHOIX TECHNIQUES, EN TOUTE TRANSPARENCE
+------------------------------------------------------------------------------
+- Cahier d'écriture : la fonction de sauvegarde en base côté serveur
+  (sauvegarder_cahier_ecriture) n'a pas changé — elle continue de vérifier
+  elle-même l'accès Premium pour un élève. Seul le déclenchement côté
+  navigateur change (bouton au lieu d'un minuteur).
+- Jeux éducatifs : aucune migration de base de données nécessaire — la
+  fonction qui filtre déjà le contenu par séquence(s) acceptait déjà une
+  liste d'identifiants, seul l'écran de réglages, à choix unique jusqu'ici,
+  devient une liste à cocher.
+- Cadran opératoire : correctif purement CSS/JavaScript, sans impact sur le
+  reste du jeu (mode Cadran/Problèmes & Calculs, chronomètre, bilan...).
+
 KEKELI — Livraison du 24 septembre 2026 (dix-neuvième lot) — Le cahier d'écriture, pour tous les rôles, avec sauvegarde en ligne
 ===========================================================================
 

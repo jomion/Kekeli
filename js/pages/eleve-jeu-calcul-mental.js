@@ -266,35 +266,59 @@ function cadranInitJeu(cadranNiveauInitial) {
   ['fullscreenchange', 'webkitfullscreenchange', 'msfullscreenchange'].forEach((evenement) => {
     document.addEventListener(evenement, () => {
       elCadranPage?.classList.toggle('cadran-plein-ecran-actif', !!document.fullscreenElement);
-      if (!document.fullscreenElement) {
-        // On quitte le plein écran : on retire la mesure manuelle pour
-        // revenir immédiatement au comportement CSS normal (100dvh), plutôt
-        // que de garder une hauteur figée sur l'ancien état du clavier.
-        elCadranPage?.classList.remove('cadran-hauteur-mesuree');
-      } else {
-        cadranAjusterHauteurClavier();
-      }
+      // 25 septembre 2026 : on ne retire plus la mesure à la sortie du plein
+      // écran — voir le correctif ci-dessous, désormais actif aussi HORS
+      // plein écran. On se contente de recalculer avec le nouveau décalage
+      // (l'en-tête réapparaît/disparaît selon le sens du changement).
+      cadranAjusterHauteurClavier();
     });
   });
 
-  // ----- Hauteur réellement visible en plein écran mobile, clavier compris
-  // (correctif du 24 septembre 2026, voir le commentaire détaillé dans
-  // css/jeu-cadran-operatoire.css) : window.visualViewport, contrairement à
-  // 100dvh, réagit de façon fiable à l'ouverture du clavier virtuel MÊME
-  // dans un élément en plein écran réel — on l'utilise pour poser la vraie
-  // hauteur visible en variable CSS, que la page applique alors en priorité
-  // sur 100dvh via .cadran-hauteur-mesuree. Sans effet hors plein écran
-  // (déjà correctement géré par 100dvh, voir plus haut) ni sur les
-  // navigateurs sans visualViewport (le clavier bascule un peu plus tard,
-  // faute d'un signal fiable, mais rien ne casse).
+  // ----- Hauteur réellement visible sur mobile, clavier compris (correctif
+  // du 24 septembre 2026, ÉTENDU le 25 septembre 2026 suite à un nouveau
+  // signalement : "le cadran opératoire sur mobile n'est toujours pas
+  // confortable" malgré ce correctif). Cause trouvée à la relecture : cette
+  // fonction ne s'appliquait QUE quand document.fullscreenElement était
+  // vrai — or l'API Fullscreen n'est JAMAIS disponible sur iPhone/iPad
+  // Safari, quelle que soit la version (contrairement au commentaire
+  // d'origine qui ne visait que "Safari iOS ancien" — en réalité aucune
+  // version de Safari iOS ne l'implémente pour un élément autre qu'une
+  // vidéo). cadranDemanderPleinEcran() échoue donc silencieusement sur tout
+  // iPhone, et ce correctif ne s'appliquait alors JAMAIS pour ces
+  // appareils : ils retombaient sur le seul 100dvh du CSS, qui ne suffit
+  // pas non plus (le clavier virtuel de Safari iOS réduit le VISUAL
+  // viewport sans réduire le LAYOUT viewport dont dvh dépend — c'est
+  // exactement le problème que window.visualViewport est censé résoudre).
+  //
+  // Retiré la condition "document.fullscreenElement" : la mesure s'applique
+  // désormais dans tous les cas sur mobile. Hors plein écran, l'en-tête du
+  // site (68px + bannière éventuelle) reste visible AU-DESSUS de
+  // .cadran-page, contrairement au plein écran où il disparaît — on ne peut
+  // donc plus se contenter de window.visualViewport.height telle quelle, il
+  // faut en retrancher la position réelle du haut de .cadran-page (mesurée,
+  // jamais une valeur codée en dur, pour rester juste avec ou sans
+  // bannière, avec ou sans plein écran).
   function cadranAjusterHauteurClavier() {
-    if (!window.visualViewport || !document.fullscreenElement || !elCadranPage) return;
-    elCadranPage.style.setProperty('--cadran-hauteur-visible', window.visualViewport.height + 'px');
+    if (!window.visualViewport || !elCadranPage || !cadranEstMobile()) return;
+    // getBoundingClientRect().top est relatif au LAYOUT viewport ;
+    // visualViewport.offsetTop donne le décalage du VISUAL viewport par
+    // rapport à ce même layout viewport (non nul quand Safari iOS fait
+    // défiler pour garder le champ actif visible à l'ouverture du clavier)
+    // — on retranche l'un de l'autre pour obtenir la position réelle du
+    // haut de .cadran-page dans la zone effectivement visible.
+    const hautDansViewportVisuel = elCadranPage.getBoundingClientRect().top - (window.visualViewport.offsetTop || 0);
+    const hauteurVisible = Math.max(240, window.visualViewport.height - Math.max(0, hautDansViewportVisuel));
+    elCadranPage.style.setProperty('--cadran-hauteur-visible', hauteurVisible + 'px');
     elCadranPage.classList.add('cadran-hauteur-mesuree');
   }
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', cadranAjusterHauteurClavier);
+    window.visualViewport.addEventListener('scroll', cadranAjusterHauteurClavier);
   }
+  // Mesure initiale (avant toute ouverture de clavier) : sur mobile, pose
+  // tout de suite la bonne hauteur mesurée plutôt que d'attendre le premier
+  // évènement resize/scroll du visualViewport.
+  cadranAjusterHauteurClavier();
 
   if (elBtnQuitterFlottant) {
     elBtnQuitterFlottant.addEventListener('click', () => {

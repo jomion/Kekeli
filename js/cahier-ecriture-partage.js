@@ -17,28 +17,36 @@
 //   - Au chargement, si le cahier local de CET appareil est vide (nouvel
 //     appareil), on restaure depuis la base AVANT de charger l'outil dans
 //     l'iframe (sinon l'outil démarrerait sur un cahier vide puis un futur
-//     rechargement écraserait la restauration).
-//   - Ensuite, sauvegarde automatique périodique (+ à la fermeture/mise en
-//     arrière-plan) vers la fonction SQL sauvegarder_cahier_ecriture(), qui
-//     réplique EXACTEMENT la même collecte de clés localStorage que l'outil
-//     Seyes fait lui-même pour son propre export (voir pages/eleve/cahier-
-//     ecriture/js/core/save-load/files.mjs, fonction enregistrer()).
+//     rechargement écraserait la restauration). Ce comportement-là reste
+//     automatique (ce n'est pas un "enregistrement", c'est une simple
+//     lecture au chargement).
+//
+// 25 septembre 2026 : demande explicite — "Pour le cahier d'écriture
+// l'enregistrement en base doit être déclenché par un bouton à appuyer.
+// Supprime l'enregistrement automatique." La sauvegarde périodique (toutes
+// les 20 secondes) + les déclencheurs visibilitychange/beforeunload ont donc
+// été entièrement retirés : la sauvegarde vers la fonction SQL
+// sauvegarder_cahier_ecriture() n'a désormais lieu QUE sur un clic explicite
+// du bouton "💾 Enregistrer en ligne" (voir _sauvegarderCahierCloudPartage,
+// appelée uniquement depuis le clic). Elle réplique toujours EXACTEMENT la
+// même collecte de clés localStorage que l'outil Seyes fait lui-même pour
+// son propre export (voir pages/eleve/cahier-ecriture/js/core/save-load/
+// files.mjs, fonction enregistrer()).
 //
 // Pour l'ÉLÈVE uniquement, la sauvegarde cloud est un service Premium
 // (cahier_ecriture_cloud) : GRATUIT ET ILLIMITÉ pour tous les autres rôles
 // (aucun système de facturation Premium personnel n'existe pour les comptes
 // adultes/staff sur cette plateforme — décision utilisateur du 24/09/2026).
 // Le contrôle réel d'accès est fait CÔTÉ SERVEUR, dans la fonction SQL
-// sauvegarder_cahier_ecriture() elle-même (via etat_acces_service — jamais
-// consommer_usage_service, qui aurait consommé un crédit/essai à CHAQUE
-// sauvegarde automatique périodique, alors que ce n'est pas une action
-// ponctuelle facturable). La vérification faite ICI côté client
-// (etat_acces_service en lecture) ne sert QUE À L'AFFICHAGE d'un bandeau
-// informatif — jamais à décider si on tente la sauvegarde ou non.
+// sauvegarder_cahier_ecriture() elle-même (via etat_acces_service). La
+// vérification faite ICI côté client (etat_acces_service en lecture) ne
+// sert QUE À L'AFFICHAGE d'un bandeau informatif — jamais à décider si on
+// tente la sauvegarde ou non : le bouton reste cliquable dans tous les cas,
+// c'est le serveur qui accepte ou refuse (même principe que l'ancien
+// mécanisme automatique, transposé au clic).
 
 const PREFIXE_STOCKAGE_SEYES_PARTAGE = 'seyes-';
 const CLE_CLASSE_CHOISIE_CAHIER = 'kekeli-cahier-ecriture-classe-choisie';
-const DELAI_SAUVEGARDE_CLOUD_CAHIER_MS = 20000; // 20 secondes
 
 // Les 6 classes de Kekeli et la réglure Seyes proposée par défaut pour
 // chacune — reprises telles quelles de js/pages/eleve-cahier-ecriture.js
@@ -91,13 +99,18 @@ async function initialiserCahierEcriturePartage(profil, options) {
     classeChoisie = CLASSES_CAHIER_ECRITURE.some(c => c.nom === classeReelle) ? classeReelle : 'CI';
   }
 
+  _injecterStylesCahierPartage();
+
   conteneur.innerHTML = `
     <div class="carte-bienvenue">
       <h1 style="margin:0">✍️ Cahier d'écriture</h1>
       <p>Choisis une page d'écriture Seyes adaptée : lettres cursives, export PDF/impression, sauvegarde automatique sur cet appareil.</p>
     </div>
 
-    <p class="cahier-etat-cloud" id="cahierEtatCloudPartage"></p>
+    <div class="cahier-barre-cloud" id="cahierBarreCloudPartage">
+      <p class="cahier-etat-cloud" id="cahierEtatCloudPartage"></p>
+      <button type="button" class="cahier-bouton-enregistrer" id="cahierBoutonEnregistrerPartage">💾 Enregistrer en ligne</button>
+    </div>
 
     <div class="cahier-selecteur-classe" id="cahierSelecteurClassePartage">
       ${CLASSES_CAHIER_ECRITURE.map(c => `
@@ -119,6 +132,10 @@ async function initialiserCahierEcriturePartage(profil, options) {
     _choisirClasseCahierPartage(bouton.dataset.classe, classeReelle);
   });
 
+  document.getElementById('cahierBoutonEnregistrerPartage').addEventListener('click', () => {
+    _sauvegarderCahierCloudPartage({ manuel: true });
+  });
+
   // Restauration cloud -> localStorage, UNIQUEMENT si ce cahier n'a encore
   // aucune trace locale sur CET appareil (nouvel appareil) — on ne touche
   // jamais à un cahier déjà présent, pour ne jamais écraser un travail local
@@ -129,7 +146,6 @@ async function initialiserCahierEcriturePartage(profil, options) {
 
   _choisirClasseCahierPartage(classeChoisie, classeReelle);
   _afficherBandeauCloudCahier(opts.eleveIdPourPremium || profil.id);
-  _demarrerSauvegardeAutomatiqueCahierCloud();
 }
 
 function _choisirClasseCahierPartage(nomClasse, classeReelle) {
@@ -191,37 +207,79 @@ function _collecterPayloadCahierPartage() {
   return data;
 }
 
-async function _sauvegarderCahierCloudPartage() {
+// 25 septembre 2026 : n'est plus jamais appelée automatiquement (minuteur,
+// visibilitychange, beforeunload) — uniquement sur clic du bouton "💾
+// Enregistrer en ligne" (voir l'écouteur posé dans
+// initialiserCahierEcriturePartage). { manuel: true } pilote le retour
+// visuel sur le bouton lui-même ; le bandeau au-dessus reste, lui, purement
+// informatif sur l'accès (Premium ou non), indépendamment du résultat d'un
+// clic donné.
+async function _sauvegarderCahierCloudPartage(options) {
+  const manuel = !!(options && options.manuel);
+  const bouton = document.getElementById('cahierBoutonEnregistrerPartage');
   if (!_cahierPartageProfil) return;
+
+  if (manuel && bouton) {
+    bouton.disabled = true;
+    bouton.textContent = '⏳ Enregistrement...';
+  }
+
   try {
     const payload = _collecterPayloadCahierPartage();
     const serialise = JSON.stringify(payload);
-    if (serialise === _cahierPartageDernierPayloadEnvoye) return; // rien de nouveau depuis la dernière sauvegarde
+    if (serialise === _cahierPartageDernierPayloadEnvoye) {
+      // Rien de nouveau depuis le dernier enregistrement réussi : on le dit
+      // quand même si le clic est manuel, plutôt que de rester muet.
+      if (manuel) _reinitialiserBoutonEnregistrerCahier('✅ Déjà à jour');
+      return;
+    }
     const { error } = await supabaseClient.rpc('sauvegarder_cahier_ecriture', { p_contenu: payload });
     if (!error) {
       _cahierPartageDernierPayloadEnvoye = serialise;
       _majBandeauCloudCahier('ok');
+      if (manuel) _reinitialiserBoutonEnregistrerCahier('✅ Enregistré');
     } else if (_cahierPartageEstEleve) {
       // Le refus le plus probable pour un élève est l'absence d'accès
       // Premium (voir sauvegarder_cahier_ecriture côté serveur) — jamais
       // interprété comme une erreur bloquante : le cahier reste sauvegardé
       // localement normalement.
       _majBandeauCloudCahier('premium_requis');
+      if (manuel) _reinitialiserBoutonEnregistrerCahier('🔒 Premium requis');
+    } else if (manuel) {
+      _reinitialiserBoutonEnregistrerCahier('❌ Échec, réessaie');
     }
-  } catch (_e) { /* la sauvegarde locale (localStorage), elle, continue de fonctionner normalement */ }
+  } catch (_e) {
+    // La sauvegarde locale (localStorage), elle, continue de fonctionner
+    // normalement dans tous les cas.
+    if (manuel) _reinitialiserBoutonEnregistrerCahier('❌ Échec, réessaie');
+  } finally {
+    if (manuel && bouton && bouton.textContent.startsWith('⏳')) {
+      // Filet de sécurité : ne devrait pas arriver (tous les chemins
+      // ci-dessus repassent par _reinitialiserBoutonEnregistrerCahier), mais
+      // évite de laisser le bouton bloqué en cas d'oubli futur.
+      _reinitialiserBoutonEnregistrerCahier('💾 Enregistrer en ligne');
+    }
+  }
 }
 
-function _demarrerSauvegardeAutomatiqueCahierCloud() {
-  setInterval(_sauvegarderCahierCloudPartage, DELAI_SAUVEGARDE_CLOUD_CAHIER_MS);
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') _sauvegarderCahierCloudPartage();
-  });
-  window.addEventListener('beforeunload', _sauvegarderCahierCloudPartage);
+// Réaffiche un libellé temporaire sur le bouton (confirmation/erreur), puis
+// revient au libellé normal après un court délai, et réactive le bouton.
+function _reinitialiserBoutonEnregistrerCahier(libelleTemporaire) {
+  const bouton = document.getElementById('cahierBoutonEnregistrerPartage');
+  if (!bouton) return;
+  bouton.textContent = libelleTemporaire;
+  setTimeout(() => {
+    const b = document.getElementById('cahierBoutonEnregistrerPartage');
+    if (!b) return;
+    b.disabled = false;
+    b.textContent = '💾 Enregistrer en ligne';
+  }, 1800);
 }
 
-// Bandeau purement informatif : n'intervient JAMAIS dans la décision de
-// tenter ou non la sauvegarde (celle-ci a lieu de toute façon ; c'est le
-// serveur, dans sauvegarder_cahier_ecriture(), qui accepte ou refuse).
+// Bandeau purement informatif sur l'ACCÈS (Premium ou non) : n'intervient
+// JAMAIS dans la décision de tenter ou non la sauvegarde — le bouton reste
+// cliquable dans tous les cas, c'est le serveur, dans
+// sauvegarder_cahier_ecriture(), qui accepte ou refuse à chaque clic.
 async function _afficherBandeauCloudCahier(eleveIdPourPremium) {
   if (!_cahierPartageEstEleve) {
     _majBandeauCloudCahier('gratuit_role');
@@ -242,13 +300,37 @@ function _majBandeauCloudCahier(etat) {
   const zone = document.getElementById('cahierEtatCloudPartage');
   if (!zone) return;
   if (etat === 'gratuit_role') {
-    zone.innerHTML = '☁️ Sauvegarde automatique en ligne activée — en plus de la sauvegarde sur cet appareil, votre cahier est aussi accessible depuis un autre appareil.';
+    zone.innerHTML = '☁️ Sauvegarde en ligne disponible — appuie sur « Enregistrer en ligne » pour rendre ton cahier accessible depuis un autre appareil.';
     zone.classList.remove('cahier-etat-cloud-verrouille');
   } else if (etat === 'ok') {
-    zone.innerHTML = '☁️ Sauvegarde automatique en ligne activée (Premium) — en plus de la sauvegarde sur cet appareil.';
+    zone.innerHTML = '☁️ Sauvegarde en ligne activée (Premium) — appuie sur « Enregistrer en ligne » quand tu veux mettre à jour la copie en ligne.';
     zone.classList.remove('cahier-etat-cloud-verrouille');
   } else if (etat === 'premium_requis') {
     zone.innerHTML = '🔒 La sauvegarde en ligne (accessible depuis un autre appareil) est une fonctionnalité <strong>Premium</strong> — le cahier reste sauvegardé automatiquement sur cet appareil.';
     zone.classList.add('cahier-etat-cloud-verrouille');
   }
+}
+
+// Injecté une seule fois dans <head> (le module est partagé par 5 pages qui
+// n'ont pas toutes ces règles dans leur propre <style>) plutôt que dupliqué
+// dans chacune des 5 pages de rôle.
+function _injecterStylesCahierPartage() {
+  if (document.getElementById('cahier-partage-styles-injectees')) return;
+  const style = document.createElement('style');
+  style.id = 'cahier-partage-styles-injectees';
+  style.textContent = `
+    .cahier-barre-cloud {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; flex-wrap: wrap;
+    }
+    .cahier-barre-cloud .cahier-etat-cloud { margin: 0; flex: 1 1 260px; }
+    .cahier-bouton-enregistrer {
+      border: none; background: #1e293b; color: #fff; border-radius: 10px;
+      padding: 9px 16px; font-weight: 700; font-size: 13.5px; cursor: pointer;
+      white-space: nowrap; transition: background .15s ease;
+    }
+    .cahier-bouton-enregistrer:hover:not(:disabled) { background: #334155; }
+    .cahier-bouton-enregistrer:disabled { opacity: .75; cursor: default; }
+  `;
+  document.head.appendChild(style);
 }
