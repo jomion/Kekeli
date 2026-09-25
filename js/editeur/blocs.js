@@ -1341,7 +1341,44 @@ const LIBELLES_TYPE_QUESTION = {
 // 5 septembre 2026 (8e lot) en même temps que le passage de l'énoncé des
 // AUTRES types en éditeur riche — voir html_questionEditeur ci-dessous et
 // rendreEnonce()/tokeniserMots() côté rendu élève.
-const TYPES_ENONCE_PLAT = ['texte_a_trous', 'texte_a_trous_glisser', 'selection_mots'];
+// 26 septembre 2026 : le texte à trous et sa variante glisser-déposer
+// passent à leur tour en éditeur riche (gras, couleurs, police, taille,
+// listes…) — demande du porteur du projet. Leurs « ___ » restent de simples
+// caractères dans le HTML : le rendu élève découpe le HTML sur « ___ »
+// (contenuRicheInitial(q.enonce).split('___')) et le corrigé ne dépend que
+// du NOMBRE de trous. Seule la sélection de mots reste en texte brut.
+const TYPES_ENONCE_PLAT = ['selection_mots'];
+const TYPES_QUESTION_TROUS = ['texte_a_trous', 'texte_a_trous_glisser'];
+
+// Éditeur riche d'une question à trous : bouton « ➕ Insérer un trou » (pose
+// « ___ » au curseur) et mise à jour du nombre de trous (et donc des champs
+// du corrigé) quand l'enseignant quitte l'énoncé — sans rafraîchir tant que
+// le focus reste dans la zone ou dans sa barre d'outils (police, taille…).
+function brancherTrousRiches(qEl, zone, q, rerender) {
+  const compter = () => (String(q.enonce || '').match(/___/g) || []).length;
+  const nbAuRendu = compter();
+  zone.addEventListener('blur', () => setTimeout(() => {
+    if (compter() === nbAuRendu) return;
+    const actif = document.activeElement;
+    const barre = qEl.querySelector('.barre-outils-texte-question');
+    if (actif && (zone.contains(actif) || (barre && barre.contains(actif)))) return;
+    rerender();
+  }, 200));
+  const btn = qEl.querySelector('[data-inserer-trou]');
+  if (!btn) return;
+  btn.addEventListener('mousedown', e => e.preventDefault());
+  btn.addEventListener('click', () => {
+    const sel = window.getSelection();
+    if (!sel.rangeCount || !zone.contains(sel.anchorNode)) {
+      zone.focus();
+      const r = document.createRange(); r.selectNodeContents(zone); r.collapse(false);
+      sel.removeAllRanges(); sel.addRange(r);
+    }
+    document.execCommand('insertText', false, ' ___ ');
+    zone.dispatchEvent(new Event('input', { bubbles: true }));
+    rerender();
+  });
+}
 
 function html_editeurExercice(bloc, c) {
   const questions = Array.isArray(c.questions) ? c.questions : [];
@@ -1462,7 +1499,7 @@ function html_questionEditeur(q, index, corrige) {
     const reponsesTrous = !enAttente && Array.isArray(c.bonneReponse) ? c.bonneReponse : [];
     corpsCorrige = `
       <div class="trous-champ">
-        <p class="note-future">Utilise <code>___</code> (3 tirets bas) dans l'énoncé pour chaque trou à compléter. ${nbTrous} trou${nbTrous > 1 ? 's' : ''} détecté${nbTrous > 1 ? 's' : ''} pour l'instant.</p>
+        <p class="note-future">Place un trou avec le bouton « ➕ Insérer un trou » (ou tape <code>___</code>, 3 tirets bas) à chaque mot à compléter. L'énoncé se met en forme comme les autres questions (gras, couleurs, police, taille…). ${nbTrous} trou${nbTrous > 1 ? 's' : ''} détecté${nbTrous > 1 ? 's' : ''} pour l'instant.</p>
         ${Array.from({ length: nbTrous }).map((_, i) => `
           <label>Trou ${i + 1} — réponse(s) acceptée(s) (séparées par une virgule)
             <input type="text" data-question-trou-index="${i}" value="${echapper(Array.isArray(reponsesTrous[i]) ? reponsesTrous[i].join(', ') : '')}" placeholder="Ex: chat, Chat" ${enAttente ? 'disabled' : ''}>
@@ -1626,7 +1663,7 @@ function html_questionEditeur(q, index, corrige) {
     const reponsesTrous = !enAttente && Array.isArray(c.bonneReponse) ? c.bonneReponse : [];
     corpsCorrige = `
       <div class="trous-glisser-champ">
-        <p class="note-future">Utilise <code>___</code> (3 tirets bas) dans l'énoncé ci-dessus pour chaque trou. ${nbTrous} trou${nbTrous > 1 ? 's' : ''} détecté${nbTrous > 1 ? 's' : ''} pour l'instant.</p>
+        <p class="note-future">Place un trou avec le bouton « ➕ Insérer un trou » (ou tape <code>___</code>, 3 tirets bas) dans l'énoncé ci-dessus. ${nbTrous} trou${nbTrous > 1 ? 's' : ''} détecté${nbTrous > 1 ? 's' : ''} pour l'instant.</p>
         <label>Mots proposés dans la banque (séparés par une virgule — inclus les bonnes réponses, et si tu veux des intrus en plus)
           <input type="text" data-question-banque-mots value="${echapper(banque.join(', '))}" placeholder="Ex: chat, chien, souris" ${enAttente ? 'disabled' : ''}>
         </label>
@@ -1655,6 +1692,7 @@ function html_questionEditeur(q, index, corrige) {
       </div>
       ${enonceRiche
         ? html_zoneTexteRiche(`data-question-champ-riche="enonce" data-question-riche-id="${q.id}"`, q.enonce, 'barre-outils-texte-question')
+          + (TYPES_QUESTION_TROUS.includes(q.type) ? '<button type="button" class="btn btn-discret bouton-inserer-trou" data-inserer-trou title="Insère « ___ » à l\'endroit du curseur">➕ Insérer un trou</button>' : '')
         : `<textarea data-question-champ="enonce" placeholder="Énoncé de la question...">${echapper(q.enonce)}</textarea>`}
       <input type="text" data-question-champ="consigne" placeholder="Consigne pour l'élève (optionnel — ex : « Complète les mots manquants »)" value="${echapper(q.consigne)}">
       ${corpsCorrige}

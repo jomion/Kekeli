@@ -153,11 +153,12 @@ function ongletProgramme() {
   const zone = document.getElementById('zoneOnglet');
   zone.innerHTML = `
     <div class="fk-section-head" style="margin-bottom:14px"><div><h2 style="font-size:20px">Modules et leçons</h2><p>Organisez votre formation en modules, puis ajoutez des leçons dans chaque module.</p></div>
-      <button class="fk-btn fk-btn-primary" id="btnModule" data-edition>＋ Ajouter un module</button></div>
+      <span style="display:flex;gap:8px;flex-wrap:wrap"><button class="fk-btn fk-btn-outline" id="btnRythme" data-edition title="Ouvrir les modules progressivement (ex. un module par jour)">📅 Rythme d'ouverture</button>
+      <button class="fk-btn fk-btn-primary" id="btnModule" data-edition>＋ Ajouter un module</button></span></div>
     ${FKE.modules.length ? FKE.modules.map((m, i) => {
       const lecons = FKE.lecons.filter(l => l.module_id === m.id);
       return `<div class="fk-module">
-        <div class="fk-module-tete"><span>Module ${i + 1} — ${fkEchapper(m.titre)}</span>
+        <div class="fk-module-tete"><span>Module ${i + 1} — ${fkEchapper(m.titre)} ${fkPastilleOuverture(m)}</span>
           <span class="fk-outils" style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="fk-btn fk-btn-ghost fk-btn-petit" data-monter-module="${m.id}" ${i === 0 ? 'disabled' : ''} aria-label="Monter le module" data-edition>↑</button>
             <button class="fk-btn fk-btn-ghost fk-btn-petit" data-descendre-module="${m.id}" ${i === FKE.modules.length - 1 ? 'disabled' : ''} aria-label="Descendre le module" data-edition>↓</button>
@@ -166,7 +167,7 @@ function ongletProgramme() {
           </span></div>
         ${lecons.map((l, j) => `<div class="fk-lecon-ligne">
           <span class="fk-lecon-titre"><span aria-hidden="true">${iconeLecon(l.type_contenu)}</span><span>${fkEchapper(l.titre)}</span>
-            ${l.est_apercu ? '<span class="fk-pastille publiee">Aperçu gratuit</span>' : ''}${!l.est_obligatoire ? '<span class="fk-pastille">Facultative</span>' : ''}</span>
+            ${l.est_apercu ? '<span class="fk-pastille publiee">Aperçu gratuit</span>' : ''}${!l.est_obligatoire ? '<span class="fk-pastille">Facultative</span>' : ''}${fkPastilleOuverture(l)}</span>
           <span class="fk-outils"><small>${fkDuree(l.duree_minutes)}</small>
             <button class="fk-btn fk-btn-ghost fk-btn-petit" data-monter-lecon="${l.id}" ${j === 0 ? 'disabled' : ''} aria-label="Monter" data-edition>↑</button>
             <button class="fk-btn fk-btn-ghost fk-btn-petit" data-descendre-lecon="${l.id}" ${j === lecons.length - 1 ? 'disabled' : ''} aria-label="Descendre" data-edition>↓</button>
@@ -178,6 +179,7 @@ function ongletProgramme() {
     }).join('') : '<div class="fk-carte fk-vide"><span class="fk-vide-icone">📚</span>Commencez par créer un premier module (ex. « Introduction »).</div>'}`;
 
   zone.querySelector('#btnModule').addEventListener('click', () => modaleModule(null));
+  zone.querySelector('#btnRythme').addEventListener('click', modaleRythme);
   zone.querySelectorAll('[data-editer-module]').forEach(b => b.addEventListener('click', () => modaleModule(FKE.modules.find(m => m.id === Number(b.dataset.editerModule)))));
   zone.querySelectorAll('[data-supprimer-module]').forEach(b => b.addEventListener('click', async () => {
     const m = FKE.modules.find(x => x.id === Number(b.dataset.supprimerModule));
@@ -221,17 +223,61 @@ async function deplacer(table, liste, id, sens) {
   await recharger();
 }
 
+// « 📅 Rythme d'ouverture » : règle en une fois le délai de chaque module
+// (ex. un module par jour : module 1 dès l'inscription, module 2 le
+// lendemain…). Chaque module reste modifiable ensuite (✏️).
+function modaleRythme() {
+  if (!FKE.modules.length) { fkToast('Créez d\'abord vos modules.', 'erreur'); return; }
+  const md = fkModale('📅 Rythme d\'ouverture des modules', `
+    <form>
+      <p style="margin-top:0;color:var(--f-muted);font-size:14px">Pour une progression régulière : chaque module s'ouvre à minuit, un certain nombre de jours après l'inscription de l'étudiant. Il ne peut pas tout finir d'un coup.</p>
+      <div class="fk-grille-2">
+        <label class="fk-champ"><span>Un nouveau module tous les…</span><select name="pas">
+          <option value="1">1 jour (un module par jour)</option><option value="2">2 jours</option><option value="3">3 jours</option>
+          <option value="7">7 jours (un module par semaine)</option><option value="0">Tout ouvert dès l'inscription</option></select></label>
+        <label class="fk-champ"><span>Premier module ouvert…</span><select name="depart">
+          <option value="0">le jour de l'inscription</option><option value="1">le lendemain de l'inscription</option></select></label>
+      </div>
+      <div class="fk-alerte fk-alerte-info" data-apercu-rythme style="font-size:14px"></div>
+      <label class="fk-case"><input type="checkbox" name="lecons"> Retirer aussi les délais posés leçon par leçon</label>
+      <div class="fk-actions-form"><button type="button" class="fk-btn fk-btn-ghost" data-retirer-rythme style="margin-right:auto">Retirer tout calendrier</button>
+        <button type="button" class="fk-btn fk-btn-ghost" data-fermer>Annuler</button><button class="fk-btn fk-btn-primary" type="submit">Appliquer</button></div>
+    </form>`);
+  const form = md.boite.querySelector('form');
+  const calcul = () => FKE.modules.map((m, i) => Number(form.pas.value) === 0 ? 0 : Number(form.depart.value) + i * Number(form.pas.value));
+  const apercu = () => {
+    const d = calcul();
+    md.boite.querySelector('[data-apercu-rythme]').innerHTML = FKE.modules.slice(0, 8).map((m, i) => `Module ${i + 1} « ${fkEchapper(m.titre)} » : <b>${d[i] === 0 ? 'dès l\'inscription' : d[i] === 1 ? 'le lendemain' : `jour ${d[i]} après l'inscription`}</b>`).join('<br>') + (FKE.modules.length > 8 ? '<br>…' : '');
+  };
+  form.pas.addEventListener('change', apercu); form.depart.addEventListener('change', apercu); apercu();
+  const appliquer = async delais => {
+    const res = await Promise.all(FKE.modules.map((m, i) => supabaseClient.from('formation_modules').update({ delai_jours: delais ? delais[i] : null, ...(delais ? {} : { disponible_le: null }) }).eq('id', m.id)));
+    let err = res.find(r => r.error);
+    if (!err && form.lecons.checked) {
+      const r2 = await supabaseClient.from('formation_lecons').update({ delai_jours: null, disponible_le: null }).eq('formation_id', FKE.f.id);
+      if (r2.error) err = r2;
+    }
+    if (err) { fkToast(fkMessageErreur(err.error), 'erreur'); return; }
+    md.fermer();
+    fkToast(delais ? 'Rythme appliqué. Les étudiants déjà inscrits suivent aussi ce calendrier (à partir de leur date d\'inscription).' : 'Calendrier retiré : tout est ouvert.', 'succes');
+    await recharger();
+  };
+  form.addEventListener('submit', e => { e.preventDefault(); appliquer(calcul()); });
+  md.boite.querySelector('[data-retirer-rythme]').addEventListener('click', () => appliquer(null));
+}
+
 function modaleModule(m) {
   const md = fkModale(m ? 'Modifier le module' : 'Nouveau module', `
     <form>
       <label class="fk-champ"><span>Titre *</span><input type="text" name="titre" required maxlength="150" value="${fkEchapper(m?.titre || '')}"></label>
       <label class="fk-champ"><span>Description</span><textarea name="description" maxlength="1000">${fkEchapper(m?.description || '')}</textarea></label>
+      ${fkChampsOuverture(m, 'module')}
       <div class="fk-actions-form"><button type="button" class="fk-btn fk-btn-ghost" data-fermer>Annuler</button><button class="fk-btn fk-btn-primary" type="submit">Enregistrer</button></div>
     </form>`);
   md.boite.querySelector('form').addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const donnees = { titre: fd.get('titre').trim(), description: fd.get('description').trim() || null };
+    const donnees = { titre: fd.get('titre').trim(), description: fd.get('description').trim() || null, ...fkLireOuverture(fd) };
     const { error } = m
       ? await supabaseClient.from('formation_modules').update(donnees).eq('id', m.id)
       : await supabaseClient.from('formation_modules').insert({ ...donnees, formation_id: FKE.f.id, position: FKE.modules.length + 1 });
@@ -255,6 +301,7 @@ function modaleLecon(l, moduleId) {
       </div>
       <label class="fk-case"><input type="checkbox" name="est_apercu" ${l?.est_apercu ? 'checked' : ''}> Aperçu gratuit (visible par tous sur la fiche de la formation)</label>
       <label class="fk-case"><input type="checkbox" name="est_obligatoire" ${l ? (l.est_obligatoire ? 'checked' : '') : 'checked'}> Leçon obligatoire (compte dans la progression)</label>
+      ${fkChampsOuverture(l, 'lecon')}
       <fieldset class="fk-carte" style="padding:14px;margin:6px 0 14px"><legend style="font-weight:700;padding:0 6px">🎬 Vidéo</legend>
         <label class="fk-champ"><span>Lien YouTube / Vimeo</span><input type="url" name="video_lien" placeholder="https://…" value="${video.startsWith('fichier:') ? '' : fkEchapper(video)}"></label>
         <div>${video.startsWith('fichier:') ? `<span class="fk-pastille publiee">Fichier vidéo hébergé</span> <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-retirer="video">Retirer</button>` : ''}
@@ -357,7 +404,7 @@ function modaleLecon(l, moduleId) {
     const donnees = {
       titre: fd.get('titre').trim(), type_contenu: fd.get('type_contenu'), module_id: Number(fd.get('module_id')),
       duree_minutes: Math.max(0, parseInt(fd.get('duree_minutes'), 10) || 0),
-      est_apercu: !!fd.get('est_apercu'), est_obligatoire: !!fd.get('est_obligatoire'),
+      est_apercu: !!fd.get('est_apercu'), est_obligatoire: !!fd.get('est_obligatoire'), ...fkLireOuverture(fd),
       contenu: ed.lireHtml() || null,
       video_url: lien || medias.video || null, audio_url: medias.audio || null
     };
@@ -734,11 +781,18 @@ function fkAnalyserExercice(texte) {
   const consigne = [];
   const champs = [];
   let cur = null;
+  // Pointillés AU MILIEU d'une phrase (« Le chat ....... la souris ») : texte à trous.
+  const trouEnLigne = /[._…]{4,}\s*[^\s._…]/;
+  const versTrous = t => t.replace(/\s*[._…]{4,}\s*/g, ' ___ ').trim();
   for (const brut of lignes) {
     const l = brut.trim();
     if (!l) continue;
     const q = /^(\d{1,2})\s*[.)°]\s*(.*)$/.exec(l);
-    if (q) { cur = { libelle: q[2].trim(), options: [], autre: false, vides: 0 }; champs.push(cur); continue; }
+    if (q) {
+      const t = q[2].trim();
+      cur = trouEnLigne.test(t) ? { libelle: versTrous(t), options: [], autre: false, vides: 0, trous: true } : { libelle: t, options: [], autre: false, vides: 0 };
+      champs.push(cur); continue;
+    }
     if (pointilles(l)) { if (cur) cur.vides++; continue; }
     if (CASE.test(l)) {
       if (!cur) { cur = { libelle: '', options: [], autre: false, vides: 0 }; champs.push(cur); }
@@ -752,7 +806,8 @@ function fkAnalyserExercice(texte) {
       });
       continue;
     }
-    if (cur) cur.libelle += (cur.libelle ? '\n' : '') + l.replace(/\s*[.…_]{4,}\s*$/, m => { cur.vides++; return ''; });
+    if (cur && (cur.trous || trouEnLigne.test(l))) { cur.trous = true; cur.libelle += (cur.libelle ? '\n' : '') + versTrous(l); }
+    else if (cur) cur.libelle += (cur.libelle ? '\n' : '') + l.replace(/\s*[.…_]{4,}\s*$/, m => { cur.vides++; return ''; });
     else if (!titre && !consigne.length && /^(exercice|activité|fiche|atelier|test)\b/i.test(l)) titre = l.replace(/^exercice\s*\d*\s*[—–:-]\s*/i, '').trim() || l;
     else consigne.push(l);
   }
@@ -760,6 +815,7 @@ function fkAnalyserExercice(texte) {
     titre: titre.slice(0, 120),
     consigne: consigne.join('\n').slice(0, 1000),
     champs: champs.slice(0, 30).map(c => {
+      if (c.trous) return { type: 'trous', obligatoire: true, reponses: [], libelle: c.libelle.split('\n').map(x => `<p>${fkEchapper(x)}</p>`).join('') };
       const base = { libelle: c.libelle.trim().slice(0, 500) || 'Question', obligatoire: true };
       if (c.options.length || c.autre) return { ...base, type: 'cases', options: c.options.slice(0, 15), autre: c.autre };
       if (c.vides === 1) return { ...base, type: 'texte' };
@@ -778,6 +834,9 @@ function modaleActivite(leconId, a) {
     const interpTexte = (c.interpretations || []).map(t => `${t.min}-${t.max} : ${t.message}`).join('\n');
     // Fiche d'exercice : liste des questions (modifiée sur place).
     let champs = (c.champs || []).length ? c.champs : [{ type: 'texte', libelle: '', obligatoire: true }];
+    // Texte à trous : les réponses attendues (facultatives) sont rangées à part
+    // (config.reponses_trous, jamais envoyé à l'étudiant) ; on les remet ici.
+    champs = champs.map((ch, i) => ch.type === 'trous' ? { ...ch, reponses: (c.reponses_trous || [])[i] || [] } : ch);
     const md = fkModale(a ? 'Modifier le test' : 'Insérer un test dans la leçon', `
       <form>
         <label class="fk-champ"><span>Genre de test</span><select name="nature">
@@ -861,7 +920,7 @@ function modaleActivite(leconId, a) {
     }
     function dessinerChamps() {
       const z = corps.querySelector('[data-champs]');
-      const types = [['texte', '✏️ Réponse courte (une ligne)'], ['paragraphe', '📝 Réponse sur plusieurs lignes'], ['cases', '☑️ Cases à cocher (plusieurs choix)'], ['choix', '🔘 Choix unique']];
+      const types = [['texte', '✏️ Réponse courte (une ligne)'], ['paragraphe', '📝 Réponse sur plusieurs lignes'], ['cases', '☑️ Cases à cocher (plusieurs choix)'], ['choix', '🔘 Choix unique'], ['trous', '🧩 Texte à trous (texte mis en forme)']];
       z.innerHTML = champs.map((ch, i) => `<div class="fk-fiche-edit" data-i="${i}">
           <div class="fk-fiche-edit-tete"><b>Question ${i + 1}</b>
             <select class="fk-input" data-k="type" aria-label="Type de réponse">${types.map(([v, l]) => `<option value="${v}" ${ch.type === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
@@ -869,7 +928,10 @@ function modaleActivite(leconId, a) {
               <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-bouger="-1" ${i === 0 ? 'disabled' : ''} aria-label="Monter">↑</button>
               <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-bouger="1" ${i === champs.length - 1 ? 'disabled' : ''} aria-label="Descendre">↓</button>
               <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-retirer-champ aria-label="Retirer la question">✕</button></span></div>
-          <textarea class="fk-input" data-k="libelle" rows="2" maxlength="500" placeholder="Ex. Ma tâche :">${e(ch.libelle || '')}</textarea>
+          ${ch.type === 'trous' ? `<div data-trous-ed></div>
+            <button type="button" class="fk-btn fk-btn-outline fk-btn-petit" data-inserer-trou-fiche style="margin:8px 0">➕ Insérer un trou</button>
+            <div data-trous-rep></div>`
+            : `<textarea class="fk-input" data-k="libelle" rows="2" maxlength="500" placeholder="Ex. Ma tâche :">${e(ch.libelle || '')}</textarea>`}
           ${ch.type === 'paragraphe' ? `<label class="fk-case" style="margin-top:8px;align-items:center">Nombre de lignes pour répondre <input class="fk-input" type="number" data-k="lignes" min="2" max="10" value="${Number(ch.lignes) || 3}" style="width:80px"></label>` : ''}
           ${['cases', 'choix'].includes(ch.type) ? `<label class="fk-champ" style="margin:8px 0 6px"><span>Choix proposés (un par ligne)</span><textarea class="fk-input" data-k="options" rows="4" placeholder="Elle me paraît trop difficile&#10;Je ne sais pas par où commencer">${e((ch.options || []).join('\n'))}</textarea></label>
             <label class="fk-case"><input type="checkbox" data-k="autre" ${ch.autre ? 'checked' : ''}> Ajouter « Autre : … » avec une zone à compléter</label>` : ''}
@@ -877,12 +939,18 @@ function modaleActivite(leconId, a) {
         </div>`).join('');
       z.querySelectorAll('.fk-fiche-edit').forEach(bloc => {
         const i = Number(bloc.dataset.i);
+        if (champs[i].type === 'trous') brancherTrousFiche(bloc, champs[i]);
         bloc.querySelectorAll('[data-k]').forEach(inp => inp.addEventListener(inp.tagName === 'SELECT' || inp.type === 'checkbox' ? 'change' : 'input', () => {
           const k = inp.dataset.k;
           if (k === 'options') champs[i].options = inp.value.split('\n');
           else if (inp.type === 'checkbox') champs[i][k] = inp.checked;
           else champs[i][k] = inp.value;
-          if (k === 'type') dessinerChamps();
+          if (k === 'type') {
+            if (inp.value !== 'trous' && /<[a-z]/i.test(champs[i].libelle || '')) {
+              const t = document.createElement('div'); t.innerHTML = champs[i].libelle; champs[i].libelle = t.textContent.trim();
+            }
+            dessinerChamps();
+          }
         }));
         bloc.querySelectorAll('[data-bouger]').forEach(b => b.addEventListener('click', () => {
           const j = i + Number(b.dataset.bouger);
@@ -893,6 +961,41 @@ function modaleActivite(leconId, a) {
           champs.splice(i, 1); dessinerChamps();
         });
       });
+    }
+    // Texte à trous d'une fiche (26 septembre 2026) : même éditeur que les
+    // leçons (police, taille, couleurs, fonds, encadrés…), « ___ » = un trou,
+    // réponses attendues facultatives (l'étudiant voit alors la correction).
+    function brancherTrousFiche(bloc, ch) {
+      ch.reponses = Array.isArray(ch.reponses) ? ch.reponses : [];
+      const ed = fkEditeurRiche(bloc.querySelector('[data-trous-ed]'), ch.libelle || '', 'Écrivez le texte, puis placez les trous avec « ➕ Insérer un trou » (ou tapez ___).', {});
+      const zoneRep = bloc.querySelector('[data-trous-rep]');
+      const nbTrous = () => (String(ch.libelle || '').match(/___/g) || []).length;
+      let nbAffiche = -1;
+      const majReponses = () => {
+        const n = nbTrous();
+        if (n === nbAffiche) return;
+        nbAffiche = n;
+        zoneRep.innerHTML = n ? `<span style="display:block;font-weight:700;font-size:13px;margin-bottom:4px">Réponses attendues (facultatif — plusieurs réponses possibles séparées par une virgule ; laissez vide pour un exercice sans correction)</span>
+          <div class="fk-grille-2">${Array.from({ length: n }, (_, k) => `<label class="fk-champ" style="margin:0"><span>Trou ${k + 1}</span><input class="fk-input" type="text" data-rep-trou="${k}" maxlength="300" value="${e((ch.reponses[k] || []).join(', '))}"></label>`).join('')}</div>`
+          : '<p style="font-size:13px;color:var(--f-muted);margin:0">Aucun trou pour l\'instant.</p>';
+        zoneRep.querySelectorAll('[data-rep-trou]').forEach(inp => inp.addEventListener('input', () => {
+          ch.reponses[Number(inp.dataset.repTrou)] = inp.value.split(',').map(x => x.trim()).filter(Boolean);
+        }));
+      };
+      ed.zone.addEventListener('input', () => { ch.libelle = ed.lireHtml(); majReponses(); });
+      const btn = bloc.querySelector('[data-inserer-trou-fiche]');
+      btn.addEventListener('mousedown', ev => ev.preventDefault());
+      btn.addEventListener('click', () => {
+        const sel = window.getSelection();
+        if (!sel.rangeCount || !ed.zone.contains(sel.anchorNode)) {
+          ed.zone.focus();
+          const r = document.createRange(); r.selectNodeContents(ed.zone); r.collapse(false);
+          sel.removeAllRanges(); sel.addRange(r);
+        }
+        document.execCommand('insertText', false, ' ___ ');
+        ch.libelle = ed.lireHtml(); majReponses();
+      });
+      majReponses();
     }
     function collerExercice() {
       const m = fkModale('Coller un exercice', `
@@ -905,7 +1008,7 @@ function modaleActivite(leconId, a) {
       const bilan = m.boite.querySelector('[data-bilan]');
       txt.addEventListener('input', () => {
         const r = fkAnalyserExercice(txt.value);
-        bilan.textContent = r.champs.length ? `✔ ${r.champs.length} question(s) reconnue(s) : ${r.champs.map((c, i) => `${i + 1}. ${c.type === 'texte' ? 'une ligne' : c.type === 'paragraphe' ? `${c.lignes} lignes` : `${(c.options || []).length} case(s)${c.autre ? ' + Autre' : ''}`}`).join(' · ')}` : 'Aucune question numérotée trouvée pour le moment.';
+        bilan.textContent = r.champs.length ? `✔ ${r.champs.length} question(s) reconnue(s) : ${r.champs.map((c, i) => `${i + 1}. ${c.type === 'trous' ? `texte à ${(c.libelle.match(/___/g) || []).length} trou(s)` : c.type === 'texte' ? 'une ligne' : c.type === 'paragraphe' ? `${c.lignes} lignes` : `${(c.options || []).length} case(s)${c.autre ? ' + Autre' : ''}`}`).join(' · ')}` : 'Aucune question numérotée trouvée pour le moment.';
       });
       m.boite.querySelector('[data-ok]').addEventListener('click', async () => {
         const r = fkAnalyserExercice(txt.value);
@@ -986,15 +1089,24 @@ function modaleActivite(leconId, a) {
       } else if (n === 'fiche') {
         type = 'fiche';
         const propres = champs.map(ch => ({
-          type: ch.type, libelle: String(ch.libelle || '').trim(), obligatoire: ch.obligatoire !== false,
+          type: ch.type, libelle: ch.type === 'trous' ? fkNettoyerHtml(ch.libelle || '').trim() : String(ch.libelle || '').trim(), obligatoire: ch.obligatoire !== false,
           ...(ch.type === 'paragraphe' ? { lignes: Math.min(10, Math.max(2, Number(ch.lignes) || 3)) } : {}),
           ...(['cases', 'choix'].includes(ch.type) ? { options: (ch.options || []).map(o => String(o).trim()).filter(Boolean).slice(0, 15), autre: !!ch.autre } : {})
         }));
-        const sansTitre = propres.findIndex(ch => !ch.libelle);
+        const sansTitre = propres.findIndex(ch => !ch.libelle.replace(/<[^>]*>|&nbsp;/g, '').trim());
+        const sansTrou = propres.findIndex(ch => ch.type === 'trous' && !ch.libelle.includes('___'));
+        if (sansTrou >= 0) { fkToast(`Question ${sansTrou + 1} : placez au moins un trou (« ➕ Insérer un trou »).`, 'erreur'); return; }
         if (sansTitre >= 0) { fkToast(`Écrivez l'intitulé de la question ${sansTitre + 1}.`, 'erreur'); return; }
         const sansChoix = propres.findIndex(ch => ['cases', 'choix'].includes(ch.type) && ch.options.length + (ch.autre ? 1 : 0) < 2);
         if (sansChoix >= 0) { fkToast(`Question ${sansChoix + 1} : proposez au moins deux choix.`, 'erreur'); return; }
         config = { champs: propres };
+        const reponsesTrous = champs.map((ch, i) => {
+          if (ch.type !== 'trous') return null;
+          const n = (propres[i].libelle.match(/___/g) || []).length;
+          const r = Array.from({ length: n }, (_, k) => (ch.reponses || [])[k] || []);
+          return r.some(x => x.length) ? r : null;
+        });
+        if (reponsesTrous.some(Boolean)) config.reponses_trous = reponsesTrous;
       }
       const donnees = { lecon_id: leconId, nature: n, type, titre: form.titre.value.trim() || null, enonce, config,
         explication: corps.querySelector('[name=explication]').value.trim() || null, bloquant: form.bloquant.checked };
@@ -1023,7 +1135,7 @@ async function ongletActivites() {
       const ch = act?.config?.champs || [];
       return `<ol class="fk-fiche-reponses">${(Array.isArray(r.reponse) ? r.reponse : []).map((x, i) => {
         const c = ch[i] || {};
-        const t = typeof x === 'string' ? x : [...(x?.choix || []).map(j => (c.options || [])[j]).filter(Boolean), ...(x?.autre ? [`Autre : ${x.autre}`] : [])].join(' · ');
+        const t = typeof x === 'string' ? x : Array.isArray(x) ? x.map(v => v || '…').join(' / ') : [...(x?.choix || []).map(j => (c.options || [])[j]).filter(Boolean), ...(x?.autre ? [`Autre : ${x.autre}`] : [])].join(' · ');
         return `<li><b>${e(c.libelle || `Question ${i + 1}`)}</b><br><span style="white-space:pre-wrap">${t ? e(t) : '<i style="color:var(--f-muted)">sans réponse</i>'}</span></li>`;
       }).join('')}</ol>`;
     }

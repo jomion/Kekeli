@@ -862,13 +862,13 @@ function rendreChampQuestion(q, i) {
   // l'énoncé (à la place de chaque "___"), pas dans un bloc "champ" séparé.
   if (q.type === 'texte_a_trous') {
     let idxTrou = -1;
-    const morceaux = echapper(q.enonce).split('___');
+    const morceaux = contenuRicheInitial(q.enonce).split('___');
     const enonceAvecTrous = morceaux.map((morceau, k) => {
       if (k === morceaux.length - 1) return morceau;
       idxTrou++;
       return `${morceau}<input type="text" class="champ-trou" data-trou-index="${idxTrou}" required style="width:110px;display:inline-block;margin:0 4px">`;
     }).join('');
-    return `<div class="question-lecture" data-question-trous="${echapper(q.id)}"><p class="question-enonce">${i + 1}. ${enonceAvecTrous}</p>${q.consigne ? `<p class="consigne-question" style="font-size:13px;color:var(--text-gris)">${echapper(q.consigne)}</p>` : ''}</div>`;
+    return `<div class="question-lecture" data-question-trous="${echapper(q.id)}"><div class="question-enonce question-enonce-trous">${i + 1}. ${enonceAvecTrous}</div>${q.consigne ? `<p class="consigne-question" style="font-size:13px;color:var(--text-gris)">${echapper(q.consigne)}</p>` : ''}</div>`;
   }
   // Glisser-déposer : mêmes "___" que le texte à trous, mais chaque trou est
   // une zone de dépôt (drag & drop natif + solution de repli tactile
@@ -877,7 +877,7 @@ function rendreChampQuestion(q, i) {
   // libre — voir js/editeur/blocs.js pour le modèle de données (q.banqueMots).
   if (q.type === 'texte_a_trous_glisser') {
     let idxTrou = -1;
-    const morceaux = echapper(q.enonce).split('___');
+    const morceaux = contenuRicheInitial(q.enonce).split('___');
     const enonceAvecTrous = morceaux.map((morceau, k) => {
       if (k === morceaux.length - 1) return morceau;
       idxTrou++;
@@ -886,7 +886,7 @@ function rendreChampQuestion(q, i) {
     const banque = Array.isArray(q.banqueMots) ? q.banqueMots : [];
     const banqueMelangee = banque.map((m, idx) => ({ m, idx })).sort(() => Math.random() - 0.5);
     return `<div class="question-lecture" data-question-trous-glisser="${echapper(q.id)}">
-      <p class="question-enonce">${i + 1}. ${enonceAvecTrous}</p>
+      <div class="question-enonce question-enonce-trous">${i + 1}. ${enonceAvecTrous}</div>
       ${q.consigne ? `<p class="consigne-question" style="font-size:13px;color:var(--text-gris)">${echapper(q.consigne)}</p>` : ''}
       <div class="banque-mots-glisser">
         ${banqueMelangee.map(({ m }) => `<button type="button" class="chip-glisser" draggable="true" data-mot-glisser="${echapper(m)}">${echapper(m)}</button>`).join('')}

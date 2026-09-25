@@ -440,6 +440,11 @@ function attacherEcouteursQuestionsDevoir(devoirId, el, bloc) {
         }
         if (q.type === 'intrus_lexical' && !Array.isArray(q.series)) q.series = [{ mots: ['', '', ''] }];
         if (q.type === 'texte_a_trous_glisser' && !Array.isArray(q.banqueMots)) q.banqueMots = [];
+        // Passage vers un type à énoncé brut (sélection de mots) : on retire la mise en forme HTML.
+        if (TYPES_ENONCE_PLAT.includes(q.type) && /<[a-z]/i.test(q.enonce || '')) {
+          const tmp = document.createElement('div'); tmp.innerHTML = String(q.enonce).replace(/<br\s*\/?>|<\/(p|div|li)>/gi, '\n');
+          q.enonce = tmp.textContent.replace(/\n{3,}/g, '\n\n').trim();
+        }
         majQuestions(questions());
         if (c) sauvegarderCorrige();
         rerender();
@@ -464,6 +469,9 @@ function attacherEcouteursQuestionsDevoir(devoirId, el, bloc) {
           q.enonce = html;
           majQuestions(questions());
         });
+        // Texte à trous (riche depuis le 26 septembre 2026) : bouton « Insérer
+        // un trou » et recalcul du nombre de trous — voir brancherTrousRiches.
+        if (TYPES_QUESTION_TROUS.includes(q.type)) brancherTrousRiches(qEl, zoneEnonceRiche, q, rerender);
       }
       const inputConsigne = qEl.querySelector('[data-question-champ="consigne"]');
       if (inputConsigne) inputConsigne.addEventListener('input', (e) => {

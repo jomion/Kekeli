@@ -28,24 +28,24 @@ function rendreLectureSeuleEnonce(q) {
 function rendreLectureSeuleChampQuestion(q, i) {
   if (q.type === 'texte_a_trous') {
     let idxTrou = -1;
-    const morceaux = echapper(q.enonce).split('___');
+    const morceaux = contenuRicheInitial(q.enonce).split('___');
     const enonceAvecTrous = morceaux.map((morceau, k) => {
       if (k === morceaux.length - 1) return morceau;
       idxTrou++;
       return `${morceau}<input type="text" class="champ-trou" disabled style="width:110px;display:inline-block;margin:0 4px">`;
     }).join('');
-    return `<div class="question-lecture"><p class="question-enonce">${i + 1}. ${enonceAvecTrous}</p></div>`;
+    return `<div class="question-lecture"><div class="question-enonce question-enonce-trous">${i + 1}. ${enonceAvecTrous}</div></div>`;
   }
   if (q.type === 'texte_a_trous_glisser') {
     let idxTrou = -1;
-    const morceaux = echapper(q.enonce).split('___');
+    const morceaux = contenuRicheInitial(q.enonce).split('___');
     const enonceAvecTrous = morceaux.map((morceau, k) => {
       if (k === morceaux.length - 1) return morceau;
       idxTrou++;
       return `${morceau}<span class="zone-trou-glisser" style="display:inline-block;min-width:70px"></span>`;
     }).join('');
     const banque = Array.isArray(q.banqueMots) ? q.banqueMots : [];
-    return `<div class="question-lecture"><p class="question-enonce">${i + 1}. ${enonceAvecTrous}</p>
+    return `<div class="question-lecture"><div class="question-enonce question-enonce-trous">${i + 1}. ${enonceAvecTrous}</div>
       <div class="banque-mots-glisser">${banque.map(m => `<span class="chip-glisser">${echapper(m)}</span>`).join('')}</div></div>`;
   }
   if (q.type === 'selection_mots') {

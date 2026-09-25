@@ -1708,3 +1708,11 @@ body.theme-clair-compte .entete-kekeli-sousmenu a:hover { background: var(--clai
 .bandeau-formations-item small { color: #5f6f6a; font-size: 13px; }
 .bandeau-formations-tout { justify-content: center; font-weight: 800; color: #0b7a5c; }
 @media (max-width: 860px) { .bandeau-formations-grille { grid-template-columns: 1fr; gap: 24px; } }
+
+/* Texte à trous en énoncé riche (26 septembre 2026) : le numéro reste sur la
+   même ligne que le premier paragraphe, la mise en forme de l'enseignant
+   (gras, couleurs…) remplace le gras imposé aux autres énoncés. */
+.question-enonce-trous { font-weight: 500; line-height: 2; }
+.question-enonce-trous > p:first-child, .question-enonce-trous > div:first-child { display: inline; }
+.question-enonce-trous p { margin: 0 0 6px; }
+.bouton-inserer-trou { margin: 4px 0 8px; font-size: 13px; }

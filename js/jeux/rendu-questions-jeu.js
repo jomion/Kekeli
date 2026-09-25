@@ -32,17 +32,17 @@ function jeuRendreChampQuestion(q, i, options = {}) {
 
   if (q.type === 'texte_a_trous') {
     let idxTrou = -1;
-    const morceaux = echapper(q.enonce).split('___');
+    const morceaux = contenuRicheInitial(q.enonce).split('___');
     const enonceAvecTrous = morceaux.map((morceau, k) => {
       if (k === morceaux.length - 1) return morceau;
       idxTrou++;
       return `${morceau}<input type="text" class="champ-trou" data-trou-index="${idxTrou}" required style="width:110px;display:inline-block;margin:0 4px">`;
     }).join('');
-    return `<div class="question-lecture" data-question-trous="${echapper(q.id)}"><p class="question-enonce">${prefixe}${enonceAvecTrous}</p>${q.consigne ? `<p class="consigne-question">${echapper(q.consigne)}</p>` : ''}</div>`;
+    return `<div class="question-lecture" data-question-trous="${echapper(q.id)}"><div class="question-enonce question-enonce-trous">${prefixe}${enonceAvecTrous}</div>${q.consigne ? `<p class="consigne-question">${echapper(q.consigne)}</p>` : ''}</div>`;
   }
   if (q.type === 'texte_a_trous_glisser') {
     let idxTrou = -1;
-    const morceaux = echapper(q.enonce).split('___');
+    const morceaux = contenuRicheInitial(q.enonce).split('___');
     const enonceAvecTrous = morceaux.map((morceau, k) => {
       if (k === morceaux.length - 1) return morceau;
       idxTrou++;
@@ -51,7 +51,7 @@ function jeuRendreChampQuestion(q, i, options = {}) {
     const banque = Array.isArray(q.banqueMots) ? q.banqueMots : [];
     const banqueMelangee = banque.map((m, idx) => ({ m, idx })).sort(() => Math.random() - 0.5);
     return `<div class="question-lecture" data-question-trous-glisser="${echapper(q.id)}">
-      <p class="question-enonce">${prefixe}${enonceAvecTrous}</p>
+      <div class="question-enonce question-enonce-trous">${prefixe}${enonceAvecTrous}</div>
       ${q.consigne ? `<p class="consigne-question">${echapper(q.consigne)}</p>` : ''}
       <div class="banque-mots-glisser">
         ${banqueMelangee.map(({ m }) => `<button type="button" class="chip-glisser" draggable="true" data-mot-glisser="${echapper(m)}">${echapper(m)}</button>`).join('')}

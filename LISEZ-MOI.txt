@@ -1,3 +1,73 @@
+KEKELI — Livraison du 26 septembre 2026 (suite 2) — Textes à trous mis en forme (Primaire et Formation) + ouverture progressive des modules
+===========================================================================
+
+CE QUI A ÉTÉ DEMANDÉ
+------------------------------------------------------------------------------
+1. "Ajoute aux exercices les exercices à trous avec les fonctionnalités de
+   formatage déjà existantes pour les autres types de question. Sur le site
+   primaire aussi ajoute les fonctionnalités de formatage au type de
+   question à trous."
+2. "Ajoute la possibilité de déterminer un jour d'accessibilité pour un
+   module ou une leçon pour contrôler une progression stricte — c'est-à-dire
+   un module par jour par exemple, pour empêcher de vouloir tout finir d'un
+   coup."
+
+CE QUI CHANGE CONCRÈTEMENT
+------------------------------------------------------------------------------
+1. KEKELI PRIMAIRE — questions « Texte à trous » et « Texte à trous —
+   glisser-déposer » : l'énoncé a maintenant la même barre de mise en forme
+   que les autres questions (gras, italique, souligné, police, taille,
+   alignement, listes, couleur, surlignage). Nouveau bouton « ➕ Insérer un
+   trou » (ou taper ___ comme avant). Les anciens énoncés restent valables.
+   L'élève voit la mise en forme, avec les cases à remplir au bon endroit
+   (séance, devoir, jeux, aperçu enseignant/parent). Correction inchangée.
+   (La « sélection de mots » reste en texte simple : elle découpe le texte
+   mot par mot.)
+
+2. KEKELI FORMATION — fiche d'exercice : nouveau type de question
+   « 🧩 Texte à trous » avec l'éditeur complet des leçons (police, taille,
+   couleurs, fonds, encadrés…), bouton « ➕ Insérer un trou », et réponses
+   attendues FACULTATIVES : si elles sont saisies, l'étudiant voit après
+   validation ses cases en vert/rouge et la bonne réponse. « 📋 Coller un
+   exercice » reconnaît aussi les pointillés au milieu d'une phrase
+   (« Le chat ....... la souris ») comme des trous.
+
+3. KEKELI FORMATION — ouverture progressive :
+   - Onglet Programme → bouton « 📅 Rythme d'ouverture » : un module par
+     jour, tous les 2 ou 3 jours, par semaine… (à minuit, compté depuis
+     l'inscription de chaque étudiant), ou « Retirer tout calendrier ».
+   - Dans chaque module et chaque leçon (✏️) : « Ouvert … jours après
+     l'inscription » et/ou « Pas avant le » (date fixe).
+   - Côté étudiant : les éléments pas encore ouverts apparaissent avec 🔒 et
+     leur date dans le sommaire ; les ouvrir affiche la date d'ouverture et
+     un compte à rebours. Le blocage est fait par le serveur (contenu,
+     ressources, tests, quiz, « terminée » refusés avant l'heure). Le
+     formateur, les gestionnaires et les leçons « aperçu gratuit » ne sont
+     jamais bloqués.
+
+BASE DE DONNÉES (déjà appliqué)
+------------------------------------------------------------------------------
+- formation_modules / formation_lecons : colonnes delai_jours et
+  disponible_le ; fonctions formation_ouverture_module/_lecon,
+  formation_lecon_ouverte, formation_quiz_ouvert, calendrier_formation ;
+  politiques restrictives formation_lecons_ouverture et
+  formation_ressources_ouverture ; contrôles ajoutés dans
+  quiz_pour_apprenant, commencer_quiz, marquer_lecon_terminee,
+  activites_lecon, repondre_activite.
+- Fiches d'exercice : champ « trous » et correction facultative
+  (config.reponses_trous, jamais envoyé à l'étudiant avant sa réponse).
+
+FICHIERS MODIFIÉS
+------------------------------------------------------------------------------
+Primaire : js/editeur/blocs.js, js/editeur/devoir-blocs.js,
+js/pages/editeur-seance.js, js/pages/eleve-seance.js,
+js/pages/eleve-devoir-rendu.js, js/lecture-seule-seance.js,
+js/jeux/rendu-questions-jeu.js, css/style.css, css/style-public.css
+Formation : js/formations/commun.js, js/formations/app-lecteur.js,
+js/formations/formateur-edition.js, css/formations.css
+LISEZ-MOI.txt
+
+
 KEKELI — Livraison du 26 septembre 2026 (suite) — KEKELI Formation : fiches d'exercice dans les leçons
 ===========================================================================
 

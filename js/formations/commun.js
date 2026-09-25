@@ -1551,6 +1551,47 @@ async function fkPreparerCorpsLecon(corps) {
   await fkRendrePresentations(corps);
 }
 
+// ---------- Ouverture progressive (26 septembre 2026) ----------
+// « Un module par jour, pour empêcher de tout finir d'un coup » : un module ou
+// une leçon peut s'ouvrir N jours après l'inscription de l'étudiant
+// (delai_jours, à minuit heure du Bénin) et/ou pas avant une date
+// (disponible_le). Le blocage réel est fait en base (formation_lecon_ouverte,
+// formation_quiz_ouvert, calendrier_formation).
+function fkChampsOuverture(o, quoi) {
+  const date = o?.disponible_le ? new Date(o.disponible_le) : null;
+  const iso = date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : '';
+  return `<fieldset class="fk-carte fk-ouverture-champs"><legend>📅 Ouverture ${quoi === 'module' ? 'du module' : 'de la leçon'} (progression)</legend>
+    <div class="fk-grille-2">
+      <label class="fk-champ"><span>Ouvert … jours après l'inscription</span><input type="number" name="delai_jours" min="0" max="3650" placeholder="Dès l'inscription" value="${o?.delai_jours ?? ''}">
+        <small>0 = le jour de l'inscription, 1 = le lendemain, 2 = le surlendemain… (à minuit). Vide = pas de délai.</small></label>
+      <label class="fk-champ"><span>Pas avant le (facultatif)</span><input type="date" name="disponible_le" value="${iso}">
+        <small>Même date pour tous les étudiants.</small></label>
+    </div></fieldset>`;
+}
+function fkLireOuverture(fd) {
+  const d = String(fd.get('delai_jours') ?? '').trim();
+  const date = String(fd.get('disponible_le') ?? '').trim();
+  return {
+    delai_jours: d === '' ? null : Math.min(3650, Math.max(0, parseInt(d, 10) || 0)),
+    disponible_le: date ? new Date(`${date}T00:00:00`).toISOString() : null
+  };
+}
+function fkPastilleOuverture(o) {
+  const morceaux = [];
+  if (o?.delai_jours !== null && o?.delai_jours !== undefined) morceaux.push(o.delai_jours === 0 ? 'dès l\'inscription' : `J+${o.delai_jours}`);
+  if (o?.disponible_le) morceaux.push(`dès le ${new Date(o.disponible_le).toLocaleDateString('fr-FR')}`);
+  return morceaux.length ? `<span class="fk-pastille fk-pastille-ouverture" title="Ouverture progressive">📅 ${morceaux.join(' · ')}</span>` : '';
+}
+// « dans 2 jours », « demain à 00:00 »… pour une date d'ouverture future.
+function fkQuandOuverture(iso) {
+  const d = new Date(iso);
+  const jours = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())) / 86400000);
+  const heure = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  if (jours <= 0) return `aujourd'hui à ${heure}`;
+  if (jours === 1) return `demain à ${heure}`;
+  return `le ${d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} (dans ${jours} jours)`;
+}
+
 // ---------- Initialisation commune d'une page ----------
 // 25 septembre 2026 : la plateforme de formation est fermée aux comptes
 // élèves (enfants). Le blocage réel est fait en base (politiques

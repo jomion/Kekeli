@@ -24,17 +24,32 @@ const FKL = { s: null, f: null, inscription: null, modules: [], lecons: [], quiz
   FKL.inscription = ins;
   FKL.apercu = !ins;
 
-  const [mods, lecs, qz, res, prog, tent] = await Promise.all([
+  const [mods, lecs, qz, res, prog, tent, cal] = await Promise.all([
     supabaseClient.from('formation_modules').select('*').eq('formation_id', id).order('position').order('id'),
     supabaseClient.from('formation_lecons').select('*').eq('formation_id', id).order('position').order('id'),
     supabaseClient.from('formation_quiz').select('*').eq('formation_id', id).order('position').order('id'),
     supabaseClient.from('formation_ressources').select('*').eq('formation_id', id).order('id'),
     supabaseClient.from('formation_progression_lecons').select('lecon_id, terminee').eq('formation_id', id).eq('apprenant_id', s.profil.id),
-    supabaseClient.from('formation_tentatives_quiz').select('quiz_id, reussi').eq('formation_id', id).eq('apprenant_id', s.profil.id).eq('reussi', true)
+    supabaseClient.from('formation_tentatives_quiz').select('quiz_id, reussi').eq('formation_id', id).eq('apprenant_id', s.profil.id).eq('reussi', true),
+    supabaseClient.rpc('calendrier_formation', { p_formation_id: id })
   ]);
   FKL.modules = mods.data || [];
   FKL.lecons = lecs.data || [];
   FKL.quiz = qz.data || [];
+  // Ouverture progressive (26 septembre 2026) : les leçons pas encore ouvertes
+  // ne sont pas lisibles (RLS) ; le calendrier fournit leur titre et leur date.
+  FKL.cal = cal.data || null;
+  if (FKL.cal) {
+    const vues = new Set(FKL.lecons.map(l => l.id));
+    (FKL.cal.lecons || []).forEach(c => {
+      if (!vues.has(c.id)) FKL.lecons.push({ ...c, verrou: true });
+      else if (!c.ouverte) FKL.lecons.find(l => l.id === c.id).verrou = true;
+    });
+    FKL.lecons.forEach(l => { const c = (FKL.cal.lecons || []).find(x => x.id === l.id); if (c) l.ouvre_le = c.ouvre_le; });
+    FKL.lecons.sort((a, b) => (a.position - b.position) || (a.id - b.id));
+    FKL.quiz.forEach(q => { const c = (FKL.cal.quiz || []).find(x => x.id === q.id); if (c && !c.ouvert) { q.verrou = true; q.ouvre_le = c.ouvre_le; } });
+    FKL.modules.forEach(m => { const c = (FKL.cal.modules || []).find(x => x.id === m.id); if (c) m.ouvre_le = c.ouvre_le; });
+  }
   FKL.ressources = res.data || [];
   (prog.data || []).filter(p => p.terminee).forEach(p => FKL.faites.add(p.lecon_id));
   (tent.data || []).forEach(t => FKL.reussis.add(t.quiz_id));
@@ -66,7 +81,7 @@ const FKL = { s: null, f: null, inscription: null, modules: [], lecons: [], quiz
   if (fkParam('quiz')) depart = FKL.items.find(i => i.type === 'quiz' && i.id === Number(fkParam('quiz')));
   if (!depart && fkParam('lecon')) depart = FKL.items.find(i => i.type === 'lecon' && i.id === Number(fkParam('lecon')));
   if (!depart && ins?.derniere_lecon_id) depart = FKL.items.find(i => i.type === 'lecon' && i.id === ins.derniere_lecon_id);
-  if (!depart) depart = FKL.items.find(i => !estFait(i)) || FKL.items[0];
+  if (!depart) depart = FKL.items.find(i => !estFait(i) && !i.obj.verrou) || FKL.items.find(i => !i.obj.verrou) || FKL.items[0];
   if (depart) ouvrir(depart);
   else document.getElementById('zoneLecon').innerHTML = '<div class="fk-vide"><span class="fk-vide-icone">📭</span>Cette formation ne contient pas encore de leçon.</div>';
 })();
@@ -76,7 +91,7 @@ function estFait(item) { return item.type === 'lecon' ? FKL.faites.has(item.id) 
 function rendreSommaire(actif) {
   const zone = document.getElementById('sommaire');
   zone.innerHTML = FKL.modules.map((m, i) => `
-    <div class="fk-lecteur-module">Module ${i + 1} · ${fkEchapper(m.titre)}</div>
+    <div class="fk-lecteur-module">Module ${i + 1} · ${fkEchapper(m.titre)}${m.ouvre_le && new Date(m.ouvre_le) > new Date() ? `<small class="fk-module-verrou">🔒 ouvre ${fkQuandOuverture(m.ouvre_le)}</small>` : ''}</div>
     ${FKL.items.filter(it => it.module === m.id).map(it => boutonItem(it, actif)).join('')}`).join('')
     + FKL.items.filter(it => it.module === null).map(it => boutonItem(it, actif)).join('');
   zone.querySelectorAll('[data-item]').forEach(b => b.addEventListener('click', () => {
@@ -87,10 +102,10 @@ function rendreSommaire(actif) {
 }
 function boutonItem(it, actif) {
   const estActif = actif && actif.type === it.type && actif.id === it.id;
-  const icone = estFait(it) ? '✅' : it.type === 'quiz' ? '📝' : ({ video: '🎬', audio: '🎧', document: '📄' }[it.obj.type_contenu] || '📖');
-  return `<button class="fk-lecteur-item ${estActif ? 'actif' : ''}" data-item="${it.type}:${it.id}" ${estActif ? 'aria-current="true"' : ''}>
+  const icone = it.obj.verrou ? '🔒' : estFait(it) ? '✅' : it.type === 'quiz' ? '📝' : ({ video: '🎬', audio: '🎧', document: '📄' }[it.obj.type_contenu] || '📖');
+  return `<button class="fk-lecteur-item ${estActif ? 'actif' : ''} ${it.obj.verrou ? 'verrou' : ''}" data-item="${it.type}:${it.id}" ${estActif ? 'aria-current="true"' : ''}>
     <span class="fk-etat" aria-hidden="true">${icone}</span>
-    <span>${it.type === 'quiz' ? 'Quiz : ' : ''}${fkEchapper(it.obj.titre)}<small>${it.type === 'lecon' ? fkDuree(it.obj.duree_minutes) + (it.obj.est_obligatoire ? '' : ' · facultative') : `Réussite : ${it.obj.note_passage} %`}${estFait(it) ? ' · terminé' : ''}</small></span>
+    <span>${it.type === 'quiz' ? 'Quiz : ' : ''}${fkEchapper(it.obj.titre)}<small>${it.type === 'lecon' ? fkDuree(it.obj.duree_minutes) + (it.obj.est_obligatoire ? '' : ' · facultative') : `Réussite : ${it.obj.note_passage} %`}${estFait(it) ? ' · terminé' : ''}${it.obj.verrou && it.obj.ouvre_le ? ` · 🔒 ${new Date(it.obj.ouvre_le).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}` : ''}</small></span>
   </button>`;
 }
 
@@ -111,7 +126,8 @@ async function ouvrir(item) {
   rendreSommaire(item);
   const zone = document.getElementById('zoneLecon');
   zone.innerHTML = '<div class="fk-chargement">Chargement…</div>';
-  if (item.type === 'lecon') await afficherLecon(item); else await afficherQuiz(item);
+  if (item.obj.verrou) afficherVerrou(item);
+  else if (item.type === 'lecon') await afficherLecon(item); else await afficherQuiz(item);
   zone.focus({ preventScroll: true });
   window.scrollTo({ top: 0 });
 }
@@ -129,6 +145,34 @@ function brancherNavigation(zone) {
     const [type, id] = b.dataset.aller.split(':');
     ouvrir(FKL.items.find(it => it.type === type && it.id === Number(id)));
   }));
+}
+
+// Élément pas encore ouvert (ouverture progressive) : date et compte à rebours.
+function afficherVerrou(item) {
+  const zone = document.getElementById('zoneLecon');
+  const o = item.obj.ouvre_le ? new Date(item.obj.ouvre_le) : null;
+  zone.innerHTML = `
+    <button class="fk-btn fk-btn-ghost fk-btn-petit fk-lecteur-bascule" id="btnSommaire">☰ Sommaire</button>
+    <div class="fk-carte fk-vide fk-verrou-page">
+      <span class="fk-vide-icone">🔒</span>
+      <h1 style="font-size:24px">${fkEchapper(item.obj.titre)}</h1>
+      <p style="font-size:17px">${item.type === 'quiz' ? 'Ce quiz' : 'Cette leçon'} s'ouvrira <b>${o ? fkQuandOuverture(o.toISOString()) : 'bientôt'}</b>.</p>
+      <p class="fk-compte-rebours" id="compteRebours" aria-live="polite"></p>
+      <p style="color:var(--f-muted);max-width:520px;margin:10px auto 0">Votre formateur a prévu une progression régulière : prenez le temps de bien assimiler ce qui est déjà ouvert, puis revenez à la date indiquée.</p>
+    </div>
+    ${navigation(item)}`;
+  zone.querySelector('#btnSommaire').addEventListener('click', () => document.getElementById('lecteur').classList.toggle('nav-ouverte'));
+  brancherNavigation(zone);
+  if (!o) return;
+  const cr = zone.querySelector('#compteRebours');
+  const tic = () => {
+    const ms = o - new Date();
+    if (ms <= 0) { clearInterval(FKL.chrono); FKL.chrono = null; window.location.reload(); return; }
+    const h = Math.floor(ms / 3600000), mn = Math.floor(ms / 60000) % 60, sec = Math.floor(ms / 1000) % 60;
+    cr.textContent = h < 48 ? `⏳ ${h} h ${String(mn).padStart(2, '0')} min ${String(sec).padStart(2, '0')} s` : '';
+  };
+  tic();
+  FKL.chrono = setInterval(tic, 1000);
 }
 
 async function afficherLecon(item) {
@@ -433,6 +477,12 @@ function rendreActivite(el, a) {
     champs = `<div class="fk-fiche">${(a.donnees.champs || []).map((ch, i) => {
       const leg = `<legend>${i + 1}. ${e(ch.libelle || '').replace(/\n/g, '<br>')}${ch.obligatoire === false ? ' <small>(facultatif)</small>' : ''}</legend>`;
       let w;
+      if (ch.type === 'trous') {
+        // Texte à trous mis en forme par le formateur : chaque « ___ » devient une case.
+        let k = 0;
+        const html = fkNettoyerHtml(ch.libelle || '').split('___').map((m, j, t) => m + (j < t.length - 1 ? `<input class="fk-input fk-trou" type="text" data-trou-champ="${i}" data-k="${k++}" maxlength="200" autocomplete="off" aria-label="Trou ${k}">` : '')).join('');
+        return `<fieldset class="fk-fiche-champ"><legend>${i + 1}. Complétez le texte${ch.obligatoire === false ? ' <small>(facultatif)</small>' : ''}</legend><div class="fk-lecon-corps fk-fiche-trous">${html}</div></fieldset>`;
+      }
       if (ch.type === 'texte') w = `<input class="fk-input" type="text" data-champ="${i}" maxlength="500" aria-label="Réponse à la question ${i + 1}">`;
       else if (ch.type === 'paragraphe') w = `<textarea class="fk-input fk-fiche-lignes" data-champ="${i}" rows="${Math.min(10, Math.max(2, Number(ch.lignes) || 3))}" maxlength="3000" aria-label="Réponse à la question ${i + 1}"></textarea>`;
       else {
@@ -485,11 +535,12 @@ function lireReponse(form, a) {
     const champs = a.donnees.champs || [];
     const v = champs.map((ch, i) => {
       if (ch.type === 'texte' || ch.type === 'paragraphe') return (form.querySelector(`[data-champ="${i}"]`)?.value || '').trim();
+      if (ch.type === 'trous') return [...form.querySelectorAll(`[data-trou-champ="${i}"]`)].map(x => x.value.trim());
       const coches = [...form.querySelectorAll(`[name="act${a.id}_${i}"]:checked`)];
       const autre = coches.some(x => x.value === 'autre') ? (form.querySelector(`[data-autre="${i}"]`)?.value || '').trim() : '';
       return { choix: coches.filter(x => x.value !== 'autre').map(x => Number(x.value)), autre };
     });
-    const manque = champs.findIndex((ch, i) => ch.obligatoire !== false && (typeof v[i] === 'string' ? !v[i] : !v[i].choix.length && !v[i].autre));
+    const manque = champs.findIndex((ch, i) => ch.obligatoire !== false && (typeof v[i] === 'string' ? !v[i] : Array.isArray(v[i]) ? v[i].some(x => !x) : !v[i].choix.length && !v[i].autre));
     if (manque >= 0) { form._manque = manque + 1; return null; }
     return v;
   }
@@ -508,6 +559,7 @@ function remplir(form, a, rep) {
   if (a.nature === 'fiche') {
     (Array.isArray(rep) ? rep : []).forEach((r, i) => {
       if (typeof r === 'string') { const f = form.querySelector(`[data-champ="${i}"]`); if (f) f.value = r; return; }
+      if (Array.isArray(r)) { form.querySelectorAll(`[data-trou-champ="${i}"]`).forEach((x, k) => { x.value = r[k] ?? ''; }); return; }
       if (!r || typeof r !== 'object') return;
       (r.choix || []).forEach(j => { const x = form.querySelector(`[name="act${a.id}_${i}"][value="${j}"]`); if (x) x.checked = true; });
       if (r.autre) {
@@ -537,7 +589,20 @@ function afficherRetour(el, a, res, rep) {
       ${!res.juste && attendu ? `<br>Réponse attendue : <b>${e(attendu)}</b>` : ''}
       ${res.explication ? `<p>💡 ${e(res.explication).replace(/\n/g, '<br>')}</p>` : ''}</div>`;
   } else if (a.nature === 'fiche') {
-    zone.innerHTML = `<div class="fk-activite-retour" role="status"><b>✔ Merci, vos réponses sont enregistrées.</b> Vous pourrez les relire et les modifier ici à tout moment.${res.retour ? `<p><b>Le mot du formateur :</b><br>${e(res.retour).replace(/\n/g, '<br>')}</p>` : ''}</div>`;
+    // Textes à trous avec réponses attendues : case verte / rouge + réponse attendue.
+    el.querySelectorAll('.fk-trou-attendu').forEach(x => x.remove());
+    let justes = 0, total = 0;
+    Object.entries(res.trous || {}).forEach(([i, liste]) => {
+      el.querySelectorAll(`[data-trou-champ="${i}"]`).forEach((inp, k) => {
+        const c = liste[k];
+        inp.classList.remove('juste', 'faux');
+        if (!c || c.attendu == null) return;
+        total++; if (c.juste) justes++;
+        inp.classList.add(c.juste ? 'juste' : 'faux');
+        if (!c.juste) inp.insertAdjacentHTML('afterend', `<small class="fk-trou-attendu">→ ${e(c.attendu)}</small>`);
+      });
+    });
+    zone.innerHTML = `<div class="fk-activite-retour" role="status">${total ? `<b>Textes à trous : ${justes} / ${total} bonne${justes > 1 ? 's' : ''} réponse${justes > 1 ? 's' : ''}.</b><br>` : ''}<b>✔ Merci, vos réponses sont enregistrées.</b> Vous pourrez les relire et les modifier ici à tout moment.${res.retour ? `<p><b>Le mot du formateur :</b><br>${e(res.retour).replace(/\n/g, '<br>')}</p>` : ''}</div>`;
   } else if (a.nature === 'reflexion') {
     zone.innerHTML = `<div class="fk-activite-retour" role="status"><b>✔ Merci, votre réponse est enregistrée.</b>${res.retour ? `<p><b>Le mot du formateur :</b><br>${e(res.retour).replace(/\n/g, '<br>')}</p>` : ''}</div>`;
   } else {
