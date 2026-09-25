@@ -277,6 +277,7 @@ function modaleLecon(l, moduleId) {
   md.boite.style.width = 'min(860px, 100%)';
   const ed = fkEditeurRiche(md.boite.querySelector('#editeurLecon'), l?.contenu, 'Rédigez le contenu de la leçon…', {
     formationId: FKE.f.id,
+    diaporama: true,
     activites: l ? {
       leconId: l.id,
       get liste() { return FKE.activites; },

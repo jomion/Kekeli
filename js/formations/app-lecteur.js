@@ -150,6 +150,8 @@ async function afficherLecon(item) {
     ${FKL.apercu ? '' : `<div style="margin-top:26px"><button class="fk-btn ${fait ? 'fk-btn-ghost' : 'fk-btn-primary'}" id="btnFait">${fait ? '↩️ Marquer comme non terminée' : '✅ Marquer comme terminée'}</button></div>`}
     ${navigation(item)}</div>`;
   zone.querySelector('#btnSommaire').addEventListener('click', () => document.getElementById('lecteur').classList.toggle('nav-ouverte'));
+  // Diaporama intégré et présentations PowerPoint / PDF / Google Slides (26 septembre 2026).
+  await fkPreparerCorpsLecon(zone.querySelector('.fk-lecon-corps'));
   await brancherActivitesLecon(zone, l.id);
   zone.querySelectorAll('[data-ressource]').forEach(b => b.addEventListener('click', async () => {
     const r = ressources.find(x => x.id === Number(b.dataset.ressource));
@@ -409,6 +411,8 @@ function appliquerBlocages(zone) {
   });
   // Pied de leçon (ressources, « terminée », navigation) masqué tant que c'est bloqué.
   zone.querySelectorAll('[data-apres-corps]').forEach(el => { el.hidden = bloque; });
+  // Diaporama : « Suivant » reste grisé tant que la diapositive suivante est masquée.
+  if (corps._fkDiapo) corps._fkDiapo.maj();
 }
 
 function rendreActivite(el, a) {

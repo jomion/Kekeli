@@ -463,3 +463,57 @@ body.fk {
 .fk-q-echelle { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .fk-q-echelle label { border: 1px solid var(--f-border); border-radius: 999px; padding: 5px 10px; font-size: 13px; cursor: pointer; background: #fff; }
 .fk-q-echelle label:has(input:checked) { background: var(--f-primary-light); border-color: var(--f-primary); color: var(--f-primary-dark); font-weight: 700; }
+
+/* ---------- Diaporama et présentations PowerPoint (26 septembre 2026) ---------- */
+.fk-riche-barre select[data-police] { max-width: 130px; }
+.fk-riche-barre select[data-taille] { max-width: 76px; }
+/* Éditeur : repères de diapositive et de présentation */
+.fk-riche-zone.fk-riche-diapos::before { content: attr(data-diapo1); display: block; font-size: 12px; font-weight: 800; color: #6a3fb5; margin-bottom: 6px; }
+.fk-diapo-repere { display: flex; align-items: center; gap: 10px; margin: 18px 0; padding: 6px 12px; border-top: 3px solid #6a3fb5; background: #f3edfc; color: #4b2a86; border-radius: 0 0 10px 10px; cursor: pointer; user-select: none; font-weight: 800; font-size: 13px; }
+.fk-diapo-repere small { color: #7b6a98; font-weight: 600; font-size: 12px; }
+.fk-presentation-repere { display: block; border: 2px dashed #1769aa; background: #e8f0fb; border-radius: 12px; padding: 10px 14px; margin: 14px 0; cursor: pointer; user-select: none; }
+.fk-presentation-repere small { display: block; color: var(--f-muted); font-size: 12px; margin-top: 4px; }
+
+/* Lecteur : diaporama intégré */
+.fk-diaporama-cadre { position: relative; border: 1px solid var(--f-border); border-radius: 16px; background: #fff; box-shadow: var(--f-shadow); margin: 16px 0; overflow: hidden; }
+.fk-diaporama-cadre:focus { outline: none; }
+.fk-diaporama-cadre:focus-visible { outline: 3px solid var(--f-secondary); }
+.fk-diaporama-cadre .fk-lecon-corps { padding: 22px 26px; min-height: 340px; }
+.fk-lecon-corps.fk-diaporama > .fk-diapo:not(.actif), .fk-lecon-corps.fk-diaporama > .fk-activite-verrou { display: none; }
+.fk-lecon-corps.fk-diaporama > .fk-diapo.actif { animation: fk-diapo-entree .25s ease; }
+@keyframes fk-diapo-entree { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: none; } }
+.fk-diapo > :first-child { margin-top: 0; }
+.fk-diapo-tout .fk-diapo + .fk-diapo { border-top: 2px dashed #d9cdef; margin-top: 22px; padding-top: 18px; }
+.fk-diapo-tout .fk-diapo-progres, .fk-diapo-tout [data-prec], .fk-diapo-tout [data-suiv], .fk-diapo-tout .fk-diapo-compteur, .fk-diapo-tout [data-plein] { display: none; }
+.fk-diapo-progres { height: 4px; background: #eef2f0; }
+.fk-diapo-progres span { display: block; height: 100%; background: var(--f-primary); transition: width .25s; }
+.fk-diapo-nav { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--f-border); background: #f8faf9; flex-wrap: wrap; }
+.fk-diapo-compteur { flex: 1; text-align: center; font-weight: 800; color: var(--f-muted); font-size: 14px; }
+.fk-diapo-compteur b { color: var(--f-accent); font-weight: 700; }
+.fk-diapo-outils { display: flex; gap: 4px; }
+.fk-diapo-nav button:disabled { opacity: .4; cursor: not-allowed; }
+/* Plein écran (API du navigateur, ou repli pour iPhone) */
+.fk-diaporama-cadre:fullscreen, .fk-pres-cadre:fullscreen { border-radius: 0; display: flex; flex-direction: column; background: #fff; }
+.fk-diaporama-cadre:-webkit-full-screen, .fk-pres-cadre:-webkit-full-screen { border-radius: 0; display: flex; flex-direction: column; background: #fff; width: 100%; height: 100%; }
+.fk-plein-ecran { position: fixed !important; inset: 0; z-index: 1000; margin: 0 !important; border-radius: 0 !important; display: flex; flex-direction: column; background: #fff; }
+body.fk-sans-defilement { overflow: hidden; }
+.fk-diaporama-cadre:fullscreen .fk-lecon-corps, .fk-diaporama-cadre.fk-plein-ecran .fk-lecon-corps { flex: 1; overflow-y: auto; font-size: clamp(18px, 2.2vw, 28px); padding: 4vh 6vw; }
+.fk-diaporama-cadre:-webkit-full-screen .fk-lecon-corps { flex: 1; overflow-y: auto; font-size: clamp(18px, 2.2vw, 28px); padding: 4vh 6vw; }
+
+/* Lecteur : présentations (PDF, PowerPoint, Google Slides, OneDrive) */
+.fk-presentation { margin: 18px 0; }
+.fk-pres-cadre { border: 1px solid var(--f-border); border-radius: 16px; overflow: hidden; background: #fff; box-shadow: var(--f-shadow); }
+.fk-pres-cadre:focus { outline: none; }
+.fk-pres-tete { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 14px; background: #f8faf9; border-bottom: 1px solid var(--f-border); font-size: 14px; }
+.fk-pres-scene { background: #2b3a36; display: flex; justify-content: center; align-items: center; min-height: 220px; padding: 10px; position: relative; }
+.fk-pres-scene canvas { max-width: 100%; background: #fff; box-shadow: 0 6px 20px rgba(0, 0, 0, .3); }
+.fk-pres-charge { color: #fff; position: absolute; }
+.fk-pres-iframe .fk-video { margin: 0; border-radius: 0; }
+.fk-pres-note { font-size: 12px; color: var(--f-muted); margin: 0; padding: 6px 14px; }
+.fk-pres-cadre:fullscreen .fk-pres-scene, .fk-pres-cadre.fk-plein-ecran .fk-pres-scene { flex: 1; }
+.fk-pres-cadre:fullscreen .fk-video, .fk-pres-cadre.fk-plein-ecran .fk-video { flex: 1; padding-top: 0; }
+@media (max-width: 640px) {
+  .fk-diaporama-cadre .fk-lecon-corps { padding: 16px; min-height: 260px; }
+  .fk-diapo-nav button span { display: none; }
+  .fk-diapo-nav { gap: 6px; padding: 8px; }
+}

@@ -189,6 +189,7 @@
       <div class="fk-actions-form"><button class="fk-btn fk-btn-primary" data-fermer>Fermer</button></div>`;
     const m = fkModale(`Aperçu : ${l.titre}`, corps);
     m.boite.style.width = 'min(860px, 100%)';
+    await fkPreparerCorpsLecon(m.boite.querySelector('.fk-lecon-corps'));
   }
 
   function iconeType(t) { return { video: '🎬', audio: '🎧', document: '📄', mixte: '🧩' }[t] || '📖'; }

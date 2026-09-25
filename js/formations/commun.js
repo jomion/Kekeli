@@ -93,7 +93,7 @@ function fkNettoyerHtml(html) {
     }
     return window.DOMPurify.sanitize(html, {
       ALLOWED_TAGS: ['p', 'br', 'b', 'strong', 'i', 'em', 'u', 's', 'strike', 'del', 'mark', 'small', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'a', 'img', 'code', 'pre', 'span', 'div', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'hr', 'sub', 'sup', 'figure', 'figcaption', 'dl', 'dt', 'dd', 'input'],
-      ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'colspan', 'rowspan', 'style', 'data-bloc', 'data-activite', 'data-image', 'target', 'rel', 'type', 'checked', 'disabled'],
+      ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'colspan', 'rowspan', 'style', 'data-bloc', 'data-activite', 'data-image', 'data-presentation', 'data-src', 'target', 'rel', 'type', 'checked', 'disabled'],
       ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|#|\/|\.)/i
     }).replace(/<input(?![^>]*type="checkbox")[^>]*>/gi, '');
   }
@@ -612,6 +612,24 @@ const FK_BARRES = [
   { nom: 'verte', couleur: '#0b7a5c' }, { nom: 'bleue', couleur: '#1769aa' }, { nom: 'orange', couleur: '#e85d04' },
   { nom: 'rouge', couleur: '#c0392b' }, { nom: 'violette', couleur: '#673ab7' }, { nom: 'jaune', couleur: '#e0a800' }, { nom: 'grise', couleur: '#6c7b76' }
 ];
+// Polices et tailles (26 septembre 2026). Polices présentes sur la plupart
+// des ordinateurs et téléphones, chacune avec une police de secours.
+const FK_POLICES = [
+  { nom: 'Arial', valeur: 'Arial, Helvetica, sans-serif' },
+  { nom: 'Calibri', valeur: 'Calibri, Carlito, Arial, sans-serif' },
+  { nom: 'Verdana', valeur: 'Verdana, Geneva, sans-serif' },
+  { nom: 'Tahoma', valeur: 'Tahoma, Verdana, sans-serif' },
+  { nom: 'Trebuchet MS', valeur: "'Trebuchet MS', Arial, sans-serif" },
+  { nom: 'Segoe UI', valeur: "'Segoe UI', Roboto, Arial, sans-serif" },
+  { nom: 'Georgia', valeur: 'Georgia, serif' },
+  { nom: 'Times New Roman', valeur: "'Times New Roman', Times, serif" },
+  { nom: 'Garamond', valeur: "Garamond, 'EB Garamond', Georgia, serif" },
+  { nom: 'Cambria', valeur: 'Cambria, Caladea, Georgia, serif' },
+  { nom: 'Courier New', valeur: "'Courier New', Courier, monospace" },
+  { nom: 'Comic Sans MS', valeur: "'Comic Sans MS', 'Comic Neue', cursive" },
+  { nom: 'Impact', valeur: 'Impact, Haettenschweiler, sans-serif' }
+];
+const FK_TAILLES = ['10px', '12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px', '40px', '48px', '60px'];
 const FK_COULEURS = ['#18302a', '#0b7a5c', '#1769aa', '#673ab7', '#c0392b', '#e85d04', '#b27700', '#6c7b76'];
 
 // opts (25 septembre 2026) :
@@ -626,6 +644,14 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
         <select data-bloc title="Style du paragraphe" aria-label="Style du paragraphe">
           <option value="p">Paragraphe</option><option value="h2">Titre</option><option value="h3">Sous-titre</option>
           <option value="h4">Petit titre</option><option value="blockquote">Citation</option><option value="pre">Code</option>
+        </select>
+        <select data-police title="Police du texte sélectionné" aria-label="Police">
+          <option value="">Police</option><option value="inherit">Par défaut</option>
+          ${FK_POLICES.map(p => `<option value="${fkEchapper(p.valeur)}" style="font-family:${fkEchapper(p.valeur)}">${p.nom}</option>`).join('')}
+        </select>
+        <select data-taille title="Taille du texte sélectionné" aria-label="Taille du texte">
+          <option value="">Taille</option><option value="defaut">Normale</option>
+          ${FK_TAILLES.map(t => `<option value="${t}">${parseInt(t, 10)}</option>`).join('')}
         </select>
         <span class="fk-riche-sep"></span>
         <button type="button" data-cmd="bold" title="Gras (Ctrl+B)" aria-label="Gras"><b>G</b></button>
@@ -700,6 +726,15 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
         ${o.formationId || o.activites ? '<span class="fk-riche-sep"></span>' : ''}
         ${o.formationId ? '<button type="button" data-image-btn title="Insérer une image">🖼️ Image</button>' : ''}
         ${o.activites ? '<button type="button" data-activite-btn title="Insérer un test rapide ou un questionnaire à cet endroit de la leçon">🧭 Test / questionnaire</button>' : ''}
+        ${o.diaporama ? `<span class="fk-riche-menu">
+          <button type="button" data-menu="diapo" title="Diaporama et présentations PowerPoint" aria-label="Diaporama et présentations PowerPoint">🎞️ Diaporama</button>
+          <span class="fk-riche-palette fk-riche-liste" data-palette="diapo" hidden>
+            <button type="button" data-diapo="nouvelle">➕ Nouvelle diapositive ici</button>
+            ${o.formationId ? '<button type="button" data-diapo="fichier">📊 Insérer un fichier PowerPoint ou PDF…</button>' : ''}
+            <button type="button" data-diapo="lien">🔗 Insérer Google Slides / OneDrive…</button>
+            <button type="button" data-diapo="apercu">👁️ Aperçu du diaporama</button>
+          </span>
+        </span>` : ''}
       </div>
       <div class="fk-riche-zone" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="${fkEchapper(placeholder || 'Rédigez ici…')}"></div>
       <textarea class="fk-riche-source" spellcheck="false" aria-label="Code HTML" hidden></textarea>
@@ -742,6 +777,52 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
     exec(b.dataset.cmd);
   }));
   barre.querySelector('[data-bloc]').addEventListener('change', e => { exec('formatBlock', e.target.value); e.target.value = 'p'; });
+
+  // ----- Police et taille (26 septembre 2026) -----
+  // S'appliquent au texte sélectionné (style en ligne font-family / font-size,
+  // gardé par fkNettoyerHtml). Sans sélection, la police vaut pour la suite
+  // de la frappe ; la taille, elle, demande une sélection.
+  barre.querySelector('[data-police]').addEventListener('change', e => {
+    const v = e.target.value; e.target.value = '';
+    if (!v) return;
+    exec('fontName', v);
+    // Les anciennes polices à l'intérieur de la sélection cèdent la place.
+    const sel = window.getSelection();
+    if (sel.rangeCount && !sel.isCollapsed) {
+      const r = sel.getRangeAt(0);
+      zone.querySelectorAll('[style*="font-family"]').forEach(el => {
+        const parent = el.parentElement && el.parentElement.closest('[style*="font-family"]');
+        if (parent && zone.contains(parent) && r.intersectsNode(el) && parent.style.fontFamily.replace(/"/g, "'") === v.replace(/"/g, "'")) el.style.fontFamily = '';
+      });
+      zone.querySelectorAll('span:not([style]), span[style=""]').forEach(sp => sp.replaceWith(...sp.childNodes));
+    }
+    memoriser();
+  });
+  barre.querySelector('[data-taille]').addEventListener('change', e => {
+    const v = e.target.value; e.target.value = '';
+    if (!v) return;
+    if (modeSource) { fkToast('Repassez en mode normal pour utiliser la mise en forme.', 'erreur'); return; }
+    restaurer();
+    const sel = window.getSelection();
+    if (!sel.rangeCount || sel.isCollapsed) { fkToast('Sélectionnez d\'abord le texte à agrandir ou à réduire.', 'erreur'); return; }
+    // Astuce classique : taille « 7 » provisoire, puis remplacée par la vraie taille.
+    exec('fontSize', '7');
+    const marques = [...zone.querySelectorAll('font[size="7"], [style*="xxx-large"]')];
+    const gardes = [];
+    marques.forEach(el => {
+      let span = el;
+      if (el.tagName === 'FONT') { span = document.createElement('span'); span.append(...el.childNodes); el.replaceWith(span); }
+      span.style.fontSize = v === 'defaut' ? '' : v;
+      span.querySelectorAll('[style*="font-size"]').forEach(d => { d.style.fontSize = ''; if (!d.getAttribute('style')) d.removeAttribute('style'); });
+      span.querySelectorAll('font[size]').forEach(f => f.replaceWith(...f.childNodes));
+      if (!span.getAttribute('style') && span.tagName === 'SPAN') { const enfants = [...span.childNodes]; span.replaceWith(...enfants); gardes.push(...enfants); } else gardes.push(span);
+    });
+    if (gardes.length) {
+      const r = document.createRange(); r.setStartBefore(gardes[0]); r.setEndAfter(gardes[gardes.length - 1]);
+      sel.removeAllRanges(); sel.addRange(r);
+    }
+    memoriser();
+  });
 
   const fermerPalettes = () => barre.querySelectorAll('[data-palette]').forEach(p => { p.hidden = true; });
   barre.querySelectorAll('[data-menu]').forEach(b => b.addEventListener('click', e => {
@@ -907,7 +988,9 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
     if (noeud && noeud.parentNode === zone) zone.insertBefore(modele.content, noeud.nextSibling);
     else zone.appendChild(modele.content);
     // Curseur placé dans le premier élément inséré (1re case vide, sinon fin).
-    const cible = premier && (premier.querySelector('td, [data-bloc] p:last-child, blockquote > p:last-child') || premier);
+    // (repère non modifiable — test, saut de diapositive, présentation — : curseur dans le paragraphe qui suit)
+    const repere = premier && premier.matches('[data-activite], [data-bloc="diapo"], [data-presentation]');
+    const cible = premier && (repere ? premier.nextElementSibling : (premier.querySelector('td, [data-bloc] p:last-child, blockquote > p:last-child') || premier));
     if (cible) {
       const r = document.createRange(); r.selectNodeContents(cible); r.collapse(!cible.matches('td') ? false : true);
       const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); zone.focus();
@@ -973,7 +1056,7 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
   function basculerSource() {
     modeSource = !modeSource;
     if (modeSource) {
-      source.value = fkNettoyerHtml(zone.innerHTML).replace(/></g, '>\n<');
+      source.value = lireHtmlPropre(true).replace(/></g, '>\n<');
       source.style.minHeight = Math.max(180, zone.offsetHeight) + 'px';
     } else {
       zone.innerHTML = fkNettoyerHtml(source.value);
@@ -1071,6 +1154,114 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
     });
   });
 
+  // ----- Diaporama et présentations PowerPoint (26 septembre 2026) -----
+  // « ➕ Nouvelle diapositive » pose un repère <div data-bloc="diapo"> : chez
+  // l'étudiant, la leçon est alors découpée en diapositives (Précédent /
+  // Suivant, plein écran). Une présentation est un repère
+  // <div data-presentation="pdf|pptx|lien" data-src="…" title="…"> remplacé
+  // par une visionneuse à l'affichage.
+  function decorerDiapos() {
+    const diapos = [...zone.querySelectorAll('[data-bloc="diapo"]')];
+    diapos.forEach((el, i) => {
+      el.setAttribute('contenteditable', 'false');
+      el.className = 'fk-diapo-repere';
+      el.innerHTML = `<span>🎞️ Diapositive ${i + 2}</span><small>cliquer pour retirer ce saut</small>`;
+    });
+    zone.classList.toggle('fk-riche-diapos', diapos.length > 0);
+    if (diapos.length) zone.dataset.diapo1 = '🎞️ Diapositive 1'; else delete zone.dataset.diapo1;
+    zone.querySelectorAll('[data-presentation]').forEach(el => {
+      el.setAttribute('contenteditable', 'false');
+      el.className = 'fk-presentation-repere';
+      const nat = { pdf: '📄 Présentation PDF', pptx: '📊 Présentation PowerPoint', lien: '🔗 Présentation en ligne' }[el.dataset.presentation] || '📊 Présentation';
+      el.innerHTML = `<b>${nat}</b><br><span>${fkEchapper(el.getAttribute('title') || '')}</span><small>Cliquer pour retirer</small>`;
+    });
+  }
+  zone.addEventListener('click', async e => {
+    const d = e.target.closest('[data-bloc="diapo"], [data-presentation]');
+    if (!d || !zone.contains(d)) return;
+    const estDiapo = d.matches('[data-bloc="diapo"]');
+    if (!await fkConfirmer(estDiapo ? 'Retirer ce saut de diapositive ? (le contenu est conservé)' : 'Retirer cette présentation de la leçon ?', 'Retirer')) return;
+    d.remove(); decorerDiapos(); memoriser();
+  });
+
+  async function actionDiapo(action) {
+    fermerPalettes();
+    if (modeSource) { fkToast('Repassez en mode normal pour utiliser le diaporama.', 'erreur'); return; }
+    if (action === 'nouvelle') {
+      restaurer();
+      inserer('<div data-bloc="diapo"></div><p><br></p>');
+      decorerDiapos();
+      if (zone.querySelectorAll('[data-bloc="diapo"]').length === 1) fkToast('Le contenu au-dessus du repère forme la diapositive 1, celui en dessous la diapositive 2.', 'succes');
+      return;
+    }
+    if (action === 'apercu') {
+      const t = document.createElement('div');
+      t.className = 'fk-lecon-corps';
+      t.innerHTML = lireHtmlPropre();
+      const m = fkModale('Aperçu du diaporama', '<div data-ici></div><div class="fk-actions-form"><button type="button" class="fk-btn fk-btn-primary" data-fermer>Fermer</button></div>');
+      m.boite.style.width = 'min(960px, 100%)';
+      m.boite.querySelector('[data-ici]').appendChild(t);
+      t.querySelectorAll('[data-activite]').forEach(el => { el.className = 'fk-activite-repere'; el.innerHTML = '<b>🧭 Test / questionnaire</b><small>affiché ici pour l\'étudiant</small>'; });
+      await fkPreparerCorpsLecon(t);
+      if (!t.querySelector('.fk-diapo')) fkToast('Aucun saut de diapositive : la leçon s\'affichera sur une seule page.', 'erreur');
+      return;
+    }
+    if (action === 'lien') {
+      const m = fkModale('Présentation Google Slides / OneDrive', `
+        <p style="margin-top:0;font-size:14px;color:var(--f-muted)">
+          <b>Google Slides</b> : Fichier → Partager → Publier sur le Web → Intégrer, ou simplement le lien de partage (accès « Tous les utilisateurs disposant du lien »).<br>
+          <b>PowerPoint en ligne / OneDrive</b> : Fichier → Partager → <b>Incorporer</b>, puis collez le code obtenu.</p>
+        <label class="fk-champ"><span>Lien ou code d'intégration *</span><textarea data-l rows="3" placeholder="https://docs.google.com/presentation/d/…   ou   <iframe src=&quot;https://onedrive.live.com/embed?…&quot;>"></textarea></label>
+        <label class="fk-champ"><span>Titre (facultatif)</span><input type="text" data-t maxlength="120"></label>
+        <div class="fk-actions-form"><button type="button" class="fk-btn fk-btn-ghost" data-fermer>Annuler</button><button type="button" class="fk-btn fk-btn-primary" data-ok>Insérer</button></div>`, { protegee: true });
+      m.boite.querySelector('[data-ok]').addEventListener('click', () => {
+        const emb = fkUrlEmbedPresentation(m.boite.querySelector('[data-l]').value);
+        if (!emb) { fkToast('Lien non reconnu. Sont acceptés : Google Slides, OneDrive, SharePoint et PowerPoint en ligne (adresse https).', 'erreur'); return; }
+        const titre = m.boite.querySelector('[data-t]').value.trim() || emb.nom;
+        m.fermer();
+        inserer(`<div data-presentation="lien" data-src="${fkEchapper(emb.url)}" title="${fkEchapper(titre)}"></div><p><br></p>`);
+        decorerDiapos();
+      });
+      return;
+    }
+    if (action === 'fichier') {
+      const m = fkModale('Présentation PowerPoint ou PDF', `
+        <p style="margin-top:0;font-size:14px;color:var(--f-muted)">L'étudiant la verra diapositive par diapositive, directement dans la leçon.
+          <b>Conseil :</b> le <b>PDF</b> (dans PowerPoint : Fichier → Exporter → PDF) s'affiche partout, même avec une connexion faible, et garde exactement vos polices.
+          Un fichier <b>.pptx</b> est affiché par la visionneuse en ligne de Microsoft.</p>
+        <label class="fk-champ"><span>Fichier (.pdf, .pptx ou .ppt — 50 Mo maximum) *</span><input type="file" data-f accept=".pdf,.pptx,.ppt,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-powerpoint"></label>
+        <label class="fk-champ"><span>Titre (facultatif)</span><input type="text" data-t maxlength="120"></label>
+        <div class="fk-actions-form"><button type="button" class="fk-btn fk-btn-ghost" data-fermer>Annuler</button><button type="button" class="fk-btn fk-btn-primary" data-ok>Envoyer et insérer</button></div>`, { protegee: true });
+      m.boite.querySelector('[data-ok]').addEventListener('click', async ev => {
+        const f = m.boite.querySelector('[data-f]').files[0];
+        if (!f) { fkToast('Choisissez un fichier.', 'erreur'); return; }
+        const ext = (f.name.split('.').pop() || '').toLowerCase();
+        const types = { pdf: 'application/pdf', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', ppt: 'application/vnd.ms-powerpoint' };
+        if (!types[ext]) { fkToast('Formats acceptés : .pdf, .pptx, .ppt', 'erreur'); return; }
+        if (f.size > 50 * 1024 * 1024) { fkToast('Fichier trop lourd (50 Mo maximum).', 'erreur'); return; }
+        const btn = ev.currentTarget; btn.disabled = true; btn.textContent = 'Envoi…';
+        const chemin = `${o.formationId}/presentations/${fkNomFichierSur(f.name)}`;
+        const { error } = await supabaseClient.storage.from(FK_BUCKET_PRIVE).upload(chemin, f, { contentType: types[ext] });
+        if (error) { fkToast(fkMessageErreur(error), 'erreur'); btn.disabled = false; btn.textContent = 'Envoyer et insérer'; return; }
+        const titre = m.boite.querySelector('[data-t]').value.trim() || f.name.replace(/\.[^.]+$/, '');
+        m.fermer();
+        inserer(`<div data-presentation="${ext === 'pdf' ? 'pdf' : 'pptx'}" data-src="fichier:${fkEchapper(chemin)}" title="${fkEchapper(titre)}"></div><p><br></p>`);
+        decorerDiapos();
+        fkToast('Présentation ajoutée. Pensez à enregistrer la leçon.', 'succes');
+      });
+    }
+  }
+  barre.querySelectorAll('[data-diapo]').forEach(b => b.addEventListener('click', () => actionDiapo(b.dataset.diapo)));
+
+  // HTML propre : les repères (tests, diapositives, présentations) sont vidés
+  // de l'habillage ajouté pour l'éditeur.
+  function lireHtmlPropre(depuisZone) {
+    const t = document.createElement('template');
+    t.innerHTML = fkNettoyerHtml(modeSource && !depuisZone ? source.value : zone.innerHTML);
+    t.content.querySelectorAll('[data-activite], [data-bloc="diapo"], [data-presentation]').forEach(el => { el.innerHTML = ''; el.removeAttribute('class'); });
+    return t.innerHTML.trim();
+  }
+
   // ----- Tests / questionnaires au cœur de la leçon -----
   // Dans le texte, un test est un simple repère <div data-activite="ID">
   // (non modifiable au clavier) ; son contenu (question, corrigé…) vit en base
@@ -1099,19 +1290,265 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
     if (a && a.id) { inserer(`<div data-activite="${a.id}"></div><p><br></p>`); decorerActivites(); }
   });
   decorerActivites();
-  btnSource.addEventListener('click', () => { if (!modeSource) decorerActivites(); });
+  decorerDiapos();
+  btnSource.addEventListener('click', () => { if (!modeSource) { decorerActivites(); decorerDiapos(); } });
 
   return {
     zone,
     idsActivites: () => [...new Set([...(modeSource ? new DOMParser().parseFromString(source.value, 'text/html') : zone).querySelectorAll('[data-activite]')].map(el => Number(el.dataset.activite)))],
-    lireHtml: () => {
-      const t = document.createElement('template');
-      t.innerHTML = fkNettoyerHtml(modeSource ? source.value : zone.innerHTML);
-      t.content.querySelectorAll('[data-activite]').forEach(el => { el.innerHTML = ''; el.removeAttribute('class'); });
-      return t.innerHTML.trim();
-    },
+    lireHtml: () => lireHtmlPropre(),
     desactiver: () => { zone.contentEditable = 'false'; barre.querySelectorAll('button, select, input').forEach(el => { el.disabled = true; }); }
   };
+}
+
+// ---------- Diaporama et présentations PowerPoint (26 septembre 2026) ----------
+// Demande : « prévoir l'utilisation des dispositifs comme PowerPoint ».
+// Trois possibilités, toutes insérées depuis le menu 🎞️ Diaporama de
+// l'éditeur de leçon :
+//   1. Diaporama intégré : des repères <div data-bloc="diapo"> découpent la
+//      leçon en diapositives (Précédent / Suivant, clavier, glisser du doigt,
+//      plein écran, ou « Tout afficher » sur une page).
+//   2. Fichier PowerPoint (.pptx/.ppt) ou PDF exporté depuis PowerPoint,
+//      rangé dans le bucket privé : PDF affiché page par page par PDF.js ;
+//      .pptx affiché par la visionneuse en ligne de Microsoft (lien signé 1 h).
+//   3. Lien Google Slides / OneDrive / SharePoint / PowerPoint en ligne :
+//      seule une adresse reconstruite pour ces domaines est intégrée.
+const FK_PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/';
+
+// Lien ou code <iframe> collé -> { url d'intégration sûre, nom } ou null.
+function fkUrlEmbedPresentation(brut) {
+  let s = String(brut || '').trim();
+  const m = /src\s*=\s*["']([^"']+)["']/i.exec(s);
+  if (m) s = m[1];
+  s = s.replace(/&amp;/g, '&');
+  let u;
+  try { u = new URL(s); } catch (_e) { return null; }
+  if (u.protocol !== 'https:' || u.username || u.password) return null;
+  const h = u.hostname.toLowerCase();
+  if (h === 'docs.google.com') {
+    let g = /^\/presentation\/d\/e\/([\w-]{10,})/.exec(u.pathname);
+    if (g) return { url: `https://docs.google.com/presentation/d/e/${g[1]}/embed?start=false&loop=false&delayms=5000`, nom: 'Google Slides' };
+    g = /^\/presentation\/d\/([\w-]{10,})/.exec(u.pathname);
+    if (g) return { url: `https://docs.google.com/presentation/d/${g[1]}/embed?start=false&loop=false&delayms=5000`, nom: 'Google Slides' };
+    return null;
+  }
+  if (h === 'onedrive.live.com') {
+    if (u.pathname.toLowerCase() === '/embed') return { url: u.toString(), nom: 'PowerPoint (OneDrive)' };
+    const resid = u.searchParams.get('resid') || u.searchParams.get('id');
+    if (!resid) return null;
+    const e = new URL('https://onedrive.live.com/embed');
+    e.searchParams.set('resid', resid);
+    ['cid', 'authkey'].forEach(k => { if (u.searchParams.get(k)) e.searchParams.set(k, u.searchParams.get(k)); });
+    e.searchParams.set('em', '2');
+    return { url: e.toString(), nom: 'PowerPoint (OneDrive)' };
+  }
+  if (h === '1drv.ms') {
+    if (!u.searchParams.has('em') && !u.searchParams.has('embed')) u.searchParams.set('embed', '1');
+    return { url: u.toString(), nom: 'PowerPoint (OneDrive)' };
+  }
+  if (/^[a-z0-9-]+(-my)?\.sharepoint\.com$/.test(h)) {
+    if (!/embed/i.test(u.search + u.pathname)) u.searchParams.set('action', 'embedview');
+    return { url: u.toString(), nom: 'PowerPoint (SharePoint)' };
+  }
+  if (/^([a-z0-9-]+\.)?officeapps\.live\.com$/.test(h) && /^\/(op|p)\//i.test(u.pathname)) return { url: u.toString(), nom: 'PowerPoint en ligne' };
+  return null;
+}
+
+function fkPleinEcran(el) {
+  const actif = document.fullscreenElement || document.webkitFullscreenElement;
+  if (actif) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+  if (el.classList.contains('fk-plein-ecran')) { el.classList.remove('fk-plein-ecran'); document.body.classList.remove('fk-sans-defilement'); el.dispatchEvent(new Event('fkplein')); return; }
+  const req = el.requestFullscreen || el.webkitRequestFullscreen;
+  // iPhone : pas de plein écran pour un élément -> la visionneuse couvre la page.
+  if (req) req.call(el).catch(() => { el.classList.add('fk-plein-ecran'); document.body.classList.add('fk-sans-defilement'); el.dispatchEvent(new Event('fkplein')); });
+  else { el.classList.add('fk-plein-ecran'); document.body.classList.add('fk-sans-defilement'); el.dispatchEvent(new Event('fkplein')); }
+}
+function fkGlisser(el, gauche, droite) {
+  let x0 = null, y0 = null;
+  el.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+  el.addEventListener('touchend', e => {
+    if (x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+    x0 = null;
+    // stopPropagation : une présentation PDF dans une diapositive ne fait pas aussi tourner le diaporama.
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) { e.stopPropagation(); (dx < 0 ? droite : gauche)(); }
+  });
+}
+
+// 1. Diaporama intégré. Retourne le contrôleur (ou null s'il n'y a pas de
+// saut de diapositive). corps._fkDiapo.maj() est rappelé après chaque
+// réponse à un test bloquant (une diapositive masquée ne peut être atteinte).
+function fkDiaporama(corps) {
+  const reperes = [...corps.querySelectorAll('[data-bloc="diapo"]')];
+  if (!reperes.length) return null;
+  const groupes = [[]];
+  [...corps.childNodes].forEach(n => {
+    if (n.nodeType === 1 && n.matches('[data-bloc="diapo"]')) { groupes.push([]); n.remove(); return; }
+    groupes[groupes.length - 1].push(n);
+  });
+  corps.querySelectorAll('[data-bloc="diapo"]').forEach(n => n.remove()); // repères imbriqués
+  const pleins = groupes.filter(g => g.some(n => n.nodeType === 1 || (n.textContent || '').trim()));
+  if (pleins.length < 2) { pleins.forEach(g => g.forEach(n => corps.appendChild(n))); return null; }
+  corps.innerHTML = '';
+  pleins.forEach(g => { const s = document.createElement('section'); s.className = 'fk-diapo'; g.forEach(n => s.appendChild(n)); corps.appendChild(s); });
+
+  const cadre = document.createElement('div');
+  cadre.className = 'fk-diaporama-cadre';
+  cadre.tabIndex = 0;
+  cadre.setAttribute('role', 'region');
+  cadre.setAttribute('aria-roledescription', 'diaporama');
+  corps.before(cadre);
+  cadre.appendChild(corps);
+  corps.classList.add('fk-diaporama');
+  cadre.insertAdjacentHTML('beforeend', `
+    <div class="fk-diapo-progres" aria-hidden="true"><span></span></div>
+    <div class="fk-diapo-nav">
+      <button type="button" class="fk-btn fk-btn-outline fk-btn-petit" data-prec aria-label="Diapositive précédente">◀ <span>Précédent</span></button>
+      <span class="fk-diapo-compteur" aria-live="polite"></span>
+      <button type="button" class="fk-btn fk-btn-primary fk-btn-petit" data-suiv aria-label="Diapositive suivante"><span>Suivant</span> ▶</button>
+      <span class="fk-diapo-outils">
+        <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-plein title="Plein écran" aria-label="Plein écran">⛶</button>
+        <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-tout title="Afficher toute la leçon sur une seule page" aria-pressed="false">📄 Tout afficher</button>
+      </span>
+    </div>`);
+  const diapos = [...corps.children].filter(c => c.classList.contains('fk-diapo'));
+  const btnP = cadre.querySelector('[data-prec]'), btnS = cadre.querySelector('[data-suiv]');
+  const compteur = cadre.querySelector('.fk-diapo-compteur'), barreP = cadre.querySelector('.fk-diapo-progres span');
+  let i = 0, tout = false;
+  const maj = () => {
+    diapos.forEach((d, k) => d.classList.toggle('actif', k === i));
+    const suivanteMasquee = diapos[i + 1] && diapos[i + 1].hidden;
+    btnP.disabled = i === 0;
+    btnS.disabled = i >= diapos.length - 1 || suivanteMasquee;
+    compteur.innerHTML = suivanteMasquee ? `${i + 1} / ${diapos.length} · <b>🔒 répondez au test pour continuer</b>` : `${i + 1} / ${diapos.length}`;
+    barreP.style.width = `${((i + 1) / diapos.length) * 100}%`;
+  };
+  const aller = k => {
+    if (tout || k < 0 || k >= diapos.length || diapos[k].hidden) return;
+    i = k; maj();
+    corps.scrollTop = 0;
+    if (!document.fullscreenElement && !cadre.classList.contains('fk-plein-ecran')) {
+      const haut = cadre.getBoundingClientRect().top;
+      if (haut < 0) window.scrollBy({ top: haut - 80, behavior: 'smooth' });
+    }
+  };
+  btnP.addEventListener('click', () => aller(i - 1));
+  btnS.addEventListener('click', () => aller(i + 1));
+  cadre.addEventListener('keydown', e => {
+    if (e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    if (['ArrowRight', 'PageDown'].includes(e.key)) { e.preventDefault(); aller(i + 1); }
+    if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); aller(i - 1); }
+    if (e.key === 'Escape' && cadre.classList.contains('fk-plein-ecran')) fkPleinEcran(cadre);
+  });
+  fkGlisser(corps, () => aller(i - 1), () => aller(i + 1));
+  cadre.querySelector('[data-plein]').addEventListener('click', () => { fkPleinEcran(cadre); cadre.focus(); });
+  cadre.querySelector('[data-tout]').addEventListener('click', e => {
+    tout = !tout;
+    corps.classList.toggle('fk-diaporama', !tout);
+    cadre.classList.toggle('fk-diapo-tout', tout);
+    e.currentTarget.setAttribute('aria-pressed', String(tout));
+    e.currentTarget.textContent = tout ? '🎞️ Mode diaporama' : '📄 Tout afficher';
+    maj();
+  });
+  maj();
+  corps._fkDiapo = { maj, aller, diapos };
+  return corps._fkDiapo;
+}
+
+// 2. Visionneuse PDF (PDF.js), page par page.
+async function fkVisionneusePdf(el, url, titre) {
+  el.innerHTML = `<div class="fk-pres-cadre" tabindex="0">
+      <div class="fk-pres-tete"><b>📄 ${fkEchapper(titre || 'Présentation')}</b></div>
+      <div class="fk-pres-scene"><canvas aria-label="${fkEchapper(titre || 'Présentation')}"></canvas><p class="fk-pres-charge">Chargement de la présentation…</p></div>
+      <div class="fk-diapo-nav">
+        <button type="button" class="fk-btn fk-btn-outline fk-btn-petit" data-prec aria-label="Diapositive précédente">◀ <span>Précédent</span></button>
+        <span class="fk-diapo-compteur" aria-live="polite"></span>
+        <button type="button" class="fk-btn fk-btn-primary fk-btn-petit" data-suiv aria-label="Diapositive suivante"><span>Suivant</span> ▶</button>
+        <span class="fk-diapo-outils"><button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-plein title="Plein écran" aria-label="Plein écran">⛶</button></span>
+      </div></div>`;
+  const cadre = el.querySelector('.fk-pres-cadre');
+  const canvas = el.querySelector('canvas');
+  const scene = el.querySelector('.fk-pres-scene');
+  const compteur = el.querySelector('.fk-diapo-compteur');
+  let doc, page = 1, rendu = null;
+  try {
+    await fkChargerScript(FK_PDFJS + 'pdf.min.js');
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = FK_PDFJS + 'pdf.worker.min.js';
+    doc = await window.pdfjsLib.getDocument({ url, isEvalSupported: false }).promise;
+  } catch (_e) {
+    scene.innerHTML = `<p class="fk-alerte fk-alerte-attention">La présentation n'a pas pu être affichée. <a href="${fkEchapper(url)}" target="_blank" rel="noopener">Ouvrir le fichier</a></p>`;
+    return;
+  }
+  el.querySelector('.fk-pres-charge')?.remove();
+  const dessiner = async () => {
+    const p = await doc.getPage(page);
+    const plein = document.fullscreenElement === cadre || cadre.classList.contains('fk-plein-ecran');
+    const base = p.getViewport({ scale: 1 });
+    const largeur = scene.clientWidth || 800;
+    const hauteurMax = plein ? window.innerHeight - 110 : Infinity;
+    const echelle = Math.min(largeur / base.width, hauteurMax / base.height);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const vp = p.getViewport({ scale: echelle * dpr });
+    if (rendu) { try { rendu.cancel(); } catch (_e) { /* déjà fini */ } }
+    canvas.width = vp.width; canvas.height = vp.height;
+    canvas.style.width = `${vp.width / dpr}px`; canvas.style.height = `${vp.height / dpr}px`;
+    rendu = p.render({ canvasContext: canvas.getContext('2d'), viewport: vp });
+    try { await rendu.promise; } catch (_e) { /* rendu annulé */ }
+    compteur.textContent = `${page} / ${doc.numPages}`;
+    el.querySelector('[data-prec]').disabled = page <= 1;
+    el.querySelector('[data-suiv]').disabled = page >= doc.numPages;
+  };
+  const aller = k => { if (k < 1 || k > doc.numPages) return; page = k; dessiner(); };
+  el.querySelector('[data-prec]').addEventListener('click', () => aller(page - 1));
+  el.querySelector('[data-suiv]').addEventListener('click', () => aller(page + 1));
+  cadre.addEventListener('keydown', e => {
+    if (['ArrowRight', 'PageDown'].includes(e.key)) { e.preventDefault(); e.stopPropagation(); aller(page + 1); }
+    if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); e.stopPropagation(); aller(page - 1); }
+    if (e.key === 'Escape' && cadre.classList.contains('fk-plein-ecran')) fkPleinEcran(cadre);
+  });
+  fkGlisser(scene, () => aller(page - 1), () => aller(page + 1));
+  el.querySelector('[data-plein]').addEventListener('click', () => { fkPleinEcran(cadre); cadre.focus(); });
+  let minuteur;
+  const redessiner = () => { clearTimeout(minuteur); minuteur = setTimeout(dessiner, 150); };
+  window.addEventListener('resize', redessiner);
+  document.addEventListener('fullscreenchange', redessiner);
+  cadre.addEventListener('fkplein', redessiner);
+  await dessiner();
+}
+
+// Remplace les repères de présentation par leur visionneuse.
+async function fkRendrePresentations(corps) {
+  const reperes = [...corps.querySelectorAll('[data-presentation]')];
+  for (const el of reperes) {
+    const nature = el.dataset.presentation;
+    const src = el.getAttribute('data-src') || '';
+    const titre = el.getAttribute('title') || '';
+    el.removeAttribute('title');
+    el.className = 'fk-presentation';
+    el.innerHTML = '';
+    const cadreIframe = (url, note) => `<div class="fk-pres-cadre fk-pres-iframe">
+        <div class="fk-pres-tete"><b>📊 ${fkEchapper(titre || 'Présentation')}</b><button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-plein title="Plein écran" aria-label="Plein écran">⛶</button></div>
+        <div class="fk-video"><iframe src="${fkEchapper(url)}" title="${fkEchapper(titre || 'Présentation')}" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>${note || ''}</div>`;
+    if (nature === 'lien') {
+      const emb = fkUrlEmbedPresentation(src);
+      el.innerHTML = emb ? cadreIframe(emb.url) : '<p class="fk-alerte fk-alerte-attention">Présentation indisponible (lien non reconnu).</p>';
+    } else if (nature === 'pdf' || nature === 'pptx') {
+      const chemin = src.startsWith('fichier:') ? src.slice(8) : '';
+      const url = /^\d+\/presentations\/[\w.-]+$/.test(chemin) ? await fkUrlFichier(chemin) : null;
+      if (!url) { el.innerHTML = '<p class="fk-alerte fk-alerte-attention">Présentation indisponible.</p>'; continue; }
+      if (nature === 'pdf') { fkVisionneusePdf(el, url, titre); continue; }
+      el.innerHTML = cadreIframe(`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`,
+        `<p class="fk-pres-note">Affichage par la visionneuse Microsoft. Si rien n'apparaît, <a href="${fkEchapper(url)}" target="_blank" rel="noopener">téléchargez la présentation</a>.</p>`);
+    } else { el.remove(); continue; }
+    const btn = el.querySelector('[data-plein]');
+    if (btn) btn.addEventListener('click', () => fkPleinEcran(el.querySelector('.fk-pres-cadre')));
+  }
+}
+
+// À appeler sur le corps d'une leçon affichée (lecteur, aperçu).
+async function fkPreparerCorpsLecon(corps) {
+  fkDiaporama(corps);
+  await fkRendrePresentations(corps);
 }
 
 // ---------- Initialisation commune d'une page ----------
