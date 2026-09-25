@@ -1,3 +1,60 @@
+KEKELI — Livraison du 26 septembre 2026 (suite 4) — KEKELI Formation : pages HTML qui marchent à l'identique, cours en plein écran, quiz générés par IA
+===========================================================================
+
+CE QUI A ÉTÉ DEMANDÉ
+------------------------------------------------------------------------------
+"Quand je colle le contenu (Leçon1.html) dans mon éditeur, l'affichage
+n'est plus fidèle et certaines fonctionnalités comme le minuteur ne
+marchent plus. Je veux que pour n'importe quel code HTML tout marche
+parfaitement comme l'original. Je veux aussi que les cours s'affichent en
+plein écran avec un petit icône fixe dans un coin en haut pour naviguer
+facilement entre les leçons. Ajoute la génération IA pour les quiz."
+
+CE QUI CHANGE CONCRÈTEMENT
+------------------------------------------------------------------------------
+1. LEÇON « PAGE HTML COMPLÈTE » (éditeur de leçon → « 📝 Contenu de la
+   leçon ») : deux choix, « Éditeur KEKELI » (comme avant) ou « Page HTML
+   complète ». Dans le second cas, on importe le fichier .html (ou on colle
+   son code) : la page est gardée TELLE QUELLE et affichée exactement comme
+   dans le navigateur — mise en page, couleurs, adaptation au téléphone,
+   animations ET JavaScript (le minuteur « Commencer le défi » fonctionne).
+   - Aperçu en direct dans l'éditeur.
+   - Si on colle ou importe une page complète dans l'éditeur KEKELI, le site
+     propose automatiquement de la garder telle quelle.
+   - Ce que l'étudiant écrit ou coche dans la page (exercices, engagement)
+     est gardé et lui est remis à sa prochaine visite (sur le même appareil).
+   - Sécurité : la page tourne dans un cadre isolé ; ses scripts ne peuvent
+     ni lire la session de l'étudiant ni toucher au reste du site.
+   Les tests « 🧭 » et le diaporama restent propres au mode Éditeur KEKELI.
+
+2. COURS EN PLEIN ÉCRAN : la leçon occupe tout l'écran (sans le menu du
+   site). Un petit bouton fixe ☰ en haut à gauche (avec « 3/12 ») ouvre le
+   sommaire : toutes les leçons, Précédent / Suivant, retour à « Mon
+   apprentissage ». Touche Échap pour le refermer. L'étudiant peut revenir
+   à l'affichage classique (choix mémorisé sur son appareil).
+
+3. QUIZ GÉNÉRÉS PAR IA : onglet Quiz → Questions → « 🧠 Générer avec
+   l'IA ». On choisit les leçons à évaluer (celles du module du quiz sont
+   pré-cochées ; les pages HTML sont lues aussi) et/ou on colle un texte, le
+   nombre (1 à 20), le niveau, les types (QCM, QCM multiple, vrai/faux,
+   réponse courte, numérique, texte à trous, remise en ordre, association)
+   et des consignes. L'IA propose des questions avec corrigé et explication ;
+   on coche celles à garder, elles s'ajoutent au quiz et restent
+   modifiables (✏️). Limite : 40 générations par 24 h et par formateur.
+
+BASE DE DONNÉES ET SERVEUR (déjà en place)
+------------------------------------------------------------------------------
+- formation_lecons.page_html (3 Mo maximum) ; table formation_ia_usage.
+- Nouvelle fonction serveur « formation-quiz-ia » (déployée ; copie du code
+  dans supabase/functions/formation-quiz-ia/index.ts).
+
+FICHIERS MODIFIÉS
+------------------------------------------------------------------------------
+js/formations/commun.js, js/formations/app-lecteur.js, js/formations/fiche.js,
+js/formations/formateur-edition.js, css/formations.css,
+supabase/functions/formation-quiz-ia/index.ts, LISEZ-MOI.txt
+
+
 KEKELI — Livraison du 27 septembre 2026 — KEKELI Formation : chiffres et pastilles bien placés dans le HTML importé
 ===========================================================================
 

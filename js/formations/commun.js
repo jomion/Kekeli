@@ -1286,6 +1286,8 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
     if (fichier.size > 2 * 1024 * 1024) { fkToast('Fichier trop lourd (2 Mo maximum).', 'erreur'); return; }
     try {
       const texte = await fichier.text();
+      // Page HTML complète (styles/scripts) : proposer de la garder telle quelle.
+      if (o.surPageComplete && /^(html?|txt)$/.test(ext) && fkEstPageHtmlComplete(texte) && await o.surPageComplete(texte)) return;
       const html = await fkConvertirEnHtml(texte, ext === 'html' || ext === 'htm' ? 'html' : ext === 'txt' ? 'auto' : 'markdown');
       if (!html.trim()) { fkToast('Le fichier ne contient aucun texte exploitable.', 'erreur'); return; }
       const vide = !zone.textContent.trim();
@@ -1323,6 +1325,13 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
     fmt.addEventListener('change', majApercu);
     m.boite.querySelector('[data-ok]').addEventListener('click', async () => {
       if (!txt.value.trim()) { fkToast('Collez d\'abord un texte.', 'erreur'); return; }
+      if (o.surPageComplete && fmt.value !== 'markdown' && fkEstPageHtmlComplete(txt.value)) {
+        const code = txt.value;
+        m.fermer();
+        if (await o.surPageComplete(code)) return;
+        inserer(await fkConvertirEnHtml(code, 'html'), false);
+        return;
+      }
       try {
         const html = await fkConvertirEnHtml(txt.value, fmt.value);
         m.fermer();
@@ -1355,6 +1364,13 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
     const html = cd.getData('text/html');
     const texte = cd.getData('text/plain');
     e.preventDefault();
+    // Code d'une page HTML collé (depuis un éditeur de code, le Bloc-notes…) : le
+    // texte brut EST le code — même si l'éditeur de code a aussi fourni une version colorée.
+    if (fkEstPageHtmlComplete(texte)) {
+      if (o.surPageComplete && await o.surPageComplete(texte)) return;
+      collerHtml(await fkConvertirEnHtml(texte, 'html'));
+      return;
+    }
     if (html) {
       let propre;
       if (fkEstHtmlBureautique(html)) {
@@ -1364,6 +1380,10 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
       } else if (/<style[\s>]/i.test(html)) propre = fkNettoyerHtml(await fkHtmlStylesEnLigne(html, zone.clientWidth || 860));
       else propre = fkNettoyerHtml(html);
       collerHtml(propre);
+      return;
+    }
+    if (!html && /^\s*<(div|p|section|article|table|ul|ol|h[1-6]|span|main|header)\b[^>]*>[\s\S]*<\/\1>\s*$/i.test(texte)) {
+      collerHtml(await fkConvertirEnHtml(texte, 'html'));
       return;
     }
     if (/^\s{0,3}(#{1,6}\s|[-*+]\s|\d+\.\s|>\s|```)|\*\*[^*]+\*\*|\[[^\]]+\]\(https?:/m.test(texte)) {
@@ -1579,6 +1599,99 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
     lireHtml: () => lireHtmlPropre(),
     desactiver: () => { zone.contentEditable = 'false'; barre.querySelectorAll('button, select, input').forEach(el => { el.disabled = true; }); }
   };
+}
+
+// ---------- Leçon « page HTML complète » (26 septembre 2026) ----------
+// Demande : « pour n'importe quel code HTML, tout doit marcher parfaitement
+// comme l'original » (mise en page, animations, minuteur en JavaScript…).
+// La page est affichée TELLE QUELLE dans un cadre isolé :
+//   sandbox="allow-scripts …" SANS allow-same-origin → les scripts de la page
+//   tournent, mais dans une « origine » à part : ils ne peuvent ni lire la
+//   session de l'étudiant, ni toucher au reste du site.
+// Un petit script « pont » ajouté à la page :
+//   - ajuste la hauteur du cadre à son contenu (pas de double barre de défilement) ;
+//   - remplace localStorage/sessionStorage (interdits dans un cadre isolé) par
+//     une copie gardée par le site, pour que les pages qui s'en servent marchent ;
+//   - mémorise ce que l'étudiant écrit ou coche dans la page (exercices) et le
+//     lui remet à sa prochaine visite (sur cet appareil) ;
+//   - ouvre les liens externes dans un nouvel onglet.
+function fkEstPageHtmlComplete(texte) {
+  const t = String(texte || '');
+  return /<script[\s>]/i.test(t) || (/<style[\s>]/i.test(t) && /<\/?(html|body|head)[\s>]/i.test(t)) || /^\s*<!doctype html/i.test(t);
+}
+function fkPontPageHtml(stockage) {
+  const init = JSON.stringify(stockage || {}).replace(/</g, '\\u003c');
+  return `<script>(function(){
+var P=window.parent,D=document;
+function memoire(init,persiste){var d=Object.assign({},init||{});return{
+getItem:function(k){k=String(k);return Object.prototype.hasOwnProperty.call(d,k)?d[k]:null;},
+setItem:function(k,v){d[String(k)]=String(v);persiste&&P.postMessage({kekeli:'stockage',v:d},'*');},
+removeItem:function(k){delete d[String(k)];persiste&&P.postMessage({kekeli:'stockage',v:d},'*');},
+clear:function(){d={};persiste&&P.postMessage({kekeli:'stockage',v:d},'*');},
+key:function(i){return Object.keys(d)[i]||null;},get length(){return Object.keys(d).length;}};}
+try{Object.defineProperty(window,'localStorage',{value:memoire(${init},true),configurable:true});}catch(e){}
+try{Object.defineProperty(window,'sessionStorage',{value:memoire({},false),configurable:true});}catch(e){}
+function hauteur(){var b=D.body,h=Math.max(D.documentElement.scrollHeight,b?b.scrollHeight:0);P.postMessage({kekeli:'hauteur',h:h},'*');}
+function champs(){return Array.prototype.slice.call(D.querySelectorAll('input:not([type=button]):not([type=submit]):not([type=file]),textarea,select'));}
+function lire(){return champs().map(function(el){return(el.type==='checkbox'||el.type==='radio')?el.checked:el.value;});}
+function envoyer(){P.postMessage({kekeli:'champs',v:lire()},'*');}
+D.addEventListener('input',envoyer,true);D.addEventListener('change',envoyer,true);
+D.addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('a[href]'):null;if(!a)return;var h=a.getAttribute('href')||'';if(h.charAt(0)==='#'||/^javascript:/i.test(h))return;a.setAttribute('target','_blank');a.setAttribute('rel','noopener');},true);
+window.addEventListener('message',function(e){if(e.source!==P||!e.data||e.data.kekeli!=='restaurer')return;var v=e.data.v||[];champs().forEach(function(el,i){if(v[i]===undefined||v[i]===null)return;if(el.type==='checkbox'||el.type==='radio')el.checked=!!v[i];else el.value=v[i];});hauteur();});
+window.addEventListener('load',function(){hauteur();P.postMessage({kekeli:'pret'},'*');});
+window.addEventListener('resize',hauteur);
+D.addEventListener('DOMContentLoaded',function(){hauteur();try{new ResizeObserver(hauteur).observe(D.documentElement);}catch(e){setInterval(hauteur,1000);}});
+})();<\/script>`;
+}
+// Insère le pont tout au début de <head> (avant les scripts de la page).
+function fkPageAvecPont(html, stockage) {
+  const pont = fkPontPageHtml(stockage);
+  const src = String(html || '');
+  if (/<head[^>]*>/i.test(src)) return src.replace(/<head[^>]*>/i, m => m + pont);
+  if (/<html[^>]*>/i.test(src)) return src.replace(/<html[^>]*>/i, m => m + '<head>' + pont + '</head>');
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${pont}</head><body>${src}</body></html>`;
+}
+// Affiche la page dans `conteneur`. opts.cle : clé de mémorisation (réponses
+// de l'étudiant, localStorage de la page) ; sans clé, rien n'est mémorisé.
+function fkAfficherPageHtml(conteneur, html, opts) {
+  const o = opts || {};
+  const lireMemo = () => { try { return JSON.parse(localStorage.getItem(o.cle) || '{}'); } catch (_e) { return {}; } };
+  const ecrireMemo = m => { try { localStorage.setItem(o.cle, JSON.stringify(m)); } catch (_e) { /* stockage plein ou interdit */ } };
+  const memo = o.cle ? lireMemo() : {};
+  const cadre = document.createElement('iframe');
+  cadre.className = 'fk-page-html';
+  cadre.title = o.titre || 'Contenu de la leçon';
+  cadre.setAttribute('sandbox', 'allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads');
+  cadre.setAttribute('allow', 'fullscreen; autoplay; clipboard-write');
+  cadre.setAttribute('allowfullscreen', '');
+  cadre.setAttribute('referrerpolicy', 'no-referrer');
+  cadre.style.height = (o.hauteurInitiale || 600) + 'px';
+  cadre.srcdoc = fkPageAvecPont(html, memo.stockage);
+  let hausses = 0, derniere = 0, debut = Date.now();
+  const ecoute = e => {
+    if (e.source !== cadre.contentWindow || !e.data || typeof e.data !== 'object') return;
+    const d = e.data;
+    if (d.kekeli === 'hauteur') {
+      const h = Math.min(60000, Math.max(120, Math.ceil(Number(d.h) || 0)));
+      // Garde-fou : une page en « 100vh » pourrait grandir sans fin avec son cadre.
+      if (h > derniere + 2) { hausses++; if (hausses > 40 && Date.now() - debut < 8000) return; }
+      if (Math.abs(h - derniere) > 2) { derniere = h; cadre.style.height = h + 'px'; }
+    } else if (d.kekeli === 'pret' && o.cle && Array.isArray(memo.champs)) {
+      cadre.contentWindow.postMessage({ kekeli: 'restaurer', v: memo.champs }, '*');
+    } else if (d.kekeli === 'champs' && o.cle && Array.isArray(d.v)) {
+      memo.champs = d.v.map(v => (typeof v === 'string' ? v.slice(0, 20000) : !!v)).slice(0, 500); ecrireMemo(memo);
+    } else if (d.kekeli === 'stockage' && o.cle && d.v && typeof d.v === 'object') {
+      const s = JSON.stringify(d.v);
+      if (s.length < 500000) { memo.stockage = d.v; ecrireMemo(memo); }
+    }
+  };
+  window.addEventListener('message', ecoute);
+  conteneur.innerHTML = '';
+  conteneur.appendChild(cadre);
+  // Nettoyage quand le cadre quitte la page (changement de leçon).
+  const obs = new MutationObserver(() => { if (!cadre.isConnected) { window.removeEventListener('message', ecoute); obs.disconnect(); } });
+  obs.observe(document.body, { childList: true, subtree: true });
+  return cadre;
 }
 
 // ---------- Diaporama et présentations PowerPoint (26 septembre 2026) ----------

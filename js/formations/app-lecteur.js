@@ -64,6 +64,11 @@ const FKL = { s: null, f: null, inscription: null, modules: [], lecons: [], quiz
     <div class="fk-lecteur" id="lecteur">
       <aside class="fk-lecteur-nav" aria-label="Sommaire de la formation">
         <div class="fk-lecteur-nav-tete">
+          <div class="fk-tiroir-actions">
+            <button class="fk-btn fk-btn-outline fk-btn-petit" data-nav-sens="-1" aria-label="Leçon précédente">◀ Précédent</button>
+            <button class="fk-btn fk-btn-primary fk-btn-petit" data-nav-sens="1" aria-label="Leçon suivante">Suivant ▶</button>
+            <button class="fk-btn fk-btn-ghost fk-btn-petit fk-tiroir-fermer" data-fermer-tiroir aria-label="Fermer le sommaire">✕</button>
+          </div>
           <a class="fk-link" href="${FK_BASE}app/tableau-de-bord.html">← Mon apprentissage</a>
           <h2 style="margin-top:10px">${fkEchapper(f.titre)}</h2>
           ${FKL.apercu ? '<span class="fk-pastille en_revision">Mode aperçu (formateur)</span>' : `
@@ -71,10 +76,14 @@ const FKL = { s: null, f: null, inscription: null, modules: [], lecons: [], quiz
             <small style="color:var(--f-muted)" id="texteProg">${fkPourcentage(ins.progression)} terminé</small>`}
         </div>
         <div id="sommaire"></div>
+        <div class="fk-tiroir-pied"><button class="fk-btn fk-btn-ghost fk-btn-petit" id="btnModeAffichage"></button></div>
       </aside>
+      <div class="fk-voile-tiroir" data-fermer-tiroir></div>
+      <button class="fk-bouton-nav-flottant" id="btnNavFlottant" aria-label="Leçons et navigation" title="Leçons et navigation"><span aria-hidden="true">☰</span><small id="navFlottantRang"></small></button>
       <section class="fk-lecteur-contenu" id="zoneLecon" tabindex="-1"></section>
     </div>`;
   rendreSommaire();
+  brancherPleinEcran();
 
   // Élément de départ : paramètre d'URL, dernière leçon ouverte, ou premier non fait.
   let depart = null;
@@ -85,6 +94,36 @@ const FKL = { s: null, f: null, inscription: null, modules: [], lecons: [], quiz
   if (depart) ouvrir(depart);
   else document.getElementById('zoneLecon').innerHTML = '<div class="fk-vide"><span class="fk-vide-icone">📭</span>Cette formation ne contient pas encore de leçon.</div>';
 })();
+
+// Affichage « plein écran » (26 septembre 2026) : la leçon occupe toute la page,
+// sans l'en-tête du site ; un petit bouton fixe en haut à gauche ouvre le
+// sommaire (leçons, Précédent / Suivant, retour à l'affichage classique).
+// Choix mémorisé sur l'appareil ; plein écran par défaut.
+function modePlein() { try { return localStorage.getItem('kekeli-lecteur-plein') !== '0'; } catch (_e) { return true; } }
+function appliquerModeAffichage() {
+  const plein = modePlein();
+  document.body.classList.toggle('fk-plein', plein);
+  const b = document.getElementById('btnModeAffichage');
+  if (b) b.textContent = plein ? '⤡ Affichage classique (avec le menu du site)' : '⛶ Afficher les cours en plein écran';
+}
+function brancherPleinEcran() {
+  const lecteur = document.getElementById('lecteur');
+  const ouvrirTiroir = ouvert => lecteur.classList.toggle('nav-ouverte', ouvert);
+  document.getElementById('btnNavFlottant').addEventListener('click', () => ouvrirTiroir(!lecteur.classList.contains('nav-ouverte')));
+  lecteur.querySelectorAll('[data-fermer-tiroir]').forEach(b => b.addEventListener('click', () => ouvrirTiroir(false)));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') ouvrirTiroir(false); });
+  lecteur.querySelectorAll('[data-nav-sens]').forEach(b => b.addEventListener('click', () => {
+    const i = FKL.items.findIndex(x => FKL.actuel && x.type === FKL.actuel.type && x.id === FKL.actuel.id);
+    const cible = FKL.items[i + Number(b.dataset.navSens)];
+    if (cible) { ouvrirTiroir(false); ouvrir(cible); }
+  }));
+  document.getElementById('btnModeAffichage').addEventListener('click', () => {
+    try { localStorage.setItem('kekeli-lecteur-plein', modePlein() ? '0' : '1'); } catch (_e) { /* ignoré */ }
+    appliquerModeAffichage();
+    ouvrirTiroir(false);
+  });
+  appliquerModeAffichage();
+}
 
 function estFait(item) { return item.type === 'lecon' ? FKL.faites.has(item.id) : FKL.reussis.has(item.id); }
 
@@ -119,6 +158,11 @@ function majProgression(pct) {
 
 async function ouvrir(item) {
   if (FKL.chrono) { clearInterval(FKL.chrono); FKL.chrono = null; }
+  FKL.actuel = item;
+  const rang = FKL.items.findIndex(x => x.type === item.type && x.id === item.id);
+  const r = document.getElementById('navFlottantRang'); if (r) r.textContent = `${rang + 1}/${FKL.items.length}`;
+  document.querySelectorAll('[data-nav-sens="-1"]').forEach(b => { b.disabled = rang <= 0; });
+  document.querySelectorAll('[data-nav-sens="1"]').forEach(b => { b.disabled = rang >= FKL.items.length - 1; });
   const u = new URL(window.location.href);
   u.searchParams.delete('lecon'); u.searchParams.delete('quiz');
   u.searchParams.set(item.type, item.id);
@@ -126,6 +170,7 @@ async function ouvrir(item) {
   rendreSommaire(item);
   const zone = document.getElementById('zoneLecon');
   zone.innerHTML = '<div class="fk-chargement">Chargement…</div>';
+  zone.classList.remove('fk-contenu-page');
   if (item.obj.verrou) afficherVerrou(item);
   else if (item.type === 'lecon') await afficherLecon(item); else await afficherQuiz(item);
   zone.focus({ preventScroll: true });
@@ -181,13 +226,16 @@ async function afficherLecon(item) {
   if (!FKL.apercu) supabaseClient.rpc('enregistrer_acces_lecon', { p_lecon_id: l.id });
   const ressources = FKL.ressources.filter(r => r.lecon_id === l.id);
   const fait = FKL.faites.has(l.id);
+  // Leçon « page HTML complète » : affichée telle quelle (voir fkAfficherPageHtml).
+  const page = !!l.page_html;
+  zone.classList.toggle('fk-contenu-page', page);
   zone.innerHTML = `
     <button class="fk-btn fk-btn-ghost fk-btn-petit fk-lecteur-bascule" id="btnSommaire">☰ Sommaire</button>
-    <h1>${fkEchapper(l.titre)}</h1>
-    <p style="color:var(--f-muted);margin:0 0 10px">⏱️ ${fkDuree(l.duree_minutes)}${l.est_obligatoire ? '' : ' · leçon facultative'}</p>
+    ${page ? '' : `<h1>${fkEchapper(l.titre)}</h1>
+    <p style="color:var(--f-muted);margin:0 0 10px">⏱️ ${fkDuree(l.duree_minutes)}${l.est_obligatoire ? '' : ' · leçon facultative'}</p>`}
     ${await fkHtmlVideo(l.video_url)}
     ${await fkHtmlAudio(l.audio_url)}
-    <div class="fk-lecon-corps">${fkNettoyerHtml(l.contenu)}</div>
+    ${page ? '<div class="fk-page-conteneur" data-page-html></div>' : `<div class="fk-lecon-corps">${fkNettoyerHtml(l.contenu)}</div>`}
     <div data-apres-corps>${ressources.length ? `<h2 style="font-size:18px;margin-top:26px">📎 Ressources</h2>${ressources.map(r => `
       <div class="fk-ressource"><span>📄 ${fkEchapper(r.nom)}</span>
         <button class="fk-btn fk-btn-outline fk-btn-petit" data-ressource="${r.id}">${r.telechargement_autorise ? '⬇️ Télécharger' : '👁️ Ouvrir'}</button></div>`).join('')}` : ''}
@@ -195,8 +243,11 @@ async function afficherLecon(item) {
     ${navigation(item)}</div>`;
   zone.querySelector('#btnSommaire').addEventListener('click', () => document.getElementById('lecteur').classList.toggle('nav-ouverte'));
   // Diaporama intégré et présentations PowerPoint / PDF / Google Slides (26 septembre 2026).
-  await fkPreparerCorpsLecon(zone.querySelector('.fk-lecon-corps'));
-  await brancherActivitesLecon(zone, l.id);
+  if (page) fkAfficherPageHtml(zone.querySelector('[data-page-html]'), l.page_html, { cle: `kekeli-page-${FKL.s.profil.id}-${l.id}`, titre: l.titre });
+  else {
+    await fkPreparerCorpsLecon(zone.querySelector('.fk-lecon-corps'));
+    await brancherActivitesLecon(zone, l.id);
+  }
   zone.querySelectorAll('[data-ressource]').forEach(b => b.addEventListener('click', async () => {
     const r = ressources.find(x => x.id === Number(b.dataset.ressource));
     const url = await fkUrlFichier(r.chemin_fichier, r.telechargement_autorise);

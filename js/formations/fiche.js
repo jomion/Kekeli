@@ -185,11 +185,12 @@
   async function ouvrirApercu(lid) {
     const { data: l } = await supabaseClient.from('formation_lecons').select('*').eq('id', lid).maybeSingle();
     if (!l) { fkToast('Aperçu indisponible.', 'erreur'); return; }
-    const corps = `${await fkHtmlVideo(l.video_url)}${await fkHtmlAudio(l.audio_url)}<div class="fk-lecon-corps">${fkNettoyerHtml(l.contenu)}</div>
+    const corps = `${await fkHtmlVideo(l.video_url)}${await fkHtmlAudio(l.audio_url)}${l.page_html ? '<div data-page-html></div>' : `<div class="fk-lecon-corps">${fkNettoyerHtml(l.contenu)}</div>`}
       <div class="fk-actions-form"><button class="fk-btn fk-btn-primary" data-fermer>Fermer</button></div>`;
     const m = fkModale(`Aperçu : ${l.titre}`, corps);
-    m.boite.style.width = 'min(860px, 100%)';
-    await fkPreparerCorpsLecon(m.boite.querySelector('.fk-lecon-corps'));
+    m.boite.style.width = l.page_html ? 'min(1200px, 100%)' : 'min(860px, 100%)';
+    if (l.page_html) fkAfficherPageHtml(m.boite.querySelector('[data-page-html]'), l.page_html, { titre: l.titre });
+    else await fkPreparerCorpsLecon(m.boite.querySelector('.fk-lecon-corps'));
   }
 
   function iconeType(t) { return { video: '🎬', audio: '🎧', document: '📄', mixte: '🧩' }[t] || '📖'; }

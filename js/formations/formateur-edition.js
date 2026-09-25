@@ -313,7 +313,23 @@ function modaleLecon(l, moduleId) {
           <label class="fk-btn fk-btn-outline fk-btn-petit" style="cursor:pointer">⬆️ Envoyer un fichier audio (MP3, M4A…)<input type="file" data-media="audio" accept="audio/*" hidden></label>
           <span data-etat="audio" style="font-size:13px;color:var(--f-muted)"></span></div>
       </fieldset>
-      <div class="fk-champ"><span>Contenu de la leçon</span><div id="editeurLecon"></div></div>
+      <fieldset class="fk-carte fk-mode-contenu"><legend>📝 Contenu de la leçon</legend>
+        <div class="fk-choix-mode">
+          <label><input type="radio" name="mode_contenu" value="editeur" ${l?.page_html ? '' : 'checked'}> <b>Éditeur KEKELI</b><small>Texte mis en forme, images, tests, diaporama…</small></label>
+          <label><input type="radio" name="mode_contenu" value="page" ${l?.page_html ? 'checked' : ''}> <b>Page HTML complète</b><small>Votre page telle quelle : styles, animations, minuteur… tout fonctionne comme dans le navigateur.</small></label>
+        </div>
+        <div data-bloc-editeur><div id="editeurLecon"></div></div>
+        <div data-bloc-page hidden>
+          <div class="fk-page-outils">
+            <label class="fk-btn fk-btn-outline fk-btn-petit" style="cursor:pointer">📥 Importer un fichier .html<input type="file" data-import-page accept=".html,.htm,text/html" hidden></label>
+            <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-code-page aria-expanded="false">&lt;/&gt; Voir / coller le code</button>
+            <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-vider-page>🗑️ Retirer la page</button>
+            <span data-info-page style="font-size:13px;color:var(--f-muted)"></span>
+          </div>
+          <textarea class="fk-input fk-page-code" data-page-code hidden spellcheck="false" placeholder="Collez ici tout le code de votre page HTML (de &lt;!DOCTYPE html&gt; jusqu'à &lt;/html&gt;)…"></textarea>
+          <div class="fk-page-apercu" data-page-apercu></div>
+        </div>
+      </fieldset>
       <fieldset class="fk-carte" style="padding:14px;margin:0 0 14px"><legend style="font-weight:700;padding:0 6px">📎 Ressources téléchargeables</legend>
         ${l ? `<div id="listeRessources">${ressources.map(r => `<div class="fk-ressource"><span>📄 ${fkEchapper(r.nom)} <small style="color:var(--f-muted)">${r.taille_octets ? (r.taille_octets / 1048576).toFixed(1) + ' Mo' : ''}</small></span><button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-suppr-ressource="${r.id}">🗑️</button></div>`).join('') || '<p style="font-size:13px;color:var(--f-muted)">Aucune ressource.</p>'}</div>
           <label class="fk-btn fk-btn-outline fk-btn-petit" style="cursor:pointer">⬆️ Ajouter un document (PDF, Word, Excel…)<input type="file" id="fichierRessource" hidden></label>`
@@ -325,6 +341,7 @@ function modaleLecon(l, moduleId) {
   const ed = fkEditeurRiche(md.boite.querySelector('#editeurLecon'), l?.contenu, 'Rédigez le contenu de la leçon…', {
     formationId: FKE.f.id,
     diaporama: true,
+    surPageComplete: html => (FKE.proposerPage ? FKE.proposerPage(html) : false),
     activites: l ? {
       leconId: l.id,
       get liste() { return FKE.activites; },
@@ -332,6 +349,63 @@ function modaleLecon(l, moduleId) {
     } : { leconId: null, liste: [], editer: async () => null }
   });
   if (FKE.verrouille) ed.desactiver();
+
+  // ----- Page HTML complète (26 septembre 2026) -----
+  let pageHtml = l?.page_html || '';
+  const blocEd = md.boite.querySelector('[data-bloc-editeur]');
+  const blocPage = md.boite.querySelector('[data-bloc-page]');
+  const codePage = md.boite.querySelector('[data-page-code]');
+  const apercuPage = md.boite.querySelector('[data-page-apercu]');
+  const infoPage = md.boite.querySelector('[data-info-page]');
+  const modeActuel = () => md.boite.querySelector('[name=mode_contenu]:checked').value;
+  const videPage = '<p class="fk-vide" style="margin:0">Importez un fichier .html ou collez son code : l\'aperçu s\'affiche ici, exactement comme l\'étudiant le verra.</p>';
+  let minuteurPage = null;
+  const majApercuPage = () => {
+    clearTimeout(minuteurPage);
+    minuteurPage = setTimeout(() => {
+      infoPage.textContent = pageHtml ? `${Math.max(1, Math.round(pageHtml.length / 1024))} Ko${/<script[\s>]/i.test(pageHtml) ? ' · avec JavaScript' : ''}` : '';
+      if (!pageHtml.trim()) { apercuPage.innerHTML = videPage; return; }
+      fkAfficherPageHtml(apercuPage, pageHtml, { titre: 'Aperçu', hauteurInitiale: 500 });
+    }, 400);
+  };
+  const appliquerMode = () => {
+    const page = modeActuel() === 'page';
+    blocEd.hidden = page; blocPage.hidden = !page;
+    md.boite.style.width = page ? 'min(1200px, 100%)' : 'min(860px, 100%)';
+    if (page) majApercuPage();
+  };
+  const utiliserPage = html => {
+    pageHtml = String(html || '');
+    codePage.value = pageHtml;
+    md.boite.querySelector('[name=mode_contenu][value=page]').checked = true;
+    appliquerMode();
+  };
+  md.boite.querySelectorAll('[name=mode_contenu]').forEach(r => r.addEventListener('change', appliquerMode));
+  codePage.value = pageHtml;
+  codePage.addEventListener('input', () => { pageHtml = codePage.value; majApercuPage(); });
+  md.boite.querySelector('[data-code-page]').addEventListener('click', ev => {
+    codePage.hidden = !codePage.hidden; ev.currentTarget.setAttribute('aria-expanded', String(!codePage.hidden));
+    if (!codePage.hidden) codePage.focus();
+  });
+  md.boite.querySelector('[data-vider-page]').addEventListener('click', async () => {
+    if (pageHtml && !await fkConfirmer('Retirer la page HTML de cette leçon ?', 'Retirer')) return;
+    pageHtml = ''; codePage.value = ''; md.boite.querySelector('[name=mode_contenu][value=editeur]').checked = true; appliquerMode();
+  });
+  md.boite.querySelector('[data-import-page]').addEventListener('change', async ev => {
+    const f = ev.target.files[0]; ev.target.value = '';
+    if (!f) return;
+    if (f.size > 3 * 1024 * 1024) { fkToast('Fichier trop lourd (3 Mo maximum). Mettez les images en ligne plutôt que dans le fichier.', 'erreur'); return; }
+    utiliserPage(await f.text());
+    fkToast(`« ${f.name} » importé : vérifiez l'aperçu puis enregistrez la leçon.`, 'succes');
+  });
+  // Une page complète collée ou importée dans l'éditeur KEKELI : proposer de la garder telle quelle.
+  FKE.proposerPage = async html => {
+    if (!await fkConfirmer('Ce code est une page HTML complète (styles et/ou scripts). La garder TELLE QUELLE, pour que tout fonctionne comme dans le navigateur (minuteur, animations…) ? — Annuler = la convertir pour l\'éditeur KEKELI (sans les scripts).', 'Garder telle quelle')) return false;
+    utiliserPage(html);
+    return true;
+  };
+  if (FKE.verrouille) md.boite.querySelectorAll('[data-bloc-page] button, [data-bloc-page] input, [data-bloc-page] textarea, [name=mode_contenu]').forEach(x => { x.disabled = true; });
+  appliquerMode();
   const medias = { video: video.startsWith('fichier:') ? video : null, audio: audio.startsWith('fichier:') ? audio : null };
   const aSupprimer = [];
 
@@ -406,6 +480,7 @@ function modaleLecon(l, moduleId) {
       duree_minutes: Math.max(0, parseInt(fd.get('duree_minutes'), 10) || 0),
       est_apercu: !!fd.get('est_apercu'), est_obligatoire: !!fd.get('est_obligatoire'), ...fkLireOuverture(fd),
       contenu: ed.lireHtml() || null,
+      page_html: modeActuel() === 'page' && pageHtml.trim() ? pageHtml : null,
       video_url: lien || medias.video || null, audio_url: medias.audio || null
     };
     if (lien && medias.video) aSupprimer.push(medias.video.slice(8));
@@ -516,8 +591,11 @@ async function modaleQuestions(q) {
         <small style="color:var(--f-muted)">${FK_TYPES_QUESTIONS[x.type]?.icone || ''} ${FK_TYPES_QUESTIONS[x.type]?.label || x.type} · ${x.points} pt${x.points > 1 ? 's' : ''}</small>
         ${resumeQuestionHtml(x)}
       </div>`).join('') : '<p class="fk-vide">Aucune question.</p>'}</div>
-    <div class="fk-actions-form"><button class="fk-btn fk-btn-ghost" data-fermer>Fermer</button><button class="fk-btn fk-btn-primary" id="btnAjoutQ" ${FKE.verrouille ? 'disabled' : ''}>＋ Ajouter une question</button></div>`);
+    <div class="fk-actions-form"><button class="fk-btn fk-btn-ghost" data-fermer>Fermer</button>
+      <button class="fk-btn fk-btn-outline" id="btnIAQ" ${FKE.verrouille ? 'disabled' : ''}>🧠 Générer avec l'IA</button>
+      <button class="fk-btn fk-btn-primary" id="btnAjoutQ" ${FKE.verrouille ? 'disabled' : ''}>＋ Ajouter une question</button></div>`);
   md.boite.style.width = 'min(820px, 100%)';
+  md.boite.querySelector('#btnIAQ').addEventListener('click', () => { md.fermer(); modaleQuizIA(q, liste.length); });
   md.boite.querySelector('#btnAjoutQ').addEventListener('click', () => { md.fermer(); modaleQuestion(q, null, liste.length); });
   md.boite.querySelectorAll('[data-editer-q]').forEach(b => b.addEventListener('click', () => { md.fermer(); modaleQuestion(q, liste.find(x => x.id === Number(b.dataset.editerQ)), liste.length); }));
   md.boite.querySelectorAll('[data-suppr-q]').forEach(b => b.addEventListener('click', async () => {
@@ -528,6 +606,95 @@ async function modaleQuestions(q) {
     await recharger();
     modaleQuestions(q);
   }));
+}
+
+// ---------------------------------------------------------------- Quiz : génération par IA
+// 26 septembre 2026. Le formateur choisit les leçons (ou colle un texte), le
+// nombre et les types de questions ; la fonction serveur « formation-quiz-ia »
+// propose des questions ; il coche celles qu'il garde (modifiables ensuite
+// avec ✏️). Rien n'est enregistré sans son accord.
+const FK_TYPES_IA = ['choix_unique', 'choix_multiple', 'vrai_faux', 'reponse_courte', 'reponse_numerique', 'texte_a_trous', 'remise_en_ordre', 'association'];
+function modaleQuizIA(q, nbExistantes) {
+  const e = fkEchapper;
+  const leconsModule = FKE.lecons.filter(l => l.module_id === q.module_id).map(l => l.id);
+  const md = fkModale(`🧠 Générer des questions — ${q.titre}`, `
+    <form data-form-ia>
+      <div class="fk-champ"><span>Contenu à évaluer (leçons)</span>
+        <div class="fk-ia-lecons">${FKE.modules.map((m, i) => `<div class="fk-ia-module"><b>Module ${i + 1} — ${e(m.titre)}</b>
+          ${FKE.lecons.filter(l => l.module_id === m.id).map(l => `<label class="fk-case"><input type="checkbox" name="lecon" value="${l.id}" ${leconsModule.includes(l.id) ? 'checked' : ''}> ${e(l.titre)}${l.page_html ? ' <small>(page HTML)</small>' : ''}</label>`).join('') || '<small style="color:var(--f-muted)">Aucune leçon</small>'}</div>`).join('')}</div></div>
+      <label class="fk-champ"><span>… et/ou un texte source (facultatif)</span><textarea name="texte" maxlength="20000" style="min-height:70px" placeholder="Collez un texte, un résumé, des notes de cours…"></textarea></label>
+      <div class="fk-grille-3">
+        <label class="fk-champ"><span>Nombre de questions</span><input type="number" name="nombre" min="1" max="20" value="5"></label>
+        <label class="fk-champ"><span>Niveau</span><select name="niveau"><option value="debutant">Débutant</option><option value="intermediaire" selected>Intermédiaire</option><option value="avance">Avancé</option></select></label>
+        <span></span>
+      </div>
+      <div class="fk-champ"><span>Types de questions</span><div class="fk-ia-types">${FK_TYPES_IA.map(t => `<label class="fk-case"><input type="checkbox" name="type" value="${t}" ${['choix_unique', 'choix_multiple', 'vrai_faux', 'reponse_courte'].includes(t) ? 'checked' : ''}> ${FK_TYPES_QUESTIONS[t].icone} ${FK_TYPES_QUESTIONS[t].label}</label>`).join('')}</div></div>
+      <label class="fk-champ"><span>Consignes pour l'IA (facultatif)</span><input type="text" name="consignes" maxlength="800" placeholder="Ex. insister sur les causes de la procrastination ; utiliser des exemples de la vie quotidienne"></label>
+      <div class="fk-actions-form"><button type="button" class="fk-btn fk-btn-ghost" data-retour>← Retour aux questions</button><button class="fk-btn fk-btn-primary" type="submit">🧠 Générer</button></div>
+    </form>
+    <div data-resultats-ia></div>`, { protegee: true });
+  md.boite.style.width = 'min(880px, 100%)';
+  const form = md.boite.querySelector('[data-form-ia]');
+  const zone = md.boite.querySelector('[data-resultats-ia]');
+  md.boite.querySelector('[data-retour]').addEventListener('click', () => { md.fermer(); modaleQuestions(q); });
+  const apercu = x => {
+    if (x.reponses) return `<ul class="fk-ia-reponses">${x.reponses.map(r => `<li class="${r.correcte ? 'ok' : ''}">${r.correcte ? '✅' : '▫️'} ${e(r.texte)}</li>`).join('')}</ul>`;
+    const c = x.config || {};
+    if (x.type === 'reponse_courte') return `<p class="fk-ia-attendu">Réponse(s) : <b>${e(c.acceptees.join(' / '))}</b></p>`;
+    if (x.type === 'reponse_numerique') return `<p class="fk-ia-attendu">Réponse : <b>${e(c.valeur)} ${e(c.unite || '')}</b>${c.tolerance ? ` (± ${e(c.tolerance)})` : ''}</p>`;
+    if (x.type === 'texte_a_trous') return `<p class="fk-ia-attendu">Trous : <b>${c.trous.map(t => e(t.join(' | '))).join(' · ')}</b></p>`;
+    if (x.type === 'remise_en_ordre') return `<ol class="fk-ia-reponses">${c.elements.map(v => `<li>${e(v)}</li>`).join('')}</ol>`;
+    if (x.type === 'association') return `<ul class="fk-ia-reponses">${c.paires.map(p => `<li>${e(p.gauche)} ↔ ${e(p.droite)}</li>`).join('')}</ul>`;
+    return '';
+  };
+  form.addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const leconIds = [...form.querySelectorAll('[name=lecon]:checked')].map(x => Number(x.value));
+    const types = [...form.querySelectorAll('[name=type]:checked')].map(x => x.value);
+    if (!types.length) { fkToast('Choisissez au moins un type de question.', 'erreur'); return; }
+    if (!leconIds.length && form.texte.value.trim().length < 80) { fkToast('Choisissez au moins une leçon, ou collez un texte source.', 'erreur'); return; }
+    const btn = form.querySelector('[type=submit]');
+    btn.disabled = true; btn.textContent = '⏳ Génération en cours (jusqu\'à une minute)…';
+    zone.innerHTML = '<div class="fk-chargement">L\'IA lit vos leçons et prépare les questions…</div>';
+    let res = null, msg = null;
+    try {
+      const { data, error } = await supabaseClient.functions.invoke('formation-quiz-ia', {
+        body: { formationId: FKE.f.id, leconIds, texte: form.texte.value, nombre: Number(form.nombre.value) || 5, niveau: form.niveau.value, types, consignes: form.consignes.value }
+      });
+      if (error) { msg = error.message; try { const j = await error.context.json(); msg = j.error || msg; } catch (_e) { /* réponse non JSON */ } }
+      else if (data?.error) msg = data.error;
+      else res = data;
+    } catch (err) { msg = err.message; }
+    btn.disabled = false; btn.textContent = '🧠 Générer à nouveau';
+    if (!res) { zone.innerHTML = `<p class="fk-alerte fk-alerte-erreur">${e(msg || 'Échec de la génération.')}</p>`; return; }
+    const qs = res.questions || [];
+    zone.innerHTML = `<h3 style="margin:18px 0 8px">${qs.length} question(s) proposée(s) — cochez celles à garder</h3>
+      ${qs.map((x, i) => `<label class="fk-question fk-ia-proposition"><input type="checkbox" data-garder="${i}" checked>
+        <span><b>${i + 1}. ${e(x.enonce)}</b> <small style="color:var(--f-muted)">${FK_TYPES_QUESTIONS[x.type]?.icone || ''} ${FK_TYPES_QUESTIONS[x.type]?.label || x.type}</small>
+        ${apercu(x)}${x.explication ? `<small class="fk-ia-explication">💡 ${e(x.explication)}</small>` : ''}</span></label>`).join('')}
+      <div class="fk-actions-form"><button type="button" class="fk-btn fk-btn-primary" data-ajouter-ia>➕ Ajouter les questions cochées au quiz</button></div>`;
+    zone.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    zone.querySelector('[data-ajouter-ia]').addEventListener('click', async ev2 => {
+      const choisies = [...zone.querySelectorAll('[data-garder]:checked')].map(x => qs[Number(x.dataset.garder)]);
+      if (!choisies.length) { fkToast('Cochez au moins une question.', 'erreur'); return; }
+      ev2.currentTarget.disabled = true;
+      let pos = nbExistantes;
+      for (const x of choisies) {
+        const { data: ins, error } = await supabaseClient.from('formation_questions').insert({
+          quiz_id: q.id, position: ++pos, type: x.type, enonce: x.enonce, points: 1, explication: x.explication || null, config: x.config || {}
+        }).select('id').single();
+        if (error) { fkToast(fkMessageErreur(error), 'erreur'); ev2.currentTarget.disabled = false; return; }
+        if (x.reponses) {
+          const { error: e2 } = await supabaseClient.from('formation_reponses').insert(x.reponses.map((r, k) => ({ question_id: ins.id, texte: r.texte, est_correcte: !!r.correcte, position: k + 1 })));
+          if (e2) { fkToast(fkMessageErreur(e2), 'erreur'); ev2.currentTarget.disabled = false; return; }
+        }
+      }
+      fkToast(`${choisies.length} question(s) ajoutée(s). Relisez-les : vous pouvez les modifier avec ✏️.`, 'succes');
+      md.fermer();
+      await recharger();
+      modaleQuestions(q);
+    });
+  });
 }
 
 // Éditeur d'une question, tous types confondus. Les choix (QCM, vrai/faux)
