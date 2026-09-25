@@ -50,7 +50,12 @@ function fkPourcentage(v) { return `${Math.round(Number(v) || 0)} %`; }
 // les couleurs, le surlignage et l'alignement (gauche, centre, droite,
 // justifié) — mais filtré propriété par propriété (FK_STYLES_AUTORISES) :
 // aucune position, taille, image de fond ou url() ne peut passer.
-const FK_STYLES_AUTORISES = ['color', 'background-color', 'border-left-color', 'text-align', 'font-weight', 'font-style', 'text-decoration', 'text-decoration-line'];
+// 26 septembre 2026 : liste élargie pour garder la mise en forme d'un texte
+// collé depuis Word (polices, tailles, interlignes, retraits, bordures et
+// largeurs de tableau…). Toujours aucune position, image de fond ni url().
+const FK_STYLES_AUTORISES = ['color', 'background-color', 'border-left-color', 'text-align', 'font-weight', 'font-style', 'text-decoration', 'text-decoration-line',
+  'font-family', 'font-size', 'line-height', 'text-indent', 'margin-left', 'padding-left', 'vertical-align', 'text-transform', 'letter-spacing', 'font-variant',
+  'border', 'border-top', 'border-right', 'border-bottom', 'border-left', 'border-color', 'border-style', 'border-width', 'border-collapse', 'width', 'padding'];
 let _fkHookStyle = false;
 function fkFiltrerStyle(style) {
   return String(style || '').split(';').map(d => {
@@ -58,9 +63,17 @@ function fkFiltrerStyle(style) {
     if (i < 0) return null;
     const prop = d.slice(0, i).trim().toLowerCase();
     const val = d.slice(i + 1).trim();
-    if (!FK_STYLES_AUTORISES.includes(prop)) return null;
-    if (!/^[#a-z0-9(),.%\s-]{1,60}$/i.test(val) || /url|expression|var\(/i.test(val)) return null;
-    return `${prop}: ${val}`;
+    let p2 = prop;
+    let v2 = val.replace(/\s*!important\s*$/i, '');
+    // « background: #ff0 » (Word) -> background-color, s'il ne contient qu'une couleur.
+    if (prop === 'background' && /^(#[0-9a-f]{3,8}|[a-z]+|rgba?\([\d\s,.%]+\))$/i.test(v2)) p2 = 'background-color';
+    if (!FK_STYLES_AUTORISES.includes(p2)) return null;
+    if (!/^[#a-z0-9(),.%\s"'-]{1,120}$/i.test(v2) || /url|expression|var\(|attr\(|\\/i.test(v2)) return null;
+    if (/^(windowtext|auto|initial|inherit)$/i.test(v2) && /color/.test(p2)) return null;
+    if (p2 === 'font-size') { const m = /^([\d.]+)(pt|px|em|rem|%)$/i.exec(v2); if (!m || Number(m[1]) > ({ pt: 60, px: 80, em: 5, rem: 5, '%': 400 }[m[2].toLowerCase()])) return null; }
+    if (['margin-left', 'padding-left', 'text-indent', 'padding', 'width'].includes(p2) && !/^(-?[\d.]+(pt|px|em|rem|cm|mm|in|%)?\s*){1,4}$/i.test(v2)) return null;
+    if (p2 === 'width' && /^([\d.]+)(pt|px)$/i.test(v2) && parseFloat(v2) > 1000) v2 = '100%';
+    return `${p2}: ${v2}`;
   }).filter(Boolean).join('; ');
 }
 function fkNettoyerHtml(html) {
@@ -473,10 +486,114 @@ async function fkMarkdownVersHtml(texte) {
 function fkDevinerFormat(texte) {
   return /<\s*(p|div|h[1-6]|ul|ol|li|table|strong|em|b|i|br|span|a|img|blockquote|pre|html|body)\b[^>]*>/i.test(texte) ? 'html' : 'markdown';
 }
+// ---------- Collage depuis Word / Google Docs / LibreOffice (26 septembre 2026) ----------
+// Demande : « quand on colle un document Word, l'éditeur garde le même
+// formatage que le texte original ». Le HTML copié depuis Word décrit une
+// grande partie de sa mise en forme dans une feuille <style> (styles
+// « Titre 1 », « Normal »…) et fabrique ses listes avec des paragraphes
+// spéciaux (mso-list). fkPreparerHtmlBureautique() :
+//   1. applique en ligne les règles de cette feuille <style> (styles Word) ;
+//   2. reconstruit les vraies listes à puces / numérotées, niveaux compris ;
+//   3. retire les éléments propres à Office (commentaires, <o:p>, VML…).
+// Le résultat passe ensuite par fkNettoyerHtml() : seules les propriétés de
+// FK_STYLES_AUTORISES sont gardées (polices, tailles, couleurs, surlignage,
+// gras/italique/souligné, alignement, retraits, interlignes, bordures de
+// tableau…), jamais de script ni d'url().
+function fkEstHtmlBureautique(html) {
+  return /urn:schemas-microsoft-com:office|class="?Mso|mso-|docs-internal-guid|<meta[^>]+(Word|LibreOffice|OpenOffice|Google)/i.test(html || '');
+}
+
+function fkPreparerHtmlBureautique(html) {
+  const doc = new DOMParser().parseFromString(String(html || '').replace(/<!--\[if[\s\S]*?<!\[endif\]-->/gi, m => /supportLists/i.test(m) ? m.replace(/<!--\[if[^\]]*\]>|<!\[endif\]-->/gi, '') : ''), 'text/html');
+
+  // 1) Styles de la feuille <style> Word -> en ligne (le style en ligne existant reste prioritaire).
+  const regles = [];
+  doc.querySelectorAll('style').forEach(st => {
+    const css = st.textContent.replace(/\/\*[\s\S]*?\*\//g, '').replace(/<!--|-->/g, '');
+    const re = /([^{}@]+)\{([^{}]*)\}/g;
+    let m;
+    while ((m = re.exec(css))) {
+      const selecteurs = m[1].trim();
+      if (!selecteurs || /^@|@page|@list|@font-face/i.test(selecteurs)) continue;
+      regles.push({ selecteurs, decl: m[2].trim() });
+    }
+  });
+  regles.forEach(r => {
+    let els = [];
+    try { els = [...doc.body.querySelectorAll(r.selecteurs)]; } catch (_e) { return; }
+    els.forEach(el => { el.setAttribute('style', `${r.decl};${el.getAttribute('style') || ''}`); });
+  });
+
+  // 2) Listes Word (paragraphes « mso-list ») -> <ul>/<ol> imbriquées.
+  const estItem = p => /mso-list\s*:\s*l\d+\s+level\d+/i.test(p.getAttribute('style') || '') || /MsoListParagraph/i.test(p.className || '');
+  const niveau = p => { const m = /level(\d+)/i.exec(p.getAttribute('style') || ''); return m ? Number(m[1]) : 1; };
+  [...doc.body.querySelectorAll('p')].forEach(p => {
+    if (!p.isConnected || !estItem(p)) return;
+    // Rassemble les paragraphes de liste consécutifs.
+    // (une nouvelle liste Word — autre identifiant « lN » — commence un nouveau groupe)
+    const idListe = el => { const m = /mso-list\s*:\s*(l\d+)/i.exec(el.getAttribute('style') || ''); return m ? m[1] : ''; };
+    const groupe = [];
+    let n = p;
+    while (n && n.tagName === 'P' && estItem(n) && idListe(n) === idListe(p)) { groupe.push(n); n = n.nextElementSibling; }
+    const pile = [];
+    let racine = null;
+    groupe.forEach(item => {
+      const ignore = item.querySelector('[style*="mso-list:Ignore" i], [style*="mso-list: Ignore" i]');
+      const marque = (ignore ? ignore.textContent : '').replace(/\s+/g, '');
+      const ordonnee = /^(\d+|[a-z]{1,2}|[ivxlc]+)[.)]$/i.test(marque);
+      if (ignore) {
+        // Retire la puce/le numéro écrit par Word, et les <span> devenus vides autour.
+        let parent = ignore.parentElement;
+        ignore.remove();
+        while (parent && parent !== item && !parent.textContent.trim() && !parent.querySelector('img')) { const pp = parent.parentElement; parent.remove(); parent = pp; }
+      }
+      const lvl = niveau(item);
+      while (pile.length > lvl) pile.pop();
+      while (pile.length < lvl) {
+        const liste = doc.createElement(ordonnee ? 'ol' : 'ul');
+        if (!pile.length) { racine = liste; item.before(liste); }
+        else { const parentLi = pile[pile.length - 1].lastElementChild || pile[pile.length - 1].appendChild(doc.createElement('li')); parentLi.appendChild(liste); }
+        pile.push(liste);
+      }
+      const li = doc.createElement('li');
+      const st = (item.getAttribute('style') || '').replace(/mso-list[^;]*;?|margin-left[^;]*;?|text-indent[^;]*;?/gi, '');
+      if (st.trim()) li.setAttribute('style', st);
+      while (item.firstChild) li.appendChild(item.firstChild);
+      pile[pile.length - 1].appendChild(li);
+      item.remove();
+    });
+  });
+
+  // 3) Nettoyage propre à Office / Google Docs.
+  doc.body.querySelectorAll('[style*="mso-list:Ignore" i]').forEach(el => el.remove());
+  doc.body.querySelectorAll('o\\:p, v\\:shape, v\\:imagedata, w\\:sdt, xml').forEach(el => el.replaceWith(...el.childNodes));
+  // Google Docs entoure tout d'un <b style="font-weight:normal"> : on le déplie.
+  doc.body.querySelectorAll('b[id^="docs-internal-guid"]').forEach(el => el.replaceWith(...el.childNodes));
+  // Titres Word (« Titre », « Titre 1… ») mis en forme par classe -> vrais titres.
+  doc.body.querySelectorAll('p.MsoTitle').forEach(p => { const h = doc.createElement('h1'); h.setAttribute('style', p.getAttribute('style') || ''); h.append(...p.childNodes); p.replaceWith(h); });
+  doc.body.querySelectorAll('p.MsoSubtitle').forEach(p => { const h = doc.createElement('h3'); h.setAttribute('style', p.getAttribute('style') || ''); h.append(...p.childNodes); p.replaceWith(h); });
+  // Surlignage Word (mso-highlight) -> background-color.
+  doc.body.querySelectorAll('[style*="mso-highlight" i]').forEach(el => {
+    const m = /mso-highlight\s*:\s*([a-z#0-9]+)/i.exec(el.getAttribute('style'));
+    if (m) el.setAttribute('style', `${el.getAttribute('style')};background-color:${m[1]}`);
+  });
+  // Images locales de Word (file://) : impossibles à reprendre -> retirées, signalées.
+  let imagesPerdues = 0;
+  doc.body.querySelectorAll('img').forEach(img => {
+    if (/^https?:/i.test(img.getAttribute('src') || '')) return;
+    imagesPerdues++;
+    const bloc = img.closest('p');
+    img.remove();
+    if (bloc && !bloc.textContent.trim() && !bloc.querySelector('img')) bloc.remove();
+  });
+  return { html: doc.body.innerHTML, imagesPerdues };
+}
+
 async function fkConvertirEnHtml(texte, format) {
   const f = format === 'auto' || !format ? fkDevinerFormat(texte) : format;
   if (f === 'markdown') return fkNettoyerHtml(await fkMarkdownVersHtml(texte));
   if (f === 'texte') return fkTexteVersHtml(texte);
+  if (fkEstHtmlBureautique(texte)) return fkNettoyerHtml(fkPreparerHtmlBureautique(texte).html);
   const corps = /<body[^>]*>([\s\S]*)<\/body>/i.exec(texte);
   return fkNettoyerHtml(corps ? corps[1] : texte);
 }
@@ -876,12 +993,47 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
     const html = cd.getData('text/html');
     const texte = cd.getData('text/plain');
     e.preventDefault();
-    if (html) { document.execCommand('insertHTML', false, fkNettoyerHtml(html)); return; }
+    if (html) {
+      let propre;
+      if (fkEstHtmlBureautique(html)) {
+        const r = fkPreparerHtmlBureautique(html);
+        propre = fkNettoyerHtml(r.html);
+        if (r.imagesPerdues) fkToast(`${r.imagesPerdues} image(s) de Word n'ont pas pu être reprises : ajoutez-les avec le bouton 🖼️ Image.`, 'erreur');
+      } else propre = fkNettoyerHtml(html);
+      collerHtml(propre);
+      return;
+    }
     if (/^\s{0,3}(#{1,6}\s|[-*+]\s|\d+\.\s|>\s|```)|\*\*[^*]+\*\*|\[[^\]]+\]\(https?:/m.test(texte)) {
       try { document.execCommand('insertHTML', false, await fkConvertirEnHtml(texte, 'markdown')); return; } catch (_e) { /* repli texte */ }
     }
     document.execCommand('insertText', false, texte);
   });
+
+  // Collage : du contenu en blocs (paragraphes, titres, listes, tableaux)
+  // remplace le paragraphe vide où se trouve le curseur, sinon s'insère juste
+  // après le paragraphe courant ; du texte en ligne s'insère au curseur.
+  // Insertion faite directement dans le document (et non par
+  // execCommand('insertHTML'), qui perd une partie des styles).
+  function collerHtml(propre) {
+    const modele = document.createElement('template');
+    modele.innerHTML = propre;
+    const blocs = modele.content.querySelector('p, h1, h2, h3, h4, h5, h6, ul, ol, table, blockquote, pre, div, figure, hr');
+    const sel = window.getSelection();
+    if (!blocs) { document.execCommand('insertHTML', false, propre); memoriser(); return; }
+    let noeud = sel.rangeCount && zone.contains(sel.anchorNode) ? sel.anchorNode : null;
+    if (sel.rangeCount && !sel.isCollapsed && zone.contains(sel.anchorNode)) sel.getRangeAt(0).deleteContents();
+    while (noeud && noeud.parentNode && noeud.parentNode !== zone) noeud = noeud.parentNode;
+    const dernier = modele.content.lastChild;
+    if (noeud && noeud.parentNode === zone) {
+      const vide = noeud.nodeType === 1 && !noeud.textContent.trim() && !noeud.querySelector('img, table, [data-activite]');
+      if (vide) noeud.replaceWith(modele.content); else zone.insertBefore(modele.content, noeud.nextSibling);
+    } else zone.appendChild(modele.content);
+    if (dernier && dernier.parentNode) {
+      const r = document.createRange(); r.selectNodeContents(dernier.nodeType === 1 ? dernier : dernier.parentNode); r.collapse(false);
+      sel.removeAllRanges(); sel.addRange(r);
+    }
+    memoriser();
+  }
 
   // ----- Images au cœur de la leçon (25 septembre 2026) -----
   barre.querySelector('[data-image-btn]')?.addEventListener('click', () => {

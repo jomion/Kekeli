@@ -1,3 +1,31 @@
+KEKELI FORMATION — Livraison du 26 septembre 2026 — Coller depuis Word en gardant la mise en forme
+===========================================================================
+Dans l'éditeur des leçons et de la description d'une formation, un texte
+copié depuis Word (ou Google Docs, LibreOffice) garde maintenant sa mise en
+forme d'origine quand on le colle :
+  - styles de titres de Word (Titre, Titre 1, 2…) avec leur taille, police
+    et couleur ;
+  - polices et tailles de caractères, couleurs du texte, surlignage,
+    gras / italique / souligné / barré, interlignes, retraits ;
+  - alignements (gauche, centré, droite, justifié) ;
+  - listes à puces et numérotées de Word, sous-niveaux compris (Word les
+    fabrique avec des paragraphes spéciaux : ils sont reconvertis en vraies
+    listes) ;
+  - tableaux avec bordures, couleurs de fond des cases et largeurs.
+Le collage se place sous le paragraphe où se trouve le curseur (ou remplace
+un paragraphe vide). Le même traitement s'applique au bouton « 📥 Importer »
+pour un fichier .html enregistré depuis Word.
+Limite : les images collées depuis Word restent sur l'ordinateur et ne
+peuvent pas être reprises automatiquement ; un message invite à les ajouter
+avec le bouton « 🖼️ Image ».
+Sécurité inchangée : seules des propriétés de mise en forme sont gardées
+(aucun script, aucun positionnement, aucune image de fond ni lien externe
+caché).
+
+Fichier modifié : js/formations/commun.js (+ LISEZ-MOI.txt). Aucune
+modification de la base.
+
+===========================================================================
 KEKELI FORMATION — Livraison du 25 septembre 2026 — Tests et questionnaires au cœur d'une leçon, images dans les leçons
 ===========================================================================
 (Les livraisons précédentes de la plateforme de formation sont décrites
