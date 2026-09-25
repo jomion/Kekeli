@@ -1,3 +1,30 @@
+KEKELI — Livraison du 26 septembre 2026 (suite 3) — KEKELI Formation : HTML importé affiché fidèlement
+===========================================================================
+
+CE QUI A ÉTÉ DEMANDÉ
+------------------------------------------------------------------------------
+"L'aperçu HTML pour l'éditeur des leçons de formation ne rend pas
+fidèlement l'affichage."
+
+CE QUI CHANGE CONCRÈTEMENT
+------------------------------------------------------------------------------
+Quand on importe un fichier .html ou qu'on colle du HTML (bouton « 📋 Coller
+MD / HTML »), la mise en page d'origine est maintenant conservée : couleurs
+et fonds (y compris les dégradés), cartes arrondies avec ombre, grilles de
+cartes côte à côte, encadrés à barre latérale, titres soulignés, tableaux
+colorés, pastilles, marges et espacements, police de la page…
+Avant, tout ce qui était décrit dans la feuille de style de la page
+(<style>, classes, variables CSS) était perdu.
+- L'aperçu du bouton « Coller » montre le vrai rendu (zone d'aperçu agrandie).
+- Sur téléphone, les grilles de cartes passent automatiquement en colonne.
+- Sécurité inchangée : aucun script, aucune image de fond externe, aucune
+  position ni superposition ne passe.
+
+FICHIERS MODIFIÉS
+------------------------------------------------------------------------------
+js/formations/commun.js, css/formations.css, LISEZ-MOI.txt
+
+
 KEKELI — Livraison du 26 septembre 2026 (suite 2) — Textes à trous mis en forme (Primaire et Formation) + ouverture progressive des modules
 ===========================================================================
 

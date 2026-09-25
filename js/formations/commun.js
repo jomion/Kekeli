@@ -55,7 +55,13 @@ function fkPourcentage(v) { return `${Math.round(Number(v) || 0)} %`; }
 // largeurs de tableau…). Toujours aucune position, image de fond ni url().
 const FK_STYLES_AUTORISES = ['color', 'background-color', 'border-left-color', 'text-align', 'font-weight', 'font-style', 'text-decoration', 'text-decoration-line',
   'font-family', 'font-size', 'line-height', 'text-indent', 'margin-left', 'padding-left', 'vertical-align', 'text-transform', 'letter-spacing', 'font-variant',
-  'border', 'border-top', 'border-right', 'border-bottom', 'border-left', 'border-color', 'border-style', 'border-width', 'border-collapse', 'width', 'padding'];
+  'border', 'border-top', 'border-right', 'border-bottom', 'border-left', 'border-color', 'border-style', 'border-width', 'border-collapse', 'width', 'padding',
+  // 26 septembre 2026 : rendu fidèle des pages HTML importées (cartes, grilles, dégradés…).
+  'background-image', 'border-radius', 'box-shadow', 'text-shadow', 'padding-top', 'padding-right', 'padding-bottom',
+  'margin', 'margin-top', 'margin-bottom', 'margin-right', 'display', 'flex-direction', 'flex-wrap', 'justify-content', 'align-items', 'gap', 'flex',
+  'grid-template-columns', 'max-width', 'white-space', 'word-spacing', 'list-style-type', 'opacity'];
+// Propriétés dont la valeur peut être longue (dégradés, ombres).
+const FK_STYLES_LONGS = ['background-image', 'box-shadow', 'text-shadow', 'font-family', 'grid-template-columns'];
 let _fkHookStyle = false;
 function fkFiltrerStyle(style) {
   return String(style || '').split(';').map(d => {
@@ -68,11 +74,18 @@ function fkFiltrerStyle(style) {
     // « background: #ff0 » (Word) -> background-color, s'il ne contient qu'une couleur.
     if (prop === 'background' && /^(#[0-9a-f]{3,8}|[a-z]+|rgba?\([\d\s,.%]+\))$/i.test(v2)) p2 = 'background-color';
     if (!FK_STYLES_AUTORISES.includes(p2)) return null;
-    if (!/^[#a-z0-9(),.%\s"'-]{1,120}$/i.test(v2) || /url|expression|var\(|attr\(|\\/i.test(v2)) return null;
+    if (!new RegExp(`^[#a-z0-9(),.%\\s"'-]{1,${FK_STYLES_LONGS.includes(p2) ? 400 : 120}}$`, 'i').test(v2) || /url|expression|var\(|attr\(|image-set|element\(|\\/i.test(v2)) return null;
+    if (p2 === 'background-image' && !/^((repeating-)?(linear|radial|conic)-gradient\(.*\)\s*,?\s*)+$/i.test(v2)) return null;
+    if (p2 === 'display' && !/^(block|inline|inline-block|flex|inline-flex|grid|inline-grid|list-item|table|table-row|table-cell|none)$/i.test(v2)) return null;
+    if (p2 === 'opacity' && !(Number(v2) >= 0.3)) return null;
     if (/^(windowtext|auto|initial|inherit)$/i.test(v2) && /color/.test(p2)) return null;
     if (p2 === 'font-size') { const m = /^([\d.]+)(pt|px|em|rem|%)$/i.exec(v2); if (!m || Number(m[1]) > ({ pt: 60, px: 80, em: 5, rem: 5, '%': 400 }[m[2].toLowerCase()])) return null; }
-    if (['margin-left', 'padding-left', 'text-indent', 'padding', 'width'].includes(p2) && !/^(-?[\d.]+(pt|px|em|rem|cm|mm|in|%)?\s*){1,4}$/i.test(v2)) return null;
+    if (['margin-left', 'padding-left', 'text-indent', 'padding', 'width'].includes(p2) && !/^((-?[\d.]+(pt|px|em|rem|cm|mm|in|%)?|auto)\s*){1,4}$/i.test(v2)) return null;
     if (p2 === 'width' && /^([\d.]+)(pt|px)$/i.test(v2) && parseFloat(v2) > 1000) v2 = '100%';
+    // Marges et espacements des pages importées : longueurs positives (ou auto) seulement — rien ne peut chevaucher le reste de la page.
+    if (['margin', 'margin-top', 'margin-bottom', 'margin-right', 'padding-top', 'padding-right', 'padding-bottom', 'gap', 'max-width', 'border-radius'].includes(p2)
+      && !/^(([\d.]+(pt|px|em|rem|cm|mm|%)?|auto|none)\s*){1,4}$/i.test(v2)) return null;
+    if (p2 === 'margin-left' && /^-/.test(v2)) return null;
     return `${p2}: ${v2}`;
   }).filter(Boolean).join('; ');
 }
@@ -589,11 +602,126 @@ function fkPreparerHtmlBureautique(html) {
   return { html: doc.body.innerHTML, imagesPerdues };
 }
 
+// ---------- HTML importé ou collé : rendu fidèle (26 septembre 2026) ----------
+// Demande : « l'aperçu HTML de l'éditeur des leçons ne rend pas fidèlement
+// l'affichage ». Un fichier HTML (souvent produit par une IA) décrit son
+// apparence dans une feuille <style> (classes, variables CSS, couleurs de
+// fond, cartes arrondies, grilles…) que le nettoyage de sécurité retirait.
+// fkHtmlStylesEnLigne() affiche d'abord ce HTML dans un cadre invisible SANS
+// script (sandbox), lit le style réellement calculé par le navigateur pour
+// chaque élément et le recopie en ligne (style="…") ; fkNettoyerHtml() ne
+// garde ensuite que les propriétés autorisées (FK_STYLES_AUTORISES) —
+// jamais de script, d'url(), de position ou de superposition.
+const FK_STYLES_HERITES = ['color', 'font-family', 'font-size', 'font-weight', 'font-style', 'line-height', 'text-align', 'letter-spacing', 'text-transform', 'font-variant', 'word-spacing', 'white-space', 'list-style-type', 'text-shadow'];
+const FK_STYLES_BOITE = ['background-color', 'background-image', 'border-top', 'border-right', 'border-bottom', 'border-left', 'border-radius', 'box-shadow',
+  'padding-top', 'padding-right', 'padding-bottom', 'padding-left', 'margin-top', 'margin-bottom', 'margin-left', 'margin-right',
+  'display', 'flex-direction', 'flex-wrap', 'justify-content', 'align-items', 'gap', 'flex', 'grid-template-columns', 'max-width', 'text-decoration-line', 'vertical-align', 'border-collapse', 'opacity'];
+function fkHtmlARendreFidelement(html) {
+  return /<style[\s>]|<link[^>]+stylesheet|\sclass\s*=|var\(--/i.test(html || '');
+}
+async function fkHtmlStylesEnLigne(html, largeur) {
+  const cadre = document.createElement('iframe');
+  cadre.setAttribute('sandbox', 'allow-same-origin'); // aucun script ne s'exécute
+  cadre.setAttribute('aria-hidden', 'true');
+  cadre.style.cssText = `position:fixed;left:-10000px;top:0;width:${largeur || 860}px;height:1200px;border:0;visibility:hidden`;
+  const propre = String(html || '').replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  cadre.srcdoc = /<html[\s>]/i.test(propre) ? propre : `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>${propre}</body></html>`;
+  // Second cadre VIERGE : valeurs par défaut du navigateur, sans la feuille de style
+  // de la page (sinon une règle « h2 { … } » s'appliquerait aussi au témoin).
+  const vierge = document.createElement('iframe');
+  vierge.setAttribute('sandbox', 'allow-same-origin');
+  vierge.setAttribute('aria-hidden', 'true');
+  vierge.style.cssText = cadre.style.cssText;
+  vierge.srcdoc = '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body></body></html>';
+  document.body.appendChild(cadre);
+  document.body.appendChild(vierge);
+  try {
+    await Promise.all([cadre, vierge].map(f => new Promise(ok => { f.onload = ok; setTimeout(ok, 4000); })));
+    const doc = cadre.contentDocument;
+    if (!doc || !doc.body) return html;
+    try { await Promise.race([doc.fonts.ready, new Promise(ok => setTimeout(ok, 1500))]); } catch (_e) { /* ignoré */ }
+    const vue = cadre.contentWindow;
+    // Valeurs par défaut du navigateur, balise par balise (dans le cadre vierge).
+    const docV = vierge.contentDocument;
+    const defauts = {};
+    const defaut = tag => {
+      if (!defauts[tag]) {
+        const el = docV.createElement(tag);
+        (/^(td|th)$/.test(tag) ? docV.body.appendChild(docV.createElement('table')).insertRow().appendChild(el).parentElement.closest('table') : docV.body.appendChild(el));
+        const cs = vierge.contentWindow.getComputedStyle(el);
+        defauts[tag] = Object.fromEntries(FK_STYLES_BOITE.map(p => [p, cs.getPropertyValue(p)]));
+        docV.body.innerHTML = '';
+      }
+      return defauts[tag];
+    };
+    const vide = v => !v || v === 'none' || v === 'normal' || v === 'auto' || /^0(px)?$/.test(v) || v === 'rgba(0, 0, 0, 0)';
+    const styles = new Map();
+    const tous = [...doc.body.querySelectorAll('*')].filter(el => !/^(SCRIPT|STYLE|LINK|META|TITLE|NOSCRIPT|TEMPLATE|BR|WBR)$/.test(el.tagName));
+    const lire = el => {
+      const cs = vue.getComputedStyle(el);
+      const parent = vue.getComputedStyle(el.parentElement || doc.body);
+      const d = defaut(el.tagName.toLowerCase());
+      const decl = [];
+      FK_STYLES_HERITES.forEach(p => {
+        const v = cs.getPropertyValue(p);
+        if (v && v !== parent.getPropertyValue(p)) decl.push([p, v]);
+      });
+      FK_STYLES_BOITE.forEach(p => {
+        let v = cs.getPropertyValue(p);
+        if (v === d[p]) return;
+        // Bordure absente : ignorée, sauf dans un tableau (pour neutraliser le quadrillage par défaut des leçons).
+        if (/^border-(top|right|bottom|left)$/.test(p) && /^0px|none/.test(v)) { if (/^(TABLE|TD|TH)$/.test(el.tagName)) decl.push([p, 'none']); return; }
+        if (p !== 'display' && p !== 'border-collapse' && !/^(margin|padding)/.test(p) && vide(v)) return;
+        if (p === 'display' && !/^(block|inline|inline-block|flex|inline-flex|grid|inline-grid|list-item|table|table-row|table-cell|none)$/.test(v)) return;
+        if (p === 'background-image' && /url\(/i.test(v)) return;
+        if (p === 'grid-template-columns') {
+          const pistes = v.split(/\s+(?![^(]*\))/);
+          if (pistes.length > 1 && pistes.every(x => x === pistes[0])) v = `repeat(${pistes.length}, minmax(0, 1fr))`;
+        }
+        decl.push([p, v]);
+      });
+      // Tableau pleine largeur.
+      if (el.tagName === 'TABLE' && el.parentElement) {
+        const pcs = vue.getComputedStyle(el.parentElement);
+        const dispo = el.parentElement.clientWidth - parseFloat(pcs.paddingLeft) - parseFloat(pcs.paddingRight);
+        if (dispo > 0 && el.offsetWidth / dispo > 0.97) decl.push(['width', '100%']);
+      }
+      // Centrage « margin: 0 auto » : le navigateur le calcule en pixels.
+      const ml = decl.find(x => x[0] === 'margin-left'), mr = decl.find(x => x[0] === 'margin-right');
+      if (ml && mr && ml[1] === mr[1] && cs.getPropertyValue('max-width') !== 'none') { ml[1] = 'auto'; mr[1] = 'auto'; }
+      return decl;
+    };
+    tous.forEach(el => styles.set(el, lire(el)));
+    // Le fond, la police et la couleur de la page elle-même : sur un bloc qui entoure le tout.
+    const csBody = vue.getComputedStyle(doc.body);
+    const csRacine = vue.getComputedStyle(doc.documentElement);
+    const fond = csBody.getPropertyValue('background-color') !== 'rgba(0, 0, 0, 0)' ? csBody.getPropertyValue('background-color') : csRacine.getPropertyValue('background-color');
+    const enveloppe = [['color', csBody.color], ['font-family', csBody.fontFamily], ['font-size', csBody.fontSize], ['line-height', csBody.lineHeight]];
+    const fondImage = csBody.getPropertyValue('background-image');
+    if (fond && fond !== 'rgba(0, 0, 0, 0)' && !/^rgb\(255, 255, 255\)$/.test(fond)) enveloppe.push(['background-color', fond], ['padding', '16px'], ['border-radius', '12px']);
+    if (fondImage && fondImage !== 'none' && !/url\(/i.test(fondImage)) enveloppe.push(['background-image', fondImage], ['padding', '16px'], ['border-radius', '12px']);
+    styles.forEach((decl, el) => {
+      el.removeAttribute('class');
+      el.removeAttribute('id');
+      el.setAttribute('style', decl.map(([p, v]) => `${p}: ${v}`).join('; '));
+      if (!el.getAttribute('style')) el.removeAttribute('style');
+    });
+    const corps = doc.body.innerHTML;
+    return `<div style="${enveloppe.map(([p, v]) => `${p}: ${String(v).replace(/"/g, "'")}`).join('; ')}">${corps}</div>`;
+  } catch (_e) {
+    return html;
+  } finally {
+    cadre.remove();
+    vierge.remove();
+  }
+}
+
 async function fkConvertirEnHtml(texte, format) {
   const f = format === 'auto' || !format ? fkDevinerFormat(texte) : format;
   if (f === 'markdown') return fkNettoyerHtml(await fkMarkdownVersHtml(texte));
   if (f === 'texte') return fkTexteVersHtml(texte);
   if (fkEstHtmlBureautique(texte)) return fkNettoyerHtml(fkPreparerHtmlBureautique(texte).html);
+  if (fkHtmlARendreFidelement(texte)) return fkNettoyerHtml(await fkHtmlStylesEnLigne(texte));
   const corps = /<body[^>]*>([\s\S]*)<\/body>/i.exec(texte);
   return fkNettoyerHtml(corps ? corps[1] : texte);
 }
@@ -1082,7 +1210,8 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
         const r = fkPreparerHtmlBureautique(html);
         propre = fkNettoyerHtml(r.html);
         if (r.imagesPerdues) fkToast(`${r.imagesPerdues} image(s) de Word n'ont pas pu être reprises : ajoutez-les avec le bouton 🖼️ Image.`, 'erreur');
-      } else propre = fkNettoyerHtml(html);
+      } else if (/<style[\s>]/i.test(html)) propre = fkNettoyerHtml(await fkHtmlStylesEnLigne(html, zone.clientWidth || 860));
+      else propre = fkNettoyerHtml(html);
       collerHtml(propre);
       return;
     }

@@ -243,7 +243,7 @@ body.fk {
 .fk-riche-zone:empty::before { content: attr(data-placeholder); color: #9aa6a2; }
 .fk-riche-source { display: block; width: 100%; border: 0; padding: 12px 14px; font-family: ui-monospace, Consolas, monospace; font-size: 13px; line-height: 1.5; resize: vertical; outline: none; border-radius: 0 0 10px 10px; }
 .fk-riche-source[hidden] { display: none; }
-.fk-riche-apercu { border: 1px dashed #cfdbd6; border-radius: 10px; padding: 10px 14px; max-height: 260px; overflow: auto; background: #fbfdfc; }
+.fk-riche-apercu { border: 1px dashed #cfdbd6; border-radius: 10px; padding: 10px 14px; max-height: 55vh; overflow: auto; background: #fbfdfc; }
 /* Rendu du contenu formaté (éditeur ET lecteur) */
 .fk-riche-zone, .fk-lecon-corps, .fk-description { overflow-wrap: anywhere; }
 .fk-riche-zone blockquote, .fk-lecon-corps blockquote, .fk-description blockquote { border-left: 5px solid var(--f-primary); margin: 14px 0; padding: 12px 18px; background: #f6faf8; border-radius: 0 10px 10px 0; }
@@ -552,3 +552,12 @@ body.fk-sans-defilement { overflow: hidden; }
 .fk-module-verrou { display: block; font-weight: 600; color: #5b3a99; text-transform: none; letter-spacing: 0; font-size: 11px; margin-top: 2px; }
 .fk-verrou-page { margin-top: 10px; }
 .fk-compte-rebours { font-size: 22px; font-weight: 800; color: var(--f-primary-dark); font-variant-numeric: tabular-nums; min-height: 1em; }
+
+/* HTML importé (rendu fidèle, 26 septembre 2026) : un tableau pleine largeur
+   garde sa mise en page de tableau (au lieu du bloc défilant par défaut). */
+.fk-riche-zone table[style*="width: 100%"], .fk-lecon-corps table[style*="width: 100%"], .fk-description table[style*="width: 100%"] { display: table; }
+.fk-lecon-corps img, .fk-riche-zone img { max-width: 100%; height: auto; }
+@media (max-width: 640px) {
+  .fk-lecon-corps [style*="grid-template-columns"], .fk-riche-zone [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+  .fk-lecon-corps [style*="display: flex"], .fk-riche-zone [style*="display: flex"] { flex-wrap: wrap; }
+}
