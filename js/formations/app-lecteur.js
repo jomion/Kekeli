@@ -417,7 +417,7 @@ function appliquerBlocages(zone) {
 
 function rendreActivite(el, a) {
   const e = fkEchapper;
-  const titres = { controle: '🧭 Point de contrôle', reflexion: '💭 Prenez un moment pour réfléchir', questionnaire: '📋 Questionnaire d\'auto-évaluation' };
+  const titres = { controle: '🧭 Point de contrôle', reflexion: '💭 Prenez un moment pour réfléchir', questionnaire: '📋 Questionnaire d\'auto-évaluation', fiche: '📝 Exercice' };
   el.dataset.bloquant = a.bloquant ? '1' : '0';
   el.dataset.repondu = a.ma_reponse !== null && a.ma_reponse !== undefined ? '1' : '0';
   const nom = `act${a.id}`;
@@ -428,6 +428,20 @@ function rendreActivite(el, a) {
     } else {
       champs = `<div style="display:flex;gap:8px;align-items:center"><input class="fk-input" type="text" data-rep ${a.type === 'reponse_numerique' ? 'inputmode="decimal" style="max-width:220px"' : ''} maxlength="200" placeholder="Votre réponse" aria-label="Votre réponse">${a.donnees.unite ? `<span>${e(a.donnees.unite)}</span>` : ''}</div>`;
     }
+  } else if (a.nature === 'fiche') {
+    // Fiche d'exercice (26 septembre 2026) : plusieurs questions, non notées.
+    champs = `<div class="fk-fiche">${(a.donnees.champs || []).map((ch, i) => {
+      const leg = `<legend>${i + 1}. ${e(ch.libelle || '').replace(/\n/g, '<br>')}${ch.obligatoire === false ? ' <small>(facultatif)</small>' : ''}</legend>`;
+      let w;
+      if (ch.type === 'texte') w = `<input class="fk-input" type="text" data-champ="${i}" maxlength="500" aria-label="Réponse à la question ${i + 1}">`;
+      else if (ch.type === 'paragraphe') w = `<textarea class="fk-input fk-fiche-lignes" data-champ="${i}" rows="${Math.min(10, Math.max(2, Number(ch.lignes) || 3))}" maxlength="3000" aria-label="Réponse à la question ${i + 1}"></textarea>`;
+      else {
+        const t = ch.type === 'choix' ? 'radio' : 'checkbox';
+        w = `<div class="fk-fiche-options">${(ch.options || []).map((o, j) => `<label class="fk-choix"><input type="${t}" name="${nom}_${i}" value="${j}"> ${e(o)}</label>`).join('')}
+          ${ch.autre ? `<label class="fk-choix fk-fiche-autre"><input type="${t}" name="${nom}_${i}" value="autre"> Autre : <input class="fk-input" type="text" data-autre="${i}" maxlength="300" aria-label="Autre : précisez"></label>` : ''}</div>`;
+      }
+      return `<fieldset class="fk-fiche-champ">${leg}${w}</fieldset>`;
+    }).join('')}</div>`;
   } else if (a.nature === 'reflexion') {
     champs = `<textarea class="fk-input" data-rep rows="4" maxlength="3000" placeholder="Écrivez ce que vous pensez…" aria-label="Votre réponse"></textarea>`;
   } else {
@@ -443,11 +457,17 @@ function rendreActivite(el, a) {
     <form data-form>${champs}<div class="fk-activite-actions"><button class="fk-btn fk-btn-primary fk-btn-petit" type="submit">${a.nature === 'controle' ? 'Vérifier' : 'Valider'}</button></div></form>
     <div data-resultat></div>`;
   const form = el.querySelector('[data-form]');
+  // « Autre : … » : écrire dans la zone coche la case.
+  form.querySelectorAll('[data-autre]').forEach(t => t.addEventListener('input', () => {
+    const c = form.querySelector(`[name="${nom}_${t.dataset.autre}"][value="autre"]`);
+    if (c && t.value.trim()) c.checked = true;
+  }));
   // Réponse déjà donnée : on la remet et on affiche le retour.
   if (el.dataset.repondu === '1') { remplir(form, a, a.ma_reponse); afficherRetour(el, a, a.resultat, a.ma_reponse); }
   form.addEventListener('submit', async ev => {
     ev.preventDefault();
     const rep = lireReponse(form, a);
+    if (rep === null && a.nature === 'fiche') { fkToast(`Répondez à la question ${form._manque} avant de valider.`, 'erreur'); return; }
     if (rep === null) { fkToast(a.nature === 'questionnaire' ? 'Répondez à chaque affirmation.' : 'Répondez d\'abord à la question.', 'erreur'); return; }
     const btn = form.querySelector('button[type=submit]');
     btn.disabled = true;
@@ -461,6 +481,18 @@ function rendreActivite(el, a) {
 }
 
 function lireReponse(form, a) {
+  if (a.nature === 'fiche') {
+    const champs = a.donnees.champs || [];
+    const v = champs.map((ch, i) => {
+      if (ch.type === 'texte' || ch.type === 'paragraphe') return (form.querySelector(`[data-champ="${i}"]`)?.value || '').trim();
+      const coches = [...form.querySelectorAll(`[name="act${a.id}_${i}"]:checked`)];
+      const autre = coches.some(x => x.value === 'autre') ? (form.querySelector(`[data-autre="${i}"]`)?.value || '').trim() : '';
+      return { choix: coches.filter(x => x.value !== 'autre').map(x => Number(x.value)), autre };
+    });
+    const manque = champs.findIndex((ch, i) => ch.obligatoire !== false && (typeof v[i] === 'string' ? !v[i] : !v[i].choix.length && !v[i].autre));
+    if (manque >= 0) { form._manque = manque + 1; return null; }
+    return v;
+  }
   if (a.nature === 'questionnaire') {
     const v = (a.donnees.items || []).map((_, i) => { const x = form.querySelector(`[name="act${a.id}_${i}"]:checked`); return x ? Number(x.value) : null; });
     return v.some(x => x === null) ? null : v;
@@ -473,6 +505,18 @@ function lireReponse(form, a) {
   return t ? t : null;
 }
 function remplir(form, a, rep) {
+  if (a.nature === 'fiche') {
+    (Array.isArray(rep) ? rep : []).forEach((r, i) => {
+      if (typeof r === 'string') { const f = form.querySelector(`[data-champ="${i}"]`); if (f) f.value = r; return; }
+      if (!r || typeof r !== 'object') return;
+      (r.choix || []).forEach(j => { const x = form.querySelector(`[name="act${a.id}_${i}"][value="${j}"]`); if (x) x.checked = true; });
+      if (r.autre) {
+        const x = form.querySelector(`[name="act${a.id}_${i}"][value="autre"]`); if (x) x.checked = true;
+        const t = form.querySelector(`[data-autre="${i}"]`); if (t) t.value = r.autre;
+      }
+    });
+    return;
+  }
   if (a.nature === 'questionnaire' && Array.isArray(rep)) rep.forEach((j, i) => { const x = form.querySelector(`[name="act${a.id}_${i}"][value="${j}"]`); if (x) x.checked = true; });
   else if (Array.isArray(rep)) rep.forEach(j => { const x = form.querySelector(`[name="act${a.id}"][value="${j}"]`); if (x) x.checked = true; });
   else if (form.querySelector('[data-rep]')) form.querySelector('[data-rep]').value = rep ?? '';
@@ -492,6 +536,8 @@ function afficherRetour(el, a, res, rep) {
     zone.innerHTML = `<div class="fk-activite-retour ${res.juste ? 'ok' : 'ko'}" role="status"><b>${res.juste ? '✅ Bonne réponse !' : '❌ Pas tout à fait.'}</b>
       ${!res.juste && attendu ? `<br>Réponse attendue : <b>${e(attendu)}</b>` : ''}
       ${res.explication ? `<p>💡 ${e(res.explication).replace(/\n/g, '<br>')}</p>` : ''}</div>`;
+  } else if (a.nature === 'fiche') {
+    zone.innerHTML = `<div class="fk-activite-retour" role="status"><b>✔ Merci, vos réponses sont enregistrées.</b> Vous pourrez les relire et les modifier ici à tout moment.${res.retour ? `<p><b>Le mot du formateur :</b><br>${e(res.retour).replace(/\n/g, '<br>')}</p>` : ''}</div>`;
   } else if (a.nature === 'reflexion') {
     zone.innerHTML = `<div class="fk-activite-retour" role="status"><b>✔ Merci, votre réponse est enregistrée.</b>${res.retour ? `<p><b>Le mot du formateur :</b><br>${e(res.retour).replace(/\n/g, '<br>')}</p>` : ''}</div>`;
   } else {

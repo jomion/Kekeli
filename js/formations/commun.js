@@ -1272,7 +1272,7 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
       const a = (o.activites.liste || []).find(x => String(x.id) === el.dataset.activite);
       el.setAttribute('contenteditable', 'false');
       el.className = 'fk-activite-repere';
-      el.innerHTML = a ? `<b>${{ controle: '🧭 Point de contrôle', reflexion: '💭 Réflexion', questionnaire: '📋 Questionnaire d\'auto-évaluation' }[a.nature]}${a.bloquant ? ' · 🔒 bloquant' : ''}</b><br><span>${fkEchapper(a.titre || a.enonce || '').slice(0, 140)}</span><small>Cliquer pour modifier · touche Suppr pour retirer</small>`
+      el.innerHTML = a ? `<b>${{ controle: '🧭 Point de contrôle', reflexion: '💭 Réflexion', questionnaire: '📋 Questionnaire d\'auto-évaluation', fiche: '📝 Fiche d\'exercice' }[a.nature]}${a.bloquant ? ' · 🔒 bloquant' : ''}</b><br><span>${fkEchapper(a.titre || a.enonce || '').slice(0, 140)}</span><small>Cliquer pour modifier · touche Suppr pour retirer</small>`
         : '<b>🧭 Test introuvable</b><small>Supprimez ce repère.</small>';
     });
   }

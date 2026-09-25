@@ -720,6 +720,54 @@ const FK_ECHELLES = {
   intensite: [['Pas du tout', 0], ['Un peu', 1], ['Moyennement', 2], ['Beaucoup', 3]]
 };
 
+// « Coller un exercice » (26 septembre 2026) : transforme un exercice écrit
+// pour le papier en fiche interactive. Reconnaît le titre « Exercice — … »,
+// la consigne, les questions « 1. » / « 2) », les cases ☐ □ [ ] (dont
+// « Autre : … ») et les lignes pointillées à compléter (leur nombre donne la
+// hauteur de la zone de réponse).
+function fkAnalyserExercice(texte) {
+  const CASE = /[☐□▢❏❑◻⬜☑✓]|\[\s?\]/;
+  const CASES = /[☐□▢❏❑◻⬜☑]|\[\s?\]/g;
+  const pointilles = l => /^[\s.…_·\-–]+$/.test(l) && /([.…_·]\s*){4,}/.test(l);
+  const lignes = String(texte || '').replace(/\r/g, '').replace(/\u00a0/g, ' ').split('\n');
+  let titre = '';
+  const consigne = [];
+  const champs = [];
+  let cur = null;
+  for (const brut of lignes) {
+    const l = brut.trim();
+    if (!l) continue;
+    const q = /^(\d{1,2})\s*[.)°]\s*(.*)$/.exec(l);
+    if (q) { cur = { libelle: q[2].trim(), options: [], autre: false, vides: 0 }; champs.push(cur); continue; }
+    if (pointilles(l)) { if (cur) cur.vides++; continue; }
+    if (CASE.test(l)) {
+      if (!cur) { cur = { libelle: '', options: [], autre: false, vides: 0 }; champs.push(cur); }
+      const morceaux = l.split(CASES);
+      const avant = morceaux.shift().trim();
+      if (avant) cur.libelle += (cur.libelle ? '\n' : '') + avant;
+      morceaux.forEach(m => {
+        const t = m.replace(/[\s.…_·]+$/, '').replace(/\s*:$/, '').trim();
+        if (!t) return;
+        if (/^autres?\b/i.test(t)) cur.autre = true; else cur.options.push(t);
+      });
+      continue;
+    }
+    if (cur) cur.libelle += (cur.libelle ? '\n' : '') + l.replace(/\s*[.…_]{4,}\s*$/, m => { cur.vides++; return ''; });
+    else if (!titre && !consigne.length && /^(exercice|activité|fiche|atelier|test)\b/i.test(l)) titre = l.replace(/^exercice\s*\d*\s*[—–:-]\s*/i, '').trim() || l;
+    else consigne.push(l);
+  }
+  return {
+    titre: titre.slice(0, 120),
+    consigne: consigne.join('\n').slice(0, 1000),
+    champs: champs.slice(0, 30).map(c => {
+      const base = { libelle: c.libelle.trim().slice(0, 500) || 'Question', obligatoire: true };
+      if (c.options.length || c.autre) return { ...base, type: 'cases', options: c.options.slice(0, 15), autre: c.autre };
+      if (c.vides === 1) return { ...base, type: 'texte' };
+      return { ...base, type: 'paragraphe', lignes: Math.min(10, Math.max(3, c.vides + 1)) };
+    })
+  };
+}
+
 function modaleActivite(leconId, a) {
   return new Promise(resolve => {
     const e = fkEchapper;
@@ -728,12 +776,15 @@ function modaleActivite(leconId, a) {
     const echelleTexte = (c.echelle || FK_ECHELLES.accord.map(([t, p]) => ({ texte: t, points: p }))).map(x => `${x.texte} = ${x.points}`).join('\n');
     const itemsTexte = (c.items || []).map(i => (i.inverse ? '(-) ' : '') + i.texte).join('\n');
     const interpTexte = (c.interpretations || []).map(t => `${t.min}-${t.max} : ${t.message}`).join('\n');
+    // Fiche d'exercice : liste des questions (modifiée sur place).
+    let champs = (c.champs || []).length ? c.champs : [{ type: 'texte', libelle: '', obligatoire: true }];
     const md = fkModale(a ? 'Modifier le test' : 'Insérer un test dans la leçon', `
       <form>
         <label class="fk-champ"><span>Genre de test</span><select name="nature">
           <option value="controle" ${a?.nature === 'controle' || !a ? 'selected' : ''}>🧭 Point de contrôle — une question avec une bonne réponse, corrigée tout de suite</option>
           <option value="reflexion" ${a?.nature === 'reflexion' ? 'selected' : ''}>💭 Réflexion — question ouverte, puis votre commentaire s'affiche</option>
           <option value="questionnaire" ${a?.nature === 'questionnaire' ? 'selected' : ''}>📋 Questionnaire d'auto-évaluation — plusieurs affirmations notées sur une échelle</option>
+          <option value="fiche" ${a?.nature === 'fiche' ? 'selected' : ''}>📝 Fiche d'exercice — plusieurs questions : lignes à compléter, cases à cocher… (non notée)</option>
         </select></label>
         <label class="fk-champ"><span>Titre (facultatif)</span><input type="text" name="titre" maxlength="120" value="${e(a?.titre || '')}" placeholder="Ex. Faisons le point"></label>
         <label class="fk-case"><input type="checkbox" name="bloquant" ${a ? (a.bloquant ? 'checked' : '') : 'checked'}> 🔒 Bloquant : la suite de la leçon reste cachée tant que l'étudiant n'a pas répondu</label>
@@ -771,6 +822,22 @@ function modaleActivite(leconId, a) {
         corps.innerHTML = `
           <label class="fk-champ"><span>Question posée à l'étudiant *</span><textarea name="enonce" required maxlength="1000" style="min-height:70px" placeholder="Ex. Qu'est-ce qui vous empêche le plus souvent de commencer une tâche ?">${e(a?.enonce || '')}</textarea></label>
           <label class="fk-champ"><span>Votre commentaire, affiché après sa réponse</span><textarea name="explication" maxlength="2000" style="min-height:90px" placeholder="Ex. Beaucoup de personnes répondent…">${e(a?.explication || '')}</textarea></label>`;
+      } else if (n === 'fiche') {
+        corps.innerHTML = `
+          <div class="fk-alerte fk-alerte-info" style="font-size:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <span style="flex:1;min-width:220px">📋 L'exercice est déjà écrit (Word, PDF…) ? Collez-le : les questions numérotées, les cases ☐ et les lignes pointillées sont reconnues.</span>
+            <button type="button" class="fk-btn fk-btn-outline fk-btn-petit" data-coller-fiche>📋 Coller un exercice</button></div>
+          <label class="fk-champ"><span>Consigne</span><textarea name="enonce" maxlength="1000" style="min-height:60px" placeholder="Ex. Choisissez une tâche importante que vous repoussez actuellement. Répondez avec sincérité.">${e(form.dataset.enonce ?? a?.enonce ?? '')}</textarea></label>
+          <div data-champs></div>
+          <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-plus-champ style="margin-bottom:14px">＋ Ajouter une question</button>
+          <label class="fk-champ"><span>Votre commentaire, affiché après l'envoi (facultatif)</span><textarea name="explication" maxlength="2000" style="min-height:70px" placeholder="Ex. Relisez votre réponse à la question 5 : c'est votre premier pas.">${e(a?.explication || '')}</textarea></label>`;
+        dessinerChamps();
+        corps.querySelector('[data-plus-champ]').addEventListener('click', () => {
+          if (champs.length >= 30) { fkToast('30 questions au maximum.', 'erreur'); return; }
+          champs.push({ type: 'texte', libelle: '', obligatoire: true }); dessinerChamps();
+          corps.querySelector(`[data-i="${champs.length - 1}"] [data-k="libelle"]`)?.focus();
+        });
+        corps.querySelector('[data-coller-fiche]').addEventListener('click', collerExercice);
       } else {
         corps.innerHTML = `
           <label class="fk-champ"><span>Consigne *</span><textarea name="enonce" required maxlength="1000" style="min-height:60px" placeholder="Ex. Pour chaque affirmation, indiquez à quel point elle vous correspond.">${e(a?.enonce || '')}</textarea></label>
@@ -791,6 +858,67 @@ function modaleActivite(leconId, a) {
           corps.querySelector('[name=echelle]').value = p.map(([t, pts]) => `${t} = ${pts}`).join('\n');
         });
       }
+    }
+    function dessinerChamps() {
+      const z = corps.querySelector('[data-champs]');
+      const types = [['texte', '✏️ Réponse courte (une ligne)'], ['paragraphe', '📝 Réponse sur plusieurs lignes'], ['cases', '☑️ Cases à cocher (plusieurs choix)'], ['choix', '🔘 Choix unique']];
+      z.innerHTML = champs.map((ch, i) => `<div class="fk-fiche-edit" data-i="${i}">
+          <div class="fk-fiche-edit-tete"><b>Question ${i + 1}</b>
+            <select class="fk-input" data-k="type" aria-label="Type de réponse">${types.map(([v, l]) => `<option value="${v}" ${ch.type === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+            <span class="fk-fiche-edit-outils">
+              <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-bouger="-1" ${i === 0 ? 'disabled' : ''} aria-label="Monter">↑</button>
+              <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-bouger="1" ${i === champs.length - 1 ? 'disabled' : ''} aria-label="Descendre">↓</button>
+              <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-retirer-champ aria-label="Retirer la question">✕</button></span></div>
+          <textarea class="fk-input" data-k="libelle" rows="2" maxlength="500" placeholder="Ex. Ma tâche :">${e(ch.libelle || '')}</textarea>
+          ${ch.type === 'paragraphe' ? `<label class="fk-case" style="margin-top:8px;align-items:center">Nombre de lignes pour répondre <input class="fk-input" type="number" data-k="lignes" min="2" max="10" value="${Number(ch.lignes) || 3}" style="width:80px"></label>` : ''}
+          ${['cases', 'choix'].includes(ch.type) ? `<label class="fk-champ" style="margin:8px 0 6px"><span>Choix proposés (un par ligne)</span><textarea class="fk-input" data-k="options" rows="4" placeholder="Elle me paraît trop difficile&#10;Je ne sais pas par où commencer">${e((ch.options || []).join('\n'))}</textarea></label>
+            <label class="fk-case"><input type="checkbox" data-k="autre" ${ch.autre ? 'checked' : ''}> Ajouter « Autre : … » avec une zone à compléter</label>` : ''}
+          <label class="fk-case" style="margin:6px 0 0"><input type="checkbox" data-k="obligatoire" ${ch.obligatoire !== false ? 'checked' : ''}> Réponse obligatoire</label>
+        </div>`).join('');
+      z.querySelectorAll('.fk-fiche-edit').forEach(bloc => {
+        const i = Number(bloc.dataset.i);
+        bloc.querySelectorAll('[data-k]').forEach(inp => inp.addEventListener(inp.tagName === 'SELECT' || inp.type === 'checkbox' ? 'change' : 'input', () => {
+          const k = inp.dataset.k;
+          if (k === 'options') champs[i].options = inp.value.split('\n');
+          else if (inp.type === 'checkbox') champs[i][k] = inp.checked;
+          else champs[i][k] = inp.value;
+          if (k === 'type') dessinerChamps();
+        }));
+        bloc.querySelectorAll('[data-bouger]').forEach(b => b.addEventListener('click', () => {
+          const j = i + Number(b.dataset.bouger);
+          [champs[i], champs[j]] = [champs[j], champs[i]]; dessinerChamps();
+        }));
+        bloc.querySelector('[data-retirer-champ]').addEventListener('click', () => {
+          if (champs.length <= 1) { fkToast('Une fiche contient au moins une question.', 'erreur'); return; }
+          champs.splice(i, 1); dessinerChamps();
+        });
+      });
+    }
+    function collerExercice() {
+      const m = fkModale('Coller un exercice', `
+        <p style="margin-top:0;font-size:14px;color:var(--f-muted)">Collez tout l'exercice (depuis Word, un PDF, un courriel…). Sont reconnus : le titre « Exercice — … », la consigne, les questions numérotées « 1. », les cases ☐ (et « Autre : … ») et les lignes pointillées « ……… » à compléter. Vous pourrez tout retoucher ensuite.</p>
+        <textarea class="fk-input" data-txt style="min-height:260px;font-size:13px" placeholder="Exercice — Mon profil de procrastination&#10;&#10;Choisissez une tâche importante que vous repoussez actuellement.&#10;&#10;1. Ma tâche :&#10;……………………………………&#10;&#10;2. Je la repousse principalement parce que :&#10;☐ Elle me paraît trop difficile   ☐ J'ai peur d'échouer   ☐ Autre : ………"></textarea>
+        <p data-bilan style="font-size:14px;font-weight:700;color:var(--f-primary-dark);min-height:20px"></p>
+        <div class="fk-actions-form"><button type="button" class="fk-btn fk-btn-ghost" data-fermer>Annuler</button><button type="button" class="fk-btn fk-btn-primary" data-ok>Utiliser cet exercice</button></div>`, { protegee: true });
+      m.boite.style.width = 'min(760px, 100%)';
+      const txt = m.boite.querySelector('[data-txt]');
+      const bilan = m.boite.querySelector('[data-bilan]');
+      txt.addEventListener('input', () => {
+        const r = fkAnalyserExercice(txt.value);
+        bilan.textContent = r.champs.length ? `✔ ${r.champs.length} question(s) reconnue(s) : ${r.champs.map((c, i) => `${i + 1}. ${c.type === 'texte' ? 'une ligne' : c.type === 'paragraphe' ? `${c.lignes} lignes` : `${(c.options || []).length} case(s)${c.autre ? ' + Autre' : ''}`}`).join(' · ')}` : 'Aucune question numérotée trouvée pour le moment.';
+      });
+      m.boite.querySelector('[data-ok]').addEventListener('click', async () => {
+        const r = fkAnalyserExercice(txt.value);
+        if (!r.champs.length) { fkToast('Aucune question numérotée (« 1. … ») n\'a été trouvée.', 'erreur'); return; }
+        const dejaRempli = champs.some(ch => (ch.libelle || '').trim());
+        if (dejaRempli && !await fkConfirmer('Remplacer les questions déjà saisies par celles de l\'exercice collé ?', 'Remplacer')) return;
+        champs = r.champs;
+        if (r.titre && !form.titre.value.trim()) form.titre.value = r.titre;
+        if (r.consigne) corps.querySelector('[name=enonce]').value = r.consigne;
+        m.fermer();
+        dessinerChamps();
+        fkToast(`${r.champs.length} question(s) ajoutée(s). Vérifiez-les puis enregistrez.`, 'succes');
+      });
     }
     function dessinerReponses() {
       const zone = corps.querySelector('[data-reponses]');
@@ -823,7 +951,8 @@ function modaleActivite(leconId, a) {
     form.addEventListener('submit', async ev => {
       ev.preventDefault();
       const n = form.nature.value;
-      const enonce = corps.querySelector('[name=enonce]').value.trim();
+      let enonce = corps.querySelector('[name=enonce]').value.trim();
+      if (!enonce && n === 'fiche') enonce = 'Complétez cet exercice.';
       if (!enonce) { fkToast('Écrivez la question ou la consigne.', 'erreur'); return; }
       let type = n, config = {};
       const lignes = v => String(v || '').split('\n').map(x => x.trim()).filter(Boolean);
@@ -854,6 +983,18 @@ function modaleActivite(leconId, a) {
           interpretations.push({ min: Number(m[1].replace(',', '.')), max: Number(m[2].replace(',', '.')), message: m[3].trim() });
         }
         config = { items, echelle, interpretations };
+      } else if (n === 'fiche') {
+        type = 'fiche';
+        const propres = champs.map(ch => ({
+          type: ch.type, libelle: String(ch.libelle || '').trim(), obligatoire: ch.obligatoire !== false,
+          ...(ch.type === 'paragraphe' ? { lignes: Math.min(10, Math.max(2, Number(ch.lignes) || 3)) } : {}),
+          ...(['cases', 'choix'].includes(ch.type) ? { options: (ch.options || []).map(o => String(o).trim()).filter(Boolean).slice(0, 15), autre: !!ch.autre } : {})
+        }));
+        const sansTitre = propres.findIndex(ch => !ch.libelle);
+        if (sansTitre >= 0) { fkToast(`Écrivez l'intitulé de la question ${sansTitre + 1}.`, 'erreur'); return; }
+        const sansChoix = propres.findIndex(ch => ['cases', 'choix'].includes(ch.type) && ch.options.length + (ch.autre ? 1 : 0) < 2);
+        if (sansChoix >= 0) { fkToast(`Question ${sansChoix + 1} : proposez au moins deux choix.`, 'erreur'); return; }
+        config = { champs: propres };
       }
       const donnees = { lecon_id: leconId, nature: n, type, titre: form.titre.value.trim() || null, enonce, config,
         explication: corps.querySelector('[name=explication]').value.trim() || null, bloquant: form.bloquant.checked };
@@ -878,13 +1019,21 @@ async function ongletActivites() {
   const lire = (a, r) => {
     const act = FKE.activites.find(x => x.id === a.activite_id);
     if (a.nature === 'reflexion') return `<span style="white-space:pre-wrap">${e(r.reponse)}</span>`;
+    if (a.nature === 'fiche') {
+      const ch = act?.config?.champs || [];
+      return `<ol class="fk-fiche-reponses">${(Array.isArray(r.reponse) ? r.reponse : []).map((x, i) => {
+        const c = ch[i] || {};
+        const t = typeof x === 'string' ? x : [...(x?.choix || []).map(j => (c.options || [])[j]).filter(Boolean), ...(x?.autre ? [`Autre : ${x.autre}`] : [])].join(' · ');
+        return `<li><b>${e(c.libelle || `Question ${i + 1}`)}</b><br><span style="white-space:pre-wrap">${t ? e(t) : '<i style="color:var(--f-muted)">sans réponse</i>'}</span></li>`;
+      }).join('')}</ol>`;
+    }
     if (a.nature === 'questionnaire') return `Score <b>${e(r.resultat?.score)}</b> / ${e(r.resultat?.score_max)}${r.resultat?.interpretation ? ` — ${e(r.resultat.interpretation)}` : ''}`;
     const txt = Array.isArray(r.reponse) && act?.config?.choix ? r.reponse.map(i => act.config.choix[i]?.texte).filter(Boolean).join(', ') : r.reponse;
     return `${r.resultat?.juste ? '✅' : '❌'} ${e(txt)}`;
   };
   zone.innerHTML = parActivite.size ? [...parActivite.values()].map(a => `
     <section class="fk-carte">
-      <h3>${{ controle: '🧭', reflexion: '💭', questionnaire: '📋' }[a.nature]} ${e(a.titre || a.enonce)}</h3>
+      <h3>${{ controle: '🧭', reflexion: '💭', questionnaire: '📋', fiche: '📝' }[a.nature]} ${e(a.titre || a.enonce)}</h3>
       <p style="color:var(--f-muted);font-size:13px;margin:-4px 0 10px">Leçon « ${e(a.lecon_titre)} » · ${a.reponses.length} réponse${a.reponses.length > 1 ? 's' : ''}${a.nature === 'controle' && a.reponses.length ? ` · ${Math.round(a.reponses.filter(r => r.resultat?.juste).length * 100 / a.reponses.length)} % de bonnes réponses` : ''}</p>
       ${a.reponses.length ? `<div class="fk-table-wrap"><table class="fk-table"><thead><tr><th>Étudiant</th><th>Réponse</th><th>Essais</th><th>Date</th></tr></thead><tbody>
         ${a.reponses.map(r => `<tr><td>${e(r.apprenant)}</td><td>${lire(a, r)}</td><td>${r.nb_essais}</td><td>${fkDate(r.maj_le)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="fk-vide" style="padding:8px">Pas encore de réponse.</p>'}

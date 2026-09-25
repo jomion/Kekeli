@@ -1,3 +1,90 @@
+KEKELI — Livraison du 26 septembre 2026 (suite) — KEKELI Formation : fiches d'exercice dans les leçons
+===========================================================================
+
+CE QUI A ÉTÉ DEMANDÉ
+------------------------------------------------------------------------------
+Pouvoir mettre dans une leçon un exercice du type « Mon profil de
+procrastination » : plusieurs questions, lignes pointillées à compléter,
+cases ☐ à cocher avec « Autre : … ».
+
+CE QUI CHANGE CONCRÈTEMENT
+------------------------------------------------------------------------------
+1. Éditeur de leçon → 🧭 Test / questionnaire → nouveau genre
+   « 📝 Fiche d'exercice » (non notée). Chaque question peut être :
+   réponse courte (une ligne), réponse sur plusieurs lignes, cases à cocher
+   (plusieurs choix) ou choix unique ; option « Autre : … » avec zone à
+   compléter ; réponse obligatoire ou facultative ; questions déplaçables.
+2. Bouton « 📋 Coller un exercice » : on colle l'exercice tel qu'il est écrit
+   (Word, PDF…) ; le titre, la consigne, les questions numérotées, les cases
+   ☐ et les lignes pointillées sont reconnus et transformés en fiche. Il
+   suffit de vérifier puis d'enregistrer.
+3. Chez l'étudiant : la fiche s'affiche dans la leçon, il la remplit et
+   valide ; il peut la relire et la modifier ensuite. Option « bloquant »
+   possible (la suite de la leçon attend sa réponse).
+4. Onglet « 🧭 Tests en leçon » du formateur : les réponses de chaque
+   étudiant, question par question.
+
+BASE DE DONNÉES (déjà appliqué)
+------------------------------------------------------------------------------
+- formation_activites_lecon : nouvelle nature « fiche » ;
+  activites_lecon et repondre_activite la prennent en charge (contrôle des
+  questions obligatoires côté serveur).
+
+FICHIERS MODIFIÉS
+------------------------------------------------------------------------------
+js/formations/formateur-edition.js, js/formations/app-lecteur.js,
+js/formations/commun.js, css/formations.css, LISEZ-MOI.txt
+
+
+KEKELI — Livraison du 26 septembre 2026 — KEKELI Formation : police, taille du texte et présentations type PowerPoint
+===========================================================================
+
+CE QUI A ÉTÉ DEMANDÉ
+------------------------------------------------------------------------------
+"Ajoute style de police et taille de police. Est-ce qu'on peut prévoir
+l'utilisation des dispositifs comme PowerPoint ?" — les trois possibilités
+retenues : diaporama intégré, import d'un fichier PowerPoint (ou PDF),
+lien Google Slides / OneDrive.
+
+CE QUI CHANGE CONCRÈTEMENT (éditeur de leçon du formateur)
+------------------------------------------------------------------------------
+1. POLICE et TAILLE : deux nouvelles listes dans la barre d'outils, à côté de
+   « Paragraphe ». Sélectionnez le texte, puis choisissez la police (Arial,
+   Calibri, Verdana, Georgia, Times New Roman, Comic Sans…) ou la taille
+   (10 à 60). « Par défaut » / « Normale » remettent le texte d'origine.
+
+2. Nouveau menu 🎞️ DIAPORAMA :
+   - ➕ Nouvelle diapositive ici : pose un saut de diapositive (bandeau
+     violet). Chez l'étudiant, la leçon devient un diaporama : boutons
+     Précédent / Suivant, flèches du clavier, glisser du doigt sur téléphone,
+     barre de progression, plein écran, et « 📄 Tout afficher » pour lire la
+     leçon sur une seule page. Un test bloquant empêche de passer à la
+     diapositive suivante tant qu'il n'est pas répondu.
+   - 📊 Insérer un fichier PowerPoint ou PDF : le fichier (.pptx, .ppt ou
+     .pdf, 50 Mo max) est rangé dans l'espace privé de la formation.
+     PDF : affiché page par page dans la leçon (conseillé : dans PowerPoint,
+     Fichier → Exporter → PDF — rendu identique partout, même sur petite
+     connexion). PPTX : affiché par la visionneuse en ligne de Microsoft.
+   - 🔗 Insérer Google Slides / OneDrive : collez le lien de partage ou le
+     code « Incorporer ». Seuls Google Slides, OneDrive, SharePoint et
+     PowerPoint en ligne sont acceptés (sécurité).
+   - 👁️ Aperçu du diaporama : voir le rendu avant d'enregistrer.
+   Cliquer sur un bandeau de diapositive ou de présentation permet de le retirer.
+
+BASE DE DONNÉES (déjà appliqué)
+------------------------------------------------------------------------------
+- fichier_formation_lisible : une présentation insérée dans une leçon
+  « aperçu gratuit » est lisible par les visiteurs, comme la vidéo.
+
+FICHIERS MODIFIÉS
+------------------------------------------------------------------------------
+js/formations/commun.js, js/formations/app-lecteur.js, js/formations/fiche.js,
+js/formations/formateur-edition.js, css/formations.css, LISEZ-MOI.txt
+
+(Rappel du lot précédent : le collage depuis Word garde la mise en forme —
+polices, tailles, couleurs, listes, tableaux.)
+
+
 KEKELI — Livraison du 25 septembre 2026 (vingtième lot) — Cahier d'écriture en enregistrement manuel, révision ciblée sur plusieurs séquences, correctif mobile du Cadran opératoire
 ===========================================================================
 
