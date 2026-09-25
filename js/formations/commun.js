@@ -80,7 +80,7 @@ function fkNettoyerHtml(html) {
     }
     return window.DOMPurify.sanitize(html, {
       ALLOWED_TAGS: ['p', 'br', 'b', 'strong', 'i', 'em', 'u', 's', 'strike', 'del', 'mark', 'small', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'a', 'img', 'code', 'pre', 'span', 'div', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'hr', 'sub', 'sup', 'figure', 'figcaption', 'dl', 'dt', 'dd', 'input'],
-      ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'colspan', 'rowspan', 'style', 'data-bloc', 'target', 'rel', 'type', 'checked', 'disabled'],
+      ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'colspan', 'rowspan', 'style', 'data-bloc', 'data-activite', 'data-image', 'target', 'rel', 'type', 'checked', 'disabled'],
       ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|#|\/|\.)/i
     }).replace(/<input(?![^>]*type="checkbox")[^>]*>/gi, '');
   }
@@ -497,7 +497,12 @@ const FK_BARRES = [
 ];
 const FK_COULEURS = ['#18302a', '#0b7a5c', '#1769aa', '#673ab7', '#c0392b', '#e85d04', '#b27700', '#6c7b76'];
 
-function fkEditeurRiche(conteneur, htmlInitial, placeholder) {
+// opts (25 septembre 2026) :
+//   formationId : active le bouton 🖼️ Image (envoi dans formations-public/lecons/{id}/)
+//   activites   : { leconId, liste, editer(id|null) => Promise<activite|null> }
+//                 active le bouton 🧭 Test (tests / questionnaires au cœur de la leçon)
+function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
+  const o = opts || {};
   conteneur.innerHTML = `
     <div class="fk-riche">
       <div class="fk-riche-barre" role="toolbar" aria-label="Mise en forme">
@@ -575,6 +580,9 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder) {
         <label class="fk-riche-import" title="Importer un fichier Markdown (.md) ou HTML (.html)">📥 Importer .md / .html<input type="file" data-import accept=".md,.markdown,.txt,.html,.htm,text/markdown,text/html,text/plain" hidden></label>
         <button type="button" data-coller title="Coller du Markdown ou du HTML">📋 Coller MD / HTML</button>
         <button type="button" data-source aria-pressed="false" title="Voir et modifier le code HTML">&lt;/&gt; Code</button>
+        ${o.formationId || o.activites ? '<span class="fk-riche-sep"></span>' : ''}
+        ${o.formationId ? '<button type="button" data-image-btn title="Insérer une image">🖼️ Image</button>' : ''}
+        ${o.activites ? '<button type="button" data-activite-btn title="Insérer un test rapide ou un questionnaire à cet endroit de la leçon">🧭 Test / questionnaire</button>' : ''}
       </div>
       <div class="fk-riche-zone" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="${fkEchapper(placeholder || 'Rédigez ici…')}"></div>
       <textarea class="fk-riche-source" spellcheck="false" aria-label="Code HTML" hidden></textarea>
@@ -875,9 +883,81 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder) {
     document.execCommand('insertText', false, texte);
   });
 
+  // ----- Images au cœur de la leçon (25 septembre 2026) -----
+  barre.querySelector('[data-image-btn]')?.addEventListener('click', () => {
+    if (modeSource) { fkToast('Repassez en mode normal pour insérer une image.', 'erreur'); return; }
+    const m = fkModale('Insérer une image', `
+      <label class="fk-champ"><span>Image depuis votre appareil</span><input type="file" data-fichier accept="image/png,image/jpeg,image/webp,image/gif"><small>PNG, JPG, WEBP ou GIF, 5 Mo maximum.</small></label>
+      <label class="fk-champ"><span>… ou adresse d'une image en ligne</span><input type="url" data-url placeholder="https://…"></label>
+      <label class="fk-champ"><span>Description de l'image (pour l'accessibilité) *</span><input type="text" data-alt maxlength="200" placeholder="Ex. Schéma du ruban d'Excel"></label>
+      <label class="fk-champ"><span>Légende (facultatif, affichée sous l'image)</span><input type="text" data-legende maxlength="200"></label>
+      <div class="fk-grille-2">
+        <label class="fk-champ"><span>Taille</span><select data-taille><option value="petite">Petite</option><option value="moyenne" selected>Moyenne</option><option value="grande">Pleine largeur</option></select></label>
+        <label class="fk-champ"><span>Position</span><select data-align><option value="left">À gauche</option><option value="center" selected>Centrée</option><option value="right">À droite</option></select></label>
+      </div>
+      <div class="fk-actions-form"><button type="button" class="fk-btn fk-btn-ghost" data-fermer>Annuler</button><button type="button" class="fk-btn fk-btn-primary" data-ok>Insérer</button></div>`, { protegee: true });
+    m.boite.querySelector('[data-ok]').addEventListener('click', async ev => {
+      const fichier = m.boite.querySelector('[data-fichier]').files[0];
+      let url = m.boite.querySelector('[data-url]').value.trim();
+      const alt = m.boite.querySelector('[data-alt]').value.trim();
+      const legende = m.boite.querySelector('[data-legende]').value.trim();
+      if (!alt) { fkToast('Décrivez l\'image en quelques mots.', 'erreur'); return; }
+      if (fichier) {
+        const err = !/\.(png|jpe?g|webp|gif)$/i.test(fichier.name) ? 'Format accepté : PNG, JPG, WEBP ou GIF.' : fichier.size > 5 * 1024 * 1024 ? 'Image trop lourde (5 Mo maximum).' : null;
+        if (err) { fkToast(err, 'erreur'); return; }
+        ev.currentTarget.disabled = true; ev.currentTarget.textContent = 'Envoi…';
+        const chemin = `lecons/${o.formationId}/${fkNomFichierSur(fichier.name)}`;
+        const { error } = await supabaseClient.storage.from(FK_BUCKET_PUBLIC).upload(chemin, fichier, { contentType: fichier.type });
+        if (error) { fkToast(fkMessageErreur(error), 'erreur'); ev.currentTarget.disabled = false; ev.currentTarget.textContent = 'Insérer'; return; }
+        url = supabaseClient.storage.from(FK_BUCKET_PUBLIC).getPublicUrl(chemin).data.publicUrl;
+      }
+      if (!/^https:\/\//i.test(url)) { fkToast('Choisissez une image ou une adresse https://', 'erreur'); return; }
+      const taille = m.boite.querySelector('[data-taille]').value;
+      const align = m.boite.querySelector('[data-align]').value;
+      m.fermer();
+      inserer(`<figure data-image="${taille}" style="text-align: ${align}"><img src="${fkEchapper(url)}" alt="${fkEchapper(alt)}">${legende ? `<figcaption>${fkEchapper(legende)}</figcaption>` : ''}</figure><p><br></p>`);
+    });
+  });
+
+  // ----- Tests / questionnaires au cœur de la leçon -----
+  // Dans le texte, un test est un simple repère <div data-activite="ID">
+  // (non modifiable au clavier) ; son contenu (question, corrigé…) vit en base
+  // (formation_activites_lecon). Cliquer sur le repère le modifie.
+  function decorerActivites() {
+    if (!o.activites) return;
+    zone.querySelectorAll('[data-activite]').forEach(el => {
+      const a = (o.activites.liste || []).find(x => String(x.id) === el.dataset.activite);
+      el.setAttribute('contenteditable', 'false');
+      el.className = 'fk-activite-repere';
+      el.innerHTML = a ? `<b>${{ controle: '🧭 Point de contrôle', reflexion: '💭 Réflexion', questionnaire: '📋 Questionnaire d\'auto-évaluation' }[a.nature]}${a.bloquant ? ' · 🔒 bloquant' : ''}</b><br><span>${fkEchapper(a.titre || a.enonce || '').slice(0, 140)}</span><small>Cliquer pour modifier · touche Suppr pour retirer</small>`
+        : '<b>🧭 Test introuvable</b><small>Supprimez ce repère.</small>';
+    });
+  }
+  zone.addEventListener('click', async e => {
+    const el = e.target.closest('[data-activite]');
+    if (!el || !o.activites) return;
+    const a = await o.activites.editer(Number(el.dataset.activite));
+    if (a === 'supprime') el.remove();
+    decorerActivites();
+  });
+  barre.querySelector('[data-activite-btn]')?.addEventListener('click', async () => {
+    if (modeSource) { fkToast('Repassez en mode normal pour insérer un test.', 'erreur'); return; }
+    if (!o.activites.leconId) { fkToast('Enregistrez d\'abord la leçon, puis rouvrez-la pour ajouter un test.', 'erreur'); return; }
+    const a = await o.activites.editer(null);
+    if (a && a.id) { inserer(`<div data-activite="${a.id}"></div><p><br></p>`); decorerActivites(); }
+  });
+  decorerActivites();
+  btnSource.addEventListener('click', () => { if (!modeSource) decorerActivites(); });
+
   return {
     zone,
-    lireHtml: () => fkNettoyerHtml(modeSource ? source.value : zone.innerHTML).trim(),
+    idsActivites: () => [...new Set([...(modeSource ? new DOMParser().parseFromString(source.value, 'text/html') : zone).querySelectorAll('[data-activite]')].map(el => Number(el.dataset.activite)))],
+    lireHtml: () => {
+      const t = document.createElement('template');
+      t.innerHTML = fkNettoyerHtml(modeSource ? source.value : zone.innerHTML);
+      t.content.querySelectorAll('[data-activite]').forEach(el => { el.innerHTML = ''; el.removeAttribute('class'); });
+      return t.innerHTML.trim();
+    },
     desactiver: () => { zone.contentEditable = 'false'; barre.querySelectorAll('button, select, input').forEach(el => { el.disabled = true; }); }
   };
 }

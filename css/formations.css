@@ -435,3 +435,31 @@ body.fk {
   .fk *, .fk *::before { transition: none !important; animation: none !important; }
   .fk-hero-card { transform: none; }
 }
+
+/* ---------- Images dans les leçons (25 septembre 2026) ---------- */
+.fk-riche-zone figure, .fk-lecon-corps figure, .fk-description figure { margin: 16px 0; }
+.fk-riche-zone figure img, .fk-lecon-corps figure img, .fk-description figure img { display: inline-block; max-width: 100%; height: auto; border-radius: 10px; }
+[data-image="petite"] img { width: 240px; }
+[data-image="moyenne"] img { width: 480px; }
+[data-image="grande"] img { width: 100%; }
+.fk-riche-zone figcaption, .fk-lecon-corps figcaption, .fk-description figcaption { font-size: 13px; color: var(--f-muted); margin-top: 6px; font-style: italic; }
+
+/* ---------- Tests au cœur de la leçon ---------- */
+.fk-activite-repere { display: block; border: 2px dashed var(--f-primary); background: var(--f-primary-light); border-radius: 12px; padding: 10px 14px; margin: 14px 0; cursor: pointer; user-select: none; }
+.fk-activite-repere span { color: var(--f-text); }
+.fk-activite-repere small { display: block; color: var(--f-muted); font-size: 12px; margin-top: 4px; }
+.fk-activite { border: 1px solid #cfe5dc; border-left: 5px solid var(--f-secondary); background: #fffdf6; border-radius: 14px; padding: 16px 18px; margin: 20px 0; }
+.fk-activite-tete { font-weight: 800; font-size: 14px; color: var(--f-primary-dark); text-transform: uppercase; letter-spacing: .3px; }
+.fk-activite-enonce { font-weight: 700; margin: 8px 0 12px; }
+.fk-activite textarea.fk-input { resize: vertical; }
+.fk-activite-actions { margin-top: 10px; }
+.fk-activite-retour { margin-top: 12px; padding: 12px 14px; border-radius: 10px; background: var(--f-primary-light); color: var(--f-primary-dark); }
+.fk-activite-retour.ko { background: var(--f-warning-bg); color: #6b5200; }
+.fk-activite-retour p { margin: 8px 0 0; color: var(--f-text); }
+.fk-activite-verrou { text-align: center; color: var(--f-muted); font-weight: 700; padding: 14px; border: 1px dashed var(--f-border); border-radius: 12px; }
+.fk-questionnaire { display: flex; flex-direction: column; gap: 10px; }
+.fk-q-item { border: 1px solid var(--f-border); border-radius: 10px; padding: 10px 12px; margin: 0; background: #fff; }
+.fk-q-item legend { font-weight: 600; padding: 0 4px; }
+.fk-q-echelle { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.fk-q-echelle label { border: 1px solid var(--f-border); border-radius: 999px; padding: 5px 10px; font-size: 13px; cursor: pointer; background: #fff; }
+.fk-q-echelle label:has(input:checked) { background: var(--f-primary-light); border-color: var(--f-primary); color: var(--f-primary-dark); font-weight: 700; }

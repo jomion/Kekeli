@@ -5,7 +5,7 @@
 // serveur (RLS peut_editer_formation : propriétaire validé hors révision,
 // ou gestionnaire KEKELI).
 
-const FKE = { s: null, f: null, modules: [], lecons: [], ressources: [], quiz: [], categories: [], onglet: 'infos', verrouille: false };
+const FKE = { s: null, f: null, modules: [], lecons: [], ressources: [], quiz: [], categories: [], activites: [], onglet: 'infos', verrouille: false };
 
 (async function () {
   const s = await fkExigerConnexion();
@@ -27,17 +27,19 @@ async function chargerTout(id) {
   if (!f || (f.formateur_id !== FKE.s.profil.id && !FKE.s.estGestionnaire)) { FKE.f = null; return; }
   FKE.f = f;
   FKE.verrouille = f.statut === 'en_revision' && !FKE.s.estGestionnaire;
-  const [mods, lecs, res, qz, cats] = await Promise.all([
+  const [mods, lecs, res, qz, cats, acts] = await Promise.all([
     supabaseClient.from('formation_modules').select('*').eq('formation_id', id).order('position').order('id'),
     supabaseClient.from('formation_lecons').select('*').eq('formation_id', id).order('position').order('id'),
     supabaseClient.from('formation_ressources').select('*').eq('formation_id', id).order('id'),
     supabaseClient.from('formation_quiz').select('*, formation_questions(id)').eq('formation_id', id).order('position').order('id'),
-    supabaseClient.from('formation_categories').select('id, nom, parent_id').eq('statut', 'actif').order('position')
+    supabaseClient.from('formation_categories').select('id, nom, parent_id').eq('statut', 'actif').order('position'),
+    supabaseClient.from('formation_activites_lecon').select('*').eq('formation_id', id).order('id')
   ]);
   FKE.modules = mods.data || [];
   FKE.lecons = lecs.data || [];
   FKE.ressources = res.data || [];
   FKE.quiz = qz.data || [];
+  FKE.activites = acts.data || [];
   FKE.categories = cats.data || [];
 }
 
@@ -48,7 +50,7 @@ async function recharger() {
 
 function rendrePage() {
   const f = FKE.f;
-  const onglets = [['infos', '📝 Informations'], ['programme', '📚 Programme'], ['quiz', '✅ Quiz'], ['apprenants', `👥 Apprenants (${f.nb_inscrits})`], ['publication', '🚀 Publication']];
+  const onglets = [['infos', '📝 Informations'], ['programme', '📚 Programme'], ['quiz', '✅ Quiz'], ['activites', '🧭 Tests en leçon'], ['apprenants', `👥 Apprenants (${f.nb_inscrits})`], ['publication', '🚀 Publication']];
   document.getElementById('fkContenu').innerHTML = `
     <div class="fk-page"><div class="fk-container">
       <a class="fk-link" href="tableau-de-bord.html">← Espace formateur</a>
@@ -68,7 +70,7 @@ function rendrePage() {
     const u = new URL(window.location.href); u.searchParams.set('onglet', FKE.onglet); history.replaceState(null, '', u);
     rendrePage();
   }));
-  ({ infos: ongletInfos, programme: ongletProgramme, quiz: ongletQuiz, apprenants: ongletApprenants, publication: ongletPublication })[FKE.onglet]?.();
+  ({ infos: ongletInfos, programme: ongletProgramme, quiz: ongletQuiz, activites: ongletActivites, apprenants: ongletApprenants, publication: ongletPublication })[FKE.onglet]?.();
   if (FKE.verrouille) document.querySelectorAll('#zoneOnglet [data-edition]').forEach(el => { el.disabled = true; });
 }
 
@@ -109,7 +111,7 @@ function ongletInfos() {
       <div class="fk-champ"><span>Description * <small style="display:inline;font-weight:400">(50 caractères minimum : objectifs, public visé, prérequis…)</small></span><div id="editeurDescription"></div></div>
       <div class="fk-actions-form"><button class="fk-btn fk-btn-primary" type="submit" data-edition>Enregistrer</button></div>
     </form>`;
-  const ed = fkEditeurRiche(document.getElementById('editeurDescription'), f.description, 'Présentez votre formation…');
+  const ed = fkEditeurRiche(document.getElementById('editeurDescription'), f.description, 'Présentez votre formation…', { formationId: f.id });
   if (FKE.verrouille) ed.desactiver();
 
   document.getElementById('formInfos').addEventListener('submit', async e => {
@@ -273,7 +275,14 @@ function modaleLecon(l, moduleId) {
       <div class="fk-actions-form"><button type="button" class="fk-btn fk-btn-ghost" data-fermer>Fermer</button><button class="fk-btn fk-btn-primary" type="submit" ${FKE.verrouille ? 'disabled' : ''}>Enregistrer la leçon</button></div>
     </form>`, { protegee: true });
   md.boite.style.width = 'min(860px, 100%)';
-  const ed = fkEditeurRiche(md.boite.querySelector('#editeurLecon'), l?.contenu, 'Rédigez le contenu de la leçon…');
+  const ed = fkEditeurRiche(md.boite.querySelector('#editeurLecon'), l?.contenu, 'Rédigez le contenu de la leçon…', {
+    formationId: FKE.f.id,
+    activites: l ? {
+      leconId: l.id,
+      get liste() { return FKE.activites; },
+      editer: async id => modaleActivite(l.id, id ? FKE.activites.find(x => x.id === id) : null)
+    } : { leconId: null, liste: [], editer: async () => null }
+  });
   if (FKE.verrouille) ed.desactiver();
   const medias = { video: video.startsWith('fichier:') ? video : null, audio: audio.startsWith('fichier:') ? audio : null };
   const aSupprimer = [];
@@ -357,6 +366,12 @@ function modaleLecon(l, moduleId) {
     else res = await supabaseClient.from('formation_lecons').insert({ ...donnees, formation_id: FKE.f.id, position: FKE.lecons.filter(x => x.module_id === donnees.module_id).length + 1 }).select().single();
     if (res.error) { fkToast(fkMessageErreur(res.error), 'erreur'); return; }
     if (aSupprimer.length) await supabaseClient.storage.from(FK_BUCKET_PRIVE).remove(aSupprimer);
+    // Tests retirés du texte de la leçon : supprimés aussi en base.
+    if (l) {
+      const gardes = new Set(ed.idsActivites());
+      const orphelins = FKE.activites.filter(x => x.lecon_id === l.id && !gardes.has(x.id)).map(x => x.id);
+      if (orphelins.length) await supabaseClient.from('formation_activites_lecon').delete().in('id', orphelins);
+    }
     fkToast('Leçon enregistrée.', 'succes');
     md.fermer();
     await recharger();
@@ -690,6 +705,189 @@ function modaleQuestion(q, x, nb) {
     await recharger();
     modaleQuestions(q);
   });
+}
+
+// ---------------------------------------------------------------- Tests en leçon
+// 25 septembre 2026 : tests rapides / réflexions / questionnaires
+// d'auto-évaluation insérés au cœur d'une leçon (voir fkEditeurRiche,
+// bouton 🧭). Enregistrés dans formation_activites_lecon ; réponses des
+// étudiants visibles ici par le formateur, sans note.
+const FK_ECHELLES = {
+  accord: [['Pas du tout d\'accord', 1], ['Plutôt pas d\'accord', 2], ['Ni l\'un ni l\'autre', 3], ['Plutôt d\'accord', 4], ['Tout à fait d\'accord', 5]],
+  frequence: [['Jamais', 1], ['Rarement', 2], ['Parfois', 3], ['Souvent', 4], ['Toujours', 5]],
+  ouinon: [['Non', 0], ['Oui', 1]],
+  intensite: [['Pas du tout', 0], ['Un peu', 1], ['Moyennement', 2], ['Beaucoup', 3]]
+};
+
+function modaleActivite(leconId, a) {
+  return new Promise(resolve => {
+    const e = fkEchapper;
+    const c = JSON.parse(JSON.stringify(a?.config || {}));
+    let choix = (c.choix || []).length ? c.choix : [{ texte: '', correcte: true }, { texte: '', correcte: false }];
+    const echelleTexte = (c.echelle || FK_ECHELLES.accord.map(([t, p]) => ({ texte: t, points: p }))).map(x => `${x.texte} = ${x.points}`).join('\n');
+    const itemsTexte = (c.items || []).map(i => (i.inverse ? '(-) ' : '') + i.texte).join('\n');
+    const interpTexte = (c.interpretations || []).map(t => `${t.min}-${t.max} : ${t.message}`).join('\n');
+    const md = fkModale(a ? 'Modifier le test' : 'Insérer un test dans la leçon', `
+      <form>
+        <label class="fk-champ"><span>Genre de test</span><select name="nature">
+          <option value="controle" ${a?.nature === 'controle' || !a ? 'selected' : ''}>🧭 Point de contrôle — une question avec une bonne réponse, corrigée tout de suite</option>
+          <option value="reflexion" ${a?.nature === 'reflexion' ? 'selected' : ''}>💭 Réflexion — question ouverte, puis votre commentaire s'affiche</option>
+          <option value="questionnaire" ${a?.nature === 'questionnaire' ? 'selected' : ''}>📋 Questionnaire d'auto-évaluation — plusieurs affirmations notées sur une échelle</option>
+        </select></label>
+        <label class="fk-champ"><span>Titre (facultatif)</span><input type="text" name="titre" maxlength="120" value="${e(a?.titre || '')}" placeholder="Ex. Faisons le point"></label>
+        <label class="fk-case"><input type="checkbox" name="bloquant" ${a ? (a.bloquant ? 'checked' : '') : 'checked'}> 🔒 Bloquant : la suite de la leçon reste cachée tant que l'étudiant n'a pas répondu</label>
+        <div data-corps></div>
+        <div class="fk-actions-form">
+          ${a ? '<button type="button" class="fk-btn fk-btn-danger" data-suppr style="margin-right:auto">🗑️ Supprimer ce test</button>' : ''}
+          <button type="button" class="fk-btn fk-btn-ghost" data-annuler>Annuler</button><button class="fk-btn fk-btn-primary" type="submit">Enregistrer</button></div>
+      </form>`, { protegee: true });
+    md.boite.style.width = 'min(820px, 100%)';
+    const form = md.boite.querySelector('form');
+    const corps = md.boite.querySelector('[data-corps]');
+    const fin = v => { md.fermer(); resolve(v); };
+    md.boite.querySelector('[data-annuler]').addEventListener('click', () => fin(null));
+    md.boite.querySelector('[data-suppr]')?.addEventListener('click', async () => {
+      if (!await fkConfirmer('Supprimer ce test et les réponses déjà données ?', 'Supprimer')) return;
+      const { error } = await supabaseClient.from('formation_activites_lecon').delete().eq('id', a.id);
+      if (error) { fkToast(fkMessageErreur(error), 'erreur'); return; }
+      FKE.activites = FKE.activites.filter(x => x.id !== a.id);
+      fin('supprime');
+    });
+
+    function dessiner() {
+      const n = form.nature.value;
+      if (n === 'controle') {
+        const t = corps.querySelector('[name=type]')?.value || a?.type || 'choix_unique';
+        corps.innerHTML = `
+          <label class="fk-champ"><span>Type de question</span><select name="type">
+            ${['choix_unique', 'choix_multiple', 'vrai_faux', 'reponse_courte', 'reponse_numerique'].map(k => `<option value="${k}" ${k === t ? 'selected' : ''}>${FK_TYPES_QUESTIONS[k].icone} ${FK_TYPES_QUESTIONS[k].label}</option>`).join('')}</select></label>
+          <label class="fk-champ"><span>Question *</span><textarea name="enonce" required maxlength="1000" style="min-height:70px">${e(form.dataset.enonce ?? a?.enonce ?? '')}</textarea></label>
+          <div data-reponses></div>
+          <label class="fk-champ"><span>Explication (affichée après la réponse)</span><textarea name="explication" maxlength="1500" style="min-height:70px">${e(a?.explication || '')}</textarea></label>`;
+        corps.querySelector('[name=type]').addEventListener('change', () => { if (corps.querySelector('[name=type]').value === 'vrai_faux') choix = [{ texte: 'Vrai', correcte: true }, { texte: 'Faux', correcte: false }]; dessinerReponses(); });
+        dessinerReponses();
+      } else if (n === 'reflexion') {
+        corps.innerHTML = `
+          <label class="fk-champ"><span>Question posée à l'étudiant *</span><textarea name="enonce" required maxlength="1000" style="min-height:70px" placeholder="Ex. Qu'est-ce qui vous empêche le plus souvent de commencer une tâche ?">${e(a?.enonce || '')}</textarea></label>
+          <label class="fk-champ"><span>Votre commentaire, affiché après sa réponse</span><textarea name="explication" maxlength="2000" style="min-height:90px" placeholder="Ex. Beaucoup de personnes répondent…">${e(a?.explication || '')}</textarea></label>`;
+      } else {
+        corps.innerHTML = `
+          <label class="fk-champ"><span>Consigne *</span><textarea name="enonce" required maxlength="1000" style="min-height:60px" placeholder="Ex. Pour chaque affirmation, indiquez à quel point elle vous correspond.">${e(a?.enonce || '')}</textarea></label>
+          <label class="fk-champ"><span>Affirmations (une par ligne ; « (-) » devant une affirmation dont les points sont inversés)</span>
+            <textarea name="items" style="min-height:110px" placeholder="Je remets souvent à plus tard ce qui me paraît difficile.&#10;(-) Je commence mes tâches dès que possible.">${e(itemsTexte)}</textarea></label>
+          <div class="fk-grille-2">
+            <label class="fk-champ"><span>Échelle de réponse</span><select name="preset">
+              <option value="">— Choisir un modèle —</option><option value="accord">Accord (1 à 5)</option><option value="frequence">Fréquence (Jamais → Toujours)</option>
+              <option value="intensite">Intensité (0 à 3)</option><option value="ouinon">Oui / Non</option></select>
+              <small>Ou modifiez directement ci-dessous : « libellé = points ».</small></label>
+            <label class="fk-champ"><span>Libellés et points</span><textarea name="echelle" style="min-height:110px">${e(echelleTexte)}</textarea></label>
+          </div>
+          <label class="fk-champ"><span>Interprétation du score total (une tranche par ligne : « min-max : message »)</span>
+            <textarea name="interpretations" style="min-height:90px" placeholder="0-10 : Vous gérez bien votre temps.&#10;11-20 : Quelques habitudes à surveiller.&#10;21-40 : La procrastination vous freine : les leçons suivantes vont vous aider.">${e(interpTexte)}</textarea></label>
+          <label class="fk-champ"><span>Commentaire général affiché après le questionnaire (facultatif)</span><textarea name="explication" maxlength="2000" style="min-height:70px">${e(a?.explication || '')}</textarea></label>`;
+        corps.querySelector('[name=preset]').addEventListener('change', ev => {
+          const p = FK_ECHELLES[ev.target.value]; if (!p) return;
+          corps.querySelector('[name=echelle]').value = p.map(([t, pts]) => `${t} = ${pts}`).join('\n');
+        });
+      }
+    }
+    function dessinerReponses() {
+      const zone = corps.querySelector('[data-reponses]');
+      const t = corps.querySelector('[name=type]').value;
+      if (['choix_unique', 'choix_multiple', 'vrai_faux'].includes(t)) {
+        const unique = t !== 'choix_multiple';
+        zone.innerHTML = `<span style="display:block;font-weight:700;font-size:14px;margin-bottom:6px">Réponses (cochez la ou les bonnes)</span>
+          ${choix.map((r, i) => `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+            <input type="${unique ? 'radio' : 'checkbox'}" name="bonne" ${r.correcte ? 'checked' : ''} data-i="${i}" aria-label="Bonne réponse">
+            <input class="fk-input" type="text" value="${e(r.texte)}" data-t="${i}" maxlength="300" placeholder="Réponse ${i + 1}" ${t === 'vrai_faux' ? 'readonly' : ''}>
+            ${t === 'vrai_faux' ? '' : `<button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-x="${i}" aria-label="Retirer">✕</button>`}</div>`).join('')}
+          ${t === 'vrai_faux' ? '' : '<button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-plus>＋ Ajouter une réponse</button>'}`;
+        zone.querySelectorAll('[data-t]').forEach(inp => inp.addEventListener('input', () => { choix[Number(inp.dataset.t)].texte = inp.value; }));
+        zone.querySelectorAll('[name=bonne]').forEach(inp => inp.addEventListener('change', () => {
+          if (unique) choix.forEach((r, i) => { r.correcte = i === Number(inp.dataset.i); }); else choix[Number(inp.dataset.i)].correcte = inp.checked;
+        }));
+        zone.querySelectorAll('[data-x]').forEach(b => b.addEventListener('click', () => { choix.splice(Number(b.dataset.x), 1); dessinerReponses(); }));
+        zone.querySelector('[data-plus]')?.addEventListener('click', () => { if (choix.length < 8) { choix.push({ texte: '', correcte: false }); dessinerReponses(); } });
+      } else if (t === 'reponse_courte') {
+        zone.innerHTML = `<label class="fk-champ"><span>Réponses acceptées (une par ligne)</span><textarea data-acc style="min-height:70px">${e((c.acceptees || []).join('\n'))}</textarea></label>`;
+      } else {
+        zone.innerHTML = `<div class="fk-grille-3"><label class="fk-champ"><span>Réponse exacte *</span><input type="number" step="any" data-val value="${e(c.valeur ?? '')}"></label>
+          <label class="fk-champ"><span>Tolérance (±)</span><input type="number" step="any" min="0" data-tol value="${e(c.tolerance ?? 0)}"></label>
+          <label class="fk-champ"><span>Unité</span><input type="text" data-unite maxlength="20" value="${e(c.unite || '')}"></label></div>`;
+      }
+    }
+    form.nature.addEventListener('change', () => { form.dataset.enonce = corps.querySelector('[name=enonce]')?.value || ''; dessiner(); });
+    dessiner();
+
+    form.addEventListener('submit', async ev => {
+      ev.preventDefault();
+      const n = form.nature.value;
+      const enonce = corps.querySelector('[name=enonce]').value.trim();
+      if (!enonce) { fkToast('Écrivez la question ou la consigne.', 'erreur'); return; }
+      let type = n, config = {};
+      const lignes = v => String(v || '').split('\n').map(x => x.trim()).filter(Boolean);
+      if (n === 'controle') {
+        type = corps.querySelector('[name=type]').value;
+        if (['choix_unique', 'choix_multiple', 'vrai_faux'].includes(type)) {
+          const propres = choix.map(r => ({ texte: r.texte.trim(), correcte: !!r.correcte })).filter(r => r.texte);
+          if (propres.length < 2 || !propres.some(r => r.correcte)) { fkToast('Au moins deux réponses, dont une bonne.', 'erreur'); return; }
+          config = { choix: propres };
+        } else if (type === 'reponse_courte') {
+          const acc = lignes(corps.querySelector('[data-acc]').value);
+          if (!acc.length) { fkToast('Indiquez au moins une réponse acceptée.', 'erreur'); return; }
+          config = { acceptees: acc };
+        } else {
+          const v = parseFloat(String(corps.querySelector('[data-val]').value).replace(',', '.'));
+          if (!Number.isFinite(v)) { fkToast('Indiquez la réponse exacte.', 'erreur'); return; }
+          config = { valeur: v, tolerance: Math.abs(parseFloat(String(corps.querySelector('[data-tol]').value).replace(',', '.')) || 0), unite: corps.querySelector('[data-unite]').value.trim() };
+        }
+      } else if (n === 'questionnaire') {
+        const items = lignes(corps.querySelector('[name=items]').value).map(x => ({ texte: x.replace(/^\(-\)\s*/, ''), inverse: /^\(-\)/.test(x) }));
+        const echelle = lignes(corps.querySelector('[name=echelle]').value).map(x => { const i = x.lastIndexOf('='); return { texte: (i > 0 ? x.slice(0, i) : x).trim(), points: i > 0 ? Number(x.slice(i + 1).replace(',', '.')) : NaN }; });
+        if (!items.length) { fkToast('Ajoutez au moins une affirmation.', 'erreur'); return; }
+        if (echelle.length < 2 || echelle.some(x => !x.texte || !Number.isFinite(x.points))) { fkToast('Échelle : au moins deux lignes « libellé = points ».', 'erreur'); return; }
+        const interpretations = [];
+        for (const x of lignes(corps.querySelector('[name=interpretations]').value)) {
+          const m = x.match(/^(-?\d+(?:[.,]\d+)?)\s*-\s*(-?\d+(?:[.,]\d+)?)\s*:\s*(.+)$/);
+          if (!m) { fkToast(`Interprétation mal écrite : « ${x} » (attendu : min-max : message).`, 'erreur'); return; }
+          interpretations.push({ min: Number(m[1].replace(',', '.')), max: Number(m[2].replace(',', '.')), message: m[3].trim() });
+        }
+        config = { items, echelle, interpretations };
+      }
+      const donnees = { lecon_id: leconId, nature: n, type, titre: form.titre.value.trim() || null, enonce, config,
+        explication: corps.querySelector('[name=explication]').value.trim() || null, bloquant: form.bloquant.checked };
+      const res = a ? await supabaseClient.from('formation_activites_lecon').update(donnees).eq('id', a.id).select().single()
+        : await supabaseClient.from('formation_activites_lecon').insert(donnees).select().single();
+      if (res.error) { fkToast(fkMessageErreur(res.error), 'erreur'); return; }
+      FKE.activites = [...FKE.activites.filter(x => x.id !== res.data.id), res.data];
+      fin(res.data);
+    });
+  });
+}
+
+// Onglet « Tests en leçon » : réponses des étudiants (sans note).
+async function ongletActivites() {
+  const zone = document.getElementById('zoneOnglet');
+  zone.innerHTML = '<div class="fk-chargement">Chargement…</div>';
+  const { data, error } = await supabaseClient.rpc('reponses_activites_formation', { p_formation_id: FKE.f.id });
+  if (error) { zone.innerHTML = `<p class="fk-alerte fk-alerte-erreur">${fkEchapper(fkMessageErreur(error))}</p>`; return; }
+  const parActivite = new Map();
+  (data || []).forEach(r => { if (!parActivite.has(r.activite_id)) parActivite.set(r.activite_id, { ...r, reponses: [] }); if (r.apprenant) parActivite.get(r.activite_id).reponses.push(r); });
+  const e = fkEchapper;
+  const lire = (a, r) => {
+    const act = FKE.activites.find(x => x.id === a.activite_id);
+    if (a.nature === 'reflexion') return `<span style="white-space:pre-wrap">${e(r.reponse)}</span>`;
+    if (a.nature === 'questionnaire') return `Score <b>${e(r.resultat?.score)}</b> / ${e(r.resultat?.score_max)}${r.resultat?.interpretation ? ` — ${e(r.resultat.interpretation)}` : ''}`;
+    const txt = Array.isArray(r.reponse) && act?.config?.choix ? r.reponse.map(i => act.config.choix[i]?.texte).filter(Boolean).join(', ') : r.reponse;
+    return `${r.resultat?.juste ? '✅' : '❌'} ${e(txt)}`;
+  };
+  zone.innerHTML = parActivite.size ? [...parActivite.values()].map(a => `
+    <section class="fk-carte">
+      <h3>${{ controle: '🧭', reflexion: '💭', questionnaire: '📋' }[a.nature]} ${e(a.titre || a.enonce)}</h3>
+      <p style="color:var(--f-muted);font-size:13px;margin:-4px 0 10px">Leçon « ${e(a.lecon_titre)} » · ${a.reponses.length} réponse${a.reponses.length > 1 ? 's' : ''}${a.nature === 'controle' && a.reponses.length ? ` · ${Math.round(a.reponses.filter(r => r.resultat?.juste).length * 100 / a.reponses.length)} % de bonnes réponses` : ''}</p>
+      ${a.reponses.length ? `<div class="fk-table-wrap"><table class="fk-table"><thead><tr><th>Étudiant</th><th>Réponse</th><th>Essais</th><th>Date</th></tr></thead><tbody>
+        ${a.reponses.map(r => `<tr><td>${e(r.apprenant)}</td><td>${lire(a, r)}</td><td>${r.nb_essais}</td><td>${fkDate(r.maj_le)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="fk-vide" style="padding:8px">Pas encore de réponse.</p>'}
+    </section>`).join('') : '<div class="fk-carte fk-vide"><span class="fk-vide-icone">🧭</span>Aucun test dans vos leçons pour le moment.<br>Dans l\'éditeur d\'une leçon, utilisez le bouton « 🧭 Test / questionnaire » pour en insérer un à l\'endroit voulu.</div>';
 }
 
 // ---------------------------------------------------------------- Apprenants

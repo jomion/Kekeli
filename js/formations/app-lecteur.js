@@ -144,12 +144,13 @@ async function afficherLecon(item) {
     ${await fkHtmlVideo(l.video_url)}
     ${await fkHtmlAudio(l.audio_url)}
     <div class="fk-lecon-corps">${fkNettoyerHtml(l.contenu)}</div>
-    ${ressources.length ? `<h2 style="font-size:18px;margin-top:26px">📎 Ressources</h2>${ressources.map(r => `
+    <div data-apres-corps>${ressources.length ? `<h2 style="font-size:18px;margin-top:26px">📎 Ressources</h2>${ressources.map(r => `
       <div class="fk-ressource"><span>📄 ${fkEchapper(r.nom)}</span>
         <button class="fk-btn fk-btn-outline fk-btn-petit" data-ressource="${r.id}">${r.telechargement_autorise ? '⬇️ Télécharger' : '👁️ Ouvrir'}</button></div>`).join('')}` : ''}
     ${FKL.apercu ? '' : `<div style="margin-top:26px"><button class="fk-btn ${fait ? 'fk-btn-ghost' : 'fk-btn-primary'}" id="btnFait">${fait ? '↩️ Marquer comme non terminée' : '✅ Marquer comme terminée'}</button></div>`}
-    ${navigation(item)}`;
+    ${navigation(item)}</div>`;
   zone.querySelector('#btnSommaire').addEventListener('click', () => document.getElementById('lecteur').classList.toggle('nav-ouverte'));
+  await brancherActivitesLecon(zone, l.id);
   zone.querySelectorAll('[data-ressource]').forEach(b => b.addEventListener('click', async () => {
     const r = ressources.find(x => x.id === Number(b.dataset.ressource));
     const url = await fkUrlFichier(r.chemin_fichier, r.telechargement_autorise);
@@ -370,4 +371,129 @@ function afficherResultat(item, data, r, reponses) {
     ${navigation(item)}`;
   zone.querySelector('#btnReessayer')?.addEventListener('click', () => ouvrir(item));
   brancherNavigation(zone);
+}
+
+// ---------- Tests au cœur de la leçon (25 septembre 2026) ----------
+// Chaque repère <div data-activite="ID"> du texte devient un petit test.
+// Un test « bloquant » masque la suite de la leçon jusqu'à la réponse.
+// Correction / retour faits par le serveur (repondre_activite) ; réponses
+// enregistrées pour le formateur, sans note ni effet sur la progression.
+async function brancherActivitesLecon(zone, leconId) {
+  const corps = zone.querySelector('.fk-lecon-corps');
+  const reperes = [...corps.querySelectorAll('[data-activite]')];
+  if (!reperes.length) return;
+  const { data } = await supabaseClient.rpc('activites_lecon', { p_lecon_id: leconId });
+  const parId = new Map((data || []).map(a => [String(a.id), a]));
+  reperes.forEach(el => {
+    const a = parId.get(el.dataset.activite);
+    if (!a) { el.remove(); return; }
+    el.className = 'fk-activite';
+    rendreActivite(el, a);
+  });
+  appliquerBlocages(zone);
+}
+
+function appliquerBlocages(zone) {
+  const corps = zone.querySelector('.fk-lecon-corps');
+  const enfants = [...corps.children];
+  let bloque = false;
+  corps.querySelector('.fk-activite-verrou')?.remove();
+  enfants.forEach(enf => {
+    if (enf.classList.contains('fk-activite-verrou')) return;
+    enf.hidden = bloque;
+    const act = enf.matches('.fk-activite') ? enf : enf.querySelector('.fk-activite');
+    if (!bloque && act && act.dataset.bloquant === '1' && act.dataset.repondu !== '1') {
+      bloque = true;
+      enf.insertAdjacentHTML('afterend', '<p class="fk-activite-verrou">🔒 La suite de la leçon s\'affichera après votre réponse.</p>');
+    }
+  });
+  // Pied de leçon (ressources, « terminée », navigation) masqué tant que c'est bloqué.
+  zone.querySelectorAll('[data-apres-corps]').forEach(el => { el.hidden = bloque; });
+}
+
+function rendreActivite(el, a) {
+  const e = fkEchapper;
+  const titres = { controle: '🧭 Point de contrôle', reflexion: '💭 Prenez un moment pour réfléchir', questionnaire: '📋 Questionnaire d\'auto-évaluation' };
+  el.dataset.bloquant = a.bloquant ? '1' : '0';
+  el.dataset.repondu = a.ma_reponse !== null && a.ma_reponse !== undefined ? '1' : '0';
+  const nom = `act${a.id}`;
+  let champs = '';
+  if (a.nature === 'controle') {
+    if (['choix_unique', 'choix_multiple', 'vrai_faux'].includes(a.type)) {
+      champs = a.donnees.choix.map((t, i) => `<label class="fk-choix" data-i="${i}"><input type="${a.type === 'choix_multiple' ? 'checkbox' : 'radio'}" name="${nom}" value="${i}"> ${e(t)}</label>`).join('');
+    } else {
+      champs = `<div style="display:flex;gap:8px;align-items:center"><input class="fk-input" type="text" data-rep ${a.type === 'reponse_numerique' ? 'inputmode="decimal" style="max-width:220px"' : ''} maxlength="200" placeholder="Votre réponse" aria-label="Votre réponse">${a.donnees.unite ? `<span>${e(a.donnees.unite)}</span>` : ''}</div>`;
+    }
+  } else if (a.nature === 'reflexion') {
+    champs = `<textarea class="fk-input" data-rep rows="4" maxlength="3000" placeholder="Écrivez ce que vous pensez…" aria-label="Votre réponse"></textarea>`;
+  } else {
+    const ech = a.donnees.echelle || [];
+    champs = `<div class="fk-questionnaire">${(a.donnees.items || []).map((it, i) => `
+      <fieldset class="fk-q-item"><legend>${i + 1}. ${e(it)}</legend>
+        <div class="fk-q-echelle">${ech.map((x, j) => `<label><input type="radio" name="${nom}_${i}" value="${j}"> <span>${e(x.texte)}</span></label>`).join('')}</div>
+      </fieldset>`).join('')}</div>`;
+  }
+  el.innerHTML = `
+    <div class="fk-activite-tete">${titres[a.nature]}${a.titre ? ` — ${e(a.titre)}` : ''}</div>
+    <p class="fk-activite-enonce">${e(a.enonce).replace(/\n/g, '<br>')}</p>
+    <form data-form>${champs}<div class="fk-activite-actions"><button class="fk-btn fk-btn-primary fk-btn-petit" type="submit">${a.nature === 'controle' ? 'Vérifier' : 'Valider'}</button></div></form>
+    <div data-resultat></div>`;
+  const form = el.querySelector('[data-form]');
+  // Réponse déjà donnée : on la remet et on affiche le retour.
+  if (el.dataset.repondu === '1') { remplir(form, a, a.ma_reponse); afficherRetour(el, a, a.resultat, a.ma_reponse); }
+  form.addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const rep = lireReponse(form, a);
+    if (rep === null) { fkToast(a.nature === 'questionnaire' ? 'Répondez à chaque affirmation.' : 'Répondez d\'abord à la question.', 'erreur'); return; }
+    const btn = form.querySelector('button[type=submit]');
+    btn.disabled = true;
+    const { data: res, error } = await supabaseClient.rpc('repondre_activite', { p_activite_id: a.id, p_reponse: rep });
+    btn.disabled = false;
+    if (error) { fkToast(fkMessageErreur(error), 'erreur'); return; }
+    el.dataset.repondu = '1';
+    afficherRetour(el, a, res, rep);
+    appliquerBlocages(document.getElementById('zoneLecon'));
+  });
+}
+
+function lireReponse(form, a) {
+  if (a.nature === 'questionnaire') {
+    const v = (a.donnees.items || []).map((_, i) => { const x = form.querySelector(`[name="act${a.id}_${i}"]:checked`); return x ? Number(x.value) : null; });
+    return v.some(x => x === null) ? null : v;
+  }
+  if (a.nature === 'controle' && ['choix_unique', 'choix_multiple', 'vrai_faux'].includes(a.type)) {
+    const v = [...form.querySelectorAll(`[name="act${a.id}"]:checked`)].map(x => Number(x.value));
+    return v.length ? v : null;
+  }
+  const t = form.querySelector('[data-rep]').value.trim();
+  return t ? t : null;
+}
+function remplir(form, a, rep) {
+  if (a.nature === 'questionnaire' && Array.isArray(rep)) rep.forEach((j, i) => { const x = form.querySelector(`[name="act${a.id}_${i}"][value="${j}"]`); if (x) x.checked = true; });
+  else if (Array.isArray(rep)) rep.forEach(j => { const x = form.querySelector(`[name="act${a.id}"][value="${j}"]`); if (x) x.checked = true; });
+  else if (form.querySelector('[data-rep]')) form.querySelector('[data-rep]').value = rep ?? '';
+}
+function afficherRetour(el, a, res, rep) {
+  const e = fkEchapper;
+  const zone = el.querySelector('[data-resultat]');
+  el.querySelector('button[type=submit]').textContent = a.nature === 'controle' ? 'Vérifier à nouveau' : 'Modifier ma réponse';
+  if (!res) { zone.innerHTML = ''; return; }
+  if (a.nature === 'controle') {
+    el.querySelectorAll('.fk-choix').forEach(l => {
+      const i = Number(l.dataset.i);
+      l.classList.toggle('juste', (res.correctes || []).includes(i));
+      l.classList.toggle('faux', Array.isArray(rep) && rep.includes(i) && !(res.correctes || []).includes(i));
+    });
+    const attendu = res.attendu ? (Array.isArray(res.attendu) ? res.attendu.join(' ou ') : `${res.attendu.valeur} ${res.attendu.unite || ''}`) : '';
+    zone.innerHTML = `<div class="fk-activite-retour ${res.juste ? 'ok' : 'ko'}" role="status"><b>${res.juste ? '✅ Bonne réponse !' : '❌ Pas tout à fait.'}</b>
+      ${!res.juste && attendu ? `<br>Réponse attendue : <b>${e(attendu)}</b>` : ''}
+      ${res.explication ? `<p>💡 ${e(res.explication).replace(/\n/g, '<br>')}</p>` : ''}</div>`;
+  } else if (a.nature === 'reflexion') {
+    zone.innerHTML = `<div class="fk-activite-retour" role="status"><b>✔ Merci, votre réponse est enregistrée.</b>${res.retour ? `<p><b>Le mot du formateur :</b><br>${e(res.retour).replace(/\n/g, '<br>')}</p>` : ''}</div>`;
+  } else {
+    zone.innerHTML = `<div class="fk-activite-retour" role="status"><b>Votre score : ${e(res.score)} / ${e(res.score_max)}</b>
+      ${res.interpretation ? `<p>${e(res.interpretation).replace(/\n/g, '<br>')}</p>` : ''}
+      ${res.retour ? `<p>${e(res.retour).replace(/\n/g, '<br>')}</p>` : ''}
+      <small style="color:var(--f-muted)">Ce questionnaire sert à mieux vous connaître : il n'est pas noté.</small></div>`;
+  }
 }

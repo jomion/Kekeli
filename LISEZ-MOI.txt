@@ -1,3 +1,46 @@
+KEKELI FORMATION — Livraison du 25 septembre 2026 — Tests et questionnaires au cœur d'une leçon, images dans les leçons
+===========================================================================
+(Les livraisons précédentes de la plateforme de formation sont décrites
+dans le document de projet « plateforme-formation.md ».)
+
+1) TESTS AU CŒUR D'UNE LEÇON (bouton « 🧭 Test / questionnaire »)
+------------------------------------------------------------------------------
+Dans l'éditeur d'une leçon, le formateur place le curseur à l'endroit voulu
+et insère l'un des trois genres de test :
+  - 🧭 Point de contrôle : une question avec une bonne réponse (QCM, QCM
+    multiple, vrai/faux, réponse courte, réponse numérique), corrigée tout
+    de suite avec l'explication du formateur ;
+  - 💭 Réflexion : une question ouverte ; l'étudiant écrit sa réponse, puis
+    découvre le commentaire du formateur ;
+  - 📋 Questionnaire d'auto-évaluation (type questionnaire psychologique) :
+    plusieurs affirmations notées sur une échelle (accord, fréquence,
+    intensité, oui/non, ou échelle libre « libellé = points »), affirmations
+    inversées possibles avec « (-) », et un message selon le score total
+    (« 0-10 : … », « 11-20 : … »).
+Chaque test peut être 🔒 bloquant : la suite de la leçon reste cachée tant
+que l'étudiant n'a pas répondu. Dans l'éditeur, un test apparaît comme un
+cadre pointillé : cliquer dessus pour le modifier ou le supprimer ; l'effacer
+du texte le supprime à l'enregistrement de la leçon.
+Les réponses ne sont pas notées et ne changent pas la progression ; le
+formateur les consulte dans le nouvel onglet « 🧭 Tests en leçon » de sa
+formation (réponse de chaque étudiant, score des questionnaires, taux de
+bonnes réponses des points de contrôle). Les bonnes réponses ne sont jamais
+envoyées au navigateur de l'étudiant avant qu'il ait répondu.
+
+2) IMAGES DANS LES LEÇONS (bouton « 🖼️ Image »)
+------------------------------------------------------------------------------
+Image depuis l'appareil (PNG, JPG, WEBP, GIF, 5 Mo) ou adresse en ligne,
+description obligatoire (accessibilité), légende facultative, taille
+(petite / moyenne / pleine largeur) et position (gauche / centre / droite).
+Disponible dans l'éditeur des leçons et dans la description de la formation.
+
+Fichiers modifiés : js/formations/commun.js, js/formations/formateur-edition.js,
+js/formations/app-lecteur.js, css/formations.css, LISEZ-MOI.txt.
+Base de données : tables formation_activites_lecon et
+formation_reponses_activites, fonctions activites_lecon, repondre_activite,
+reponses_activites_formation, dossier d'images lecons/ dans le stockage.
+
+===========================================================================
 KEKELI — Livraison du 24 septembre 2026 (dix-neuvième lot) — Le cahier d'écriture, pour tous les rôles, avec sauvegarde en ligne
 ===========================================================================
 
