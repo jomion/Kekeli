@@ -55,7 +55,7 @@
     [1, '🔤', "Assistance IA : correction de l'orthographe et du style"],
     [1, '📌', 'Assistance IA : résumé automatique des leçons'],
     [1, '🧩', `Assistance IA : formation module par module (${c.credits_plan} crédits le plan + ${c.credits_module} par module)`],
-    [1, '🎨', `Assistance IA : images créées par ChatGPT (${c.credits_image ?? 5} crédits par image)`],
+    [1, '🎨', 'Assistance IA : images (ChatGPT ou Gemini, crédits selon la qualité)'],
     [9, '⚡', `Assistance IA : formation complète d'un coup (${c.credits_formation} crédits, moins cher)`, p => p.generation_complete ? '✅' : '—'],
     [2, '🖋️', 'Mise en forme avancée (colonnes, sections repliables, étapes, cartes, dialogue…)'],
     [2, '✨', 'Badge « Recommandé » et mise en avant dans le catalogue'],
@@ -115,13 +115,21 @@
         ${c.solde > 0 ? `<div class="fk-stat"><small>Crédits offerts (sans limite)</small><strong>${c.solde}</strong></div>` : ''}
       </div>
       <div class="fk-alerte fk-alerte-info">💡 Tarifs : <b>${c.credits_par_question} crédit(s)</b> par question de quiz générée · formation <b>module par module</b> : ${c.credits_plan} crédits le plan puis ${c.credits_module} par module rédigé ·
-        formation <b>complète d'un coup</b> (Pack Pro et Pack Premium) : ${c.credits_formation} crédits · <b>image</b> créée par ChatGPT : ${c.credits_image ?? 5} crédits.
+        formation <b>complète d'un coup</b> (Pack Pro et Pack Premium) : ${c.credits_formation} crédits · <b>image</b> (ChatGPT ou Gemini) : selon la qualité choisie.
         <br>Chaque pack est valable <b>30 jours</b> (crédits et avantages). À la fin, les crédits non utilisés sont perdus, <b>sauf avec le Pack Premium</b> : ils sont reportés au mois suivant. Les avantages (commission réduite, etc.) s'arrêtent si le pack n'est pas racheté.
         Les crédits qui finissent le plus tôt sont utilisés en premier. En cas d'échec de l'IA, rien n'est décompté.</div>
       ${lots.length ? `<section class="fk-carte" style="margin-top:18px"><h2>📦 Mes packs en cours</h2>
         <div class="fk-table-wrap"><table class="fk-tableau-revenus"><thead><tr><th>Pack</th><th class="n">Crédits restants</th><th>Valable jusqu'au</th><th>À la fin</th></tr></thead>
         <tbody>${lots.map(l => `<tr><td>${e(l.pack || 'Pack')}</td><td class="n">${l.credits} / ${l.initiaux}</td><td>${fkDate(l.fin)}</td>
           <td>${l.reporte ? '🔁 déjà reportés : perdus à cette date' : reporte(l) ? '🔁 reportés au mois suivant' : 'perdus'}</td></tr>`).join('')}</tbody></table></div></section>` : ''}
+
+      <section class="fk-carte" style="margin-top:18px" id="packs">
+        <h2>🛒 Les packs</h2>
+        <p style="margin-top:0;color:var(--f-muted)">Choisissez votre pack : les crédits IA et les avantages durent 30 jours.</p>
+        ${packs.some(p => p.prix > 0) ? fkCartesPacks({ packs, commissionSansPack: com[0], gratuit: true, actuelId: c.acces_offert ? null : c.pack_actif ? c.pack_actif.id : null,
+            action: p => ({ attr: `data-pack="${p.id}"`, libelle: c.pack_actif && c.pack_actif.id === p.id ? 'Racheter pour prolonger' : 'Choisir ce pack' }) })
+          : '<p class="fk-vide" style="padding:10px">Aucun pack disponible pour le moment.</p>'}
+      </section>
 
       <section class="fk-carte" style="margin-top:18px" id="offres">
         <h2>🎁 Les avantages inclus</h2>
@@ -130,23 +138,6 @@
           <tbody>${AVANTAGES.map(a => `<tr><td>${a[1]} ${e(a[2])}</td>${packs.map(p => cellule(a, p)).join('')}</tr>`).join('')}</tbody>
         </table></div>
         <p style="font-size:13px;color:var(--f-muted);margin-bottom:0">Les avantages commencent dès le paiement confirmé et durent 30 jours. Racheter un pack de même niveau prolonge la durée ; un pack de niveau inférieur ne vous fait jamais redescendre.</p>
-      </section>
-
-      <section class="fk-carte" style="margin-top:18px">
-        <h2>🛒 Les packs</h2>
-        ${packs.length ? `<div class="fk-offres-ia">${packs.map(p => !(p.prix > 0) ? `<div class="fk-offre-ia fk-offre-gratuite">
-            <h3>${e(p.nom)}</h3><div class="fk-offre-credits">0 FCFA</div><div class="fk-offre-prix">Pour tous les formateurs</div>
-            ${avantagesHtml(p)}
-            <div class="fk-offre-niveau">🎓 Vendre vos formations · 🧠 ${c.essai_restant ?? 5} questions de quiz IA offertes</div>
-            <small>Commission KEKELI : ${pct(com[0])}. Rechargez des crédits avec un pack payant quand vous voulez.</small>
-            <button class="fk-btn fk-btn-ghost fk-btn-bloc" disabled>${packActuelId === p.id ? '✔ Votre pack actuel' : 'Inclus'}</button></div>` : `<div class="fk-offre-ia">
-            <h3>${e(p.nom)}</h3><div class="fk-offre-credits">${p.credits} crédits${p.bonus_credits ? ` <span class="fk-bonus">+${p.bonus_credits} offerts</span>` : ''}</div><div class="fk-offre-prix">${prixHtml(p)}</div>
-            ${avantagesHtml(p)}
-            ${p.generation_complete ? '<div class="fk-offre-niveau">⚡ Génération complète d\'une formation incluse</div>' : '<div class="fk-offre-niveau">🧩 Génération module par module</div>'}
-            <div class="fk-offre-niveau">${p.report_credits ? '🔁 Crédits restants reportés au mois suivant' : `⌛ Crédits valables ${p.duree_avantages_jours || 30} jours`}</div>
-            <small>≈ ${Math.floor((p.credits + (p.bonus_credits || 0)) / Math.max(1, c.credits_module))} modules rédigés, ${Math.floor((p.credits + (p.bonus_credits || 0)) / Math.max(1, c.credits_image || 5))} images ou ${Math.floor(p.credits / Math.max(1, c.credits_par_question))} questions</small>
-            <button class="fk-btn fk-btn-primary fk-btn-bloc" data-pack="${p.id}">Acheter</button></div>`).join('')}</div>`
-          : '<p class="fk-vide" style="padding:10px">Aucun pack disponible pour le moment.</p>'}
       </section>
 
       <section class="fk-carte" style="margin-top:18px">
@@ -178,4 +169,9 @@
     fkToast('Lien copié !', 'succes');
   });
   if (location.hash === '#offres') document.getElementById('offres')?.scrollIntoView();
+  const packDemande = Number(fkParam('pack'));
+  if (packDemande) {
+    const b = main.querySelector(`[data-pack="${packDemande}"]`);
+    if (b) { b.scrollIntoView({ block: 'center' }); b.click(); }
+  }
 })();

@@ -7,12 +7,13 @@
   const main = document.getElementById('fkContenu');
   const s = await fkSession();
 
-  const [{ data: categories }, { data: populairesBrut }, { data: recentes }] = await Promise.all([
+  const [{ data: categories }, { data: populairesBrut }, { data: recentes }, { data: offrePacks }] = await Promise.all([
     supabaseClient.from('formation_categories').select('id, nom, slug, icone, parent_id').eq('statut', 'actif').is('parent_id', null).order('position'),
     supabaseClient.from('formations').select(FK_SELECT_CARTE).eq('statut', 'publiee').eq('visibilite', 'publique')
       .order('nb_inscrits', { ascending: false }).order('publiee_le', { ascending: false }).limit(24),
     supabaseClient.from('formations').select('id, slug, titre, nb_lecons, duree_minutes, image_couverture').eq('statut', 'publiee')
-      .eq('visibilite', 'publique').order('publiee_le', { ascending: false }).limit(3)
+      .eq('visibilite', 'publique').order('publiee_le', { ascending: false }).limit(3),
+    supabaseClient.rpc('formation_packs_publics')
   ]);
 
   // Mise en avant (avantage Pro / Premium) : leurs formations passent devant, 8 affichées.
@@ -135,6 +136,15 @@
         </div>
       </div>
     </section>
+
+    ${offrePacks && (offrePacks.packs || []).some(p => p.prix > 0) ? `<section class="fk-section fk-section-packs" id="packs">
+      <div class="fk-container">
+        <div class="fk-section-head"><div><span class="fk-badge">POUR LES FORMATEURS</span><h2 style="margin-top:12px">Choisissez votre pack et vendez plus</h2>
+          <p>Assistance IA pour créer vos formations, commission réduite, mise en avant, certificats à votre nom… Chaque pack est valable 30 jours.</p></div></div>
+        ${fkCartesPacks({ packs: offrePacks.packs, commissionSansPack: offrePacks.commission_sans_pack, gratuit: true,
+          action: p => ({ href: estFormateur ? `${FK_BASE}formateur/credits-ia.html?pack=${p.id}` : `${FK_BASE}devenir-formateur.html`, libelle: estFormateur ? 'Choisir ce pack' : 'Devenir formateur' }) })}
+      </div>
+    </section>` : ''}
 
     <div class="fk-cta">
       <div><h2>Prêt à commencer votre apprentissage ?</h2><p>Découvrez les formations disponibles sur KEKELI.</p></div>

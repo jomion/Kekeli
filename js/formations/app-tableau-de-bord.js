@@ -18,6 +18,7 @@
   const terminees = liste.filter(i => i.statut === 'terminee');
   const favoris = (favorisLignes || []).map(x => x.formations).filter(f => f && f.statut === 'publiee');
   const onglet = fkParam('onglet') || 'en-cours';
+  const derniere = enCours.find(i => Number(i.progression) > 0) || enCours[0];
 
   const carteSuivi = i => {
     const f = i.formations;
@@ -40,12 +41,17 @@
       <h1 class="fk-titre-page">Mon apprentissage</h1>
       <p class="fk-sous-titre">Bonjour ${fkEchapper(s.profil.prenom)}, reprenez là où vous vous êtes arrêté(e).</p>
       ${s.profil.role === 'eleve' ? '<div class="fk-alerte fk-alerte-info">Les formations sont réservées aux comptes adultes.</div>' : ''}
-      <div class="fk-stats">
-        <div class="fk-stat"><small>En cours</small><strong>${enCours.length}</strong></div>
-        <div class="fk-stat"><small>Terminées</small><strong>${terminees.length}</strong></div>
-        <div class="fk-stat"><small>Favoris</small><strong>${favoris.length}</strong></div>
-        <div class="fk-stat"><small>Progression moyenne</small><strong>${liste.length ? fkPourcentage(liste.reduce((t, i) => t + Number(i.progression), 0) / liste.length) : '—'}</strong></div>
-      </div>
+      ${fkCartesActions([
+        derniere ? { href: `${FK_BASE}app/formation.html?id=${derniere.formations.id}`, icone: '▶️', titre: 'Continuer', texte: `${fkEchapper(derniere.formations.titre)} · ${fkPourcentage(derniere.progression)}`, couleur: 'vert' } : null,
+        { attr: 'data-aller-onglet="en-cours"', icone: '📚', titre: 'Formations en cours', texte: liste.length ? `Progression moyenne : ${fkPourcentage(liste.reduce((t, i) => t + Number(i.progression), 0) / liste.length)}` : 'Aucune pour le moment', badge: enCours.length, couleur: 'bleu' },
+        { attr: 'data-aller-onglet="terminees"', icone: '🏆', titre: 'Terminées et certificats', texte: 'Téléchargez vos certificats.', badge: terminees.length, couleur: 'or' },
+        { attr: 'data-aller-onglet="favoris"', icone: '❤️', titre: 'Mes favoris', texte: 'Les formations que vous avez gardées.', badge: favoris.length, couleur: 'rose' },
+        { href: `${FK_BASE}catalogue.html`, icone: '🔎', titre: 'Explorer le catalogue', texte: 'Trouvez votre prochaine formation.', couleur: 'violet' },
+        { href: `${FK_BASE}catalogue.html?gratuit=1`, icone: '🎁', titre: 'Formations gratuites', texte: 'Pour apprendre sans rien payer.', couleur: 'vert' },
+        s.formateur && s.formateur.statut === 'valide'
+          ? { href: `${FK_BASE}formateur/tableau-de-bord.html`, icone: '👨‍🏫', titre: 'Mon espace formateur', texte: 'Créer et gérer mes formations.', couleur: 'orange' }
+          : { href: `${FK_BASE}devenir-formateur.html`, icone: '👨‍🏫', titre: 'Devenir formateur', texte: 'Partagez votre savoir et gagnez de l\'argent.', couleur: 'orange' }
+      ])}
       <div class="fk-onglets" role="tablist">
         ${[['en-cours', `▶ En cours (${enCours.length})`], ['terminees', `🏆 Terminées (${terminees.length})`], ['favoris', `❤️ Favoris (${favoris.length})`]]
           .map(([k, l]) => `<button role="tab" data-onglet="${k}" class="${k === onglet ? 'actif' : ''}" aria-selected="${k === onglet}">${l}</button>`).join('')}
@@ -65,5 +71,6 @@
     const u = new URL(window.location.href); u.searchParams.set('onglet', o); history.replaceState(null, '', u);
   }
   document.querySelectorAll('[data-onglet]').forEach(b => b.addEventListener('click', () => afficher(b.dataset.onglet)));
+  document.querySelectorAll('[data-aller-onglet]').forEach(b => b.addEventListener('click', () => { afficher(b.dataset.allerOnglet); document.getElementById('grille').scrollIntoView({ behavior: 'smooth', block: 'start' }); }));
   afficher(onglet);
 })();

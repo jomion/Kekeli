@@ -51,15 +51,27 @@ async function afficherAF() {
   document.getElementById('contenu').innerHTML = `
     <div class="titre-page">🎓 Plateforme de formation</div>
     <div class="sous-titre-page">Validation des formateurs et des formations, catégories, inscriptions. <a href="../formations/index.html">Voir le site Formation →</a></div>
-    <div class="af-stats">
-      <div class="af-stat"><small>À valider</small><strong>${nbRevision || 0}</strong></div>
-      <div class="af-stat"><small>Candidatures formateur</small><strong>${nbCandidats || 0}</strong></div>
-      <div class="af-stat"><small>Formations publiées</small><strong>${nbPubliees || 0}</strong></div>
-      <div class="af-stat"><small>Inscriptions</small><strong>${nbInscriptions || 0}</strong></div>
-    </div>
+    <div class="grille-actions-tb af-cartes-tb">${[
+      ['validation', '📝', 'Formations à valider', 'Vérifier puis publier ou refuser.', nbRevision],
+      ['formateurs', '👨‍🏫', 'Formateurs', 'Candidatures et comptes formateurs.', nbCandidats],
+      ['formations', '📚', 'Toutes les formations', `${nbPubliees || 0} publiée(s) sur le site.`, null],
+      ['inscriptions', '🎓', 'Inscriptions', `${nbInscriptions || 0} inscription(s) d'apprenants.`, null],
+      ['categories', '🗂️', 'Catégories', 'Organiser le catalogue.', null],
+      ['paiements', '💳', 'Paiements et commissions', 'Ventes, FedaPay / KkiaPay, commission par pack.', null],
+      ['ia', '🤖', 'IA, packs et crédits', 'Packs, génération IA, images, solde OpenAI.', null],
+      ['ia', '🎁', 'Accès complet offert', 'Donner toutes les fonctionnalités sans paiement.', null],
+      ['journal', '🧾', 'Journal', 'Historique des actions.', null]
+    ].map(([k, ic, t, x, n]) => `<a href="?onglet=${k}" class="carte-action-tb disponible af-carte-tb ${k === ongletAF ? 'af-carte-active' : ''}" data-carte-onglet="${k}">
+        ${n ? `<span class="af-carte-badge">${n}</span>` : ''}<div class="icone-action-tb">${ic}</div><h3>${t}</h3><p>${x}</p></a>`).join('')}</div>
     <div id="alerteSoldeOA"></div>
     <div class="af-onglets" role="tablist">${onglets.map(([k, l]) => `<button role="tab" data-onglet="${k}" class="${k === ongletAF ? 'actif' : ''}" aria-selected="${k === ongletAF}">${l}</button>`).join('')}</div>
     <div id="zoneAF" class="chargement">Chargement...</div>`;
+  document.querySelectorAll('[data-carte-onglet]').forEach(c => c.addEventListener('click', ev => {
+    ev.preventDefault();
+    ongletAF = c.dataset.carteOnglet;
+    const u = new URL(window.location.href); u.searchParams.set('onglet', ongletAF); history.replaceState(null, '', u);
+    afficherAF().then(() => document.querySelector('.af-onglets')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  }));
   document.querySelectorAll('[data-onglet]').forEach(b => b.addEventListener('click', () => {
     ongletAF = b.dataset.onglet;
     const u = new URL(window.location.href); u.searchParams.set('onglet', ongletAF); history.replaceState(null, '', u);
@@ -297,6 +309,29 @@ async function ongletPaiementsAF(zone) {
 
 // ---------- IA payante : réglages, packs, comptes (26 septembre 2026 ; abonnement remplacé par le Pack Premium le 27) ----------
 const LIB_MVT_AF = { achat_pack: '🛒 Pack', abonnement: '📅 Abonnement', usage_quiz: '🧠 Quiz', usage_formation: '🤖 Formation IA', usage_image: '🎨 Image IA', remboursement: '↩️ Remboursement', expiration: '⌛ Fin de pack', report: '🔁 Report', ajustement: '🛠️ Ajustement' };
+// Options d'images (IA × qualité × crédits) — formation_ia_parametres.images_options.
+function ligneOptionImage(o) {
+  const x = o || { id: '', fournisseur: 'openai', qualite: 'moyenne', libelle: '', modele: 'gpt-image-1', credits: 5, cout_usd: 0.06, actif: true };
+  return `<tr data-option-image data-id="${eAF(x.id || '')}">
+    <td style="text-align:center"><input type="checkbox" data-o="actif" ${x.actif !== false ? 'checked' : ''}></td>
+    <td><select data-o="fournisseur"><option value="openai" ${x.fournisseur === 'openai' ? 'selected' : ''}>ChatGPT (OpenAI)</option><option value="gemini" ${x.fournisseur === 'gemini' ? 'selected' : ''}>Gemini (Google)</option></select></td>
+    <td><select data-o="qualite">${[['basse', 'Basse / rapide'], ['moyenne', 'Moyenne'], ['haute', 'Haute']].map(([v, l]) => `<option value="${v}" ${x.qualite === v ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
+    <td><input data-o="libelle" value="${eAF(x.libelle || '')}" maxlength="80" style="width:190px"></td>
+    <td><input data-o="modele" value="${eAF(x.modele || '')}" maxlength="80" style="width:170px"></td>
+    <td><input data-o="credits" type="number" min="0" value="${Number(x.credits) || 0}" style="width:70px"></td>
+    <td><input data-o="cout_usd" type="number" min="0" step="0.001" value="${Number(x.cout_usd) || 0}" style="width:80px"></td>
+    <td><button type="button" class="btn btn-discret" data-suppr-option-image title="Supprimer">🗑️</button></td></tr>`;
+}
+function lireOptionsImages(form) {
+  return [...form.querySelectorAll('[data-option-image]')].map((tr, i) => {
+    const v = k => tr.querySelector(`[data-o="${k}"]`);
+    const fournisseur = v('fournisseur').value, qualite = v('qualite').value;
+    return { id: tr.dataset.id || `${fournisseur}_${qualite}_${i + 1}`, fournisseur, qualite,
+      libelle: v('libelle').value.trim() || `${fournisseur === 'openai' ? 'ChatGPT' : 'Gemini'} — ${qualite}`,
+      modele: v('modele').value.trim() || (fournisseur === 'openai' ? 'gpt-image-1' : 'gemini-2.5-flash-image'),
+      credits: Math.max(0, Math.round(Number(v('credits').value) || 0)), cout_usd: Math.max(0, Number(v('cout_usd').value) || 0), actif: v('actif').checked };
+  });
+}
 async function ongletIAAF(zone) {
   const [{ data: par, error: e1 }, { data: packs }, { data: lotsActifs }, { data: mvts }, { data: comptes }, { data: soldeOA }, { data: recharges }] = await Promise.all([
     supabaseClient.from('formation_ia_parametres').select('*').eq('id', 1).maybeSingle(),
@@ -393,12 +428,12 @@ async function ongletIAAF(zone) {
           <label>⚡ Formation complète d'un coup — crédits <input type="number" name="cf" min="0" value="${p.credits_formation}" style="width:80px"></label>
           <small style="display:block;color:#64748b">La génération complète est réservée aux packs où la case « ⚡ Complète » est cochée ci-dessous. Gardez-la moins chère que « plan + tous les modules » pour la rendre attractive.</small>
         </fieldset>
-        <fieldset style="border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px"><legend><b>🎨 Génération IA d'images (appel direct à ChatGPT Images)</b></legend>
-          <label>Crédits par image <input type="number" name="cimg" min="0" value="${p.credits_image ?? 5}" style="width:80px"></label><br>
-          <label>Modèle d'image OpenAI <input name="mimg" value="${eAF(p.modele_image || 'gpt-image-1')}" maxlength="60" style="width:160px"></label>
-          <label>Qualité <select name="qimg">${[['low', 'Basse (moins chère)'], ['medium', 'Moyenne'], ['high', 'Haute (plus chère)']].map(([v, l]) => `<option value="${v}" ${(p.qualite_image || 'medium') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label><br>
-          <label>Coût réel estimé d'une image <input type="number" name="uimg" min="0" step="0.001" value="${p.cout_image_usd ?? 0.06}" style="width:90px"> $ <small>(pour le suivi du solde OpenAI)</small></label><br>
-          <label>Maximum <input type="number" name="limg" min="0" value="${p.limite_images_jour ?? 20}" style="width:80px"> images par jour et par formateur</label>
+        <fieldset style="border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px"><legend><b>🎨 Génération IA d'images : IA et crédits selon la qualité</b></legend>
+          <div class="af-table-wrap"><table class="af-table" data-images-options><thead><tr><th>Actif</th><th>IA</th><th>Qualité</th><th>Nom affiché</th><th>Modèle</th><th>Crédits</th><th>Coût réel ($)</th><th></th></tr></thead>
+            <tbody>${(Array.isArray(p.images_options) ? p.images_options : []).map(ligneOptionImage).join('')}</tbody></table></div>
+          <button type="button" class="btn btn-discret" data-ajout-option-image>＋ Ajouter une option</button>
+          <small style="display:block;color:#64748b;margin-top:6px">Le formateur choisit l'IA puis la qualité ; il paie les crédits de l'option. ChatGPT : modèle OpenAI (ex. gpt-image-1) et qualité basse / moyenne / haute. Gemini : modèle « imagen-… » (Imagen) ou « gemini-…-image ». Clés dans Supabase → Secrets : OPENAI_API_KEY, GEMINI_API_KEY, GEMINI_API_KEY_PAYANT. Le coût réel sert au suivi du solde OpenAI.</small>
+          <label style="display:block;margin-top:8px">Maximum <input type="number" name="limg" min="0" value="${p.limite_images_jour ?? 20}" style="width:80px"> images par jour et par formateur</label>
         </fieldset>
         <label>Parrainage : crédits offerts au parrain <input type="number" name="bp" min="0" value="${p.bonus_parrain ?? 50}" style="width:80px"> · au filleul <input type="number" name="bf" min="0" value="${p.bonus_filleul ?? 20}" style="width:80px"></label>
         <label>Outils IA de l'éditeur (vente, correction, résumé, tests, diaporama) : maximum <input type="number" name="lo" min="0" value="${p.limite_outils_jour ?? 30}" style="width:80px"> utilisations par jour et par formateur</label>
@@ -431,6 +466,10 @@ async function ongletIAAF(zone) {
           <td>${m.credits}</td><td>${m.essai}</td><td>${m.abonnement}</td><td><small>${eAF((m.details?.module ? `Module ${m.details.module} : ${m.details.titre || ''}` : '') || (m.details?.sujet ? `${m.details.mode === 'module' ? '🧩 plan — ' : ''}${m.details.sujet}` : '') || (m.details?.pack ? `${m.details.pack}${m.details.credits_reportes ? ` (${m.details.credits_reportes} crédits)` : ''}` : '') || m.details?.motif || (m.details?.questions ? m.details.questions + ' question(s)' : '') || (m.details?.montant ? prixAF(m.details.montant) + (m.details.mode === 'test' ? ' (test)' : '') : ''))}${m.details?.rembourse ? ' — remboursé' : ''}</small></td></tr>`).join('')}</tbody></table></div>` : '<p>Aucun mouvement.</p>'}
     </div>`;
 
+  const tabOpt = zone.querySelector('[data-images-options] tbody');
+  const brancherOpt = () => tabOpt.querySelectorAll('[data-suppr-option-image]').forEach(b => { b.onclick = () => b.closest('tr').remove(); });
+  brancherOpt();
+  zone.querySelector('[data-ajout-option-image]').addEventListener('click', () => { tabOpt.insertAdjacentHTML('beforeend', ligneOptionImage(null)); brancherOpt(); });
   zone.querySelector('#formAccesOffert').addEventListener('submit', async ev => {
     ev.preventDefault();
     const f = ev.target;
@@ -471,8 +510,7 @@ async function ongletIAAF(zone) {
       actif: f.actif.checked, ia_formation: f.ia_formation.value, modele: f.modele.value.trim() || 'gpt-6-sol', credits_par_question: Math.max(0, Number(f.cq.value) || 0),
       credits_formation: Math.max(0, Number(f.cf.value) || 0), essai_questions: Math.max(0, Number(f.essai.value) || 0),
       credits_plan: Math.max(0, Number(f.cplan.value) || 0), credits_module: Math.max(0, Number(f.cmod.value) || 0), niveau_generation_module: Number(f.nmod.value) || 0,
-      credits_image: Math.max(0, Number(f.cimg.value) || 0), modele_image: f.mimg.value.trim() || 'gpt-image-1', qualite_image: f.qimg.value,
-      cout_image_usd: Math.max(0, Number(f.uimg.value) || 0), limite_images_jour: Math.max(0, Number(f.limg.value) || 0),
+      images_options: lireOptionsImages(f), limite_images_jour: Math.max(0, Number(f.limg.value) || 0),
       bonus_parrain: Math.max(0, Number(f.bp.value) || 0), bonus_filleul: Math.max(0, Number(f.bf.value) || 0), limite_outils_jour: Math.max(0, Number(f.lo.value) || 0),
       maj_le: new Date().toISOString()
     }).eq('id', 1);
@@ -533,7 +571,12 @@ initAF();
 // ---------- Petits écrans : tableaux en cartes (27 septembre 2026) ----------
 (function () {
   const st = document.createElement('style');
-  st.textContent = `@media (max-width: 700px) {
+  st.textContent = `.af-cartes-tb { margin: 16px 0; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  .af-carte-tb { position: relative; text-decoration: none; color: inherit; padding: 16px; }
+  .af-carte-tb .icone-action-tb { font-size: 26px; margin-bottom: 6px; }
+  .af-carte-active { border-color: #0b7a5c !important; background: #f0faf6; }
+  .af-carte-badge { position: absolute; top: 10px; right: 10px; background: #dc2626; color: #fff; font-weight: 800; font-size: 12px; border-radius: 99px; padding: 2px 9px; }
+  @media (max-width: 700px) {
     .af-table-wrap { overflow: visible; }
     .af-table.af-cartes, .af-table.af-cartes tbody { display: block; width: 100%; }
     .af-table.af-cartes thead { display: none; }

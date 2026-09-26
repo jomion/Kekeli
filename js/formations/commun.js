@@ -256,15 +256,33 @@ async function fkRendreEntete(actif) {
   const s = await fkSession();
   const p = s.profil;
   const estFormateur = s.formateur && s.formateur.statut === 'valide';
-  const liens = [
-    { id: 'accueil', href: `${FK_BASE}index.html`, label: 'Accueil' },
-    { id: 'catalogue', href: `${FK_BASE}catalogue.html`, label: 'Formations' },
-    p ? { id: 'apprentissage', href: `${FK_BASE}app/tableau-de-bord.html`, label: 'Mon apprentissage' } : null,
-    estFormateur
-      ? { id: 'formateur', href: `${FK_BASE}formateur/tableau-de-bord.html`, label: 'Espace formateur' }
-      : { id: 'devenir', href: `${FK_BASE}devenir-formateur.html`, label: 'Devenir formateur' },
-    s.estGestionnaire ? { id: 'admin', href: `${FK_RACINE}pages/admin/formations.html`, label: '🛠️ Admin' } : null
+  // Menu principal (27 septembre 2026) : « Formations » regroupe le catalogue
+  // et l'apprentissage ; « Espace formateur » regroupe les outils du formateur.
+  const F = FK_BASE;
+  const menus = [
+    { id: 'accueil', href: `${F}index.html`, label: '🏠 Accueil', actifs: ['accueil'] },
+    { id: 'formations', label: '📚 Formations', actifs: ['catalogue', 'apprentissage', 'devenir'], sous: [
+      { href: `${F}catalogue.html`, label: '🔎 Toutes les formations' },
+      { href: `${F}catalogue.html?gratuit=1`, label: '🎁 Formations gratuites' },
+      p ? { href: `${F}app/tableau-de-bord.html`, label: '📘 Mon apprentissage' } : null,
+      p ? { href: `${F}app/tableau-de-bord.html?onglet=terminees`, label: '🏆 Formations terminées et certificats' } : null,
+      p ? { href: `${F}app/tableau-de-bord.html?onglet=favoris`, label: '❤️ Mes favoris' } : null,
+      !estFormateur ? { href: `${F}devenir-formateur.html`, label: '👨‍🏫 Devenir formateur' } : null
+    ].filter(Boolean) },
+    estFormateur ? { id: 'formateur', label: '👨‍🏫 Espace formateur', actifs: ['formateur'], sous: [
+      { href: `${F}formateur/tableau-de-bord.html`, label: '📊 Tableau de bord' },
+      { href: `${F}formateur/tableau-de-bord.html?nouvelle=1`, label: '＋ Nouvelle formation' },
+      { href: `${F}formateur/generer-ia.html`, label: '🤖 Génération IA d\'une formation' },
+      { href: `${F}formateur/credits-ia.html`, label: '🪙 Crédits IA et packs' },
+      { href: `${F}formateur/profil.html`, label: '🪪 Mon profil formateur' },
+      { href: `${F}formateur.html?slug=${encodeURIComponent(s.formateur.slug || '')}`, label: '👁️ Mon profil public' }
+    ] } : null,
+    s.estGestionnaire ? { id: 'admin', href: `${FK_RACINE}pages/admin/formations.html`, label: '🛠️ Admin', actifs: ['admin'] } : null
   ].filter(Boolean);
+  const htmlMenu = m => m.sous
+    ? `<div class="fk-nav-menu ${m.actifs.includes(actif) ? 'actif' : ''}"><button type="button" class="fk-nav-menu-btn" aria-haspopup="true" aria-expanded="false">${m.label} <span aria-hidden="true">▾</span></button>
+        <div class="fk-nav-sous">${m.sous.map(x => `<a href="${x.href}">${x.label}</a>`).join('')}</div></div>`
+    : `<a href="${m.href}" class="${m.actifs.includes(actif) ? 'actif' : ''}" ${m.actifs.includes(actif) ? 'aria-current="page"' : ''}>${m.label}</a>`;
 
   const initiales = p ? `${(p.prenom || '?')[0]}${(p.nom || '')[0] || ''}`.toUpperCase() : '';
   const lienEspaceKekeli = p && p.role !== 'etudiant'
@@ -285,7 +303,7 @@ async function fkRendreEntete(actif) {
       </form>
       <button class="fk-burger" type="button" aria-label="Menu" aria-expanded="false">☰</button>
       <nav class="fk-navlinks" aria-label="Navigation principale">
-        ${liens.map(l => `<a href="${l.href}" class="${l.id === actif ? 'actif' : ''}" ${l.id === actif ? 'aria-current="page"' : ''}>${l.label}</a>`).join('')}
+        ${menus.map(htmlMenu).join('')}
       </nav>
       <div class="fk-actions">
         ${p ? `
@@ -293,8 +311,18 @@ async function fkRendreEntete(actif) {
           <div class="fk-menu-compte">
             <button type="button" class="fk-menu-compte-btn" aria-haspopup="true" aria-expanded="false">👤 <span>${fkEchapper(p.prenom)}</span> ▾</button>
             <div class="fk-menu-compte-liste">
+              <div class="fk-menu-compte-tete"><b>${fkEchapper(`${p.prenom || ''} ${p.nom || ''}`.trim())}</b><small>${estFormateur ? '👨‍🏫 Formateur' : '📘 Apprenant'}${s.estGestionnaire ? ' · 🛠️ Gestionnaire' : ''}</small></div>
+              <span class="fk-menu-section">Apprendre</span>
               <a href="${FK_BASE}app/tableau-de-bord.html">📘 Mon apprentissage</a>
-              ${estFormateur ? `<a href="${FK_BASE}formateur/tableau-de-bord.html">👨‍🏫 Espace formateur</a><a href="${FK_BASE}formateur/profil.html">🪪 Profil formateur</a>` : ''}
+              <a href="${FK_BASE}app/tableau-de-bord.html?onglet=terminees">🏆 Mes certificats</a>
+              ${estFormateur ? `<span class="fk-menu-section">Enseigner</span>
+              <a href="${FK_BASE}formateur/tableau-de-bord.html">📊 Tableau de bord formateur</a>
+              <a href="${FK_BASE}formateur/tableau-de-bord.html?nouvelle=1">＋ Nouvelle formation</a>
+              <a href="${FK_BASE}formateur/generer-ia.html">🤖 Génération IA</a>
+              <a href="${FK_BASE}formateur/credits-ia.html">🪙 Crédits IA et packs</a>
+              <a href="${FK_BASE}formateur/profil.html">🪪 Profil formateur</a>` : `<a href="${FK_BASE}devenir-formateur.html">👨‍🏫 Devenir formateur</a>`}
+              ${s.estGestionnaire ? `<a href="${FK_RACINE}pages/admin/formations.html">🛠️ Administration des formations</a>` : ''}
+              <hr>
               ${lienEspaceKekeli}
               <a href="${FK_RACINE}index.html">🏠 Accueil KEKELI</a>
               <hr>
@@ -309,10 +337,22 @@ async function fkRendreEntete(actif) {
     const ouvert = header.classList.toggle('menu-ouvert');
     e.currentTarget.setAttribute('aria-expanded', ouvert ? 'true' : 'false');
   });
+  // Menus déroulants du menu principal (clic ; au survol sur ordinateur via CSS).
+  header.querySelectorAll('.fk-nav-menu').forEach(nm => {
+    const b = nm.querySelector('.fk-nav-menu-btn');
+    b.addEventListener('click', e => {
+      e.stopPropagation();
+      const o = !nm.classList.contains('ouvert');
+      header.querySelectorAll('.fk-nav-menu.ouvert').forEach(x => { x.classList.remove('ouvert'); x.querySelector('.fk-nav-menu-btn').setAttribute('aria-expanded', 'false'); });
+      nm.classList.toggle('ouvert', o); b.setAttribute('aria-expanded', o ? 'true' : 'false');
+      const mc = header.querySelector('.fk-menu-compte'); if (mc) mc.classList.remove('ouvert');
+    });
+  });
+  document.addEventListener('click', () => header.querySelectorAll('.fk-nav-menu.ouvert').forEach(x => x.classList.remove('ouvert')));
   const menu = header.querySelector('.fk-menu-compte');
   if (menu) {
     const btn = menu.querySelector('.fk-menu-compte-btn');
-    btn.addEventListener('click', e => { e.stopPropagation(); const o = menu.classList.toggle('ouvert'); btn.setAttribute('aria-expanded', o ? 'true' : 'false'); });
+    btn.addEventListener('click', e => { e.stopPropagation(); header.querySelectorAll('.fk-nav-menu.ouvert').forEach(x => x.classList.remove('ouvert')); const o = menu.classList.toggle('ouvert'); btn.setAttribute('aria-expanded', o ? 'true' : 'false'); });
     document.addEventListener('click', () => menu.classList.remove('ouvert'));
     menu.querySelector('[data-deconnexion]').addEventListener('click', fkDeconnexion);
   }
@@ -2482,7 +2522,7 @@ function fkModaleImageIA(o) {
   const couverture = o.cible === 'couverture';
   return new Promise(resolve => {
     const m = fkModale(couverture ? '🎨 Assistance IA — image de couverture' : '🎨 Assistance IA — créer une image', `
-      <p style="margin-top:0;color:var(--f-muted);font-size:14px">Décrivez ce que l'image doit montrer : ChatGPT la dessine. Soyez précis (personnes, objets, lieu, ambiance). L'image ne contiendra pas de texte.</p>
+      <p style="margin-top:0;color:var(--f-muted);font-size:14px">Décrivez ce que l'image doit montrer : l'IA choisie la dessine. Soyez précis (personnes, objets, lieu, ambiance). L'image ne contiendra pas de texte.</p>
       <label class="fk-champ"><span>Description de l'image *</span><textarea data-desc maxlength="1000" style="min-height:90px" placeholder="${couverture ? 'Ex. une commerçante souriante qui tient un cahier de comptes devant son étal au marché' : 'Ex. une main qui remplit un tableau de budget mensuel sur un cahier, avec des pièces de monnaie'}">${e(o.suggestion || '')}</textarea></label>
       <div class="fk-grille-2">
         <label class="fk-champ"><span>Style</span><select data-style>
@@ -2491,6 +2531,7 @@ function fkModaleImageIA(o) {
         <label class="fk-champ"><span>Format</span><select data-format>
           <option value="paysage" selected>▭ Paysage</option><option value="carre">□ Carré</option>${couverture ? '' : '<option value="portrait">▯ Portrait</option>'}</select></label>
       </div>
+      <div data-choix-ia><div class="fk-chargement">Chargement des IA disponibles…</div></div>
       <div class="fk-ia-solde" data-cout>Calcul du coût…</div>
       <div data-resultat></div>
       <div class="fk-actions-form"><button type="button" class="fk-btn fk-btn-ghost" data-annuler>Annuler</button>
@@ -2499,24 +2540,45 @@ function fkModaleImageIA(o) {
     const zoneCout = m.boite.querySelector('[data-cout]');
     const resultat = m.boite.querySelector('[data-resultat]');
     const btn = m.boite.querySelector('[data-generer]');
-    let cout = 0, image = null;
+    let cout = 0, image = null, est = null, optionChoisie = null;
     const finir = v => { m.fermer(); resolve(v); };
     m.boite.querySelector('[data-annuler]').onclick = () => finir(null);
-    fkAppelImageIA({ action: 'estimer', formationId: o.formationId }).then(est => {
-      cout = est.gratuit || est.offert ? 0 : Number(est.cout) || 0;
+    // Choix de l'IA (ChatGPT, Gemini…) puis de la qualité : chaque option a son prix.
+    const zoneChoix = m.boite.querySelector('[data-choix-ia]');
+    const NOMS_IA = { openai: '🤖 ChatGPT', gemini: '✨ Gemini' };
+    const NOMS_Q = { basse: '⚡ Rapide', moyenne: '⭐ Standard', haute: '💎 Haute qualité' };
+    const majCout = () => {
+      if (!est) return;
+      const offert = est.gratuit || est.offert;
+      cout = offert || !optionChoisie ? 0 : Number(optionChoisie.credits) || 0;
       zoneCout.innerHTML = est.gratuit ? '🛠️ Compte gestionnaire KEKELI : image non facturée.' : est.offert ? '🎁 Accès complet offert par KEKELI : image non facturée.'
-        : `🪙 Une image = <b>${cout} crédit(s)</b> · vous avez <b>${est.disponible ?? 0}</b> crédit(s). ${cout > (est.disponible || 0) ? `<a class="fk-link" href="${FK_BASE}formateur/credits-ia.html" target="_blank">Recharger</a>` : ''}`;
-      if (est.configure === false) zoneCout.innerHTML += '<br><span style="color:var(--f-danger)">⚠️ La création d\'images n\'est pas encore configurée sur KEKELI.</span>';
-      btn.textContent = cout ? `🎨 Générer l'image (${cout} crédits)` : '🎨 Générer l\'image';
-    }).catch(err => { zoneCout.innerHTML = `<span style="color:var(--f-danger)">${e(err.message)}</span>`; });
+        : `🪙 Cette image = <b>${cout} crédit(s)</b> · vous avez <b>${est.disponible ?? 0}</b> crédit(s). ${cout > (est.disponible || 0) ? `<a class="fk-link" href="${FK_BASE}formateur/credits-ia.html" target="_blank">Recharger</a>` : ''}`;
+      if (optionChoisie && !optionChoisie.configure) zoneCout.innerHTML += `<br><span style="color:var(--f-danger)">⚠️ ${NOMS_IA[optionChoisie.fournisseur] || 'Cette IA'} n'est pas encore configurée sur KEKELI.</span>`;
+      if (!image) btn.textContent = cout ? `🎨 Générer l'image (${cout} crédits)` : '🎨 Générer l\'image';
+    };
+    const dessinerChoix = () => {
+      const opts = est.options || [];
+      const fournisseurs = [...new Set(opts.map(x => x.fournisseur))];
+      const f = optionChoisie ? optionChoisie.fournisseur : (fournisseurs.find(x => opts.some(y => y.fournisseur === x && y.configure)) || fournisseurs[0]);
+      const qualites = opts.filter(x => x.fournisseur === f);
+      if (!optionChoisie || optionChoisie.fournisseur !== f) optionChoisie = qualites.find(x => x.qualite === 'moyenne') || qualites[0];
+      zoneChoix.innerHTML = !opts.length ? '<p class="fk-alerte fk-alerte-attention">Aucune IA d\'image n\'est activée pour le moment.</p>' : `
+        <div class="fk-choix-ia"><span>IA</span>${fournisseurs.map(x => `<button type="button" class="fk-puce-choix ${x === f ? 'actif' : ''}" data-ia="${e(x)}">${NOMS_IA[x] || e(x)}</button>`).join('')}</div>
+        <div class="fk-choix-ia"><span>Qualité</span>${qualites.map(x => `<button type="button" class="fk-puce-choix ${optionChoisie && x.id === optionChoisie.id ? 'actif' : ''}" data-opt="${e(x.id)}" title="${e(x.libelle)}">${NOMS_Q[x.qualite] || e(x.qualite)}<small>${est.gratuit || est.offert ? 'offert' : `${x.credits} crédit${x.credits > 1 ? 's' : ''}`}</small></button>`).join('')}</div>`;
+      zoneChoix.querySelectorAll('[data-ia]').forEach(b => b.onclick = () => { optionChoisie = { fournisseur: b.dataset.ia }; optionChoisie = null; const q = opts.filter(x => x.fournisseur === b.dataset.ia); optionChoisie = q.find(x => x.qualite === 'moyenne') || q[0]; dessinerChoix(); });
+      zoneChoix.querySelectorAll('[data-opt]').forEach(b => b.onclick = () => { optionChoisie = opts.find(x => x.id === b.dataset.opt); dessinerChoix(); });
+      majCout();
+    };
+    fkAppelImageIA({ action: 'estimer', formationId: o.formationId }).then(r => { est = r; dessinerChoix(); })
+      .catch(err => { zoneChoix.innerHTML = ''; zoneCout.innerHTML = `<span style="color:var(--f-danger)">${e(err.message)}</span>`; });
     btn.onclick = async () => {
       if (image) { finir(image); return; }
       const description = m.boite.querySelector('[data-desc]').value.trim();
       if (description.length < 8) { fkToast('Décrivez l\'image souhaitée (8 caractères au moins).', 'erreur'); return; }
       btn.disabled = true; btn.textContent = '⏳ Création en cours (jusqu\'à 1 minute)…';
-      resultat.innerHTML = '<div class="fk-chargement">ChatGPT dessine votre image…</div>';
+      resultat.innerHTML = `<div class="fk-chargement">${optionChoisie && optionChoisie.fournisseur === 'gemini' ? 'Gemini' : 'ChatGPT'} dessine votre image…</div>`;
       try {
-        const r = await fkAppelImageIA({ action: 'generer', formationId: o.formationId, cible: o.cible || 'lecon', description,
+        const r = await fkAppelImageIA({ action: 'generer', formationId: o.formationId, cible: o.cible || 'lecon', description, option: optionChoisie ? optionChoisie.id : undefined,
           style: m.boite.querySelector('[data-style]').value, format: m.boite.querySelector('[data-format]').value });
         image = { url: r.url, alt: r.alt || description.slice(0, 150) };
         resultat.innerHTML = `<div class="fk-image-ia"><img src="${e(r.url)}" alt="${e(image.alt)}"></div>
@@ -2566,3 +2628,89 @@ function fkEtiqueterTables(racine) {
   const demarrer = () => { lancer(); obs.observe(document.body, { childList: true, subtree: true }); };
   if (document.body) demarrer(); else document.addEventListener('DOMContentLoaded', demarrer);
 })();
+
+// ---------- Cartes d'accès rapide des tableaux de bord (27 septembre 2026) ----------
+// Même principe que les cartes de KEKELI Primaire. Élément : { href | attr,
+// icone, titre, texte, badge, couleur (vert, bleu, violet, orange, rose, or, gris) }.
+function fkCartesActions(elements) {
+  return `<div class="fk-cartes-actions">${elements.filter(Boolean).map(x => {
+    const ouvre = x.href ? `<a href="${x.href}"` : `<button type="button" ${x.attr || ''}`;
+    const ferme = x.href ? '</a>' : '</button>';
+    return `${ouvre} class="fk-carte-action fk-ca-${x.couleur || 'vert'}">
+      <span class="fk-ca-icone" aria-hidden="true">${x.icone}</span>
+      <span class="fk-ca-texte"><b>${x.titre}</b>${x.texte ? `<small>${x.texte}</small>` : ''}</span>
+      ${x.badge !== undefined && x.badge !== null && x.badge !== '' && x.badge !== 0 ? `<span class="fk-ca-badge">${x.badge}</span>` : ''}
+    ${ferme}`;
+  }).join('')}</div>`;
+}
+
+// ---------- Cartes des packs (accueil, crédits IA) (27 septembre 2026) ----------
+// Une couleur par pack (ordre des prix), les avantages AJOUTÉS par rapport au
+// pack précédent (« Tout le Pack X, plus : »), un bouton qui donne envie.
+const FK_COULEURS_PACKS = ['bleu', 'vert', 'violet', 'or'];
+const FK_AVANTAGES_PACKS = [
+  { n: 1, t: '🏷️ Codes promo pour vos formations' },
+  { n: 1, t: '✍️ Assistance IA : texte de vente, correction, résumé' },
+  { n: 1, t: '🧩 Assistance IA : formation module par module' },
+  { n: 1, t: '🎨 Images par l\'IA (ChatGPT ou Gemini)' },
+  { n: 2, t: '🖋️ Mise en forme avancée des leçons' },
+  { n: 2, t: '✨ Badge « Recommandé » et mise en avant' },
+  { n: 2, t: '📈 Statistiques avancées de vos apprenants' },
+  { n: 2, t: '🧭 Tests en leçon et diaporamas par l\'IA' },
+  { n: 2, t: '🎓 Certificats à votre logo et signature' },
+  { f: 'generation_complete', t: '⚡ Formation complète générée d\'un coup' },
+  { n: 3, t: '📣 Messages groupés à vos apprenants' },
+  { f: 'report_credits', t: '🔁 Crédits restants reportés au mois suivant' },
+  { n: 3, t: '🚀 Validation prioritaire de vos formations' }
+];
+function fkAvantagesPack(p, precedent) {
+  const a = x => x.f ? !!p[x.f] : Number(p.niveau) >= x.n;
+  const b = x => precedent ? (x.f ? !!precedent[x.f] : Number(precedent.niveau) >= x.n) : false;
+  const liste = FK_AVANTAGES_PACKS.filter(x => a(x) && !b(x)).map(x => x.t);
+  if (precedent) {
+    const cp = Number(p.credits) + Number(p.bonus_credits || 0), cq = Number(precedent.credits) + Number(precedent.bonus_credits || 0);
+    if (cq > 0 && cp / cq >= 1.5) liste.unshift(`🪙 ${String(Math.round(cp / cq * 10) / 10).replace('.', ',')}× plus de crédits IA`);
+    if (p.commission_pct != null && precedent.commission_pct != null && Number(p.commission_pct) < Number(precedent.commission_pct)) liste.unshift(`💸 Commission réduite à ${String(p.commission_pct).replace('.', ',')} %`);
+  }
+  return liste;
+}
+// o : { packs, commissionSansPack, action(p) → { href | attr, libelle }, actuelId, gratuit (afficher le Pack Gratuit) }
+function fkCartesPacks(o) {
+  const e = fkEchapper;
+  const fcfa = n => `${Math.round(Number(n) || 0).toLocaleString('fr-FR')} FCFA`;
+  const tous = (o.packs || []).slice().sort((x, y) => (x.prix - y.prix) || ((x.position || 0) - (y.position || 0)));
+  const payants = tous.filter(p => p.prix > 0);
+  const gratuit = tous.find(p => !(p.prix > 0));
+  const carte = (p, i) => {
+    const prec = i > 0 ? payants[i - 1] : null;
+    const couleur = FK_COULEURS_PACKS[Math.min(i, FK_COULEURS_PACKS.length - 1)];
+    const ruban = i === payants.length - 1 ? '👑 Le plus complet' : i === payants.length - 2 ? '🔥 Le plus choisi' : '';
+    const act = o.action ? o.action(p) : null;
+    const actuel = o.actuelId && o.actuelId === p.id;
+    const prix = p.prix_lancement || p.prix;
+    return `<article class="fk-pack fk-pack-${couleur} ${actuel ? 'fk-pack-actuel' : ''}">
+      ${ruban ? `<span class="fk-pack-ruban">${ruban}</span>` : ''}
+      <header class="fk-pack-tete">
+        <span class="fk-pack-icone" aria-hidden="true">${e(p.icone || FK_NIVEAUX_AVANTAGES[p.niveau || 0].icone)}</span>
+        <h3>${e(p.nom)}</h3>
+        <p>Titre : <b>${e(p.titre_formateur || FK_NIVEAUX_AVANTAGES[p.niveau || 0].nom)}</b></p>
+      </header>
+      <div class="fk-pack-corps">
+        <div class="fk-pack-prix">${p.prix_lancement ? `<s>${fcfa(p.prix)}</s> ` : ''}<strong>${fcfa(prix)}</strong><small>/ ${p.duree_avantages_jours || 30} jours</small></div>
+        ${p.prix_lancement ? `<div class="fk-pack-lancement">🚀 Prix de lancement : plus que ${p.places_lancement} place(s)</div>` : ''}
+        <div class="fk-pack-puces">
+          <span>🪙 ${p.credits} crédits IA${p.bonus_credits ? ` <b>+${p.bonus_credits} offerts</b>` : ''}</span>
+          <span>💸 Commission ${String(p.commission_pct ?? '—').replace('.', ',')} %</span>
+        </div>
+        <ul class="fk-pack-liste">
+          ${prec ? `<li class="fk-pack-inclus">✔ Tout le ${e(prec.nom)}, plus :</li>` : ''}
+          ${fkAvantagesPack(p, prec).map(t => `<li>${e(t)}</li>`).join('')}
+        </ul>
+        ${actuel ? '<div class="fk-pack-btn fk-pack-btn-actuel">✔ Votre pack actuel</div>' : ''}
+        ${act ? (act.href ? `<a class="fk-pack-btn" href="${act.href}">${act.libelle} →</a>` : `<button type="button" class="fk-pack-btn" ${act.attr}>${act.libelle} →</button>`) : ''}
+      </div>
+    </article>`;
+  };
+  return `<div class="fk-packs">${payants.map(carte).join('')}</div>
+    ${o.gratuit && gratuit ? `<p class="fk-pack-gratuit">${e(gratuit.icone || '🌱')} <b>${e(gratuit.nom)}</b> — pour commencer sans rien payer : vendez vos formations${o.commissionSansPack != null ? ` (commission ${String(o.commissionSansPack).replace('.', ',')} %)` : ''} et essayez l'assistance IA pour les quiz. Titre : ${e(gratuit.titre_formateur || 'Formateur Débutant')}.</p>` : ''}`;
+}

@@ -42,27 +42,25 @@
     <div class="fk-page"><div class="fk-container">
       <div class="fk-section-head">
         <div><h1 class="fk-titre-page">Bonjour ${fkEchapper(s.profil.prenom)} 👋</h1><p>Votre espace formateur KEKELI.</p></div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <a class="fk-btn fk-btn-ghost" href="profil.html">🪪 Mon profil formateur</a>
-          <a class="fk-btn fk-btn-ghost" href="${FK_BASE}formateur.html?slug=${encodeURIComponent(s.formateur.slug)}">👁️ Profil public</a>
-          <a class="fk-btn fk-btn-ghost" href="credits-ia.html">🪙 Crédits IA</a>
-          <a class="fk-btn fk-btn-outline" href="generer-ia.html">🤖 Génération IA</a>
-          <button class="fk-btn fk-btn-primary" id="btnNouvelle">＋ Nouvelle formation</button>
-        </div>
       </div>
       <div class="fk-niveau-actuel fk-niveau-${niveauFo}">
         ${`<span><b>${fkEchapper(titreFo.icone)} ${fkEchapper(titreFo.titre)}</b>${compteIA && compteIA.pack_actif ? ` (${fkEchapper(compteIA.pack_actif.nom)})` : !niveauFo ? ' (Pack Gratuit)' : ''} — commission KEKELI de <b>${String(commission).replace('.', ',')} %</b>${compteIA && compteIA.acces_offert ? (compteIA.acces_offert_fin ? ` jusqu'au ${fkDate(compteIA.acces_offert_fin)}` : '') : niveauFo && compteIA && compteIA.avantages_fin ? ` jusqu'au ${fkDate(compteIA.avantages_fin)}` : ''}.${niveauFo ? '' : ' Un pack payant réduit la commission et débloque codes promo, assistance IA, mise en forme avancée, statistiques, certificats personnalisés…'}</span>`}
         <a class="fk-btn fk-btn-ghost fk-btn-petit" href="credits-ia.html#offres">${niveauFo >= 3 ? 'Mes avantages' : '🎁 Voir les avantages'}</a>
       </div>
-      <div class="fk-stats">
-        <div class="fk-stat"><small>Formations</small><strong>${liste.length}</strong></div>
-        <div class="fk-stat"><small>Publiées</small><strong>${publiees.length}</strong></div>
-        <div class="fk-stat"><small>Apprenants inscrits</small><strong>${apprenants}</strong></div>
-        <div class="fk-stat"><small>Mes revenus</small><strong>${fcfa(totalFormateur)}</strong></div>
-        <div class="fk-stat"><small>Note moyenne</small><strong>${moyenne ? moyenne.toFixed(1).replace('.', ',') + ' ★' : '—'}</strong></div>
-      </div>
+      ${fkCartesActions([
+        { attr: 'id="btnNouvelle"', icone: '＋', titre: 'Nouvelle formation', texte: 'Créez une formation, module par module.', couleur: 'vert' },
+        { href: '#mesFormations', icone: '📚', titre: 'Mes formations', texte: `${publiees.length} publiée${publiees.length > 1 ? 's' : ''} sur ${liste.length}`, badge: liste.length, couleur: 'bleu' },
+        { href: 'generer-ia.html', icone: '🤖', titre: 'Génération IA', texte: 'L\'assistance IA prépare le plan et rédige les leçons.', couleur: 'violet' },
+        { href: 'credits-ia.html', icone: '🪙', titre: 'Crédits IA et packs', texte: compteIA && compteIA.acces_offert ? 'Accès complet offert par KEKELI' : `${compteIA ? (compteIA.disponible ?? 0) : '…'} crédit(s) disponibles`, couleur: 'or' },
+        { href: '#revenus', icone: '💰', titre: 'Mes revenus', texte: `${fcfa(totalFormateur)} · commission ${String(commission).replace('.', ',')} %`, couleur: 'vert' },
+        { href: '#mesFormations', icone: '👥', titre: 'Mes apprenants', texte: `${apprenants} inscrit${apprenants > 1 ? 's' : ''}${moyenne ? ` · note ${moyenne.toFixed(1).replace('.', ',')} ★` : ''}`, badge: apprenants || '', couleur: 'orange' },
+        { href: 'profil.html', icone: '🪪', titre: 'Mon profil formateur', texte: 'Photo, biographie, liens.', couleur: 'gris' },
+        { href: 'profil.html#certificatPerso', icone: '🎓', titre: 'Certificats personnalisés', texte: 'Votre logo et votre signature.', couleur: 'rose' },
+        { href: `${FK_BASE}formateur.html?slug=${encodeURIComponent(s.formateur.slug)}`, icone: '👁️', titre: 'Mon profil public', texte: 'Ce que voient les visiteurs.', couleur: 'bleu' },
+        { href: `${FK_BASE}app/tableau-de-bord.html`, icone: '📘', titre: 'Mon apprentissage', texte: 'Les formations que je suis.', couleur: 'gris' }
+      ])}
       <div class="fk-alerte fk-alerte-info">💡 Parcours : créez votre formation → ajoutez modules, leçons et quiz → soumettez-la. L'équipe KEKELI la vérifie avant publication.</div>
-      <section class="fk-carte">
+      <section class="fk-carte" id="mesFormations">
         <h2>Mes formations</h2>
         ${liste.length ? `<div class="fk-table-wrap"><table class="fk-table">
           <thead><tr><th>Formation</th><th>Statut</th><th>Leçons</th><th>Apprenants</th><th>Note</th><th>Prix</th><th></th></tr></thead>
@@ -93,6 +91,8 @@
     </div></div>`;
 
   main.querySelectorAll('#btnNouvelle, [data-nouvelle]').forEach(b => b.addEventListener('click', ouvrirCreation));
+  if (fkParam('nouvelle')) { const u = new URL(window.location.href); u.searchParams.delete('nouvelle'); history.replaceState(null, '', u); ouvrirCreation(); }
+  if (location.hash) document.querySelector(location.hash)?.scrollIntoView();
 
   function ouvrirCreation() {
     const cats = categories || [];

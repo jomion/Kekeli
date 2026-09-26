@@ -1,24 +1,27 @@
-// Supabase Edge Function « formation-ia-image » (27 septembre 2026).
-// Génère une image pour une formation (illustration de leçon ou couverture)
-// en appelant DIRECTEMENT l'API Images d'OpenAI (ChatGPT Images, modèle
-// réglable : formation_ia_parametres.modele_image, « gpt-image-1 » par
-// défaut). Pas de Gemini ici, à la demande du porteur du projet.
-//
-// Crédits : formation_ia_parametres.credits_image par image, débités AVANT
-// l'appel et rendus automatiquement si la génération échoue. Les
-// gestionnaires KEKELI ne paient pas. Limite : limite_images_jour par 24 h.
-// Le coût réel estimé (cout_image_usd) est noté pour suivre le solde OpenAI.
+// Supabase Edge Function « formation-ia-image » (27 septembre 2026, v2).
+// Génère une image pour une formation (illustration de leçon ou couverture).
+// Le formateur choisit l'IA et la qualité parmi les options réglées par
+// l'admin (formation_ia_parametres.images_options) :
+//   • ChatGPT Images (OpenAI, appel direct) : qualité basse / moyenne / haute ;
+//   • Gemini (Google) : Imagen (…:predict) ou modèle image Gemini
+//     (…:generateContent), clé gratuite puis clé payante.
+// Chaque option a son prix en crédits (débités AVANT l'appel, rendus si la
+// génération échoue) et son coût réel estimé (suivi du solde OpenAI). Les
+// gestionnaires KEKELI et les accès offerts ne paient pas. Limite :
+// limite_images_jour par 24 h.
 // L'image est enregistrée dans le stockage public « formations-public »
 // (lecons/{formation}/ ou couvertures/{formation}/) et son adresse renvoyée.
 //
 // Actions (POST JSON, utilisateur connecté, formateur de la formation) :
-//   estimer — { formationId } : coût, crédits disponibles
-//   generer — { formationId, description, style, format, cible: "lecon"|"couverture" }
-// Secret requis : OPENAI_API_KEY (Supabase → Edge Functions → Secrets).
+//   estimer — { formationId } : options (IA, qualité, crédits), crédits disponibles
+//   generer — { formationId, option, description, style, format, cible: "lecon"|"couverture" }
+// Secrets : OPENAI_API_KEY ; GEMINI_API_KEY (gratuit) et GEMINI_API_KEY_PAYANT.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+const GEMINI_API_KEY_PAYANT = Deno.env.get("GEMINI_API_KEY_PAYANT");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -39,6 +42,9 @@ const STYLES: Record<string, string> = {
   "3d": "rendu 3D doux et arrondi, style moderne et chaleureux",
 };
 const FORMATS: Record<string, string> = { carre: "1024x1024", paysage: "1536x1024", portrait: "1024x1536" };
+const RATIOS: Record<string, string> = { carre: "1:1", paysage: "16:9", portrait: "3:4" };
+const QUALITE_OPENAI: Record<string, string> = { basse: "low", moyenne: "medium", haute: "high" };
+type Option = { id: string; fournisseur: string; qualite: string; libelle: string; modele: string; credits: number; cout_usd: number; actif: boolean };
 
 function decoder(b64: string): Uint8Array {
   const bin = atob(b64);
@@ -92,6 +98,51 @@ async function genererImage(prompt: string, modele: string, taille: string, qual
   throw Object.assign(new Error(`La génération de l'image a échoué (${derniere.slice(0, 160)}). Réessayez.`), { statut: 502 });
 }
 
+// Gemini : Imagen (modèles « imagen-… », API predict) ou modèle image Gemini
+// (API generateContent). Clé gratuite d'abord, puis clé payante.
+async function genererImageGemini(prompt: string, modele: string, format: string): Promise<{ octets: Uint8Array; type: string; fournisseur: string }> {
+  const cles: [string, string][] = [];
+  if (GEMINI_API_KEY) cles.push([GEMINI_API_KEY, "gemini_gratuit"]);
+  if (GEMINI_API_KEY_PAYANT) cles.push([GEMINI_API_KEY_PAYANT, "gemini_payant"]);
+  if (!cles.length) throw Object.assign(new Error("Gemini n'est pas encore configuré sur KEKELI (clé manquante)."), { statut: 503 });
+  const imagen = /^imagen/i.test(modele);
+  let derniere = "";
+  for (const [cle, fournisseur] of cles) {
+    const corpsListe: Record<string, unknown>[] = imagen
+      ? [{ instances: [{ prompt }], parameters: { sampleCount: 1, aspectRatio: RATIOS[format] || "16:9" } }]
+      : [{ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseModalities: ["IMAGE"], imageConfig: { aspectRatio: RATIOS[format] || "16:9" } } },
+         { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseModalities: ["TEXT", "IMAGE"] } }];
+    for (const corps of corpsListe) {
+      const c = new AbortController(); const t = setTimeout(() => c.abort(), 140000);
+      try {
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modele}:${imagen ? "predict" : "generateContent"}`, {
+          method: "POST", signal: c.signal, headers: { "Content-Type": "application/json", "x-goog-api-key": cle }, body: JSON.stringify(corps),
+        });
+        const d = await r.json().catch(() => ({}));
+        if (r.ok) {
+          if (imagen) {
+            const pr = d?.predictions?.[0];
+            if (pr?.bytesBase64Encoded) return { octets: decoder(pr.bytesBase64Encoded), type: pr.mimeType || "image/png", fournisseur };
+          } else {
+            const part = (d?.candidates?.[0]?.content?.parts || []).find((x: { inlineData?: { data?: string } }) => x.inlineData?.data);
+            if (part) return { octets: decoder(part.inlineData.data), type: part.inlineData.mimeType || "image/png", fournisseur };
+          }
+          derniere = "Gemini n'a pas renvoyé d'image (description peut-être refusée par son filtre de sécurité).";
+          break;
+        }
+        derniere = String(d?.error?.message || r.status);
+        console.error("gemini image", fournisseur, r.status, derniere);
+        if (r.status === 400 && corps !== corpsListe[corpsListe.length - 1]) continue; // on réessaie sans l'option de format
+        break; // clé suivante
+      } catch (e) {
+        derniere = (e as Error).name === "AbortError" ? "Gemini met trop de temps à répondre." : (e as Error).message;
+        break;
+      } finally { clearTimeout(t); }
+    }
+  }
+  throw Object.assign(new Error(`La génération de l'image avec Gemini a échoué (${derniere.slice(0, 160)}). Réessayez ou choisissez ChatGPT.`), { statut: 502 });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "Méthode non autorisée." }, 405);
@@ -112,21 +163,28 @@ Deno.serve(async (req) => {
   const [{ data: peut }, { data: gestion }, { data: par }] = await Promise.all([
     client.rpc("peut_editer_formation", { p_id: uid, p_formation_id: formationId }),
     admin.rpc("peut_gerer_formations", { p_id: uid }),
-    admin.from("formation_ia_parametres").select("actif, credits_image, modele_image, qualite_image, limite_images_jour").eq("id", 1).maybeSingle(),
+    admin.from("formation_ia_parametres").select("actif, credits_image, modele_image, qualite_image, limite_images_jour, images_options").eq("id", 1).maybeSingle(),
   ]);
   if (peut !== true) return json({ error: "Vous ne pouvez pas modifier cette formation." }, 403);
   const gratuit = gestion === true;
-  const cout = Number(par?.credits_image ?? 5);
+  const cleOk = (f: string) => f === "openai" ? !!OPENAI_API_KEY : !!(GEMINI_API_KEY || GEMINI_API_KEY_PAYANT);
+  const options = ((Array.isArray(par?.images_options) ? par.images_options : []) as Option[])
+    .filter((o) => o && o.actif !== false && (o.fournisseur === "openai" || o.fournisseur === "gemini"))
+    .map((o) => ({ ...o, credits: Math.max(0, Number(o.credits) || 0), configure: cleOk(o.fournisseur) }));
 
   if (action === "estimer") {
-    if (gratuit) return json({ ok: true, gratuit: true, cout: 0, configure: !!OPENAI_API_KEY });
-    const { data: est } = await admin.rpc("formation_ia_estimer", { p_formateur: uid, p_type: "image", p_questions: 1 });
-    return json({ ...(est || {}), cout, configure: !!OPENAI_API_KEY });
+    const publiques = options.map(({ id, fournisseur, qualite, libelle, credits, configure }) => ({ id, fournisseur, qualite, libelle, credits, configure }));
+    if (gratuit) return json({ ok: true, gratuit: true, options: publiques, configure: publiques.some((o) => o.configure) });
+    const { data: est } = await admin.rpc("formation_ia_estimer", { p_formateur: uid, p_type: "image", p_questions: 0 });
+    return json({ ...(est || {}), options: publiques, configure: publiques.some((o) => o.configure) });
   }
   if (action !== "generer") return json({ error: "Action inconnue." }, 400);
 
   if (par && par.actif === false) return json({ error: "La génération par IA est momentanément désactivée." }, 503);
-  if (!OPENAI_API_KEY) return json({ error: "La génération d'images n'est pas encore configurée (clé OpenAI manquante)." }, 503);
+  const opt = options.find((o) => o.id === String(body.option)) || options.find((o) => o.configure);
+  if (!opt) return json({ error: "Aucune IA d'image n'est disponible pour le moment." }, 503);
+  if (!opt.configure) return json({ error: `${opt.fournisseur === "openai" ? "ChatGPT" : "Gemini"} n'est pas encore configuré sur KEKELI : choisissez une autre IA.` }, 503);
+  const cout = opt.credits;
   const description = txt(body.description, 1000);
   if (description.length < 8) return json({ error: "Décrivez l'image souhaitée (8 caractères au moins)." }, 400);
   const style = STYLES[String(body.style)] ? String(body.style) : "illustration";
@@ -145,7 +203,7 @@ Deno.serve(async (req) => {
   // Débit AVANT l'appel, rendu si l'image n'est pas produite.
   let mouvement: number | null = null;
   if (!gratuit) {
-    const { data: d, error } = await admin.rpc("formation_ia_debiter", { p_formateur: uid, p_type: "image", p_questions: 1, p_details: { formation_id: formationId, cible, description: description.slice(0, 200) } });
+    const { data: d, error } = await admin.rpc("formation_ia_debiter", { p_formateur: uid, p_type: "image", p_questions: cout, p_details: { formation_id: formationId, cible, description: description.slice(0, 200), option: opt.id, ia: opt.libelle } });
     if (error) return json({ error: String(error.message || "").replace(/^CREDITS_INSUFFISANTS:\s*/, ""), code: "CREDITS" }, 402);
     mouvement = d?.mouvement_id ?? null;
   }
@@ -159,10 +217,12 @@ Contexte : image pour la formation en ligne « ${f?.titre || ""} » (KEKELI Form
 ${cible === "couverture" ? "C'est l'image de couverture de la formation : composition claire et attrayante, sujet principal bien visible." : "C'est une illustration à l'intérieur d'une leçon : simple, claire, qui aide à comprendre."}
 N'écris aucun texte, mot, lettre ni logo dans l'image.`;
 
-  const modele = par?.modele_image || "gpt-image-1";
-  let image: { octets: Uint8Array; type: string };
+  const modele = opt.modele || (opt.fournisseur === "openai" ? "gpt-image-1" : "gemini-2.5-flash-image");
+  let image: { octets: Uint8Array; type: string; fournisseur?: string };
   try {
-    image = await genererImage(prompt, modele, FORMATS[format], par?.qualite_image || "medium");
+    image = opt.fournisseur === "gemini"
+      ? await genererImageGemini(prompt, modele, format)
+      : await genererImage(prompt, modele, FORMATS[format], QUALITE_OPENAI[opt.qualite] || "medium");
   } catch (e) {
     await rendre("échec de l'image");
     const err = e as { quota?: boolean; statut?: number; message_openai?: string; message: string };
@@ -173,9 +233,10 @@ N'écris aucun texte, mot, lettre ni logo dans l'image.`;
     return json({ error: err.message + (mouvement ? " Vos crédits ont été rendus." : "") }, err.statut || 502);
   }
   // Coût réel estimé (suivi du solde OpenAI de KEKELI).
-  await Promise.resolve(admin.rpc("formation_ia_enregistrer_image", { p_formateur: uid, p_modele: modele, p_nb: 1 })).catch(() => {});
+  await Promise.resolve(admin.rpc("formation_ia_enregistrer_image", { p_formateur: uid, p_modele: modele, p_nb: 1, p_cout_usd: Number(opt.cout_usd) || 0, p_fournisseur: image.fournisseur || "openai" })).catch(() => {});
 
-  const ext = image.type.includes("webp") ? "webp" : image.type.includes("jpeg") ? "jpg" : "png";
+  const ext = image.type.includes("webp") ? "webp" : image.type.includes("jpeg") || image.type.includes("jpg") ? "jpg" : "png";
+  if (image.type.includes("jpg") && !image.type.includes("jpeg")) image.type = "image/jpeg";
   const chemin = `${cible === "couverture" ? "couvertures" : "lecons"}/${formationId}/ia-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
   const { error: eUp } = await admin.storage.from("formations-public").upload(chemin, image.octets, { contentType: image.type, upsert: false });
   if (eUp) {
@@ -187,5 +248,5 @@ N'écris aucun texte, mot, lettre ni logo dans l'image.`;
     const { data: mv } = await admin.from("formation_ia_mouvements").select("details").eq("id", mouvement).maybeSingle();
     await admin.from("formation_ia_mouvements").update({ details: { ...(mv?.details || {}), url } }).eq("id", mouvement);
   }
-  return json({ ok: true, url, alt: description.slice(0, 150), cout: gratuit ? 0 : cout });
+  return json({ ok: true, url, alt: description.slice(0, 150), cout: gratuit ? 0 : cout, ia: opt.libelle });
 });
