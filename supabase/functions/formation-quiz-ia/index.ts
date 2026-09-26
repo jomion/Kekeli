@@ -10,8 +10,9 @@
 // gratuit de N questions, puis quota d'abonnement, puis solde — voir
 // formation_ia_estimer / formation_ia_debiter). Seules les questions
 // réellement produites sont débitées. Les gestionnaires KEKELI ne paient pas.
-// IA utilisée : ChatGPT (OpenAI, secret OPENAI_API_KEY, modèle réglé dans
-// formation_ia_parametres) ; Gemini puis Groq en secours.
+// IA utilisée : Gemini d'abord (tâche simple, 26 septembre 2026), puis ChatGPT
+// (OpenAI, secret OPENAI_API_KEY, modèle réglé dans formation_ia_parametres),
+// puis Groq en dernier secours.
 // Chaque appel ChatGPT enregistre son coût réel (formation_ia_enregistrer_usage)
 // pour suivre le solde OpenAI de KEKELI et alerter les gestionnaires.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -60,6 +61,19 @@ async function appelIA(prompt: string, modele: string, suivi?: Suivi): Promise<s
     const c = new AbortController(); const t = setTimeout(() => c.abort(), ms);
     try { return await fetch(url, { ...init, signal: c.signal }); } finally { clearTimeout(t); }
   };
+  // Ordre choisi le 26 septembre 2026 : Gemini d'abord (les quiz sont une tâche
+  // simple), ChatGPT en secours, puis Groq.
+  if (GEMINI_API_KEY) {
+    try {
+      const r = await avecDelai(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.5, maxOutputTokens: 8192, responseMimeType: "application/json", thinkingConfig: { thinkingBudget: 0 } } }),
+      });
+      const d = await r.json();
+      const t = (d?.candidates?.[0]?.content?.parts || []).map((p: { text?: string }) => p.text || "").join("");
+      if (r.ok && t.trim()) return t;
+    } catch { /* on essaie ChatGPT */ }
+  }
   if (OPENAI_API_KEY) {
     try {
       const r = await avecDelai("https://api.openai.com/v1/chat/completions", {
@@ -74,17 +88,6 @@ async function appelIA(prompt: string, modele: string, suivi?: Suivi): Promise<s
       console.error("openai", r.status, d?.error?.message);
       if (suivi && (d?.error?.code === "insufficient_quota" || d?.error?.type === "insufficient_quota")) await Promise.resolve(suivi(null, d?.error?.message || "insufficient_quota")).catch(() => {});
     } catch (e) { console.error("openai", (e as Error).message); }
-  }
-  if (GEMINI_API_KEY) {
-    try {
-      const r = await avecDelai(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.5, maxOutputTokens: 8192, responseMimeType: "application/json", thinkingConfig: { thinkingBudget: 0 } } }),
-      });
-      const d = await r.json();
-      const t = (d?.candidates?.[0]?.content?.parts || []).map((p: { text?: string }) => p.text || "").join("");
-      if (r.ok && t.trim()) return t;
-    } catch { /* on essaie Groq */ }
   }
   if (GROQ_API_KEY) {
     try {
