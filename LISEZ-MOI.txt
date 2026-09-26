@@ -1,271 +1,40 @@
-KEKELI — Livraison du 26 septembre 2026 (suite 4) — KEKELI Formation : pages HTML qui marchent à l'identique, cours en plein écran, quiz générés par IA
-===========================================================================
-
-CE QUI A ÉTÉ DEMANDÉ
-------------------------------------------------------------------------------
-"Quand je colle le contenu (Leçon1.html) dans mon éditeur, l'affichage
-n'est plus fidèle et certaines fonctionnalités comme le minuteur ne
-marchent plus. Je veux que pour n'importe quel code HTML tout marche
-parfaitement comme l'original. Je veux aussi que les cours s'affichent en
-plein écran avec un petit icône fixe dans un coin en haut pour naviguer
-facilement entre les leçons. Ajoute la génération IA pour les quiz."
-
-CE QUI CHANGE CONCRÈTEMENT
-------------------------------------------------------------------------------
-1. LEÇON « PAGE HTML COMPLÈTE » (éditeur de leçon → « 📝 Contenu de la
-   leçon ») : deux choix, « Éditeur KEKELI » (comme avant) ou « Page HTML
-   complète ». Dans le second cas, on importe le fichier .html (ou on colle
-   son code) : la page est gardée TELLE QUELLE et affichée exactement comme
-   dans le navigateur — mise en page, couleurs, adaptation au téléphone,
-   animations ET JavaScript (le minuteur « Commencer le défi » fonctionne).
-   - Aperçu en direct dans l'éditeur.
-   - Si on colle ou importe une page complète dans l'éditeur KEKELI, le site
-     propose automatiquement de la garder telle quelle.
-   - Ce que l'étudiant écrit ou coche dans la page (exercices, engagement)
-     est gardé et lui est remis à sa prochaine visite (sur le même appareil).
-   - Sécurité : la page tourne dans un cadre isolé ; ses scripts ne peuvent
-     ni lire la session de l'étudiant ni toucher au reste du site.
-   Les tests « 🧭 » et le diaporama restent propres au mode Éditeur KEKELI.
-
-2. COURS EN PLEIN ÉCRAN : la leçon occupe tout l'écran (sans le menu du
-   site). Un petit bouton fixe ☰ en haut à gauche (avec « 3/12 ») ouvre le
-   sommaire : toutes les leçons, Précédent / Suivant, retour à « Mon
-   apprentissage ». Touche Échap pour le refermer. L'étudiant peut revenir
-   à l'affichage classique (choix mémorisé sur son appareil).
-
-3. QUIZ GÉNÉRÉS PAR IA : onglet Quiz → Questions → « 🧠 Générer avec
-   l'IA ». On choisit les leçons à évaluer (celles du module du quiz sont
-   pré-cochées ; les pages HTML sont lues aussi) et/ou on colle un texte, le
-   nombre (1 à 20), le niveau, les types (QCM, QCM multiple, vrai/faux,
-   réponse courte, numérique, texte à trous, remise en ordre, association)
-   et des consignes. L'IA propose des questions avec corrigé et explication ;
-   on coche celles à garder, elles s'ajoutent au quiz et restent
-   modifiables (✏️). Limite : 40 générations par 24 h et par formateur.
-
-BASE DE DONNÉES ET SERVEUR (déjà en place)
-------------------------------------------------------------------------------
-- formation_lecons.page_html (3 Mo maximum) ; table formation_ia_usage.
-- Nouvelle fonction serveur « formation-quiz-ia » (déployée ; copie du code
-  dans supabase/functions/formation-quiz-ia/index.ts).
-
-FICHIERS MODIFIÉS
-------------------------------------------------------------------------------
-js/formations/commun.js, js/formations/app-lecteur.js, js/formations/fiche.js,
-js/formations/formateur-edition.js, css/formations.css,
-supabase/functions/formation-quiz-ia/index.ts, LISEZ-MOI.txt
-
-
-KEKELI — Livraison du 27 septembre 2026 — KEKELI Formation : chiffres et pastilles bien placés dans le HTML importé
+KEKELI — Livraison du 25 septembre 2026 (vingt-et-unième lot) — Correctif : mise en page d'une séance sans aucun exercice ni activité
 ===========================================================================
 
 CE QUI A ÉTÉ SIGNALÉ
 ------------------------------------------------------------------------------
-"Sur l'aperçu, des chiffres ne sont pas très bien positionnés, avec de
-légers décalages par rapport à l'affichage dans le navigateur."
-
-CE QUI CHANGE CONCRÈTEMENT (import / collage de HTML dans une leçon)
-------------------------------------------------------------------------------
-- Pastilles numérotées (ronds « 1 », « 2 »…), icônes et encadrés de
-  chiffres : leur largeur et leur hauteur sont conservées (avant, les ronds
-  s'écrasaient et les chiffres se décalaient).
-- Numéros d'étapes produits par la feuille de style (compteurs CSS, coches
-  « ✔ », icônes placées avant ou après un texte) : ils sont maintenant
-  recopiés dans le texte, au même endroit (avant, ils disparaissaient).
-- Numéros et puces de listes colorés ou en gras : conservés.
-- Petits décalages voulus (ex. un renvoi [1] légèrement remonté) : conservés.
-- Sécurité inchangée : seul un petit décalage « relatif » (30 px maximum)
-  est accepté, jamais de superposition.
-Pour les leçons déjà importées : réimportez le fichier HTML pour profiter
-de la correction.
-
-FICHIERS MODIFIÉS
-------------------------------------------------------------------------------
-js/formations/commun.js, LISEZ-MOI.txt
-
-
-KEKELI — Livraison du 26 septembre 2026 (suite 3) — KEKELI Formation : HTML importé affiché fidèlement
-===========================================================================
-
-CE QUI A ÉTÉ DEMANDÉ
-------------------------------------------------------------------------------
-"L'aperçu HTML pour l'éditeur des leçons de formation ne rend pas
-fidèlement l'affichage."
+Capture d'écran à l'appui : "Si aucune activité n'est ajoutée le contenu de
+la séance s'affiche mal" — sur une séance sans le moindre exercice ni
+activité, le contenu de lecture (ici un tableau de vocabulaire en HTML
+libre) s'affichait écrasé dans une colonne étroite avec une barre de
+défilement horizontale, alors que la colonne d'à côté ne contenait qu'un
+simple message "Aucun exercice ni activité pour cette séance."
 
 CE QUI CHANGE CONCRÈTEMENT
 ------------------------------------------------------------------------------
-Quand on importe un fichier .html ou qu'on colle du HTML (bouton « 📋 Coller
-MD / HTML »), la mise en page d'origine est maintenant conservée : couleurs
-et fonds (y compris les dégradés), cartes arrondies avec ombre, grilles de
-cartes côte à côte, encadrés à barre latérale, titres soulignés, tableaux
-colorés, pastilles, marges et espacements, police de la page…
-Avant, tout ce qui était décrit dans la feuille de style de la page
-(<style>, classes, variables CSS) était perdu.
-- L'aperçu du bouton « Coller » montre le vrai rendu (zone d'aperçu agrandie).
-- Sur téléphone, les grilles de cartes passent automatiquement en colonne.
-- Sécurité inchangée : aucun script, aucune image de fond externe, aucune
-  position ni superposition ne passe.
+Une séance vraiment sans rien à faire (ni palier, ni exercice) repasse
+maintenant automatiquement sur une seule colonne pleine largeur pour la
+lecture, exactement comme le fait déjà la vraie page élève depuis le
+11 septembre 2026. Ce correctif manquait sur deux écrans qui réutilisent le
+même rendu que la page élève :
+- l'aperçu "🔍 Aperçu élève" que l'enseignant/l'administrateur ouvre depuis
+  l'éditeur de séance pour vérifier le rendu avant publication ;
+- la vue "🔍 Lecture seule" utilisée par un parent ou un enseignant pour
+  consulter une séance telle qu'affichée à l'élève.
+La vraie page élève, elle, n'a jamais eu ce bug depuis le 11 septembre —
+seuls ces deux écrans de consultation/aperçu affichaient encore l'ancienne
+mise en page bancale dans ce cas précis (aucun palier ET aucun exercice
+général en même temps).
 
-FICHIERS MODIFIÉS
+CHOIX TECHNIQUES, EN TOUTE TRANSPARENCE
 ------------------------------------------------------------------------------
-js/formations/commun.js, css/formations.css, LISEZ-MOI.txt
-
-
-KEKELI — Livraison du 26 septembre 2026 (suite 2) — Textes à trous mis en forme (Primaire et Formation) + ouverture progressive des modules
-===========================================================================
-
-CE QUI A ÉTÉ DEMANDÉ
-------------------------------------------------------------------------------
-1. "Ajoute aux exercices les exercices à trous avec les fonctionnalités de
-   formatage déjà existantes pour les autres types de question. Sur le site
-   primaire aussi ajoute les fonctionnalités de formatage au type de
-   question à trous."
-2. "Ajoute la possibilité de déterminer un jour d'accessibilité pour un
-   module ou une leçon pour contrôler une progression stricte — c'est-à-dire
-   un module par jour par exemple, pour empêcher de vouloir tout finir d'un
-   coup."
-
-CE QUI CHANGE CONCRÈTEMENT
-------------------------------------------------------------------------------
-1. KEKELI PRIMAIRE — questions « Texte à trous » et « Texte à trous —
-   glisser-déposer » : l'énoncé a maintenant la même barre de mise en forme
-   que les autres questions (gras, italique, souligné, police, taille,
-   alignement, listes, couleur, surlignage). Nouveau bouton « ➕ Insérer un
-   trou » (ou taper ___ comme avant). Les anciens énoncés restent valables.
-   L'élève voit la mise en forme, avec les cases à remplir au bon endroit
-   (séance, devoir, jeux, aperçu enseignant/parent). Correction inchangée.
-   (La « sélection de mots » reste en texte simple : elle découpe le texte
-   mot par mot.)
-
-2. KEKELI FORMATION — fiche d'exercice : nouveau type de question
-   « 🧩 Texte à trous » avec l'éditeur complet des leçons (police, taille,
-   couleurs, fonds, encadrés…), bouton « ➕ Insérer un trou », et réponses
-   attendues FACULTATIVES : si elles sont saisies, l'étudiant voit après
-   validation ses cases en vert/rouge et la bonne réponse. « 📋 Coller un
-   exercice » reconnaît aussi les pointillés au milieu d'une phrase
-   (« Le chat ....... la souris ») comme des trous.
-
-3. KEKELI FORMATION — ouverture progressive :
-   - Onglet Programme → bouton « 📅 Rythme d'ouverture » : un module par
-     jour, tous les 2 ou 3 jours, par semaine… (à minuit, compté depuis
-     l'inscription de chaque étudiant), ou « Retirer tout calendrier ».
-   - Dans chaque module et chaque leçon (✏️) : « Ouvert … jours après
-     l'inscription » et/ou « Pas avant le » (date fixe).
-   - Côté étudiant : les éléments pas encore ouverts apparaissent avec 🔒 et
-     leur date dans le sommaire ; les ouvrir affiche la date d'ouverture et
-     un compte à rebours. Le blocage est fait par le serveur (contenu,
-     ressources, tests, quiz, « terminée » refusés avant l'heure). Le
-     formateur, les gestionnaires et les leçons « aperçu gratuit » ne sont
-     jamais bloqués.
-
-BASE DE DONNÉES (déjà appliqué)
-------------------------------------------------------------------------------
-- formation_modules / formation_lecons : colonnes delai_jours et
-  disponible_le ; fonctions formation_ouverture_module/_lecon,
-  formation_lecon_ouverte, formation_quiz_ouvert, calendrier_formation ;
-  politiques restrictives formation_lecons_ouverture et
-  formation_ressources_ouverture ; contrôles ajoutés dans
-  quiz_pour_apprenant, commencer_quiz, marquer_lecon_terminee,
-  activites_lecon, repondre_activite.
-- Fiches d'exercice : champ « trous » et correction facultative
-  (config.reponses_trous, jamais envoyé à l'étudiant avant sa réponse).
-
-FICHIERS MODIFIÉS
-------------------------------------------------------------------------------
-Primaire : js/editeur/blocs.js, js/editeur/devoir-blocs.js,
-js/pages/editeur-seance.js, js/pages/eleve-seance.js,
-js/pages/eleve-devoir-rendu.js, js/lecture-seule-seance.js,
-js/jeux/rendu-questions-jeu.js, css/style.css, css/style-public.css
-Formation : js/formations/commun.js, js/formations/app-lecteur.js,
-js/formations/formateur-edition.js, css/formations.css
-LISEZ-MOI.txt
-
-
-KEKELI — Livraison du 26 septembre 2026 (suite) — KEKELI Formation : fiches d'exercice dans les leçons
-===========================================================================
-
-CE QUI A ÉTÉ DEMANDÉ
-------------------------------------------------------------------------------
-Pouvoir mettre dans une leçon un exercice du type « Mon profil de
-procrastination » : plusieurs questions, lignes pointillées à compléter,
-cases ☐ à cocher avec « Autre : … ».
-
-CE QUI CHANGE CONCRÈTEMENT
-------------------------------------------------------------------------------
-1. Éditeur de leçon → 🧭 Test / questionnaire → nouveau genre
-   « 📝 Fiche d'exercice » (non notée). Chaque question peut être :
-   réponse courte (une ligne), réponse sur plusieurs lignes, cases à cocher
-   (plusieurs choix) ou choix unique ; option « Autre : … » avec zone à
-   compléter ; réponse obligatoire ou facultative ; questions déplaçables.
-2. Bouton « 📋 Coller un exercice » : on colle l'exercice tel qu'il est écrit
-   (Word, PDF…) ; le titre, la consigne, les questions numérotées, les cases
-   ☐ et les lignes pointillées sont reconnus et transformés en fiche. Il
-   suffit de vérifier puis d'enregistrer.
-3. Chez l'étudiant : la fiche s'affiche dans la leçon, il la remplit et
-   valide ; il peut la relire et la modifier ensuite. Option « bloquant »
-   possible (la suite de la leçon attend sa réponse).
-4. Onglet « 🧭 Tests en leçon » du formateur : les réponses de chaque
-   étudiant, question par question.
-
-BASE DE DONNÉES (déjà appliqué)
-------------------------------------------------------------------------------
-- formation_activites_lecon : nouvelle nature « fiche » ;
-  activites_lecon et repondre_activite la prennent en charge (contrôle des
-  questions obligatoires côté serveur).
-
-FICHIERS MODIFIÉS
-------------------------------------------------------------------------------
-js/formations/formateur-edition.js, js/formations/app-lecteur.js,
-js/formations/commun.js, css/formations.css, LISEZ-MOI.txt
-
-
-KEKELI — Livraison du 26 septembre 2026 — KEKELI Formation : police, taille du texte et présentations type PowerPoint
-===========================================================================
-
-CE QUI A ÉTÉ DEMANDÉ
-------------------------------------------------------------------------------
-"Ajoute style de police et taille de police. Est-ce qu'on peut prévoir
-l'utilisation des dispositifs comme PowerPoint ?" — les trois possibilités
-retenues : diaporama intégré, import d'un fichier PowerPoint (ou PDF),
-lien Google Slides / OneDrive.
-
-CE QUI CHANGE CONCRÈTEMENT (éditeur de leçon du formateur)
-------------------------------------------------------------------------------
-1. POLICE et TAILLE : deux nouvelles listes dans la barre d'outils, à côté de
-   « Paragraphe ». Sélectionnez le texte, puis choisissez la police (Arial,
-   Calibri, Verdana, Georgia, Times New Roman, Comic Sans…) ou la taille
-   (10 à 60). « Par défaut » / « Normale » remettent le texte d'origine.
-
-2. Nouveau menu 🎞️ DIAPORAMA :
-   - ➕ Nouvelle diapositive ici : pose un saut de diapositive (bandeau
-     violet). Chez l'étudiant, la leçon devient un diaporama : boutons
-     Précédent / Suivant, flèches du clavier, glisser du doigt sur téléphone,
-     barre de progression, plein écran, et « 📄 Tout afficher » pour lire la
-     leçon sur une seule page. Un test bloquant empêche de passer à la
-     diapositive suivante tant qu'il n'est pas répondu.
-   - 📊 Insérer un fichier PowerPoint ou PDF : le fichier (.pptx, .ppt ou
-     .pdf, 50 Mo max) est rangé dans l'espace privé de la formation.
-     PDF : affiché page par page dans la leçon (conseillé : dans PowerPoint,
-     Fichier → Exporter → PDF — rendu identique partout, même sur petite
-     connexion). PPTX : affiché par la visionneuse en ligne de Microsoft.
-   - 🔗 Insérer Google Slides / OneDrive : collez le lien de partage ou le
-     code « Incorporer ». Seuls Google Slides, OneDrive, SharePoint et
-     PowerPoint en ligne sont acceptés (sécurité).
-   - 👁️ Aperçu du diaporama : voir le rendu avant d'enregistrer.
-   Cliquer sur un bandeau de diapositive ou de présentation permet de le retirer.
-
-BASE DE DONNÉES (déjà appliqué)
-------------------------------------------------------------------------------
-- fichier_formation_lisible : une présentation insérée dans une leçon
-  « aperçu gratuit » est lisible par les visiteurs, comme la vidéo.
-
-FICHIERS MODIFIÉS
-------------------------------------------------------------------------------
-js/formations/commun.js, js/formations/app-lecteur.js, js/formations/fiche.js,
-js/formations/formateur-edition.js, css/formations.css, LISEZ-MOI.txt
-
-(Rappel du lot précédent : le collage depuis Word garde la mise en forme —
-polices, tailles, couleurs, listes, tableaux.)
-
+- Correctif purement CSS/JavaScript (une condition de mise en page
+  corrigée dans js/lecture-seule-seance.js et js/pages/editeur-seance.js,
+  alignée sur celle déjà en place dans js/pages/eleve-seance.js), aucune
+  migration de base de données.
+- Aucun changement de comportement pour les séances qui ont déjà des
+  paliers ou des exercices : seul le cas "vraiment rien à afficher"
+  change de mise en page.
 
 KEKELI — Livraison du 25 septembre 2026 (vingtième lot) — Cahier d'écriture en enregistrement manuel, révision ciblée sur plusieurs séquences, correctif mobile du Cadran opératoire
 ===========================================================================

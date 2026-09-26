@@ -28,24 +28,24 @@ function rendreLectureSeuleEnonce(q) {
 function rendreLectureSeuleChampQuestion(q, i) {
   if (q.type === 'texte_a_trous') {
     let idxTrou = -1;
-    const morceaux = contenuRicheInitial(q.enonce).split('___');
+    const morceaux = echapper(q.enonce).split('___');
     const enonceAvecTrous = morceaux.map((morceau, k) => {
       if (k === morceaux.length - 1) return morceau;
       idxTrou++;
       return `${morceau}<input type="text" class="champ-trou" disabled style="width:110px;display:inline-block;margin:0 4px">`;
     }).join('');
-    return `<div class="question-lecture"><div class="question-enonce question-enonce-trous">${i + 1}. ${enonceAvecTrous}</div></div>`;
+    return `<div class="question-lecture"><p class="question-enonce">${i + 1}. ${enonceAvecTrous}</p></div>`;
   }
   if (q.type === 'texte_a_trous_glisser') {
     let idxTrou = -1;
-    const morceaux = contenuRicheInitial(q.enonce).split('___');
+    const morceaux = echapper(q.enonce).split('___');
     const enonceAvecTrous = morceaux.map((morceau, k) => {
       if (k === morceaux.length - 1) return morceau;
       idxTrou++;
       return `${morceau}<span class="zone-trou-glisser" style="display:inline-block;min-width:70px"></span>`;
     }).join('');
     const banque = Array.isArray(q.banqueMots) ? q.banqueMots : [];
-    return `<div class="question-lecture"><div class="question-enonce question-enonce-trous">${i + 1}. ${enonceAvecTrous}</div>
+    return `<div class="question-lecture"><p class="question-enonce">${i + 1}. ${enonceAvecTrous}</p>
       <div class="banque-mots-glisser">${banque.map(m => `<span class="chip-glisser">${echapper(m)}</span>`).join('')}</div></div>`;
   }
   if (q.type === 'selection_mots') {
@@ -190,7 +190,15 @@ function html_seanceLectureSeule(seance, blocs, filArianeHtml, bandeauTexte) {
   const blocsParPalier = {};
   tousBlocsTop.filter(b => b.palier).forEach(b => { (blocsParPalier[b.palier] ??= []).push(b); });
   const aDesPaliers = Object.keys(blocsParPalier).length > 0;
-  const colonneExerciceVide = blocsTravail.length === 0 && aDesPaliers;
+  // 25 septembre 2026 : correctif d'un bug signalé — une séance sans AUCUN
+  // exercice/activité (ni palier, ni bloc général) affichait quand même la
+  // grille à deux colonnes, avec la colonne de droite réduite à un simple
+  // message "Aucun exercice ni activité..." et la colonne de lecture
+  // rétrécie de moitié pour rien. `colonneExerciceVide` ne dépendait que du
+  // cas "des paliers existent déjà" ; il doit aussi couvrir le cas "vraiment
+  // rien à afficher" pour repasser en pleine largeur, comme déjà corrigé le
+  // 11 septembre 2026 sur la vraie page élève (js/pages/eleve-seance.js).
+  const colonneExerciceVide = blocsTravail.length === 0;
 
   const enTete = `
     <div style="background:#FFF7DA;border:1px solid #F5D77A;border-radius:8px;padding:6px 12px;font-size:12px;color:#7A5A00;margin-bottom:14px;text-align:center">
@@ -207,7 +215,7 @@ function html_seanceLectureSeule(seance, blocs, filArianeHtml, bandeauTexte) {
       <div class="colonne-lecture-seance">
         ${blocsLecture.length ? blocsLecture.map(b => rendreBlocLectureSeule(b, blocs)).join('') : '<p style="color:var(--text-gris)">Aucun support de cours pour cette séance.</p>'}
       </div>
-      ${colonneExerciceVide ? '' : `<div class="colonne-exercice-seance">
+      ${(blocsTravail.length === 0 && aDesPaliers) ? '' : `<div class="colonne-exercice-seance">
         ${blocsTravail.length ? blocsTravail.map(rendreBlocLectureSeuleTravail).join('') : '<div class="bloc-lecture" style="border-left-color:#94A3B8"><p style="color:var(--text-gris);margin:0">Aucun exercice ni activité pour cette séance.</p></div>'}
       </div>`}
     </div>

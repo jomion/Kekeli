@@ -884,11 +884,6 @@ function attacherEcouteursQuestions(el, bloc) {
         }
         if (q.type === 'intrus_lexical' && !Array.isArray(q.series)) q.series = [{ mots: ['', '', ''] }];
         if (q.type === 'texte_a_trous_glisser' && !Array.isArray(q.banqueMots)) q.banqueMots = [];
-        // Passage vers un type à énoncé brut (sélection de mots) : on retire la mise en forme HTML.
-        if (TYPES_ENONCE_PLAT.includes(q.type) && /<[a-z]/i.test(q.enonce || '')) {
-          const tmp = document.createElement('div'); tmp.innerHTML = String(q.enonce).replace(/<br\s*\/?>|<\/(p|div|li)>/gi, '\n');
-          q.enonce = tmp.textContent.replace(/\n{3,}/g, '\n\n').trim();
-        }
         majQuestions(questions());
         if (c) sauvegarderCorrige();
         rerender();
@@ -911,9 +906,6 @@ function attacherEcouteursQuestions(el, bloc) {
           q.enonce = html;
           majQuestions(questions());
         });
-        // Texte à trous (riche depuis le 26 septembre 2026) : bouton « Insérer
-        // un trou » et recalcul du nombre de trous — voir brancherTrousRiches.
-        if (TYPES_QUESTION_TROUS.includes(q.type)) brancherTrousRiches(qEl, zoneEnonceRiche, q, rerender);
       }
       const inputConsigne = qEl.querySelector('[data-question-champ="consigne"]');
       if (inputConsigne) inputConsigne.addEventListener('input', (e) => {
@@ -2480,24 +2472,24 @@ async function ouvrirApercu() {
   function rendreApercuChampQuestion(q, i) {
     if (q.type === 'texte_a_trous') {
       let idxTrou = -1;
-      const morceaux = contenuRicheInitial(q.enonce).split('___');
+      const morceaux = echapper(q.enonce).split('___');
       const enonceAvecTrous = morceaux.map((morceau, k) => {
         if (k === morceaux.length - 1) return morceau;
         idxTrou++;
         return `${morceau}<input type="text" class="champ-trou" disabled style="width:110px;display:inline-block;margin:0 4px">`;
       }).join('');
-      return `<div class="question-lecture"><div class="question-enonce question-enonce-trous">${i + 1}. ${enonceAvecTrous}</div></div>`;
+      return `<div class="question-lecture"><p class="question-enonce">${i + 1}. ${enonceAvecTrous}</p></div>`;
     }
     if (q.type === 'texte_a_trous_glisser') {
       let idxTrou = -1;
-      const morceaux = contenuRicheInitial(q.enonce).split('___');
+      const morceaux = echapper(q.enonce).split('___');
       const enonceAvecTrous = morceaux.map((morceau, k) => {
         if (k === morceaux.length - 1) return morceau;
         idxTrou++;
         return `${morceau}<span class="zone-trou-glisser" style="display:inline-block;min-width:70px"></span>`;
       }).join('');
       const banque = Array.isArray(q.banqueMots) ? q.banqueMots : [];
-      return `<div class="question-lecture"><div class="question-enonce question-enonce-trous">${i + 1}. ${enonceAvecTrous}</div>
+      return `<div class="question-lecture"><p class="question-enonce">${i + 1}. ${enonceAvecTrous}</p>
         <div class="banque-mots-glisser">${banque.map(m => `<span class="chip-glisser">${echapper(m)}</span>`).join('')}</div></div>`;
     }
     if (q.type === 'selection_mots') {
@@ -2647,7 +2639,11 @@ async function ouvrirApercu() {
   const blocsParPalier = {};
   tousBlocsTop.filter(b => b.palier).forEach(b => { (blocsParPalier[b.palier] ??= []).push(b); });
   const aDesPaliers = Object.keys(blocsParPalier).length > 0;
-  const colonneExerciceVide = blocsTravail.length === 0 && aDesPaliers;
+  // 25 septembre 2026 : même correctif que js/lecture-seule-seance.js et
+  // js/pages/eleve-seance.js (11 septembre 2026) — une séance sans AUCUN
+  // exercice/activité (ni palier, ni bloc général) doit repasser en pleine
+  // largeur, pas seulement quand des paliers existent déjà.
+  const colonneExerciceVide = blocsTravail.length === 0;
 
   // Reproduit exactement l'en-tête de la vraie page élève (voir
   // js/pages/eleve-seance.js) : titre_contenu si renseigné (sinon le titre
@@ -2669,7 +2665,7 @@ async function ouvrirApercu() {
       <div class="colonne-lecture-seance">
         ${blocsLecture.length ? blocsLecture.map(b => rendreBlocApercu(b)).join('') : '<p style="color:var(--text-gris)">Aucun support de cours pour cette séance.</p>'}
       </div>
-      ${colonneExerciceVide ? '' : `<div class="colonne-exercice-seance">
+      ${(blocsTravail.length === 0 && aDesPaliers) ? '' : `<div class="colonne-exercice-seance">
         ${blocsTravail.length ? blocsTravail.map(rendreBlocApercuTravail).join('') : '<div class="bloc-lecture" style="border-left-color:#94A3B8"><p style="color:var(--text-gris);margin:0">Aucun exercice ni activité pour cette séance.</p></div>'}
       </div>`}
     </div>
