@@ -547,6 +547,7 @@ function attacherEcouteursBloc(bloc) {
   attacherEcouteursTableau(el, bloc);
   attacherEcouteursQuestions(el, bloc);
   attacherEcouteursProbleme(el, bloc);
+  if (bloc.type_bloc === 'html_libre') attacherEcouteursHtmlLibre(el, bloc);
 
   // Brouillon ↔ publié (Résumé IA, et maintenant aussi les blocs d'exercice/
   // quiz/évaluation/activité dont les questions ont été générées par IA) :
@@ -709,6 +710,210 @@ function attacherEcouteursTableau(el, bloc) {
       declencherRerendu({ fusions });
     });
   });
+}
+
+// --- BLOC "HTML LIBRE" : câblage de l'éditeur riche (26 septembre 2026) ----
+// Complète le câblage générique de la zone riche (data-champ-riche="code",
+// déjà pris en charge par la boucle "Éditeur de texte riche du bloc
+// lui-même" plus haut dans attacherEcouteursBloc, exactement comme pour un
+// bloc "texte") avec tout ce que configurerZoneRiche (partagé, générique) ne
+// sait pas faire : bascule visuel/code, couleur de fond, encadré coloré,
+// tableau, lien. Voir html_zoneTexteRicheHtmlLibre/html_editeurHtmlLibre
+// dans js/editeur/blocs.js pour le balisage correspondant.
+function attacherEcouteursHtmlLibre(el, bloc) {
+  const zoneCorps = el.querySelector(':scope > .bloc-corps');
+  if (!zoneCorps) return;
+
+  // Bascule éditeur visuel <-> code HTML brut. En sortant du mode code, le
+  // contenu tapé à la main est nettoyé (assainirHtmlLibreRiche) avant de
+  // devenir le contenu "de confiance" de l'éditeur visuel — le mode code
+  // lui-même reste, comme avant le 26/09/2026, entièrement libre.
+  const boutonToggleMode = zoneCorps.querySelector('[data-toggle-mode-html-libre]');
+  if (boutonToggleMode) {
+    boutonToggleMode.addEventListener('click', () => {
+      // modeCodeHtmlLibre() (js/editeur/blocs.js) — même calcul que le rendu,
+      // indispensable pour un ancien bloc où c.modeCode n'a jamais été écrit
+      // (voir le commentaire de cette fonction : sans ça, la bascule partirait
+      // du mauvais mode et resterait bloquée en mode code au premier clic).
+      const modeCodeActuel = modeCodeHtmlLibre(bloc.contenu || {});
+      const nouveauContenu = { ...bloc.contenu, modeCode: !modeCodeActuel };
+      if (modeCodeActuel) nouveauContenu.code = assainirHtmlLibreRiche(nouveauContenu.code);
+      bloc.contenu = nouveauContenu;
+      programmerSauvegardeBloc(bloc);
+      rendreListeBlocs();
+    });
+  }
+
+  const zoneRiche = zoneCorps.querySelector('[data-champ-riche="code"]');
+  if (!zoneRiche) return; // mode code actif : rien d'autre à câbler ici
+
+  const sauverCode = () => {
+    bloc.contenu = { ...bloc.contenu, code: zoneRiche.innerHTML };
+    programmerSauvegardeBloc(bloc);
+  };
+
+  // Sélection/plage sauvegardée AVANT d'ouvrir une modale ou un prompt()
+  // natif (qui volent le focus) — sans quoi document.execCommand('insertHTML')
+  // s'appliquerait à une sélection quelconque, plus du tout dans la zone
+  // riche, une fois la modale refermée. Même principe que restaurerSelection/
+  // sauvegarderSelection dans configurerZoneRiche (js/editeur/blocs.js), mais
+  // une instance dédiée : ces boutons ne font pas partie de ce câblage-là.
+  let rangeSauvegardee = null;
+  const sauvegarderRange = () => {
+    const sel = window.getSelection();
+    if (sel.rangeCount && zoneRiche.contains(sel.anchorNode)) rangeSauvegardee = sel.getRangeAt(0).cloneRange();
+  };
+  const restaurerRange = () => {
+    zoneRiche.focus();
+    if (rangeSauvegardee) {
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(rangeSauvegardee);
+    }
+  };
+  zoneRiche.addEventListener('mouseup', sauvegarderRange);
+  zoneRiche.addEventListener('keyup', sauvegarderRange);
+
+  // Couleur de fond : appliquée à l'élément de bloc le plus proche du
+  // curseur (cellule de tableau, encadré, paragraphe...), pas au texte
+  // sélectionné lui-même (hiliteColor, dans la barre d'outils de base,
+  // couvre déjà le cas "surligner le texte").
+  const appliquerCouleurFond = (couleur) => {
+    const sel = window.getSelection();
+    if (!sel.rangeCount || !zoneRiche.contains(sel.anchorNode)) { zoneRiche.focus(); return; }
+    let el2 = sel.anchorNode.nodeType === 3 ? sel.anchorNode.parentElement : sel.anchorNode;
+    while (el2 && el2 !== zoneRiche && !['TD', 'TH', 'DIV', 'P', 'LI', 'BLOCKQUOTE'].includes(el2.tagName)) {
+      el2 = el2.parentElement;
+    }
+    if (!el2 || el2 === zoneRiche) return;
+    el2.style.backgroundColor = couleur;
+    sauverCode();
+  };
+  zoneCorps.querySelectorAll('[data-action-html-libre="couleur-fond"]').forEach((btn) => {
+    btn.addEventListener('mousedown', (e) => e.preventDefault());
+    btn.addEventListener('click', () => appliquerCouleurFond(btn.dataset.valeur));
+  });
+  const inputCouleurFondPerso = zoneCorps.querySelector('[data-action-html-libre="couleur-fond-perso"]');
+  if (inputCouleurFondPerso) inputCouleurFondPerso.addEventListener('input', () => appliquerCouleurFond(inputCouleurFondPerso.value));
+
+  // Encadré coloré.
+  const boutonEncadre = zoneCorps.querySelector('[data-action-html-libre="encadre"]');
+  if (boutonEncadre) {
+    boutonEncadre.addEventListener('mousedown', (e) => e.preventDefault());
+    boutonEncadre.addEventListener('click', () => {
+      sauvegarderRange();
+      ouvrirModal({
+        titre: 'Insérer un encadré coloré',
+        champs: [
+          { nom: 'couleur', label: 'Couleur', type: 'select', options: PALETTE_COULEURS.filter((c) => c.valeur !== 'transparent').map((c) => ({ valeur: c.valeur, label: c.nom })), valeur: '#003366' },
+          { nom: 'titreEncadre', label: 'Titre (optionnel)', type: 'text', requis: false, placeholder: 'Ex : À retenir' },
+        ],
+        texteValider: 'Insérer',
+        onValider: (valeurs) => {
+          restaurerRange();
+          const couleur = valeurs.couleur;
+          const html = `<div class="encadre-html-libre" style="border-left:4px solid ${couleur};background:${couleur}1A;padding:10px 14px;margin:10px 0;border-radius:6px">` +
+            (valeurs.titreEncadre ? `<strong style="color:${couleur}">${echapper(valeurs.titreEncadre)}</strong><br>` : '') +
+            `Texte de l'encadré...</div><p><br></p>`;
+          document.execCommand('insertHTML', false, html);
+          sauverCode();
+        },
+      });
+    });
+  }
+
+  // Tableau : insertion + gestion (ligne/colonne/suppression) sur la cellule
+  // active (celle qui contient le curseur au moment du clic).
+  const celluleActive = () => {
+    const sel = window.getSelection();
+    if (!sel.rangeCount || !zoneRiche.contains(sel.anchorNode)) return null;
+    let el2 = sel.anchorNode.nodeType === 3 ? sel.anchorNode.parentElement : sel.anchorNode;
+    while (el2 && el2 !== zoneRiche && el2.tagName !== 'TD' && el2.tagName !== 'TH') el2 = el2.parentElement;
+    return (el2 && el2 !== zoneRiche) ? el2 : null;
+  };
+
+  const boutonTableauInserer = zoneCorps.querySelector('[data-action-html-libre="tableau-inserer"]');
+  if (boutonTableauInserer) {
+    boutonTableauInserer.addEventListener('mousedown', (e) => e.preventDefault());
+    boutonTableauInserer.addEventListener('click', () => {
+      sauvegarderRange();
+      ouvrirModal({
+        titre: 'Insérer un tableau',
+        champs: [
+          { nom: 'lignes', label: 'Nombre de lignes', type: 'number', valeur: 2 },
+          { nom: 'colonnes', label: 'Nombre de colonnes', type: 'number', valeur: 2 },
+          { nom: 'entete', label: "Avec ligne d'en-tête", type: 'select', options: [{ valeur: 'oui', label: 'Oui' }, { valeur: 'non', label: 'Non' }], valeur: 'oui' },
+        ],
+        texteValider: 'Insérer',
+        onValider: (valeurs) => {
+          restaurerRange();
+          const lignes = Math.max(1, Math.min(20, parseInt(valeurs.lignes, 10) || 2));
+          const colonnes = Math.max(1, Math.min(10, parseInt(valeurs.colonnes, 10) || 2));
+          document.execCommand('insertHTML', false, tableauHtmlDepuisDimensions(lignes, colonnes, valeurs.entete === 'oui'));
+          sauverCode();
+        },
+      });
+    });
+  }
+
+  const nouvelleCellule = (modele) => {
+    const cellule = document.createElement(modele && modele.tagName === 'TH' ? 'th' : 'td');
+    cellule.innerHTML = '&nbsp;';
+    cellule.style.border = '1px solid #CBD5E1';
+    cellule.style.padding = '6px 10px';
+    return cellule;
+  };
+  const gererTableau = (action) => {
+    const cellule = celluleActive();
+    if (!cellule) { alert("Placez d'abord le curseur dans une cellule du tableau à modifier."); return; }
+    const table = cellule.closest('table');
+    const ligne = cellule.closest('tr');
+    if (!table || !ligne) return;
+    const indexCellule = Array.from(ligne.children).indexOf(cellule);
+    if (action === 'ligne-plus') {
+      const nouvelleLigne = document.createElement('tr');
+      Array.from(ligne.children).forEach((c) => nouvelleLigne.appendChild(nouvelleCellule(c)));
+      ligne.after(nouvelleLigne);
+    } else if (action === 'ligne-moins') {
+      if (table.rows.length <= 1) table.remove(); else ligne.remove();
+    } else if (action === 'colonne-plus') {
+      Array.from(table.rows).forEach((tr) => {
+        tr.appendChild(nouvelleCellule(tr.children[indexCellule] || tr.children[tr.children.length - 1]));
+      });
+    } else if (action === 'colonne-moins') {
+      if (ligne.children.length <= 1) table.remove();
+      else Array.from(table.rows).forEach((tr) => { if (tr.children[indexCellule]) tr.children[indexCellule].remove(); });
+    } else if (action === 'supprimer') {
+      table.remove();
+    }
+    sauverCode();
+  };
+  const actionsTableau = { 'tableau-ligne-plus': 'ligne-plus', 'tableau-ligne-moins': 'ligne-moins', 'tableau-colonne-plus': 'colonne-plus', 'tableau-colonne-moins': 'colonne-moins', 'tableau-supprimer': 'supprimer' };
+  Object.entries(actionsTableau).forEach(([dataAction, action]) => {
+    const btn = zoneCorps.querySelector(`[data-action-html-libre="${dataAction}"]`);
+    if (!btn) return;
+    btn.addEventListener('mousedown', (e) => e.preventDefault());
+    btn.addEventListener('click', () => gererTableau(action));
+  });
+
+  // Lien (prompt() natif, comme le reste du site pour ce genre de saisie
+  // ponctuelle — voir sauvegarderRange/restaurerRange ci-dessus : prompt()
+  // vole aussi le focus, donc a besoin exactement du même traitement qu'une
+  // modale).
+  const boutonLien = zoneCorps.querySelector('[data-action-html-libre="lien"]');
+  if (boutonLien) {
+    boutonLien.addEventListener('mousedown', (e) => e.preventDefault());
+    boutonLien.addEventListener('click', () => {
+      const sel = window.getSelection();
+      if (!sel.rangeCount || sel.getRangeAt(0).collapsed) { alert("Sélectionnez d'abord le texte à transformer en lien."); return; }
+      sauvegarderRange();
+      const url = prompt('Adresse du lien (https://...) :', 'https://');
+      if (!url) return;
+      restaurerRange();
+      document.execCommand('createLink', false, url);
+      sauverCode();
+    });
+  }
 }
 
 // --- PROBLÈME v2 : réglages + tableau de résolution (11 septembre 2026) ----
@@ -1675,6 +1880,29 @@ function texteBrutDepuisHtml(html) {
   return (div.textContent || div.innerText || '').trim();
 }
 
+// 26 septembre 2026 : correctif d'un bug signalé — "l'IA n'arrive pas à lire
+// les blocs HTML pour proposer les activités [...] même si c'est un tableau".
+// texteBrutDepuisHtml() ci-dessus utilise .textContent, qui concatène tout le
+// texte d'un <table> ligne après ligne SANS aucun séparateur entre cellules
+// (ex. un tableau de conjugaison devient un magma illisible du type
+// "jetumangesilmangeonsvousmangezilsmangent"), ce qui revient en pratique à
+// ne transmettre aucune information exploitable à l'IA. Cette variante
+// convertit d'abord chaque tableau en lignes texte "cellule | cellule" (une
+// ligne <tr> par ligne de texte) avant de faire la même extraction pour le
+// reste du contenu — utilisée partout où texteBrutDepuisHtml() servait à
+// construire le contexte envoyé à l'IA (texteBlocPourResume ci-dessous).
+function texteBrutDepuisHtmlAvecTableaux(html) {
+  const div = document.createElement('div');
+  div.innerHTML = html || '';
+  div.querySelectorAll('table').forEach(table => {
+    const lignesTexte = Array.from(table.rows).map(tr =>
+      Array.from(tr.cells).map(cell => (cell.textContent || '').trim()).join(' | ')
+    );
+    table.replaceWith(document.createTextNode('\n' + lignesTexte.join('\n') + '\n'));
+  });
+  return (div.textContent || div.innerText || '').trim();
+}
+
 // L'IA reçoit désormais la consigne d'utiliser directement un petit jeu de
 // balises HTML autorisées pour mettre le texte en valeur (gras, souligné,
 // couleur, listes — voir la fonction "contexte" de l'edge function
@@ -1730,6 +1958,84 @@ function assainirHtmlIA(html) {
         const styleCouleurValide = enfant.tagName === 'SPAN' && attr.name === 'style'
           && /^\s*color\s*:\s*#?[0-9a-z]{3,8}\s*;?\s*$/i.test(attr.value);
         if (!styleCouleurValide) enfant.removeAttribute(attr.name);
+      });
+    });
+  };
+  nettoyerNoeud(conteneur);
+  return conteneur.innerHTML;
+}
+
+// --- Sanitizer natif de l'éditeur riche du bloc "HTML libre" (26/09/2026) --
+// Liste blanche plus large que BALISES_HTML_AUTORISEES_IA ci-dessus (pensée
+// pour du texte généré par l'IA, plus restreinte) : divs (encadrés colorés),
+// structure de tableau avec colspan, liens, images, styles inline limités à
+// une liste explicite de propriétés inoffensives (couleur, fond, police,
+// alignement, bordure) — jamais de script/style/iframe/object/embed/form, ni
+// d'attribut on* ni de lien "javascript:". Pas de dépendance à DOMPurify
+// (décision : rester cohérent avec assainirHtmlIA ci-dessus, déjà un filtre
+// DOM natif, plutôt que d'ajouter une bibliothèque tierce pour ce seul bloc).
+//
+// Appliqué UNIQUEMENT au moment de repasser du mode "code brut" vers
+// l'éditeur visuel (voir attacherEcouteursHtmlLibre plus bas) : le mode code
+// brut lui-même reste volontairement non filtré, exactement comme avant le
+// 26/09/2026 (usage avancé assumé — SVG, styles personnalisés...), affiché à
+// l'élève dans un cadre <iframe sandbox=""> qui empêche de toute façon
+// l'exécution du moindre script (voir contenuHtmlLibreVersIframe). Le contenu
+// tapé/produit directement par l'éditeur visuel lui-même n'est volontairement
+// PAS re-filtré à chaque frappe (même convention que les autres zones de
+// texte riche du site, ex. html_zoneTexteRiche : les actions de la barre
+// d'outils ne produisent jamais que des balises déjà autorisées ici).
+const BALISES_HTML_LIBRE_AUTORISEES = new Set([
+  'DIV', 'P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'S', 'STRIKE', 'MARK', 'SPAN',
+  'UL', 'OL', 'LI', 'A', 'HR', 'BLOCKQUOTE',
+  'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD',
+  'H1', 'H2', 'H3', 'H4', 'IMG', 'SUB', 'SUP',
+]);
+const STYLES_HTML_LIBRE_AUTORISES = new Set([
+  'color', 'background-color', 'background', 'font-family', 'font-size', 'text-align',
+  'border-left', 'border-left-color', 'border', 'border-collapse',
+  'padding', 'margin', 'border-radius', 'width',
+]);
+function assainirStyleHtmlLibre(styleTexte) {
+  if (!styleTexte) return '';
+  return styleTexte.split(';').map((decl) => decl.trim()).filter(Boolean)
+    .filter((decl) => STYLES_HTML_LIBRE_AUTORISES.has(decl.split(':')[0].trim().toLowerCase()))
+    .join('; ');
+}
+// Balises à supprimer ENTIÈREMENT (avec leur contenu), jamais à "déballer" —
+// contrairement au reste de la liste noire, dont on garde le texte interne
+// (voir nettoyerNoeud ci-dessous). Sert surtout à repasser en mode visuel un
+// ancien bloc "document HTML complet" (avant le 26/09/2026) sans laisser le
+// CSS brut de son <style>/<head> se retrouver déballé comme texte visible :
+// SCRIPT/STYLE ont un contenu texte brut (pas des éléments), qui finirait
+// sinon collé tel quel dans le document si on se contentait de "déballer".
+const BALISES_HTML_LIBRE_A_SUPPRIMER = new Set(['SCRIPT', 'STYLE', 'HEAD', 'TITLE', 'META', 'LINK', 'BASE', 'NOSCRIPT', 'TEMPLATE', 'IFRAME', 'OBJECT', 'EMBED', 'FORM']);
+function assainirHtmlLibreRiche(html) {
+  const conteneur = document.createElement('div');
+  conteneur.innerHTML = html || '';
+  const nettoyerNoeud = (noeud) => {
+    [...noeud.childNodes].forEach((enfant) => {
+      if (enfant.nodeType === Node.COMMENT_NODE) { enfant.remove(); return; }
+      if (enfant.nodeType !== Node.ELEMENT_NODE) return;
+      if (BALISES_HTML_LIBRE_A_SUPPRIMER.has(enfant.tagName)) { enfant.remove(); return; }
+      nettoyerNoeud(enfant);
+      if (!BALISES_HTML_LIBRE_AUTORISEES.has(enfant.tagName)) {
+        while (enfant.firstChild) enfant.parentNode.insertBefore(enfant.firstChild, enfant);
+        enfant.parentNode.removeChild(enfant);
+        return;
+      }
+      [...enfant.attributes].forEach((attr) => {
+        const nom = attr.name.toLowerCase();
+        if (nom === 'style') {
+          const nettoye = assainirStyleHtmlLibre(attr.value);
+          if (nettoye) enfant.setAttribute('style', nettoye); else enfant.removeAttribute('style');
+        } else if (nom === 'href' && enfant.tagName === 'A') {
+          if (!/^(https?:|mailto:)/i.test(attr.value.trim())) enfant.removeAttribute('href');
+        } else if (nom === 'src' && enfant.tagName === 'IMG') {
+          if (!/^https?:/i.test(attr.value.trim())) enfant.removeAttribute('src');
+        } else if (!['colspan', 'rowspan', 'target', 'rel', 'alt'].includes(nom)) {
+          enfant.removeAttribute(attr.name);
+        }
       });
     });
   };
@@ -1852,17 +2158,32 @@ function ouvrirGenerationIA(bloc) {
 // textuels (image/vidéo/ressource) et ne reprend, pour un exercice/quiz/
 // évaluation/activité, que la consigne et les énoncés (jamais le corrigé,
 // qui vit dans une table séparée et n'est de toute façon pas chargé ici).
+//
+// Corrigé le 26 septembre 2026 (retour : "l'IA n'arrive pas à lire les blocs
+// HTML pour proposer les activités [...] pas seulement se baser sur le titre
+// [...] même si c'est un tableau") — deux bugs distincts corrigés ici :
+// - le bloc "html_libre" n'avait AUCUN cas dans cette fonction et tombait
+//   donc systématiquement dans le "return ''" final : son contenu (souvent
+//   un tableau de vocabulaire ou une leçon entière collée en HTML) n'était
+//   JAMAIS transmis à l'IA, quel que soit le type de génération ;
+// - le cas "tableau" ne renvoyait que c.titre, jamais le contenu réel des
+//   cellules (c.lignes) — l'IA ne recevait donc que le titre du tableau,
+//   jamais les données qu'il contient.
+// Les appels à texteBrutDepuisHtml() ci-dessus sont aussi remplacés par
+// texteBrutDepuisHtmlAvecTableaux() (voir plus haut), pour les blocs de texte
+// libre qui contiendraient eux-mêmes un tableau collé via l'éditeur riche.
 function texteBlocPourResume(bloc) {
   const c = bloc.contenu || {};
-  if (TYPES_TEXTE_LIBRE.includes(bloc.type_bloc)) return texteBrutDepuisHtml(c.texte);
-  if (bloc.type_bloc === 'probleme') return [texteBrutDepuisHtml(c.enonce), ...(Array.isArray(c.lignes) ? c.lignes.map(l => texteBrutDepuisHtml(l.description)) : [])].filter(Boolean).join('\n');
+  if (TYPES_TEXTE_LIBRE.includes(bloc.type_bloc)) return texteBrutDepuisHtmlAvecTableaux(c.texte);
+  if (bloc.type_bloc === 'probleme') return [texteBrutDepuisHtmlAvecTableaux(c.enonce), ...(Array.isArray(c.lignes) ? c.lignes.map(l => texteBrutDepuisHtmlAvecTableaux(l.description)) : [])].filter(Boolean).join('\n');
   if (bloc.type_bloc === 'titre') return c.texte ? `— ${c.texte} —` : '';
   if (bloc.type_bloc === 'consigne' || bloc.type_bloc === 'autre') return [c.nom, c.texte].filter(Boolean).join(' : ');
   if (['quiz', 'evaluation', 'activite'].includes(bloc.type_bloc)) {
     const questions = Array.isArray(c.questions) ? c.questions : [];
     return [c.consigne, ...questions.map(q => q.enonce)].filter(Boolean).join('\n');
   }
-  if (bloc.type_bloc === 'tableau') return c.titre || '';
+  if (bloc.type_bloc === 'html_libre') return texteBrutDepuisHtmlAvecTableaux(c.code);
+  if (bloc.type_bloc === 'tableau') return [c.titre, ...(Array.isArray(c.lignes) ? c.lignes.map(ligne => Array.isArray(ligne) ? ligne.join(' | ') : '') : [])].filter(Boolean).join('\n');
   if (bloc.type_bloc === 'formule') return c.formule || '';
   return ''; // image / video / ressource : rien de textuel à résumer
 }

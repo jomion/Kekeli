@@ -2,6 +2,14 @@
 // Réutilisé par l'éditeur (édition) et, plus tard, par la vue élève (lecture seule).
 
 const TYPES_BLOCS = [
+  // Bloc "HTML libre" placé en tête de liste depuis le 26 septembre 2026 (à la
+  // demande explicite de l'enseignant : "place le nouveau éditeur en haut de
+  // tous les blocs déjà existants"), suite à l'ajout d'un véritable éditeur
+  // riche (tableaux, encadrés colorés, couleur de fond...) qui en fait
+  // désormais un bloc de premier plan plutôt qu'une option avancée en fin de
+  // liste. Voir plus bas dans ce fichier pour le détail de ce bloc (usage,
+  // historique du 11 septembre 2026, éditeur de contenu).
+  { valeur: 'html_libre', label: 'HTML libre',  icone: '🌐', usage: 'Éditeur riche (texte, tableaux, encadrés colorés...) + mode code avancé', couleur: '#0F172A' },
   { valeur: 'texte',      label: 'Texte',       icone: '📝', usage: 'Explication',        couleur: '#003366' },
   // Valeur interne 'titre' conservée (base de données, résumé IA...) même si
   // le libellé affiché est désormais "Contenu" : son propre texte ne
@@ -46,7 +54,7 @@ const TYPES_BLOCS = [
   { valeur: 'consigne',   label: 'Consigne',    icone: '📋', usage: 'Section pouvant contenir des items', couleur: '#003366' },
   { valeur: 'item',       label: 'Item',        icone: '▫️', usage: 'Élément d\'une consigne (Item 1, Item 2...)', couleur: '#475569' },
   { valeur: 'autre',      label: 'Autre',       icone: '🧩', usage: 'Bloc personnalisé (nom libre)', couleur: '#64748B' },
-  { valeur: 'resume',     label: 'Résumé',      icone: '🗒️', usage: 'Synthèse (à la main ou générée par IA)', couleur: '#334155' },
+  { valeur: 'resume',     label: 'Résumé',      icone: '🗒️', usage: 'Synthèse (à la main ou générée par IA)', couleur: '#334155' }
   // Bloc "HTML libre" (11 septembre 2026) : restauré après avoir été repéré
   // manquant côté admin ET côté élève alors que 3 blocs de ce type existaient
   // déjà en base (créés entre le 7 et le 10 septembre 2026, séances 40/45/147)
@@ -56,7 +64,7 @@ const TYPES_BLOCS = [
   // (voir contenuHtmlLibreVersIframe ci-dessous) plutôt que de le retrouver
   // tel quel. Permet de coller un document HTML complet (avec ses propres
   // balises <style>, SVG, tableaux...) affiché isolé du reste de la page.
-  { valeur: 'html_libre', label: 'HTML libre',  icone: '🌐', usage: 'Code HTML/CSS/SVG personnalisé (avancé)', couleur: '#0F172A' }
+  // Déplacé en tête de tableau le 26 septembre 2026 (voir plus haut).
 ];
 
 // Convertit une couleur hexadécimale en fond très clair (pour harmoniser
@@ -188,9 +196,7 @@ function html_editeurBloc(bloc) {
       return html_editeurExercice(bloc, c);
 
     case 'html_libre':
-      return `
-        <p class="note-future">⚠️ Colle ici un document HTML complet (avec ses propres balises &lt;style&gt;, tableaux, SVG...). Une fois enregistré, il s'affiche à l'élève dans un cadre isolé du reste de la page (pas de conflit avec les styles du site) — aucun script n'y est exécuté, par sécurité. Réservé à un usage avancé.</p>
-        <textarea data-champ="code" class="champ-code-html" placeholder="Colle ici ton code HTML..." spellcheck="false" rows="14">${echapper(c.code)}</textarea>`;
+      return html_editeurHtmlLibre(bloc, c);
 
     default:
       return `<p class="note-future">Type de bloc non reconnu.</p>`;
@@ -211,7 +217,15 @@ function html_editeurBloc(bloc) {
 // question) pour que le câblage au niveau du BLOC (un seul champ riche,
 // texte ou consigne) ne la capte pas aussi par erreur — voir
 // attacherEcouteursBloc/wirerQuestions dans editeur-seance.js.
-function html_zoneTexteRiche(attributRiche, valeurInitiale, classeBarreOutils = 'barre-outils-texte') {
+// `groupesSupplementaires` (ajouté le 26 septembre 2026 pour l'éditeur riche
+// du bloc "HTML libre" — voir html_zoneTexteRicheHtmlLibre plus bas) : HTML
+// optionnel de groupes d'outils additionnels, inséré à l'INTÉRIEUR de la
+// barre d'outils (juste avant sa balise fermante), pour que
+// querySelectorAll('.barre-outils-texte') les capte bien comme faisant
+// partie de la même barre (nécessaire pour que configurerZoneRiche câble
+// leurs éventuels boutons data-cmd, ex. undo/redo/unlink ci-dessous).
+// Chaîne vide par défaut : aucun changement pour les appelants existants.
+function html_zoneTexteRiche(attributRiche, valeurInitiale, classeBarreOutils = 'barre-outils-texte', groupesSupplementaires = '') {
   const swatchesPolice = PALETTE_COULEURS.map(col =>
     `<button type="button" class="pastille-couleur" data-cmd="foreColor" data-valeur="${col.valeur}" title="Texte ${col.nom}" style="background:${col.valeur}"></button>`
   ).join('');
@@ -292,12 +306,142 @@ function html_zoneTexteRiche(attributRiche, valeurInitiale, classeBarreOutils = 
       <div class="groupe-outils">
         <button type="button" data-cmd="removeFormat" class="bouton-effacer-format" title="Effacer toute la mise en forme">⌫ Format</button>
       </div>
+      ${groupesSupplementaires}
     </div>
     <div class="editeur-riche" contenteditable="true" ${attributRiche}>${contenuRicheInitial(valeurInitiale)}</div>`;
 }
 
 function html_editeurTexteRiche(bloc, c) {
   return html_zoneTexteRiche('data-champ-riche="texte"', c.texte);
+}
+
+// --- ÉDITEUR RICHE DU BLOC "HTML LIBRE" ---------------------------------
+// Remplace, depuis le 26 septembre 2026, le simple <textarea> de code brut
+// qu'était ce bloc jusque-là (retour de l'enseignant : l'IA ne recevait
+// jamais son contenu — voir texteBlocPourResume dans editeur-seance.js — et
+// l'enseignant devait tout écrire en HTML à la main, y compris les
+// tableaux). Décisions prises avec l'enseignant avant l'implémentation :
+// (1) on remplace entièrement le bloc HTML libre par cet éditeur riche
+// (plutôt que d'ajouter un simple outil "tableau" à la barre de texte riche
+// existante) ; (2) copie INDÉPENDANTE, inspirée dans son organisation de
+// l'éditeur riche de KEKELI Formation (js/formations/commun.js,
+// fkEditeurRiche) mais réécrite ici sans rien en réutiliser directement, aux
+// modules totalement indépendants — jamais de code partagé entre les deux
+// (règle déjà en vigueur ailleurs dans ce projet). Les fonctionnalités
+// propres à Formation (upload d'image, diaporama, tests intégrés, import de
+// fichier) sont volontairement EXCLUES ici : ce bloc reste un bloc de
+// contenu de séance, pas un module de cours complet.
+//
+// Le champ de contenu reste `c.code` (aucun changement de schéma en base :
+// les séances existantes utilisant déjà ce bloc continuent de fonctionner
+// à l'identique, et le rendu élève — contenuHtmlLibreVersIframe — n'a besoin
+// d'aucune modification puisqu'il affiche simplement `c.code` tel quel dans
+// un cadre <iframe sandbox="">, quel que soit l'éditeur qui l'a produit).
+//
+// Deux modes, persistés dans `c.modeCode` (comme `htmlBrut` pour le bloc
+// Exercice) :
+// - mode visuel (par défaut) : éditeur riche ci-dessous ;
+// - mode "code" : le <textarea> d'origine, pour un usage vraiment avancé
+//   (SVG, styles personnalisés, structure que l'éditeur visuel ne permet pas
+//   de produire) — jamais filtré, exactement comme avant le 26/09/2026.
+// Le câblage (boutons, tableau, encadré, couleur de fond, bascule de mode)
+// vit dans js/pages/editeur-seance.js (attacherEcouteursHtmlLibre), qui a
+// accès à programmerSauvegardeBloc/rendreListeBlocs/ouvrirModal — cette
+// dernière doit calculer le mode actuel EXACTEMENT comme ci-dessous
+// (modeCodeHtmlLibre) pour que le bouton bascule dans le bon sens : sinon,
+// pour un ancien bloc où c.modeCode n'a jamais été écrit, le rendu affiche
+// le mode code (par défaut, voir modeCodeHtmlLibre) mais le câblage croirait
+// partir du mode visuel (c.modeCode undefined -> false) et inverserait la
+// bascule dans le mauvais sens dès le premier clic.
+function modeCodeHtmlLibre(c) {
+  // Défaut : si l'admin n'a jamais touché la bascule (c.modeCode absent), un
+  // bloc qui a déjà du contenu est traité comme un ancien bloc "document HTML
+  // complet" (avec ses propres <style>/<head>...) créé avant le 26/09/2026 —
+  // il reste donc en mode code, jamais injecté tel quel dans l'éditeur visuel
+  // (un <style> de portée globale collé dans un simple <div contenteditable>
+  // s'appliquerait à toute la page d'administration). Seul un bloc VRAIMENT
+  // nouveau (contenu vide) démarre directement dans l'éditeur visuel.
+  return c.modeCode === undefined ? !!(c.code && c.code.trim()) : !!c.modeCode;
+}
+function html_editeurHtmlLibre(bloc, c) {
+  const modeCode = modeCodeHtmlLibre(c);
+  return `
+    <p class="note-future">${modeCode
+      ? '⚠️ Mode code HTML brut (avancé) — colle ici un document HTML complet (styles, SVG, tableaux personnalisés...), jamais filtré. Affiché à l\'élève dans un cadre isolé du reste de la page (aucun script n\'y est exécuté, par sécurité).'
+      : 'Éditeur visuel riche : mise en forme, tableaux, encadrés colorés, couleur de fond... Le contenu s\'affiche à l\'élève dans un cadre isolé du reste de la page.'}</p>
+    <div class="bascule-mode-html-libre">
+      <button type="button" data-toggle-mode-html-libre class="btn btn-discret">${modeCode ? '🖊️ Revenir à l\'éditeur visuel' : '</> Voir/éditer le code HTML (avancé)'}</button>
+    </div>
+    ${modeCode
+      ? `<textarea data-champ="code" class="champ-code-html" placeholder="Colle ici ton code HTML..." spellcheck="false" rows="14">${echapper(c.code)}</textarea>`
+      : html_zoneTexteRicheHtmlLibre(c.code)}`;
+}
+
+// Génère la table HTML insérée par l'outil "📊 Tableau" (bordures et
+// espacement en style inline, pour un rendu correct y compris dans le cadre
+// <iframe sandbox=""> isolé qui n'hérite d'aucune feuille de style du site).
+function tableauHtmlDepuisDimensions(lignes, colonnes, avecEntete) {
+  let html = '<table class="tableau-html-libre" style="border-collapse:collapse;width:100%;margin:10px 0">';
+  for (let i = 0; i < lignes; i++) {
+    html += '<tr>';
+    for (let j = 0; j < colonnes; j++) {
+      const balise = (avecEntete && i === 0) ? 'th' : 'td';
+      html += `<${balise} style="border:1px solid #CBD5E1;padding:6px 10px">&nbsp;</${balise}>`;
+    }
+    html += '</tr>';
+  }
+  html += '</table><p><br></p>';
+  return html;
+}
+
+// Barre d'outils étendue de l'éditeur visuel du bloc "HTML libre" : reprend
+// le socle de html_zoneTexteRiche (Gras/Italique/Souligné/police/taille/
+// alignement/listes/couleur de texte/surlignage — câblé par configurerZoneRiche,
+// donc réutilisé tel quel, sans rien dupliquer) et y ajoute les outils propres
+// à ce bloc (couleur de fond, encadré coloré, tableau, lien, ligne
+// horizontale, annuler/rétablir), câblés séparément par
+// attacherEcouteursHtmlLibre (js/pages/editeur-seance.js) via des attributs
+// data-action-html-libre (jamais data-cmd, pour ne pas être captés par le
+// câblage générique de configurerZoneRiche qui ne sait pas leur donner un
+// argument — voir unlink/insertHorizontalRule/undo/redo ci-dessous, qui eux
+// n'ont besoin d'aucun argument et restent donc de simples data-cmd).
+function html_zoneTexteRicheHtmlLibre(valeurInitiale) {
+  const swatchesFond = PALETTE_COULEURS.map(col =>
+    `<button type="button" class="pastille-couleur" data-action-html-libre="couleur-fond" data-valeur="${col.valeur}" title="Fond ${col.nom}" style="background:${col.valeur}"></button>`
+  ).join('');
+  const groupesSupplementaires = `
+    <span class="separateur-outils"></span>
+    <div class="groupe-outils">
+      <div class="menu-couleur-riche">
+        <button type="button" class="bouton-couleur-riche" data-ouvrir-couleur-riche title="Couleur de fond (paragraphe, encadré ou cellule)">🪣 Fond</button>
+        <div class="palette-riche" data-palette-riche>
+          <div class="etiquette-outils etiquette-pleine-largeur">Couleur de fond</div>
+          ${swatchesFond}
+          <label class="couleur-personnalisee" title="Choisir une couleur personnalisée">
+            <input type="color" data-action-html-libre="couleur-fond-perso" value="#FFFFFF">
+          </label>
+        </div>
+      </div>
+      <button type="button" data-action-html-libre="encadre" title="Insérer un encadré coloré">🗄️ Encadré</button>
+    </div>
+    <span class="separateur-outils"></span>
+    <div class="groupe-outils">
+      <button type="button" data-action-html-libre="tableau-inserer" title="Insérer un tableau">📊 Tableau</button>
+      <button type="button" data-action-html-libre="tableau-ligne-plus" title="Ajouter une ligne (sous la cellule active)">+ Ligne</button>
+      <button type="button" data-action-html-libre="tableau-colonne-plus" title="Ajouter une colonne (à droite de la cellule active)">+ Colonne</button>
+      <button type="button" data-action-html-libre="tableau-ligne-moins" title="Supprimer la ligne active">– Ligne</button>
+      <button type="button" data-action-html-libre="tableau-colonne-moins" title="Supprimer la colonne active">– Colonne</button>
+      <button type="button" data-action-html-libre="tableau-supprimer" title="Supprimer tout le tableau actif">🗑️ Tableau</button>
+    </div>
+    <span class="separateur-outils"></span>
+    <div class="groupe-outils">
+      <button type="button" data-action-html-libre="lien" title="Insérer un lien">🔗 Lien</button>
+      <button type="button" data-cmd="unlink" title="Supprimer le lien">🔗✕</button>
+      <button type="button" data-cmd="insertHorizontalRule" title="Ligne horizontale">― Ligne</button>
+      <button type="button" data-cmd="undo" title="Annuler (Ctrl+Z)">↶</button>
+      <button type="button" data-cmd="redo" title="Rétablir (Ctrl+Y)">↷</button>
+    </div>`;
+  return html_zoneTexteRiche('data-champ-riche="code"', valeurInitiale, 'barre-outils-texte', groupesSupplementaires);
 }
 
 // Éditeur du bloc "Exercice" (texte libre, 11 septembre 2026) — avec une

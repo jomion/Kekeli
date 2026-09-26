@@ -1,3 +1,91 @@
+KEKELI — Livraison du 26 septembre 2026 (vingt-deuxième lot) — Génération IA des activités : lecture des blocs HTML/tableaux, nouvel éditeur riche pour le bloc "HTML libre", paliers plus stricts
+===========================================================================
+
+CE QUI A ÉTÉ DEMANDÉ
+------------------------------------------------------------------------------
+"Pour la génération des activité IA, l'IA n'arrive pas à lire les bloc html
+pour proposer les activité. L'IA ne doit pas seulement se baser sur le titre
+pour donner des activité mais sur le contenu des différents blocs même si
+c'est un tableau. Ajoute l'éditeur de formation à l'éditeur des séances et
+autorise l'IA à le lire aussi pour générer les activitées. Sois stricte sur
+les niveau de paliers dans la générations pour permettre d'avoir des
+contenus vraiment variés et adapté à chaque niveau."
+
+Trois demandes traitées ensemble ci-dessous, car liées : les deux premières
+partagent la même cause (l'IA ne "voit" pas certains blocs), la troisième
+porte sur la qualité de ce qui est généré une fois qu'elle voit tout.
+
+CE QUI CHANGE CONCRÈTEMENT
+------------------------------------------------------------------------------
+1. L'IA "voit" enfin le contenu des blocs "HTML libre" et des tableaux.
+   Jusqu'ici, au moment de générer des activités, l'IA ne recevait QUE le
+   contenu des blocs de texte classiques (Texte, Définition, Exemple...) —
+   un bloc "HTML libre" (souvent un tableau de vocabulaire ou une leçon
+   entière collée en HTML) ne lui était jamais transmis, quel que soit le
+   type de génération demandé, et un bloc "Tableau" ne lui transmettait que
+   son titre, jamais le contenu réel de ses cellules. Les deux sont corrigés :
+   l'IA reçoit maintenant le vrai contenu de ces blocs, tableaux compris
+   (chaque ligne du tableau lui est transmise sous une forme lisible,
+   colonne par colonne).
+
+2. Nouvel éditeur riche pour le bloc "HTML libre" (remplace le simple champ
+   de code). Ce bloc, jusqu'ici un unique champ où il fallait taper du code
+   HTML à la main, devient un vrai éditeur visuel, dans le même esprit que
+   celui de la plateforme Formation : mise en forme du texte (gras,
+   italique, souligné, police, taille, alignement, listes), couleur du
+   texte et surlignage, couleur de fond (sur un paragraphe, un encadré ou
+   une cellule de tableau), encadrés colorés, un vrai outil pour insérer et
+   gérer des tableaux (ajouter/supprimer une ligne ou une colonne, insérer
+   avec ligne d'en-tête), lien, ligne horizontale, annuler/rétablir. Un
+   bouton "</> Voir/éditer le code HTML (avancé)" reste disponible pour les
+   cas particuliers (SVG, structure que l'éditeur visuel ne permet pas de
+   produire) — ce mode reste, comme avant, totalement libre. Ce bloc a aussi
+   été replacé en tête de la liste des types de blocs disponibles, à la
+   demande de l'enseignant, puisqu'il devient d'un usage courant plutôt
+   qu'une option avancée en fin de liste. IMPORTANT : les séances existantes
+   qui utilisaient déjà ce bloc avec un document HTML complet (avec ses
+   propres balises <style>) ne sont pas affectées — elles continuent à
+   s'ouvrir dans le mode "code" comme avant ; seul un bloc tout neuf démarre
+   directement dans le nouvel éditeur visuel.
+
+3. Génération IA plus stricte sur les niveaux de paliers (Azɔ̀ví, Dèví,
+   Ògán, Axɔ́sú). En plus des garde-fous déjà en place depuis le
+   23 septembre (verbes d'action et exemple de structure propres à chaque
+   palier, auto-vérification contre le palier le plus facile), l'IA doit
+   maintenant comparer explicitement chaque question au palier
+   IMMÉDIATEMENT INFÉRIEUR à celui demandé, et refuser toute question qui y
+   ressemblerait encore même reformulée — un garde-fou plus précis que la
+   seule comparaison au palier le plus facile, notamment utile pour bien
+   distinguer Ògán d'Axɔ́sú, deux paliers déjà exigeants entre lesquels l'IA
+   avait tendance à peu se différencier. Une consigne supplémentaire impose
+   aussi que les questions d'un même lot portent chacune sur un point
+   différent du contenu de la séance (jamais deux questions sur le même mot
+   ou la même phrase du cours), pour des questions vraiment variées et pas
+   seulement reformulées différemment.
+
+CHOIX TECHNIQUES, EN TOUTE TRANSPARENCE
+------------------------------------------------------------------------------
+- Points 1 et 3 : modifications côté serveur (fonction IA "assistant-ia" sur
+  Supabase) et côté client (js/pages/editeur-seance.js) — aucune migration
+  de base de données, déployé immédiatement.
+- Point 2 ("l'éditeur de formation") : après vérification, KEKELI Formation
+  est un module totalement séparé (plateforme de formation pour adultes),
+  distinct du système de séances scolaires sur lequel porte cette demande.
+  Son éditeur riche a servi de RÉFÉRENCE de conception uniquement — le code
+  du nouvel éditeur du bloc "HTML libre" est entièrement réécrit et
+  indépendant (aucun fichier partagé entre les deux modules), pour ne jamais
+  risquer de régression sur l'un en modifiant l'autre. Les fonctionnalités
+  propres à Formation (upload d'image, diaporama, tests intégrés, import de
+  fichier) ne sont volontairement pas reprises ici : ce bloc reste un bloc
+  de contenu de séance.
+- Le contenu de ce bloc reste stocké exactement comme avant (même champ) :
+  aucune migration, et l'affichage côté élève (déjà dans un cadre isolé du
+  reste de la page) n'a nécessité aucune modification.
+- Un filtre de sécurité dédié (comparable à celui déjà utilisé pour le
+  contenu généré par l'IA) nettoie automatiquement tout contenu HTML
+  potentiellement dangereux (script, style global...) au moment de repasser
+  du mode "code" vers l'éditeur visuel.
+
 KEKELI — Livraison du 25 septembre 2026 (vingt-et-unième lot) — Correctif : mise en page d'une séance sans aucun exercice ni activité
 ===========================================================================
 
@@ -1164,46 +1252,3 @@ alerte ; test réel du verrouillage sur une matière à 7 séances (première
 séance accessible seule au départ, déblocage confirmé séance par séance) ;
 relecture des règles d'accès existantes pour confirmer qu'aucun rôle autre
 que l'élève n'est concerné par le nouveau verrouillage.
-
-======================================================================
-PAIEMENT DES FORMATIONS — FedaPay et KkiaPay (26 septembre 2026)
-======================================================================
-Les formations payantes peuvent maintenant être achetées en ligne
-(Mobile Money MTN/Moov/Wave, carte bancaire). KEKELI garde une commission
-de 15 % (modifiable dans Admin → Formations → 💳 Paiements).
-
-Parcours de l'acheteur : fiche de la formation → « 💳 Acheter » → choix
-FedaPay ou KkiaPay → paiement chez le prestataire → page
-pages/formations/app/paiement.html qui fait VÉRIFIER le paiement par le
-serveur → accès ouvert automatiquement.
-
-Sécurité : le navigateur ne décide jamais qu'un paiement est réussi. La
-fonction serveur « formation-paiement » (déjà en ligne) interroge elle-même
-FedaPay/KkiaPay avec les clés secrètes, contrôle le montant, puis ouvre
-l'accès. Une même transaction ne peut pas servir deux fois. Les clés ne
-sont JAMAIS dans le code du site : uniquement dans Supabase → Edge
-Functions → Secrets.
-
-Secrets à créer dans Supabase (Edge Functions → Secrets) :
-  FEDAPAY_SECRET_KEY    clé secrète FedaPay (sk_sandbox_… en test)
-  FEDAPAY_ENV           sandbox   (plus tard : live)
-  KKIAPAY_PUBLIC_KEY    clé publique KkiaPay
-  KKIAPAY_PRIVATE_KEY   clé privée KkiaPay
-  KKIAPAY_SECRET        clé secrète KkiaPay
-  KKIAPAY_ENV           sandbox   (plus tard : live)
-  SITE_ORIGINES         https://jomion.github.io   (adresse du site, sans / final)
-  FEDAPAY_WEBHOOK_SECRET / KKIAPAY_WEBHOOK_SECRET   (facultatifs, pour les webhooks)
-Adresses de webhook à donner aux prestataires :
-  https://rudikjbpfvpklduumzkw.supabase.co/functions/v1/formation-paiement?webhook=fedapay
-  https://rudikjbpfvpklduumzkw.supabase.co/functions/v1/formation-paiement?webhook=kkiapay
-
-Tant qu'un prestataire n'a pas ses clés, il n'apparaît pas aux acheteurs.
-En mode « sandbox », une bannière « Mode test » s'affiche et les ventes sont
-marquées « test » (non comptées dans les revenus réels).
-
-Fichiers : js/formations/commun.js (fkAcheterFormation…), js/formations/fiche.js,
-pages/formations/app/paiement.html + js/formations/app-paiement.js,
-js/formations/formateur-tableau-de-bord.js (section 💰 Revenus),
-js/pages/admin-formations.js (onglet 💳 Paiements), css/formations.css,
-supabase/functions/formation-paiement/index.ts (copie de sauvegarde de la
-fonction déjà déployée).

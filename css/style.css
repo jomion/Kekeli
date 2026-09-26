@@ -538,11 +538,19 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
   color: var(--texte-gris); cursor: pointer;
 }
 
-/* ===== Bloc "HTML libre" (11 septembre 2026, reconstruit) ===== */
+/* ===== Bloc "HTML libre" (11 septembre 2026, reconstruit ; éditeur riche
+   ajouté le 26 septembre 2026 — voir html_editeurHtmlLibre dans
+   js/editeur/blocs.js) ===== */
 .champ-code-html {
   width: 100%; font-family: 'Courier New', Consolas, monospace; font-size: 12.5px;
   line-height: 1.5; white-space: pre; overflow-x: auto; min-height: 220px;
 }
+.bascule-mode-html-libre { margin-bottom: 8px; }
+.bascule-mode-html-libre .btn { font-size: 12px; padding: 4px 10px; }
+/* Zone éditable du bloc HTML libre : un peu plus haute par défaut qu'un
+   simple bloc de texte riche (texte/définition/exemple...), ce contenu étant
+   souvent plus long (leçon entière, tableau de vocabulaire...). */
+.barre-outils-texte + .editeur-riche[data-champ-riche="code"] { min-height: 180px; }
 /* Cadre isolé (iframe srcdoc) affichant le document HTML complet collé par
    l'admin — hauteur généreuse par défaut, redimensionnable à la main par
    qui la consulte (aucun moyen de connaître à l'avance la hauteur idéale
@@ -830,11 +838,3 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .bulle-apercu-hover ul { list-style: none; margin: 0; padding: 0; max-height: 168px; overflow: hidden; }
 .bulle-apercu-hover li { font-size: 13px; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
 .bulle-apercu-hover li:last-child { border-bottom: none; }
-
-/* Texte à trous en énoncé riche (26 septembre 2026) : le numéro reste sur la
-   même ligne que le premier paragraphe, la mise en forme de l'enseignant
-   (gras, couleurs…) remplace le gras imposé aux autres énoncés. */
-.question-enonce-trous { font-weight: 500; line-height: 2; }
-.question-enonce-trous > p:first-child, .question-enonce-trous > div:first-child { display: inline; }
-.question-enonce-trous p { margin: 0 0 6px; }
-.bouton-inserer-trou { margin: 4px 0 8px; font-size: 13px; }
