@@ -6,9 +6,16 @@
 // Sécurité : seul un utilisateur qui peut modifier la formation
 // (peut_editer_formation) peut appeler la fonction ; 40 générations par
 // jour et par utilisateur au maximum (table formation_ia_usage).
+// Depuis le 26 septembre 2026 : génération PAYANTE en crédits IA (essai
+// gratuit de N questions, puis quota d'abonnement, puis solde — voir
+// formation_ia_estimer / formation_ia_debiter). Seules les questions
+// réellement produites sont débitées. Les gestionnaires KEKELI ne paient pas.
+// IA utilisée : ChatGPT (OpenAI, secret OPENAI_API_KEY, modèle réglé dans
+// formation_ia_parametres) ; Gemini puis Groq en secours.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") || "gemini-3.6-flash";
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 const GROQ_MODEL = Deno.env.get("GROQ_MODEL") || "openai/gpt-oss-120b";
@@ -45,11 +52,23 @@ function texteBrut(html: string): string {
     .replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
 }
 
-async function appelIA(prompt: string): Promise<string | null> {
-  const avecDelai = async (url: string, init: RequestInit, ms = 45000) => {
+async function appelIA(prompt: string, modele: string): Promise<string | null> {
+  const avecDelai = async (url: string, init: RequestInit, ms = 90000) => {
     const c = new AbortController(); const t = setTimeout(() => c.abort(), ms);
     try { return await fetch(url, { ...init, signal: c.signal }); } finally { clearTimeout(t); }
   };
+  if (OPENAI_API_KEY) {
+    try {
+      const r = await avecDelai("https://api.openai.com/v1/chat/completions", {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${OPENAI_API_KEY}` },
+        body: JSON.stringify({ model: modele || "gpt-6-sol", messages: [{ role: "user", content: prompt }], reasoning_effort: "low", max_completion_tokens: 12000, response_format: { type: "json_object" } }),
+      });
+      const d = await r.json();
+      const t = d?.choices?.[0]?.message?.content || "";
+      if (r.ok && t.trim()) return t;
+      console.error("openai", r.status, d?.error?.message);
+    } catch (e) { console.error("openai", (e as Error).message); }
+  }
   if (GEMINI_API_KEY) {
     try {
       const r = await avecDelai(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
@@ -151,6 +170,15 @@ Deno.serve(async (req) => {
   if ((count || 0) >= LIMITE_JOUR) return json({ error: `Limite atteinte : ${LIMITE_JOUR} générations par 24 heures. Réessayez plus tard.` }, 429);
 
   const nb = Math.min(20, Math.max(1, Number(body.nombre) || 5));
+  // Crédits IA : vérification AVANT d'appeler l'IA (rien n'est débité ici).
+  const { data: gestion } = await admin.rpc("peut_gerer_formations", { p_id: u.user.id });
+  const gratuit = gestion === true;
+  const { data: par } = await admin.from("formation_ia_parametres").select("modele, actif").eq("id", 1).maybeSingle();
+  if (!gratuit) {
+    const { data: est, error: errEst } = await admin.rpc("formation_ia_estimer", { p_formateur: u.user.id, p_type: "quiz", p_questions: nb });
+    if (errEst) return json({ error: "Vérification des crédits impossible." }, 500);
+    if (!est?.ok) return json({ error: est?.erreur || "Crédits IA insuffisants.", code: "CREDITS", essai: est?.essai, disponible: est?.disponible, cout: est?.cout }, 402);
+  }
   const typesOk = (Array.isArray(body.types) ? body.types : ["choix_unique"]).map(String).filter((t) => TYPES[t]);
   if (!typesOk.length) return json({ error: "Choisissez au moins un type de question." }, 400);
   const niveau = ["debutant", "intermediaire", "avance"].includes(String(body.niveau)) ? String(body.niveau) : "intermediaire";
@@ -183,7 +211,7 @@ CONTENU :
 ${source}
 """`;
 
-  const brut = await appelIA(prompt);
+  const brut = await appelIA(prompt, par?.modele || "gpt-6-sol");
   if (!brut) return json({ error: "Le service d'IA est momentanément indisponible. Réessayez dans quelques instants." }, 503);
   let liste: unknown[] = [];
   try {
@@ -193,6 +221,13 @@ ${source}
   } catch { return json({ error: "Réponse de l'IA illisible. Réessayez." }, 502); }
   const questions = liste.map((x) => (x && typeof x === "object" ? valider(x as Record<string, unknown>, typesOk) : null)).filter(Boolean).slice(0, nb);
   await admin.from("formation_ia_usage").insert({ utilisateur_id: u.user.id, formation_id: formationId, nb_questions: questions.length });
-  if (!questions.length) return json({ error: "L'IA n'a pas produit de question exploitable. Réessayez ou précisez les consignes." }, 502);
-  return json({ questions });
+  if (!questions.length) return json({ error: "L'IA n'a pas produit de question exploitable. Réessayez ou précisez les consignes. Aucun crédit n'a été utilisé." }, 502);
+  // Débit des seules questions produites.
+  let debit: Record<string, unknown> | null = null;
+  if (!gratuit) {
+    const { data: d, error: errDebit } = await admin.rpc("formation_ia_debiter", { p_formateur: u.user.id, p_type: "quiz", p_questions: questions.length, p_details: { formation_id: formationId, questions: questions.length } });
+    if (errDebit) return json({ error: String(errDebit.message || "").replace(/^CREDITS_INSUFFISANTS:\s*/, ""), code: "CREDITS" }, 402);
+    debit = d;
+  }
+  return json({ questions, debit, gratuit });
 });

@@ -47,7 +47,7 @@ async function afficherAF() {
     supabaseClient.from('formation_inscriptions').select('id', { count: 'exact', head: true })
   ]);
   const onglets = [['validation', `📝 À valider (${nbRevision || 0})`], ['formations', '📚 Formations'], ['formateurs', `👨‍🏫 Formateurs (${nbCandidats || 0} en attente)`],
-    ['categories', '🗂️ Catégories'], ['inscriptions', '🎓 Inscriptions'], ['paiements', '💳 Paiements'], ['journal', '🧾 Journal']];
+    ['categories', '🗂️ Catégories'], ['inscriptions', '🎓 Inscriptions'], ['paiements', '💳 Paiements'], ['ia', '🤖 IA'], ['journal', '🧾 Journal']];
   document.getElementById('contenu').innerHTML = `
     <div class="titre-page">🎓 Plateforme de formation</div>
     <div class="sous-titre-page">Validation des formateurs et des formations, catégories, inscriptions. <a href="../formations/index.html">Voir le site Formation →</a></div>
@@ -67,7 +67,7 @@ async function afficherAF() {
   const zone = document.getElementById('zoneAF');
   zone.classList.remove('chargement');
   await ({ validation: ongletValidationAF, formations: ongletFormationsAF, formateurs: ongletFormateursAF,
-    categories: ongletCategoriesAF, inscriptions: ongletInscriptionsAF, paiements: ongletPaiementsAF, journal: ongletJournalAF })[ongletAF](zone);
+    categories: ongletCategoriesAF, inscriptions: ongletInscriptionsAF, paiements: ongletPaiementsAF, ia: ongletIAAF, journal: ongletJournalAF })[ongletAF](zone);
 }
 
 // ---------- Formations ----------
@@ -229,7 +229,7 @@ const STATUTS_PAIEMENT_AF = { en_attente: '⏳ En attente', reussi: '✅ Réussi
 async function ongletPaiementsAF(zone) {
   const [{ data: par, error: e1 }, { data: paiements, error: e2 }] = await Promise.all([
     supabaseClient.from('formation_parametres_paiement').select('*').eq('id', 1).maybeSingle(),
-    supabaseClient.from('formation_paiements').select('id, formation_id, apprenant_id, prestataire, mode, montant, statut, part_kekeli, part_formateur, commission_pct, reference_externe, cree_le, confirme_le, formations(titre)')
+    supabaseClient.from('formation_paiements').select('id, formation_id, apprenant_id, prestataire, mode, montant, statut, part_kekeli, part_formateur, commission_pct, reference_externe, cree_le, confirme_le, objet, credits, formations(titre)')
       .order('cree_le', { ascending: false }).limit(200)
   ]);
   if (e1 || e2) { zone.innerHTML = `<p class="message-erreur">${eAF((e1 || e2).message)}</p>`; return; }
@@ -258,9 +258,9 @@ async function ongletPaiementsAF(zone) {
       <div class="af-stat"><small>Part formateurs</small><strong>${fcfaAF(somme('part_formateur'))}</strong></div>
     </div>
     ${liste.length ? `<div class="af-table-wrap"><table class="af-table">
-      <thead><tr><th>#</th><th>Date</th><th>Apprenant</th><th>Formation</th><th>Moyen</th><th>Montant</th><th>Statut</th><th>KEKELI / formateur</th></tr></thead>
+      <thead><tr><th>#</th><th>Date</th><th>Acheteur</th><th>Achat</th><th>Moyen</th><th>Montant</th><th>Statut</th><th>KEKELI / formateur</th></tr></thead>
       <tbody>${liste.map(p => `<tr><td>${p.id}</td><td>${new Date(p.cree_le).toLocaleString('fr-FR')}</td><td>${eAF(nomDe(p.apprenant_id))}</td>
-        <td>${eAF(p.formations?.titre || '#' + p.formation_id)}</td>
+        <td>${p.objet === 'ia_pack' ? '🪙 Pack de crédits IA' : p.objet === 'ia_abonnement' ? '📅 Abonnement IA' : eAF(p.formations?.titre || '#' + p.formation_id)}${p.credits ? ` <small>(${p.credits} crédits)</small>` : ''}</td>
         <td>${p.prestataire === 'fedapay' ? 'FedaPay' : 'KkiaPay'}${p.mode === 'test' ? ' <small style="background:#fff4d6;padding:1px 6px;border-radius:9px">test</small>' : ''}<br><small>${eAF(p.reference_externe || '')}</small></td>
         <td>${prixAF(p.montant)}</td><td>${STATUTS_PAIEMENT_AF[p.statut] || eAF(p.statut)}</td>
         <td>${p.statut === 'reussi' ? `${fcfaAF(p.part_kekeli)} / ${fcfaAF(p.part_formateur)}` : '—'}</td></tr>`).join('')}</tbody></table></div>
@@ -276,6 +276,114 @@ async function ongletPaiementsAF(zone) {
     if (error) { erreurAF(error); return; }
     f.querySelector('[data-ok]').textContent = '✔ Enregistré';
   });
+}
+
+// ---------- IA payante : réglages, packs, abonnements, comptes (26 septembre 2026) ----------
+const LIB_MVT_AF = { achat_pack: '🛒 Pack', abonnement: '📅 Abonnement', usage_quiz: '🧠 Quiz', usage_formation: '🤖 Formation', remboursement: '↩️ Remboursement', ajustement: '🛠️ Ajustement' };
+async function ongletIAAF(zone) {
+  const [{ data: par, error: e1 }, { data: packs }, { data: offres }, { data: mvts }, { data: comptes }] = await Promise.all([
+    supabaseClient.from('formation_ia_parametres').select('*').eq('id', 1).maybeSingle(),
+    supabaseClient.from('formation_ia_packs').select('*').order('position').order('prix'),
+    supabaseClient.from('formation_ia_offres').select('*').order('position').order('prix'),
+    supabaseClient.from('formation_ia_mouvements').select('*').order('cree_le', { ascending: false }).limit(100),
+    supabaseClient.from('formation_ia_comptes').select('*').order('maj_le', { ascending: false }).limit(200)
+  ]);
+  if (e1) { zone.innerHTML = `<p class="message-erreur">${eAF(e1.message)}</p>`; return; }
+  const ids = [...new Set([...(mvts || []).map(m => m.formateur_id), ...(comptes || []).map(c => c.formateur_id)])];
+  const { data: profils } = ids.length ? await supabaseClient.from('profils').select('id, prenom, nom, email').in('id', ids) : { data: [] };
+  const nomDe = id => { const p = (profils || []).find(x => x.id === id); return p ? `${p.prenom || ''} ${p.nom || ''}`.trim() || p.email : '—'; };
+  const p = par || { credits_par_question: 1, credits_formation: 80, essai_questions: 5, modele: 'gpt-6-sol', actif: true };
+  const ligneProduit = (x, type) => `<tr data-${type}="${x.id}">
+      <td><input data-k="nom" value="${eAF(x.nom)}" maxlength="80" style="width:100%"></td>
+      ${type === 'pack' ? `<td><input data-k="credits" type="number" min="1" value="${x.credits}" style="width:90px"></td>`
+        : `<td><input data-k="credits_mensuels" type="number" min="1" value="${x.credits_mensuels}" style="width:90px"></td><td><input data-k="duree_jours" type="number" min="1" max="366" value="${x.duree_jours}" style="width:70px"></td>`}
+      <td><input data-k="prix" type="number" min="100" step="50" value="${x.prix}" style="width:100px"></td>
+      <td><input data-k="position" type="number" value="${x.position}" style="width:60px"></td>
+      <td style="text-align:center"><input data-k="actif" type="checkbox" ${x.actif ? 'checked' : ''}></td>
+      <td style="white-space:nowrap"><button class="btn btn-principal" data-enreg>💾</button> <button class="btn btn-discret" data-suppr title="Supprimer">🗑️</button></td></tr>`;
+  zone.innerHTML = `
+    <div class="carte" style="margin-bottom:16px">
+      <h3 style="margin-top:0">⚙️ Réglages de l'IA (ChatGPT)</h3>
+      <form id="formParIA" style="display:grid;gap:10px;max-width:560px">
+        <label><input type="checkbox" name="actif" ${p.actif ? 'checked' : ''}> Génération par IA activée</label>
+        <label>Modèle ChatGPT <input name="modele" value="${eAF(p.modele)}" maxlength="60" style="width:180px"> <small>(ex. gpt-6-sol, gpt-6-luna)</small></label>
+        <label>Crédits par question de quiz <input type="number" name="cq" min="0" value="${p.credits_par_question}" style="width:90px"></label>
+        <label>Crédits par formation complète <input type="number" name="cf" min="0" value="${p.credits_formation}" style="width:90px"></label>
+        <label>Questions d'essai offertes à chaque nouveau formateur <input type="number" name="essai" min="0" value="${p.essai_questions}" style="width:90px"></label>
+        <div><button class="btn btn-principal" type="submit">Enregistrer</button> <span data-ok style="color:#0b7a5c"></span></div>
+      </form>
+      <p style="font-size:12px;color:#64748b;margin-bottom:0">La clé ChatGPT se met dans Supabase → Edge Functions → Secrets, sous le nom <b>OPENAI_API_KEY</b> (jamais ici). Les gestionnaires KEKELI génèrent sans payer.</p>
+    </div>
+    <div class="carte" style="margin-bottom:16px">
+      <h3 style="margin-top:0">🛒 Packs de crédits</h3>
+      <div class="af-table-wrap"><table class="af-table"><thead><tr><th>Nom</th><th>Crédits</th><th>Prix (FCFA)</th><th>Ordre</th><th>Actif</th><th></th></tr></thead>
+        <tbody>${(packs || []).map(x => ligneProduit(x, 'pack')).join('')}</tbody></table></div>
+      <button class="btn btn-discret" data-ajout="pack">＋ Ajouter un pack</button>
+    </div>
+    <div class="carte" style="margin-bottom:16px">
+      <h3 style="margin-top:0">📅 Abonnements mensuels</h3>
+      <div class="af-table-wrap"><table class="af-table"><thead><tr><th>Nom</th><th>Crédits / période</th><th>Jours</th><th>Prix (FCFA)</th><th>Ordre</th><th>Actif</th><th></th></tr></thead>
+        <tbody>${(offres || []).map(x => ligneProduit(x, 'offre')).join('')}</tbody></table></div>
+      <button class="btn btn-discret" data-ajout="offre">＋ Ajouter un abonnement</button>
+    </div>
+    <div class="carte" style="margin-bottom:16px">
+      <h3 style="margin-top:0">👛 Comptes IA des formateurs</h3>
+      ${(comptes || []).length ? `<div class="af-table-wrap"><table class="af-table"><thead><tr><th>Formateur</th><th>Solde</th><th>Abonnement</th><th>Essai restant</th><th>Ajuster</th></tr></thead>
+        <tbody>${comptes.map(c => `<tr><td>${eAF(nomDe(c.formateur_id))}</td><td>${c.solde}</td>
+          <td>${c.abonnement_fin && new Date(c.abonnement_fin) > new Date() ? `${c.credits_abonnement} jusqu'au ${dAF(c.abonnement_fin)}` : '—'}</td><td>${c.essai_restant}</td>
+          <td><button class="btn btn-discret" data-ajuster="${c.formateur_id}">± Crédits</button></td></tr>`).join('')}</tbody></table></div>` : '<p>Aucun compte IA pour le moment (créé au premier usage).</p>'}
+    </div>
+    <div class="carte">
+      <h3 style="margin-top:0">🧾 100 derniers mouvements</h3>
+      ${(mvts || []).length ? `<div class="af-table-wrap"><table class="af-table"><thead><tr><th>Date</th><th>Formateur</th><th>Opération</th><th>Crédits</th><th>Essai</th><th>Abonnement</th><th>Détail</th></tr></thead>
+        <tbody>${mvts.map(m => `<tr><td>${new Date(m.cree_le).toLocaleString('fr-FR')}</td><td>${eAF(nomDe(m.formateur_id))}</td><td>${LIB_MVT_AF[m.type] || eAF(m.type)}</td>
+          <td>${m.credits}</td><td>${m.essai}</td><td>${m.abonnement}</td><td><small>${eAF(m.details?.sujet || m.details?.motif || (m.details?.questions ? m.details.questions + ' question(s)' : '') || (m.details?.montant ? prixAF(m.details.montant) + (m.details.mode === 'test' ? ' (test)' : '') : ''))}${m.details?.rembourse ? ' — remboursé' : ''}</small></td></tr>`).join('')}</tbody></table></div>` : '<p>Aucun mouvement.</p>'}
+    </div>`;
+
+  zone.querySelector('#formParIA').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const f = ev.target;
+    const { error } = await supabaseClient.from('formation_ia_parametres').update({
+      actif: f.actif.checked, modele: f.modele.value.trim() || 'gpt-6-sol', credits_par_question: Math.max(0, Number(f.cq.value) || 0),
+      credits_formation: Math.max(0, Number(f.cf.value) || 0), essai_questions: Math.max(0, Number(f.essai.value) || 0), maj_le: new Date().toISOString()
+    }).eq('id', 1);
+    if (error) { erreurAF(error); return; }
+    f.querySelector('[data-ok]').textContent = '✔ Enregistré';
+  });
+  const table = t => t === 'pack' ? 'formation_ia_packs' : 'formation_ia_offres';
+  zone.querySelectorAll('tr[data-pack], tr[data-offre]').forEach(tr => {
+    const type = tr.dataset.pack ? 'pack' : 'offre';
+    const id = Number(tr.dataset.pack || tr.dataset.offre);
+    tr.querySelector('[data-enreg]').addEventListener('click', async () => {
+      const v = {};
+      tr.querySelectorAll('[data-k]').forEach(i => { v[i.dataset.k] = i.type === 'checkbox' ? i.checked : i.type === 'number' ? Number(i.value) : i.value.trim(); });
+      const { error } = await supabaseClient.from(table(type)).update(v).eq('id', id);
+      if (error) { erreurAF(error); return; }
+      tr.style.background = '#ecfdf5'; setTimeout(() => { tr.style.background = ''; }, 900);
+    });
+    tr.querySelector('[data-suppr]').addEventListener('click', async () => {
+      if (!confirm('Supprimer cette offre ? (Pour la masquer seulement, décochez « Actif ».)')) return;
+      const { error } = await supabaseClient.from(table(type)).delete().eq('id', id);
+      if (error) { erreurAF(error); return; }
+      ongletIAAF(zone);
+    });
+  });
+  zone.querySelectorAll('[data-ajout]').forEach(b => b.addEventListener('click', async () => {
+    const type = b.dataset.ajout;
+    const ligne = type === 'pack' ? { nom: 'Nouveau pack', credits: 100, prix: 1000, actif: false, position: 99 } : { nom: 'Nouvel abonnement', credits_mensuels: 300, duree_jours: 30, prix: 2000, actif: false, position: 99 };
+    const { error } = await supabaseClient.from(table(type)).insert(ligne);
+    if (error) { erreurAF(error); return; }
+    ongletIAAF(zone);
+  }));
+  zone.querySelectorAll('[data-ajuster]').forEach(b => b.addEventListener('click', async () => {
+    const n = Number(prompt('Nombre de crédits à ajouter (négatif pour retirer) :', '50'));
+    if (!n) return;
+    const motif = prompt('Motif (visible par le formateur) :', 'Geste commercial');
+    if (!motif) return;
+    const { error } = await supabaseClient.rpc('formation_ia_admin_ajuster', { p_formateur: b.dataset.ajuster, p_credits: n, p_motif: motif });
+    if (error) { erreurAF(error); return; }
+    ongletIAAF(zone);
+  }));
 }
 
 // ---------- Journal ----------

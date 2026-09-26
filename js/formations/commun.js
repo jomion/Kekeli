@@ -2125,7 +2125,7 @@ async function fkPaiementAppel(corps) {
   return data;
 }
 function fkUrlRetourPaiement(formationId) {
-  return new URL(`${FK_BASE}app/paiement.html?formation=${formationId}`, window.location.href).toString();
+  return new URL(`${FK_BASE}app/paiement.html?${formationId ? `formation=${formationId}` : 'objet=ia'}`, window.location.href).toString();
 }
 function fkChargerKkiapay() {
   if (window.openKkiapayWidget) return Promise.resolve();
@@ -2139,8 +2139,14 @@ function fkChargerKkiapay() {
 }
 const _fkKkia = { branche: false, fini: false };
 // Ouvre la fenêtre de choix du moyen de paiement pour la formation `f`.
-async function fkAcheterFormation(f) {
-  const m = fkModale(`Acheter « ${f.titre} »`, `<div data-corps><p class="fk-chargement">Chargement des moyens de paiement…</p></div>
+function fkAcheterFormation(f) {
+  return fkPayer({ titre: `Acheter « ${f.titre} »`, montant: fkPrix(f.prix, f.devise), corps: { formationId: f.id }, formationId: f.id });
+}
+// Paiement générique (formation, pack de crédits IA, abonnement IA).
+// o = { titre, montant (texte affiché), corps (paramètres d'« initier »), formationId? , note? }
+async function fkPayer(o) {
+  const f = { id: o.formationId || null };
+  const m = fkModale(o.titre, `<div data-corps><p class="fk-chargement">Chargement des moyens de paiement…</p></div>
     <div class="fk-actions-form"><button class="fk-btn fk-btn-ghost" data-fermer>Annuler</button></div>`, { protegee: true });
   const corps = m.boite.querySelector('[data-corps]');
   let config;
@@ -2156,10 +2162,10 @@ async function fkAcheterFormation(f) {
   }
   const enTest = moyens.some(([k]) => config[k].test);
   corps.innerHTML = `${enTest ? `<p class="fk-alerte fk-alerte-attention" data-mode-test>🧪 <b>Mode test</b> : aucun argent réel n'est débité. Utilisez les numéros de test du prestataire.</p>` : ''}
-    <p style="margin:0 0 12px">Montant à payer : <b>${fkPrix(f.prix, f.devise)}</b></p>
+    <p style="margin:0 0 12px">Montant à payer : <b>${fkEchapper(o.montant)}</b>${o.note ? `<br><small style="color:var(--f-muted)">${fkEchapper(o.note)}</small>` : ''}</p>
     <div class="fk-moyens-paiement">${moyens.map(([k, nom, desc, ic]) => `<button type="button" class="fk-moyen-paiement" data-prestataire="${k}">
       <span class="fk-moyen-icone" aria-hidden="true">${ic}</span><span><b>${nom}</b><small>${desc}</small></span></button>`).join('')}</div>
-    <p style="font-size:12px;color:var(--f-muted);margin:12px 0 0">🔒 Paiement sécurisé : KEKELI ne voit jamais votre code Mobile Money ni votre carte. L'accès s'ouvre dès que le paiement est confirmé.</p>
+    <p style="font-size:12px;color:var(--f-muted);margin:12px 0 0">🔒 Paiement sécurisé : KEKELI ne voit jamais votre code Mobile Money ni votre carte. ${f.id ? "L'accès s'ouvre" : 'Les crédits sont ajoutés'} dès que le paiement est confirmé.</p>
     <p data-etat class="fk-alerte fk-alerte-info" hidden></p>`;
   const etat = corps.querySelector('[data-etat]');
   const dire = (t, type) => { etat.hidden = false; etat.className = `fk-alerte fk-alerte-${type || 'info'}`; etat.textContent = t; };
@@ -2168,7 +2174,7 @@ async function fkAcheterFormation(f) {
     corps.querySelectorAll('[data-prestataire]').forEach(x => { x.disabled = true; });
     dire('Préparation du paiement…');
     try {
-      const r = await fkPaiementAppel({ action: 'initier', prestataire, formationId: f.id, retour: fkUrlRetourPaiement(f.id) });
+      const r = await fkPaiementAppel({ action: 'initier', prestataire, ...o.corps, retour: fkUrlRetourPaiement(f.id) });
       if (prestataire === 'fedapay') {
         dire('Redirection vers la page de paiement FedaPay…');
         window.location.href = r.url;

@@ -685,6 +685,7 @@ function modaleQuizIA(q, nbExistantes) {
       </div>
       <div class="fk-champ"><span>Types de questions</span><div class="fk-ia-types">${FK_TYPES_IA.map(t => `<label class="fk-case"><input type="checkbox" name="type" value="${t}" ${['choix_unique', 'choix_multiple', 'vrai_faux', 'reponse_courte'].includes(t) ? 'checked' : ''}> ${FK_TYPES_QUESTIONS[t].icone} ${FK_TYPES_QUESTIONS[t].label}</label>`).join('')}</div></div>
       <label class="fk-champ"><span>Consignes pour l'IA (facultatif)</span><input type="text" name="consignes" maxlength="800" placeholder="Ex. insister sur les causes de la procrastination ; utiliser des exemples de la vie quotidienne"></label>
+      <div class="fk-ia-solde" data-solde-ia>Chargement de vos crédits IA…</div>
       <div class="fk-actions-form"><button type="button" class="fk-btn fk-btn-ghost" data-retour>← Retour aux questions</button><button class="fk-btn fk-btn-primary" type="submit">🧠 Générer</button></div>
     </form>
     <div data-resultats-ia></div>`, { protegee: true });
@@ -692,6 +693,23 @@ function modaleQuizIA(q, nbExistantes) {
   const form = md.boite.querySelector('[data-form-ia]');
   const zone = md.boite.querySelector('[data-resultats-ia]');
   md.boite.querySelector('[data-retour]').addEventListener('click', () => { md.fermer(); modaleQuestions(q); });
+  // Crédits IA (26 septembre 2026) : essai gratuit, abonnement, solde, coût estimé.
+  const zoneSolde = md.boite.querySelector('[data-solde-ia]');
+  let compteIA = null;
+  const majSolde = () => {
+    if (FKE.s.estGestionnaire) { zoneSolde.innerHTML = '🛠️ Compte gestionnaire KEKELI : génération non facturée.'; return; }
+    if (!compteIA) return;
+    const n = Math.max(1, Number(form.nombre.value) || 1);
+    const essai = Math.min(compteIA.essai_restant, n);
+    const cout = (n - essai) * compteIA.credits_par_question;
+    const dispo = compteIA.solde + compteIA.credits_abonnement;
+    zoneSolde.innerHTML = `🪙 <b>${dispo}</b> crédit(s) IA${compteIA.essai_restant ? ` · 🎁 <b>${compteIA.essai_restant}</b> question(s) d'essai gratuites` : ''}
+      — cette génération : <b>${cout ? `${cout} crédit(s)` : 'gratuite (essai)'}</b>${essai && cout ? ` (dont ${essai} question(s) offertes)` : ''}
+      ${cout > dispo ? `<br><span style="color:var(--f-danger)">Crédits insuffisants${compteIA.essai_restant ? ` : demandez ${compteIA.essai_restant} question(s) pour utiliser votre essai gratuit,` : ''} ou <a class="fk-link" href="credits-ia.html" target="_blank">rechargez vos crédits IA</a>.</span>` : ` · <a class="fk-link" href="credits-ia.html" target="_blank">Mes crédits IA</a>`}
+      <br><small>Seules les questions réellement produites sont décomptées.</small>`;
+  };
+  supabaseClient.rpc('formation_ia_mon_compte').then(({ data }) => { compteIA = data; majSolde(); }, () => { zoneSolde.textContent = ''; });
+  form.nombre.addEventListener('input', majSolde);
   const apercu = x => {
     if (x.reponses) return `<ul class="fk-ia-reponses">${x.reponses.map(r => `<li class="${r.correcte ? 'ok' : ''}">${r.correcte ? '✅' : '▫️'} ${e(r.texte)}</li>`).join('')}</ul>`;
     const c = x.config || {};
@@ -721,7 +739,8 @@ function modaleQuizIA(q, nbExistantes) {
       else res = data;
     } catch (err) { msg = err.message; }
     btn.disabled = false; btn.textContent = '🧠 Générer à nouveau';
-    if (!res) { zone.innerHTML = `<p class="fk-alerte fk-alerte-erreur">${e(msg || 'Échec de la génération.')}</p>`; return; }
+    supabaseClient.rpc('formation_ia_mon_compte').then(({ data }) => { if (data) { compteIA = data; majSolde(); } }, () => {});
+    if (!res) { zone.innerHTML = `<p class="fk-alerte fk-alerte-erreur">${e(msg || 'Échec de la génération.')}${/crédit/i.test(msg || '') ? ' <a class="fk-link" href="credits-ia.html" target="_blank">🪙 Recharger mes crédits IA</a>' : ''}</p>`; return; }
     const qs = res.questions || [];
     zone.innerHTML = `<h3 style="margin:18px 0 8px">${qs.length} question(s) proposée(s) — cochez celles à garder</h3>
       ${qs.map((x, i) => `<label class="fk-question fk-ia-proposition"><input type="checkbox" data-garder="${i}" checked>

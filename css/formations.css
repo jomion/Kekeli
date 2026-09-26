@@ -643,3 +643,17 @@ body.fk-plein .fk-bouton-nav-flottant { display: flex; }
 .fk-page-code { min-height: 360px; }
 .fk-code-corps > textarea.fk-page-code { height: 60vh; max-height: 75vh; }
 .fk-code-corps > textarea.fk-riche-source { max-height: 75vh; }
+
+/* ---------- Crédits IA et génération de formation (26 septembre 2026) ---------- */
+.fk-ia-solde { background: #f3f8f6; border: 1px solid var(--f-border); border-radius: 12px; padding: 10px 14px; font-size: 14px; margin: 6px 0 4px; line-height: 1.55; }
+.fk-ia-solde small { color: var(--f-muted); }
+.fk-offres-ia { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+.fk-offre-ia { border: 1.5px solid var(--f-border); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 6px; background: #fff; }
+.fk-offre-ia h3 { margin: 0; font-size: 17px; }
+.fk-offre-credits { font-weight: 800; color: var(--f-primary-dark); font-size: 20px; }
+.fk-offre-prix { font-size: 16px; font-weight: 700; }
+.fk-offre-ia small { color: var(--f-muted); font-size: 12px; flex: 1; }
+.fk-tableau-revenus td.pos { color: var(--f-primary-dark); font-weight: 700; }
+.fk-tableau-revenus td.neg { color: #8a4b00; }
+.fk-gen-modules { padding-left: 22px; line-height: 2; }
+.fk-gen-modules small { color: var(--f-muted); }

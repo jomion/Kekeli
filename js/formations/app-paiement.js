@@ -43,6 +43,14 @@
   }
   const fid = (res && res.formationId) || formationId;
 
+  const estIA = (res && /^ia_/.test(res.objet || '')) || fkParam('objet') === 'ia';
+  if (res && res.statut === 'reussi' && estIA) {
+    cadre(`<span class="fk-vide-icone" aria-hidden="true">🪙</span><h1>Crédits IA ajoutés !</h1>
+      <p>Merci ! ${res.credits ? `<b>${Number(res.credits)}</b> crédits ont été ajoutés à votre compte IA.` : 'Vos crédits IA sont disponibles.'}</p>
+      <a class="fk-btn fk-btn-primary" href="${FK_BASE}formateur/generer-ia.html">🤖 Créer une formation avec l'IA</a>
+      <a class="fk-btn fk-btn-ghost" href="${FK_BASE}formateur/credits-ia.html">Mes crédits IA</a>`);
+    return;
+  }
   if (res && res.statut === 'reussi') {
     cadre(`<span class="fk-vide-icone" aria-hidden="true">🎉</span><h1>Paiement confirmé !</h1>
       <p>Merci ! Votre accès à la formation est ouvert.</p>
@@ -51,12 +59,12 @@
   }
   if (res && ['echoue', 'annule', 'rembourse'].includes(res.statut)) {
     cadre(`<span class="fk-vide-icone" aria-hidden="true">❌</span><h1>${res.statut === 'annule' ? 'Paiement annulé' : res.statut === 'rembourse' ? 'Paiement remboursé' : 'Paiement non abouti'}</h1>
-      <p>Aucun accès n'a été ouvert. Si votre compte a été débité, contactez-nous en indiquant la référence <b>#${paiementId}</b>.</p>
-      ${fid ? `<a class="fk-btn fk-btn-primary" href="${FK_BASE}formation.html?id=${fid}">Réessayer</a>` : ''}`);
+      <p>${estIA ? "Aucun crédit n'a été ajouté." : "Aucun accès n'a été ouvert."} Si votre compte a été débité, contactez-nous en indiquant la référence <b>#${paiementId}</b>.</p>
+      ${estIA ? `<a class="fk-btn fk-btn-primary" href="${FK_BASE}formateur/credits-ia.html">Réessayer</a>` : fid ? `<a class="fk-btn fk-btn-primary" href="${FK_BASE}formation.html?id=${fid}">Réessayer</a>` : ''}`);
     return;
   }
   cadre(`<span class="fk-vide-icone" aria-hidden="true">🕒</span><h1>Paiement en attente</h1>
-    <p>${erreur ? fkEchapper(erreur.message) + '<br>' : ''}Votre paiement n'est pas encore confirmé. Si vous avez validé l'opération sur votre téléphone, patientez une minute puis actualisez cette page : l'accès s'ouvrira automatiquement dès la confirmation.</p>
+    <p>${erreur ? fkEchapper(erreur.message) + '<br>' : ''}Votre paiement n'est pas encore confirmé. Si vous avez validé l'opération sur votre téléphone, patientez une minute puis actualisez cette page : ${estIA ? 'les crédits seront ajoutés' : "l'accès s'ouvrira"} automatiquement dès la confirmation.</p>
     <p style="font-size:13px;color:var(--f-muted)">Référence : #${paiementId}</p>
     <button class="fk-btn fk-btn-primary" onclick="location.reload()">🔄 Vérifier à nouveau</button>
     <a class="fk-btn fk-btn-ghost" href="${FK_BASE}app/tableau-de-bord.html">Mon apprentissage</a>`);

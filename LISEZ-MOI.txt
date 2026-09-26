@@ -1361,3 +1361,32 @@ alerte ; test réel du verrouillage sur une matière à 7 séances (première
 séance accessible seule au départ, déblocage confirmé séance par séance) ;
 relecture des règles d'accès existantes pour confirmer qu'aucun rôle autre
 que l'élève n'est concerné par le nouveau verrouillage.
+
+======================================================================
+IA PAYANTE (CRÉDITS) + CRÉATION DE FORMATION AVEC CHATGPT (26 septembre 2026)
+======================================================================
+Crédits IA pour les formateurs :
+- essai gratuit : 5 questions de quiz offertes à chaque formateur ;
+- packs de crédits prépayés (n'expirent pas) et abonnement mensuel
+  (quota de crédits pour 30 jours, renouvelé à la main, sans prélèvement
+  automatique), payés par FedaPay / KkiaPay comme les formations ;
+- ordre d'utilisation : essai gratuit (quiz) → crédits de l'abonnement →
+  crédits des packs ; rien n'est décompté si l'IA échoue ;
+- les gestionnaires KEKELI génèrent sans payer.
+Pages : pages/formations/formateur/credits-ia.html (solde, achat,
+historique) et pages/formations/formateur/generer-ia.html (formation
+complète : plan + leçons rédigées, créée en brouillon). Boutons « 🪙 Crédits
+IA » et « 🤖 Créer avec l'IA » dans l'espace formateur. Le générateur de
+quiz affiche le coût avant de lancer.
+Admin → Formations → onglet 🤖 IA : activer/couper l'IA, modèle ChatGPT,
+coût en crédits (par question, par formation), questions d'essai, packs
+et abonnements (nom, crédits, prix, actif), comptes des formateurs
+(± crédits avec motif), historique.
+Base : formation_ia_parametres, formation_ia_packs, formation_ia_offres,
+formation_ia_comptes, formation_ia_mouvements, formation_ia_generations ;
+formation_paiements accepte aussi objet = ia_pack / ia_abonnement.
+Fonctions serveur (déjà en ligne) : formation-ia-generer (nouvelle),
+formation-quiz-ia et formation-paiement (mises à jour).
+À FAIRE : ajouter le secret OPENAI_API_KEY dans Supabase → Edge Functions
+→ Secrets (clé créée sur platform.openai.com). Sans elle, la création de
+formation est indisponible ; les quiz utilisent alors Gemini/Groq.

@@ -223,20 +223,34 @@ Deno.serve(async (req) => {
       if (prestataire === "fedapay" && !(fedaOk() && par.fedapay_actif)) return json({ error: "FedaPay n'est pas disponible pour le moment." }, 400);
       if (prestataire === "kkiapay" && !(kkiaOk() && par.kkiapay_actif)) return json({ error: "KkiaPay n'est pas disponible pour le moment." }, 400);
       if (!["fedapay", "kkiapay"].includes(prestataire)) return json({ error: "Moyen de paiement inconnu." }, 400);
-      const formationId = Number(body.formationId);
       const { data: prof } = await admin.from("profils").select("role, prenom, nom, email, actif").eq("id", uid).single();
       if (!prof || prof.actif === false) return json({ error: "Profil introuvable." }, 403);
       if (prof.role === "eleve") return json({ error: "Les formations sont réservées aux comptes adultes." }, 403);
-      const { data: f } = await admin.from("formations").select("id, titre, prix, devise, statut, formateur_id").eq("id", formationId).single();
-      if (!f || f.statut !== "publiee") return json({ error: "Cette formation n'est pas disponible." }, 400);
-      if (!(f.prix > 0)) return json({ error: "Cette formation est gratuite." }, 400);
-      if (f.formateur_id === uid) return json({ error: "Vous êtes le formateur de cette formation." }, 400);
-      const { data: ins } = await admin.from("formation_inscriptions").select("id, statut").eq("formation_id", f.id).eq("apprenant_id", uid).maybeSingle();
-      if (ins && ins.statut !== "annulee") return json({ error: "Vous êtes déjà inscrit(e) à cette formation." }, 400);
       const test = prestataire === "fedapay" ? !FEDA_LIVE : !KKIA_LIVE;
+      const objet = ["ia_pack", "ia_abonnement"].includes(String(body.objet)) ? String(body.objet) : "formation";
+      let ligne: Record<string, unknown>; let titre: string;
+      if (objet === "formation") {
+        const formationId = Number(body.formationId);
+        const { data: f } = await admin.from("formations").select("id, titre, prix, devise, statut, formateur_id").eq("id", formationId).single();
+        if (!f || f.statut !== "publiee") return json({ error: "Cette formation n'est pas disponible." }, 400);
+        if (!(f.prix > 0)) return json({ error: "Cette formation est gratuite." }, 400);
+        if (f.formateur_id === uid) return json({ error: "Vous êtes le formateur de cette formation." }, 400);
+        const { data: ins } = await admin.from("formation_inscriptions").select("id, statut").eq("formation_id", f.id).eq("apprenant_id", uid).maybeSingle();
+        if (ins && ins.statut !== "annulee") return json({ error: "Vous êtes déjà inscrit(e) à cette formation." }, 400);
+        ligne = { formation_id: f.id, formateur_id: f.formateur_id, montant: f.prix, devise: f.devise || "XOF" };
+        titre = f.titre;
+      } else {
+        // Crédits IA (26 septembre 2026) : pack prépayé ou abonnement mensuel.
+        const table = objet === "ia_pack" ? "formation_ia_packs" : "formation_ia_offres";
+        const { data: o } = await admin.from(table).select("*").eq("id", Number(body.produitId)).eq("actif", true).maybeSingle();
+        if (!o) return json({ error: "Cette offre n'est plus disponible." }, 400);
+        ligne = objet === "ia_pack"
+          ? { objet, ia_pack_id: o.id, credits: o.credits, montant: o.prix, devise: "XOF" }
+          : { objet, ia_offre_id: o.id, credits: o.credits_mensuels, montant: o.prix, devise: "XOF" };
+        titre = `Crédits IA — ${o.nom}`;
+      }
       const { data: p, error } = await admin.from("formation_paiements").insert({
-        formation_id: f.id, apprenant_id: uid, formateur_id: f.formateur_id, prestataire,
-        mode: test ? "test" : "live", montant: f.prix, devise: f.devise || "XOF",
+        ...ligne, apprenant_id: uid, prestataire, mode: test ? "test" : "live",
       }).select("*").single();
       if (error || !p) throw new Error(error?.message || "Création du paiement impossible.");
 
@@ -245,7 +259,7 @@ Deno.serve(async (req) => {
         try { const r = new URL(retour); if (!ORIGINES.includes(r.origin)) retour = ""; } catch { retour = ""; }
         if (!retour) return json({ error: "Adresse de retour non autorisée (SITE_ORIGINES)." }, 400);
         const r = new URL(retour); r.searchParams.set("paiement", String(p.id));
-        const { reference, url: payUrl } = await fedaCreer(p, f.titre, r.toString(), { email: prof.email || "", firstname: prof.prenom || "", lastname: prof.nom || "" });
+        const { reference, url: payUrl } = await fedaCreer(p, titre, r.toString(), { email: prof.email || "", firstname: prof.prenom || "", lastname: prof.nom || "" });
         await admin.from("formation_paiements").update({ reference_externe: reference, maj_le: new Date().toISOString() }).eq("id", p.id);
         return json({ paiementId: p.id, url: payUrl, test });
       }
@@ -257,7 +271,7 @@ Deno.serve(async (req) => {
       if (!p) return json({ error: "Paiement introuvable." }, 404);
       const tx = body.transactionId ? String(body.transactionId).slice(0, 100) : undefined;
       const res = await verifierPaiement(p, tx);
-      return json({ ...res, formationId: p.formation_id });
+      return json({ ...res, formationId: p.formation_id, objet: p.objet, credits: p.credits });
     }
   } catch (e) {
     return json({ error: (e as Error).message || "Erreur de paiement." }, 500);
