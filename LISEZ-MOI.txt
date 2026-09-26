@@ -1164,3 +1164,46 @@ alerte ; test réel du verrouillage sur une matière à 7 séances (première
 séance accessible seule au départ, déblocage confirmé séance par séance) ;
 relecture des règles d'accès existantes pour confirmer qu'aucun rôle autre
 que l'élève n'est concerné par le nouveau verrouillage.
+
+======================================================================
+PAIEMENT DES FORMATIONS — FedaPay et KkiaPay (26 septembre 2026)
+======================================================================
+Les formations payantes peuvent maintenant être achetées en ligne
+(Mobile Money MTN/Moov/Wave, carte bancaire). KEKELI garde une commission
+de 15 % (modifiable dans Admin → Formations → 💳 Paiements).
+
+Parcours de l'acheteur : fiche de la formation → « 💳 Acheter » → choix
+FedaPay ou KkiaPay → paiement chez le prestataire → page
+pages/formations/app/paiement.html qui fait VÉRIFIER le paiement par le
+serveur → accès ouvert automatiquement.
+
+Sécurité : le navigateur ne décide jamais qu'un paiement est réussi. La
+fonction serveur « formation-paiement » (déjà en ligne) interroge elle-même
+FedaPay/KkiaPay avec les clés secrètes, contrôle le montant, puis ouvre
+l'accès. Une même transaction ne peut pas servir deux fois. Les clés ne
+sont JAMAIS dans le code du site : uniquement dans Supabase → Edge
+Functions → Secrets.
+
+Secrets à créer dans Supabase (Edge Functions → Secrets) :
+  FEDAPAY_SECRET_KEY    clé secrète FedaPay (sk_sandbox_… en test)
+  FEDAPAY_ENV           sandbox   (plus tard : live)
+  KKIAPAY_PUBLIC_KEY    clé publique KkiaPay
+  KKIAPAY_PRIVATE_KEY   clé privée KkiaPay
+  KKIAPAY_SECRET        clé secrète KkiaPay
+  KKIAPAY_ENV           sandbox   (plus tard : live)
+  SITE_ORIGINES         https://jomion.github.io   (adresse du site, sans / final)
+  FEDAPAY_WEBHOOK_SECRET / KKIAPAY_WEBHOOK_SECRET   (facultatifs, pour les webhooks)
+Adresses de webhook à donner aux prestataires :
+  https://rudikjbpfvpklduumzkw.supabase.co/functions/v1/formation-paiement?webhook=fedapay
+  https://rudikjbpfvpklduumzkw.supabase.co/functions/v1/formation-paiement?webhook=kkiapay
+
+Tant qu'un prestataire n'a pas ses clés, il n'apparaît pas aux acheteurs.
+En mode « sandbox », une bannière « Mode test » s'affiche et les ventes sont
+marquées « test » (non comptées dans les revenus réels).
+
+Fichiers : js/formations/commun.js (fkAcheterFormation…), js/formations/fiche.js,
+pages/formations/app/paiement.html + js/formations/app-paiement.js,
+js/formations/formateur-tableau-de-bord.js (section 💰 Revenus),
+js/pages/admin-formations.js (onglet 💳 Paiements), css/formations.css,
+supabase/functions/formation-paiement/index.ts (copie de sauvegarde de la
+fonction déjà déployée).

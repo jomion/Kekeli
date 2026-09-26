@@ -47,7 +47,7 @@ async function afficherAF() {
     supabaseClient.from('formation_inscriptions').select('id', { count: 'exact', head: true })
   ]);
   const onglets = [['validation', `📝 À valider (${nbRevision || 0})`], ['formations', '📚 Formations'], ['formateurs', `👨‍🏫 Formateurs (${nbCandidats || 0} en attente)`],
-    ['categories', '🗂️ Catégories'], ['inscriptions', '🎓 Inscriptions'], ['journal', '🧾 Journal']];
+    ['categories', '🗂️ Catégories'], ['inscriptions', '🎓 Inscriptions'], ['paiements', '💳 Paiements'], ['journal', '🧾 Journal']];
   document.getElementById('contenu').innerHTML = `
     <div class="titre-page">🎓 Plateforme de formation</div>
     <div class="sous-titre-page">Validation des formateurs et des formations, catégories, inscriptions. <a href="../formations/index.html">Voir le site Formation →</a></div>
@@ -67,7 +67,7 @@ async function afficherAF() {
   const zone = document.getElementById('zoneAF');
   zone.classList.remove('chargement');
   await ({ validation: ongletValidationAF, formations: ongletFormationsAF, formateurs: ongletFormateursAF,
-    categories: ongletCategoriesAF, inscriptions: ongletInscriptionsAF, journal: ongletJournalAF })[ongletAF](zone);
+    categories: ongletCategoriesAF, inscriptions: ongletInscriptionsAF, paiements: ongletPaiementsAF, journal: ongletJournalAF })[ongletAF](zone);
 }
 
 // ---------- Formations ----------
@@ -221,6 +221,61 @@ async function ongletInscriptionsAF(zone, page) {
       ${(p + 1) * parPage < total ? '<button class="btn btn-discret" data-page="1">Suivant →</button>' : ''}
     </div>` : '<div class="carte"><p>Aucune inscription pour le moment.</p></div>';
   zone.querySelectorAll('[data-page]').forEach(b => b.addEventListener('click', () => ongletInscriptionsAF(zone, p + Number(b.dataset.page))));
+}
+
+// ---------- Paiements FedaPay / KkiaPay (26 septembre 2026) ----------
+const fcfaAF = n => `${Math.round(Number(n) || 0).toLocaleString('fr-FR')} FCFA`;
+const STATUTS_PAIEMENT_AF = { en_attente: '⏳ En attente', reussi: '✅ Réussi', echoue: '❌ Échoué', annule: '🚫 Annulé', rembourse: '↩️ Remboursé' };
+async function ongletPaiementsAF(zone) {
+  const [{ data: par, error: e1 }, { data: paiements, error: e2 }] = await Promise.all([
+    supabaseClient.from('formation_parametres_paiement').select('*').eq('id', 1).maybeSingle(),
+    supabaseClient.from('formation_paiements').select('id, formation_id, apprenant_id, prestataire, mode, montant, statut, part_kekeli, part_formateur, commission_pct, reference_externe, cree_le, confirme_le, formations(titre)')
+      .order('cree_le', { ascending: false }).limit(200)
+  ]);
+  if (e1 || e2) { zone.innerHTML = `<p class="message-erreur">${eAF((e1 || e2).message)}</p>`; return; }
+  const liste = paiements || [];
+  const ids = [...new Set(liste.map(p => p.apprenant_id))];
+  const { data: profils } = ids.length ? await supabaseClient.from('profils').select('id, prenom, nom, email').in('id', ids) : { data: [] };
+  const nomDe = id => { const p = (profils || []).find(x => x.id === id); return p ? `${p.prenom || ''} ${p.nom || ''}`.trim() || p.email : '—'; };
+  const reels = liste.filter(p => p.statut === 'reussi' && p.mode === 'live');
+  const somme = k => reels.reduce((t, p) => t + Number(p[k] || 0), 0);
+  const p0 = par || { commission_pct: 15, fedapay_actif: true, kkiapay_actif: true };
+  zone.innerHTML = `
+    <div class="carte" style="margin-bottom:16px">
+      <h3 style="margin-top:0">⚙️ Réglages du paiement</h3>
+      <form id="formParPaiement" style="display:grid;gap:10px;max-width:460px">
+        <label>Commission KEKELI (%) <input type="number" name="commission" min="0" max="50" step="0.5" value="${eAF(p0.commission_pct)}" style="width:90px"></label>
+        <label><input type="checkbox" name="fedapay" ${p0.fedapay_actif ? 'checked' : ''}> Proposer <b>FedaPay</b> (Mobile Money, carte)</label>
+        <label><input type="checkbox" name="kkiapay" ${p0.kkiapay_actif ? 'checked' : ''}> Proposer <b>KkiaPay</b> (Mobile Money, carte, Wave)</label>
+        <div><button class="btn btn-principal" type="submit">Enregistrer</button> <span data-ok style="color:#0b7a5c"></span></div>
+      </form>
+      <p style="font-size:12px;color:#64748b;margin-bottom:0">Un moyen coché n'apparaît aux acheteurs que si ses clés sont enregistrées dans Supabase (Edge Functions → Secrets). La commission s'applique aux nouvelles ventes.</p>
+    </div>
+    <div class="af-stats">
+      <div class="af-stat"><small>Ventes réelles</small><strong>${reels.length}</strong></div>
+      <div class="af-stat"><small>Total encaissé</small><strong>${fcfaAF(somme('montant'))}</strong></div>
+      <div class="af-stat"><small>Part KEKELI</small><strong>${fcfaAF(somme('part_kekeli'))}</strong></div>
+      <div class="af-stat"><small>Part formateurs</small><strong>${fcfaAF(somme('part_formateur'))}</strong></div>
+    </div>
+    ${liste.length ? `<div class="af-table-wrap"><table class="af-table">
+      <thead><tr><th>#</th><th>Date</th><th>Apprenant</th><th>Formation</th><th>Moyen</th><th>Montant</th><th>Statut</th><th>KEKELI / formateur</th></tr></thead>
+      <tbody>${liste.map(p => `<tr><td>${p.id}</td><td>${new Date(p.cree_le).toLocaleString('fr-FR')}</td><td>${eAF(nomDe(p.apprenant_id))}</td>
+        <td>${eAF(p.formations?.titre || '#' + p.formation_id)}</td>
+        <td>${p.prestataire === 'fedapay' ? 'FedaPay' : 'KkiaPay'}${p.mode === 'test' ? ' <small style="background:#fff4d6;padding:1px 6px;border-radius:9px">test</small>' : ''}<br><small>${eAF(p.reference_externe || '')}</small></td>
+        <td>${prixAF(p.montant)}</td><td>${STATUTS_PAIEMENT_AF[p.statut] || eAF(p.statut)}</td>
+        <td>${p.statut === 'reussi' ? `${fcfaAF(p.part_kekeli)} / ${fcfaAF(p.part_formateur)}` : '—'}</td></tr>`).join('')}</tbody></table></div>
+      <p style="font-size:12px;color:#64748b">200 derniers paiements. Les paiements « test » ne sont pas de l'argent réel.</p>`
+    : '<div class="carte"><p>Aucun paiement pour le moment.</p></div>'}`;
+  zone.querySelector('#formParPaiement').addEventListener('submit', async e => {
+    e.preventDefault();
+    const f = e.target;
+    const c = Number(f.commission.value);
+    if (!(c >= 0 && c <= 50)) { alert('La commission doit être comprise entre 0 et 50 %.'); return; }
+    const { error } = await supabaseClient.from('formation_parametres_paiement')
+      .update({ commission_pct: c, fedapay_actif: f.fedapay.checked, kkiapay_actif: f.kkiapay.checked, maj_le: new Date().toISOString() }).eq('id', 1);
+    if (error) { erreurAF(error); return; }
+    f.querySelector('[data-ok]').textContent = '✔ Enregistré';
+  });
 }
 
 // ---------- Journal ----------

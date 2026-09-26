@@ -1985,6 +1985,101 @@ function fkQuandOuverture(iso) {
   return `le ${d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} (dans ${jours} jours)`;
 }
 
+// ---------- Paiement des formations : FedaPay / KkiaPay (26 septembre 2026) ----------
+// Le navigateur ne décide jamais qu'un paiement a réussi : il demande à la
+// fonction serveur « formation-paiement » de vérifier auprès du prestataire.
+async function fkPaiementAppel(corps) {
+  const { data, error } = await supabaseClient.functions.invoke('formation-paiement', { body: corps });
+  if (error) {
+    let msg = error.message || 'Le service de paiement ne répond pas.';
+    try { const j = await error.context.json(); if (j && j.error) msg = j.error; } catch (_e) { /* réponse non JSON */ }
+    throw new Error(msg);
+  }
+  if (data && data.error) throw new Error(data.error);
+  return data;
+}
+function fkUrlRetourPaiement(formationId) {
+  return new URL(`${FK_BASE}app/paiement.html?formation=${formationId}`, window.location.href).toString();
+}
+function fkChargerKkiapay() {
+  if (window.openKkiapayWidget) return Promise.resolve();
+  return new Promise((ok, ko) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://cdn.kkiapay.me/k.js';
+    sc.onload = () => ok();
+    sc.onerror = () => ko(new Error('Impossible de charger KkiaPay. Vérifiez votre connexion.'));
+    document.head.appendChild(sc);
+  });
+}
+const _fkKkia = { branche: false, fini: false };
+// Ouvre la fenêtre de choix du moyen de paiement pour la formation `f`.
+async function fkAcheterFormation(f) {
+  const m = fkModale(`Acheter « ${f.titre} »`, `<div data-corps><p class="fk-chargement">Chargement des moyens de paiement…</p></div>
+    <div class="fk-actions-form"><button class="fk-btn fk-btn-ghost" data-fermer>Annuler</button></div>`, { protegee: true });
+  const corps = m.boite.querySelector('[data-corps]');
+  let config;
+  try { config = await fkPaiementAppel({ action: 'config' }); }
+  catch (e) { corps.innerHTML = `<p class="fk-alerte fk-alerte-erreur">${fkEchapper(e.message)}</p>`; return; }
+  const moyens = [
+    ['fedapay', 'FedaPay', 'Mobile Money (MTN, Moov…) ou carte bancaire', '📱'],
+    ['kkiapay', 'KkiaPay', 'Mobile Money, carte bancaire ou Wave', '💳']
+  ].filter(([k]) => config[k] && config[k].disponible);
+  if (!moyens.length) {
+    corps.innerHTML = `<p class="fk-alerte fk-alerte-attention">Le paiement en ligne n'est pas encore activé sur KEKELI. Réessayez un peu plus tard.</p>`;
+    return;
+  }
+  const enTest = moyens.some(([k]) => config[k].test);
+  corps.innerHTML = `${enTest ? `<p class="fk-alerte fk-alerte-attention" data-mode-test>🧪 <b>Mode test</b> : aucun argent réel n'est débité. Utilisez les numéros de test du prestataire.</p>` : ''}
+    <p style="margin:0 0 12px">Montant à payer : <b>${fkPrix(f.prix, f.devise)}</b></p>
+    <div class="fk-moyens-paiement">${moyens.map(([k, nom, desc, ic]) => `<button type="button" class="fk-moyen-paiement" data-prestataire="${k}">
+      <span class="fk-moyen-icone" aria-hidden="true">${ic}</span><span><b>${nom}</b><small>${desc}</small></span></button>`).join('')}</div>
+    <p style="font-size:12px;color:var(--f-muted);margin:12px 0 0">🔒 Paiement sécurisé : KEKELI ne voit jamais votre code Mobile Money ni votre carte. L'accès s'ouvre dès que le paiement est confirmé.</p>
+    <p data-etat class="fk-alerte fk-alerte-info" hidden></p>`;
+  const etat = corps.querySelector('[data-etat]');
+  const dire = (t, type) => { etat.hidden = false; etat.className = `fk-alerte fk-alerte-${type || 'info'}`; etat.textContent = t; };
+  corps.querySelectorAll('[data-prestataire]').forEach(b => b.addEventListener('click', async () => {
+    const prestataire = b.dataset.prestataire;
+    corps.querySelectorAll('[data-prestataire]').forEach(x => { x.disabled = true; });
+    dire('Préparation du paiement…');
+    try {
+      const r = await fkPaiementAppel({ action: 'initier', prestataire, formationId: f.id, retour: fkUrlRetourPaiement(f.id) });
+      if (prestataire === 'fedapay') {
+        dire('Redirection vers la page de paiement FedaPay…');
+        window.location.href = r.url;
+        return;
+      }
+      await fkChargerKkiapay();
+      // Un seul jeu d'écouteurs par page : ils suivent toujours le DERNIER paiement ouvert.
+      _fkKkia.paiementId = r.paiementId; _fkKkia.formationId = f.id; _fkKkia.dire = dire;
+      _fkKkia.reactiver = () => corps.querySelectorAll('[data-prestataire]').forEach(x => { x.disabled = false; });
+      if (!_fkKkia.branche) {
+        _fkKkia.branche = true;
+        window.addSuccessListener && window.addSuccessListener(async rep => {
+          if (_fkKkia.fini) return; _fkKkia.fini = true;
+          const pid = _fkKkia.paiementId, tx = rep && rep.transactionId;
+          _fkKkia.dire('Paiement reçu, vérification en cours…');
+          try { await fkPaiementAppel({ action: 'verifier', paiementId: pid, transactionId: tx }); } catch (_e) { /* la page de retour réessaie */ }
+          window.location.href = `${fkUrlRetourPaiement(_fkKkia.formationId)}&paiement=${pid}${tx ? `&transaction=${encodeURIComponent(tx)}` : ''}`;
+        });
+        window.addFailedListener && window.addFailedListener(() => {
+          if (_fkKkia.fini) return;
+          _fkKkia.dire('Le paiement n\'a pas abouti. Vous pouvez réessayer.', 'erreur');
+          _fkKkia.reactiver();
+        });
+      }
+      window.openKkiapayWidget({
+        amount: r.montant, key: r.cle, sandbox: !!r.sandbox, position: 'center', theme: '#0f7a5a',
+        data: JSON.stringify({ paiementId: r.paiementId }), email: r.email || undefined, name: r.nom || undefined
+      });
+      dire('Terminez le paiement dans la fenêtre KkiaPay.');
+      corps.querySelectorAll('[data-prestataire]').forEach(x => { x.disabled = false; });
+    } catch (e) {
+      dire(e.message, 'erreur');
+      corps.querySelectorAll('[data-prestataire]').forEach(x => { x.disabled = false; });
+    }
+  }));
+}
+
 // ---------- Initialisation commune d'une page ----------
 // 25 septembre 2026 : la plateforme de formation est fermée aux comptes
 // élèves (enfants). Le blocage réel est fait en base (politiques

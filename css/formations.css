@@ -610,3 +610,18 @@ body.fk-plein .fk-bouton-nav-flottant { display: flex; }
 .fk-ia-reponses li.ok { font-weight: 700; color: var(--f-primary-dark); }
 .fk-ia-attendu { margin: 6px 0; font-size: 14px; }
 .fk-ia-explication { display: block; color: var(--f-muted); margin-top: 4px; }
+
+/* ---------- Paiement FedaPay / KkiaPay (26 septembre 2026) ---------- */
+.fk-moyens-paiement { display: grid; gap: 10px; }
+.fk-moyen-paiement { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 14px 16px; border: 2px solid var(--f-border, #dfe6e3); border-radius: 14px; background: #fff; cursor: pointer; font: inherit; }
+.fk-moyen-paiement:hover:not(:disabled), .fk-moyen-paiement:focus-visible { border-color: var(--f-primary); background: var(--f-primary-light); }
+.fk-moyen-paiement:disabled { opacity: .55; cursor: wait; }
+.fk-moyen-paiement small { display: block; color: var(--f-muted); font-size: 13px; margin-top: 2px; }
+.fk-moyen-icone { font-size: 28px; }
+.fk-paiement-resultat { text-align: center; padding: 32px 24px; }
+.fk-paiement-resultat h1 { font-size: 24px; margin: 8px 0 10px; }
+.fk-paiement-resultat .fk-btn { margin: 6px 4px 0; }
+.fk-tableau-revenus { width: 100%; border-collapse: collapse; font-size: 14px; }
+.fk-tableau-revenus th, .fk-tableau-revenus td { padding: 8px 10px; border-bottom: 1px solid var(--f-border, #e5ebe8); text-align: left; }
+.fk-tableau-revenus td.n, .fk-tableau-revenus th.n { text-align: right; white-space: nowrap; }
+.fk-badge-test { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 99px; background: var(--f-warning-bg); color: #6b5200; }

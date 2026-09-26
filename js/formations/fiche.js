@@ -127,8 +127,16 @@
     } else if (f.statut !== 'publiee') {
       zone.innerHTML = `<button class="fk-btn fk-btn-primary fk-btn-bloc" disabled>Inscriptions fermées</button>`;
     } else if (f.prix > 0) {
-      zone.innerHTML = `<button class="fk-btn fk-btn-primary fk-btn-bloc" disabled>💳 Paiement bientôt disponible</button>
-        <p style="font-size:13px;color:var(--f-muted);margin:8px 0 0">Le paiement en ligne (Mobile Money, carte) arrive prochainement sur KEKELI.</p>`;
+      if (!s.profil) {
+        zone.innerHTML = `<a class="fk-btn fk-btn-primary fk-btn-bloc" href="${fkUrlInscription()}">💳 Créer un compte pour acheter</a>
+          <a class="fk-btn fk-btn-ghost fk-btn-bloc" style="margin-top:8px" href="${fkUrlConnexion()}">J'ai déjà un compte</a>`;
+      } else if (s.profil.role === 'eleve') {
+        zone.innerHTML = `<p class="fk-alerte fk-alerte-info">Les formations sont réservées aux comptes adultes.</p>`;
+      } else {
+        zone.innerHTML = `<button class="fk-btn fk-btn-primary fk-btn-bloc" id="btnAcheter">💳 Acheter — ${fkPrix(f.prix, f.devise)}</button>
+          <p style="font-size:13px;color:var(--f-muted);margin:8px 0 0">Mobile Money (MTN, Moov, Wave…) ou carte bancaire. Accès immédiat après paiement.</p>`;
+        document.getElementById('btnAcheter').addEventListener('click', () => fkAcheterFormation(f));
+      }
     } else if (!s.profil) {
       zone.innerHTML = `<a class="fk-btn fk-btn-primary fk-btn-bloc" href="${fkUrlInscription()}">S'inscrire gratuitement</a>
         <a class="fk-btn fk-btn-ghost fk-btn-bloc" style="margin-top:8px" href="${fkUrlConnexion()}">J'ai déjà un compte</a>`;
