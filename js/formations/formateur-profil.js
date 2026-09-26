@@ -63,7 +63,7 @@
   const dessinerCert = () => {
     if (niveau < 2) {
       zoneCert.innerHTML = `<p style="margin-top:0">Ajoutez <b>votre logo</b>, <b>votre signature</b> et <b>votre couleur</b> sur les certificats de vos apprenants.</p>
-        <p class="fk-verrou-txt">🔒 Inclus avec le niveau <b>Formateur Pro</b> (Pack Formateur, Pack Pro) et <b>Premium</b> (Pack Premium).</p>
+        <p class="fk-verrou-txt">🔒 Inclus dans le <b>Pack Formateur</b>, le <b>Pack Pro</b> et le <b>Pack Premium</b>.</p>
         <a class="fk-btn fk-btn-primary fk-btn-petit" href="credits-ia.html#offres">Voir les offres</a>`;
       return;
     }

@@ -45,7 +45,7 @@
         <div class="fk-meta">
           <span>👥 ${f.nb_inscrits} apprenant${f.nb_inscrits > 1 ? 's' : ''}</span>
           <span>📚 ${f.nb_lecons} leçon${f.nb_lecons > 1 ? 's' : ''}</span>
-          <span>⏱️ ${fkDuree(f.duree_minutes)}</span>
+          <span>⏱️ ${fkDureeFormation(f)}${f.duree_valeur && f.duree_minutes ? ` <small>(${fkDuree(f.duree_minutes)} de contenu)</small>` : ''}</span>
           <span>📈 ${FK_NIVEAUX[f.niveau]}</span>
           <span>🌐 ${f.langue === 'fr' ? 'Français' : fkEchapper(f.langue)}</span>
         </div>

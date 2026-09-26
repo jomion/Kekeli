@@ -13,15 +13,17 @@
     return;
   }
 
-  const [{ data: formations }, { data: categories }, { data: revenus }, { data: parPaiement }, { data: comFormateur }, { data: nivFormateur }] = await Promise.all([
+  const [{ data: formations }, { data: categories }, { data: revenus }, { data: parPaiement }, { data: comFormateur }, { data: nivFormateur }, { data: compteIA }] = await Promise.all([
     supabaseClient.from('formations').select('id, slug, titre, statut, prix, devise, nb_lecons, nb_inscrits, note_moyenne, nb_avis, duree_minutes, motif_refus, maj_le, image_couverture, formation_categories(nom, icone)')
       .eq('formateur_id', s.profil.id).order('maj_le', { ascending: false }),
     supabaseClient.from('formation_categories').select('id, nom, parent_id').eq('statut', 'actif').order('position'),
     supabaseClient.rpc('formation_revenus_formateur'),
     supabaseClient.from('formation_parametres_paiement').select('commission_pct').eq('id', 1).maybeSingle(),
     supabaseClient.rpc('formation_commission_formateur', { p_id: s.profil.id }),
-    supabaseClient.rpc('formation_niveau_formateur', { p_id: s.profil.id })
+    supabaseClient.rpc('formation_niveau_formateur', { p_id: s.profil.id }),
+    supabaseClient.rpc('formation_ia_mon_compte')
   ]);
+  const titreFo = fkTitreFormateur(compteIA || { niveau: Number(nivFormateur) || 0 });
   const niveauFo = Number(nivFormateur) || 0;
   const NA = FK_NIVEAUX_AVANTAGES;
   const ventes = (revenus || []).filter(r => Number(r.nb_ventes) || Number(r.nb_ventes_test));
@@ -44,13 +46,12 @@
           <a class="fk-btn fk-btn-ghost" href="profil.html">🪪 Mon profil formateur</a>
           <a class="fk-btn fk-btn-ghost" href="${FK_BASE}formateur.html?slug=${encodeURIComponent(s.formateur.slug)}">👁️ Profil public</a>
           <a class="fk-btn fk-btn-ghost" href="credits-ia.html">🪙 Crédits IA</a>
-          <a class="fk-btn fk-btn-outline" href="generer-ia.html">🤖 Assistance IA</a>
+          <a class="fk-btn fk-btn-outline" href="generer-ia.html">🤖 Génération IA</a>
           <button class="fk-btn fk-btn-primary" id="btnNouvelle">＋ Nouvelle formation</button>
         </div>
       </div>
       <div class="fk-niveau-actuel fk-niveau-${niveauFo}">
-        ${niveauFo ? `<span><b>${NA[niveauFo].icone} ${NA[niveauFo].nom}</b> — commission KEKELI de <b>${String(commission).replace('.', ',')} %</b>${s.formateur.pro_fin ? ` jusqu'au ${fkDate(s.formateur.pro_fin)}` : ''}.</span>`
-          : `<span>Niveau <b>Standard</b> — commission KEKELI de <b>${String(commission).replace('.', ',')} %</b>. Un pack réduit la commission et débloque codes promo, outils IA, badge Pro, statistiques, certificats personnalisés…</span>`}
+        ${`<span><b>${fkEchapper(titreFo.icone)} ${fkEchapper(titreFo.titre)}</b>${compteIA && compteIA.pack_actif ? ` (${fkEchapper(compteIA.pack_actif.nom)})` : !niveauFo ? ' (Pack Gratuit)' : ''} — commission KEKELI de <b>${String(commission).replace('.', ',')} %</b>${compteIA && compteIA.acces_offert ? (compteIA.acces_offert_fin ? ` jusqu'au ${fkDate(compteIA.acces_offert_fin)}` : '') : niveauFo && compteIA && compteIA.avantages_fin ? ` jusqu'au ${fkDate(compteIA.avantages_fin)}` : ''}.${niveauFo ? '' : ' Un pack payant réduit la commission et débloque codes promo, assistance IA, mise en forme avancée, statistiques, certificats personnalisés…'}</span>`}
         <a class="fk-btn fk-btn-ghost fk-btn-petit" href="credits-ia.html#offres">${niveauFo >= 3 ? 'Mes avantages' : '🎁 Voir les avantages'}</a>
       </div>
       <div class="fk-stats">

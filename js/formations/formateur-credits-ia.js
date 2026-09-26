@@ -41,40 +41,38 @@
   const c = compte;
   const N = FK_NIVEAUX_AVANTAGES;
   const com = c.commissions || [15, 13, 12, 10];
+  // Tableau des avantages : une colonne par pack (Pack Gratuit compris).
+  // Chaque ligne : [niveau minimum, icône, libellé, fonction facultative (pack) => cellule].
+  const packs = (c.packs || []).slice().sort((x, y) => (x.prix - y.prix) || (x.position - y.position));
+  const pct = v => `${String(v).replace('.', ',')} %`;
   const AVANTAGES = [
-    [1, '💸', `Commission KEKELI réduite sur vos ventes`, n => {
-      if (!n) return `${String(com[0]).replace('.', ',')} %`;
-      const ks = (c.packs || []).filter(p => p.niveau === n);
-      const vals = [...new Set(ks.map(p => p.commission_pct ?? com[n]))];
-      return vals.length === 1 ? `${String(vals[0]).replace('.', ',')} %` : ks.map(p => `${String(p.commission_pct ?? com[n]).replace('.', ',')} % <small>${e(p.nom.replace(/^Pack /, ''))}</small>`).join('<br>');
-    }],
+    [0, '💸', 'Commission KEKELI sur vos ventes', p => pct(p.prix > 0 ? (p.commission_pct ?? com[p.niveau]) : com[0])],
+    [0, '🎓', 'Vendre vos formations, certificats pour vos apprenants'],
+    [0, '🧠', `Assistance IA pour les quiz (${c.essai_restant ?? 5} questions d'essai offertes, puis crédits)`],
+    [0, '🪙', 'Crédits IA inclus', p => p.credits ? `${p.credits}${p.bonus_credits ? ` <small>+${p.bonus_credits}</small>` : ''}` : '—'],
     [1, '🏷️', 'Codes promo pour vos formations'],
     [1, '✍️', 'Assistance IA : texte de vente + messages WhatsApp / Facebook'],
     [1, '🔤', "Assistance IA : correction de l'orthographe et du style"],
     [1, '📌', 'Assistance IA : résumé automatique des leçons'],
-    [1, '🧩', `Assistance IA : créer une formation module par module (${c.credits_plan} crédits le plan + ${c.credits_module} par module)`],
-    [3, '⚡', `Assistance IA : formation complète générée d'un coup (${c.credits_formation} crédits, moins cher)`, n => {
-      const liste = (c.packs || []).filter(p => p.niveau === n);
-      const avec = liste.filter(x => x.generation_complete);
-      if (!liste.length || !avec.length) return '—';
-      return avec.length === liste.length ? '✅' : `✅ <small>${e(avec.map(x => x.nom).join(', '))}</small>`;
-    }],
+    [1, '🧩', `Assistance IA : formation module par module (${c.credits_plan} crédits le plan + ${c.credits_module} par module)`],
     [1, '🎨', `Assistance IA : images créées par ChatGPT (${c.credits_image ?? 5} crédits par image)`],
-    [2, '🖋️', 'Mise en forme avancée (colonnes, sections repliables, étapes, bouton, lettrine…)'],
-    [2, '✨', 'Badge Pro et mise en avant dans le catalogue'],
+    [9, '⚡', `Assistance IA : formation complète d'un coup (${c.credits_formation} crédits, moins cher)`, p => p.generation_complete ? '✅' : '—'],
+    [2, '🖋️', 'Mise en forme avancée (colonnes, sections repliables, étapes, cartes, dialogue…)'],
+    [2, '✨', 'Badge « Recommandé » et mise en avant dans le catalogue'],
     [2, '📈', 'Statistiques avancées (décrochage, réussite)'],
     [2, '🧭', 'Assistance IA : tests en leçon générés automatiquement'],
     [2, '🎞️', "Assistance IA : diaporama créé à partir d'une leçon"],
     [2, '🎓', 'Certificats personnalisés (logo, signature)'],
     [3, '📣', 'Messages groupés à vos apprenants'],
-    [3, '🔁', 'Crédits non utilisés reportés au mois suivant (sinon perdus après 30 jours)'],
+    [9, '🔁', 'Crédits non utilisés reportés au mois suivant (sinon perdus après 30 jours)', p => p.report_credits ? '✅' : '—'],
     [3, '⚡', 'Validation prioritaire de vos formations']
   ];
   const niveauActuel = Number(c.niveau) || 0;
-  const cellule = (a, n) => a[3] ? `<td class="c">${n || a[0] === 1 ? a[3](n) : '—'}</td>` : `<td class="c">${n >= a[0] ? '✅' : '—'}</td>`;
-  const offresDuNiveau = n => (c.packs || []).filter(p => p.niveau === n).map(p => p.nom);
+  const titre = fkTitreFormateur(c);
+  const packActuelId = c.acces_offert ? null : c.pack_actif ? c.pack_actif.id : (packs.find(p => !(p.prix > 0)) || {}).id;
+  const cellule = (a, p) => `<td class="c${p.id === packActuelId ? ' actuel' : ''}">${a[3] ? a[3](p) : (p.niveau >= a[0] ? '✅' : '—')}</td>`;
   const prixHtml = x => x.prix_lancement ? `<s style="color:var(--f-muted);font-weight:400;font-size:14px">${fcfa(x.prix)}</s> ${fcfa(x.prix_lancement)}<br><small class="fk-lancement">🚀 Prix de lancement — ${x.places_lancement} place(s) restante(s)</small>` : fcfa(x.prix);
-  const avantagesHtml = (niveau, jours) => niveau ? `<div class="fk-offre-niveau">${N[niveau].icone} Avantages <b>${N[niveau].nom}</b>${jours ? ` pendant ${jours} jours` : ''}</div>` : '';
+  const avantagesHtml = p => `<div class="fk-offre-niveau">${e(p.icone || N[p.niveau].icone)} Titre <b>${e(p.titre_formateur || N[p.niveau].nom)}</b>${p.prix > 0 && p.duree_avantages_jours ? ` pendant ${p.duree_avantages_jours} jours` : ''}</div>`;
   const lienParrain = `${new URL('credits-ia.html', window.location.href).toString().split('?')[0]}?parrain=${encodeURIComponent(c.code_parrain || '')}`;
 
   const dispo = c.disponible ?? (c.solde + c.credits_abonnement);
@@ -100,14 +98,15 @@
       <div class="fk-section-head" style="margin-top:10px">
         <div><h1 class="fk-titre-page">🪙 Mes crédits IA</h1>
           <p>L'assistance IA de KEKELI vous aide à créer vos formations, vos quiz et vos images.</p></div>
-        <a class="fk-btn fk-btn-primary" href="generer-ia.html">🤖 Assistance IA pour créer une formation</a>
+        <a class="fk-btn fk-btn-primary" href="generer-ia.html">🤖 Génération IA d'une formation</a>
       </div>
       ${c.actif === false ? '<p class="fk-alerte fk-alerte-attention">La génération par IA est momentanément désactivée par KEKELI.</p>' : ''}
       ${prochain && (new Date(prochain.fin) - Date.now()) < 5 * 864e5 ? `<p class="fk-alerte fk-alerte-attention">⌛ ${prochain.credits} crédit(s) de votre ${e(prochain.pack || 'pack')} ${reporte(prochain) ? 'seront reportés au mois suivant' : 'seront perdus'} le ${fkDate(prochain.fin)}.${reporte(prochain) ? '' : ' Utilisez-les avant, ou rachetez un pack.'}</p>` : ''}
-      <div class="fk-niveau-actuel fk-niveau-${niveauActuel}">
-        ${niveauActuel ? `<b>${N[niveauActuel].icone} Vous êtes ${N[niveauActuel].nom}</b> jusqu'au ${fkDate(c.avantages_fin)} — commission KEKELI de ${String(c.commission_actuelle ?? com[niveauActuel]).replace('.', ',')} % sur vos ventes.${c.generation_complete_fin ? ` ⚡ Génération complète jusqu'au ${fkDate(c.generation_complete_fin)}.` : ''}`
-          : `Vous êtes au niveau <b>Standard</b> (commission ${String(com[0]).replace('.', ',')} %). Un pack débloque des avantages pour vendre plus et gagner plus.`}
-      </div>
+      <div class="fk-niveau-actuel fk-niveau-${c.acces_offert ? 3 : niveauActuel}"><span>
+        ${c.acces_offert ? `<b>🎁 Accès complet offert par KEKELI</b>${c.acces_offert_fin ? ` jusqu'au ${fkDate(c.acces_offert_fin)}` : ''} — toutes les fonctionnalités, sans paiement ; commission KEKELI de ${pct(c.commission_actuelle ?? com[3])} sur vos ventes.`
+          : niveauActuel ? `<b>${e(titre.icone)} Vous êtes ${e(titre.titre)}</b>${c.pack_actif ? ` (${e(c.pack_actif.nom)})` : ''} jusqu'au ${fkDate(c.avantages_fin)} — commission KEKELI de ${pct(c.commission_actuelle ?? com[niveauActuel])} sur vos ventes.${c.generation_complete_fin ? ` ⚡ Génération complète jusqu'au ${fkDate(c.generation_complete_fin)}.` : ''}`
+          : `<b>${e(titre.icone)} Vous êtes ${e(titre.titre)}</b> (Pack Gratuit) — commission KEKELI de ${pct(c.commission_actuelle ?? com[0])}. Un pack payant débloque des avantages pour vendre plus et gagner plus.`}
+      </span></div>
       <div class="fk-stats">
         <div class="fk-stat"><small>Crédits disponibles</small><strong>${dispo}</strong></div>
         <div class="fk-stat"><small>Questions d'essai offertes</small><strong>${c.essai_restant}</strong></div>
@@ -127,17 +126,22 @@
       <section class="fk-carte" style="margin-top:18px" id="offres">
         <h2>🎁 Les avantages inclus</h2>
         <div class="fk-table-wrap"><table class="fk-tableau-avantages">
-          <thead><tr><th></th>${[0, 1, 2, 3].map(n => `<th class="c${n === niveauActuel ? ' actuel' : ''}">${n ? `${N[n].icone} ${N[n].nom}` : 'Standard'}<br><small>${n ? e(offresDuNiveau(n).join(' · ') || '—') : 'gratuit'}</small></th>`).join('')}</tr></thead>
-          <tbody>${AVANTAGES.map(a => `<tr><td>${a[1]} ${e(a[2])}</td>${[0, 1, 2, 3].map(n => cellule(a, n)).join('')}</tr>`).join('')}</tbody>
+          <thead><tr><th></th>${packs.map(p => `<th class="c${p.id === packActuelId ? ' actuel' : ''}">${e(p.nom)}<br><small>${e(p.icone || '')} ${e(p.titre_formateur || N[p.niveau].nom)}</small><br><small>${p.prix > 0 ? fcfa(p.prix_lancement || p.prix) : 'gratuit'}</small></th>`).join('')}</tr></thead>
+          <tbody>${AVANTAGES.map(a => `<tr><td>${a[1]} ${e(a[2])}</td>${packs.map(p => cellule(a, p)).join('')}</tr>`).join('')}</tbody>
         </table></div>
         <p style="font-size:13px;color:var(--f-muted);margin-bottom:0">Les avantages commencent dès le paiement confirmé et durent 30 jours. Racheter un pack de même niveau prolonge la durée ; un pack de niveau inférieur ne vous fait jamais redescendre.</p>
       </section>
 
       <section class="fk-carte" style="margin-top:18px">
         <h2>🛒 Les packs</h2>
-        ${(c.packs || []).length ? `<div class="fk-offres-ia">${c.packs.map(p => `<div class="fk-offre-ia">
+        ${packs.length ? `<div class="fk-offres-ia">${packs.map(p => !(p.prix > 0) ? `<div class="fk-offre-ia fk-offre-gratuite">
+            <h3>${e(p.nom)}</h3><div class="fk-offre-credits">0 FCFA</div><div class="fk-offre-prix">Pour tous les formateurs</div>
+            ${avantagesHtml(p)}
+            <div class="fk-offre-niveau">🎓 Vendre vos formations · 🧠 ${c.essai_restant ?? 5} questions de quiz IA offertes</div>
+            <small>Commission KEKELI : ${pct(com[0])}. Rechargez des crédits avec un pack payant quand vous voulez.</small>
+            <button class="fk-btn fk-btn-ghost fk-btn-bloc" disabled>${packActuelId === p.id ? '✔ Votre pack actuel' : 'Inclus'}</button></div>` : `<div class="fk-offre-ia">
             <h3>${e(p.nom)}</h3><div class="fk-offre-credits">${p.credits} crédits${p.bonus_credits ? ` <span class="fk-bonus">+${p.bonus_credits} offerts</span>` : ''}</div><div class="fk-offre-prix">${prixHtml(p)}</div>
-            ${avantagesHtml(p.niveau, p.duree_avantages_jours)}
+            ${avantagesHtml(p)}
             ${p.generation_complete ? '<div class="fk-offre-niveau">⚡ Génération complète d\'une formation incluse</div>' : '<div class="fk-offre-niveau">🧩 Génération module par module</div>'}
             <div class="fk-offre-niveau">${p.report_credits ? '🔁 Crédits restants reportés au mois suivant' : `⌛ Crédits valables ${p.duree_avantages_jours || 30} jours`}</div>
             <small>≈ ${Math.floor((p.credits + (p.bonus_credits || 0)) / Math.max(1, c.credits_module))} modules rédigés, ${Math.floor((p.credits + (p.bonus_credits || 0)) / Math.max(1, c.credits_image || 5))} images ou ${Math.floor(p.credits / Math.max(1, c.credits_par_question))} questions</small>
@@ -164,7 +168,7 @@
   main.querySelectorAll('[data-pack]').forEach(b => b.addEventListener('click', () => {
     const p = c.packs.find(x => x.id === Number(b.dataset.pack));
     fkPayer({ titre: `Acheter « ${p.nom} »`, montant: fcfa(p.prix_lancement || p.prix),
-      note: `${p.credits + (p.bonus_credits || 0)} crédits IA valables ${p.duree_avantages_jours || 30} jours${p.report_credits ? ' (crédits restants reportés au mois suivant)' : ''}${p.niveau ? ` + avantages ${N[p.niveau].nom} pendant ${p.duree_avantages_jours} jours` : ''}${p.generation_complete ? ' + génération complète de formations' : ''}.`,
+      note: `${p.credits + (p.bonus_credits || 0)} crédits IA valables ${p.duree_avantages_jours || 30} jours${p.report_credits ? ' (crédits restants reportés au mois suivant)' : ''}${p.niveau ? ` + titre ${p.titre_formateur || N[p.niveau].nom} et ses avantages pendant ${p.duree_avantages_jours} jours` : ''}${p.generation_complete ? ' + génération complète de formations' : ''}.`,
       corps: { objet: 'ia_pack', produitId: p.id } });
   }));
   const btnCopier = main.querySelector('[data-copier-parrain]');

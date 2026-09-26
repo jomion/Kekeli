@@ -41,14 +41,9 @@ const FKL = { s: null, f: null, inscription: null, modules: [], lecons: [], quiz
   FKL.cal = cal.data || null;
   if (FKL.cal) {
     const vues = new Set(FKL.lecons.map(l => l.id));
-    (FKL.cal.lecons || []).forEach(c => {
-      if (!vues.has(c.id)) FKL.lecons.push({ ...c, verrou: true });
-      else if (!c.ouverte) FKL.lecons.find(l => l.id === c.id).verrou = true;
-    });
-    FKL.lecons.forEach(l => { const c = (FKL.cal.lecons || []).find(x => x.id === l.id); if (c) l.ouvre_le = c.ouvre_le; });
+    (FKL.cal.lecons || []).forEach(c => { if (!vues.has(c.id)) FKL.lecons.push({ ...c }); });
     FKL.lecons.sort((a, b) => (a.position - b.position) || (a.id - b.id));
-    FKL.quiz.forEach(q => { const c = (FKL.cal.quiz || []).find(x => x.id === q.id); if (c && !c.ouvert) { q.verrou = true; q.ouvre_le = c.ouvre_le; } });
-    FKL.modules.forEach(m => { const c = (FKL.cal.modules || []).find(x => x.id === m.id); if (c) m.ouvre_le = c.ouvre_le; });
+    appliquerCalendrier(FKL.cal);
   }
   FKL.ressources = res.data || [];
   (prog.data || []).filter(p => p.terminee).forEach(p => FKL.faites.add(p.lecon_id));
@@ -150,12 +145,39 @@ function rendreSommaire(actif) {
     document.getElementById('lecteur').classList.remove('nav-ouverte');
   }));
 }
+// Calendrier (calendrier_formation) : ouverture progressive, progression
+// imposée (« infinity » = attend la fin de l'élément précédent) et
+// désactivation temporaire par le formateur (27 septembre 2026).
+function appliquerCalendrier(cal) {
+  const lire = (obj, c, ouvert) => {
+    obj.desactivee = !!c.desactivee;
+    obj.attente_precedente = c.ouvre_le === 'infinity';
+    obj.ouvre_le = c.ouvre_le === 'infinity' ? null : c.ouvre_le;
+    obj.verrou_progression = !!c.verrou_progression;
+    obj.delai_apres_precedente = c.delai_apres_precedente;
+    obj.verrou = !ouvert;
+  };
+  FKL.modules.forEach(m => { const c = (cal.modules || []).find(x => x.id === m.id); if (c) { m.desactivee = !!c.desactivee; m.ouvre_le = c.ouvre_le === 'infinity' ? null : c.ouvre_le; m.attente_precedente = c.ouvre_le === 'infinity'; } });
+  FKL.lecons.forEach(l => { const c = (cal.lecons || []).find(x => x.id === l.id); if (c) lire(l, c, c.ouverte); });
+  FKL.quiz.forEach(q => {
+    const c = (cal.quiz || []).find(x => x.id === q.id);
+    if (!c) return;
+    const m = FKL.modules.find(x => x.id === q.module_id);
+    q.verrou = !c.ouvert; q.ouvre_le = c.ouvre_le === 'infinity' ? null : c.ouvre_le;
+    q.attente_precedente = c.ouvre_le === 'infinity'; q.desactivee = !!(m && m.desactivee);
+  });
+}
+async function rafraichirCalendrier() {
+  const { data } = await supabaseClient.rpc('calendrier_formation', { p_formation_id: FKL.f.id });
+  if (data) { FKL.cal = data; appliquerCalendrier(data); }
+}
+
 function boutonItem(it, actif) {
   const estActif = actif && actif.type === it.type && actif.id === it.id;
-  const icone = it.obj.verrou ? '🔒' : estFait(it) ? '✅' : it.type === 'quiz' ? '📝' : ({ video: '🎬', audio: '🎧', document: '📄' }[it.obj.type_contenu] || '📖');
+  const icone = it.obj.desactivee && it.obj.verrou ? '🛠️' : it.obj.verrou ? '🔒' : estFait(it) ? '✅' : it.type === 'quiz' ? '📝' : ({ video: '🎬', audio: '🎧', document: '📄' }[it.obj.type_contenu] || '📖');
   return `<button class="fk-lecteur-item ${estActif ? 'actif' : ''} ${it.obj.verrou ? 'verrou' : ''}" data-item="${it.type}:${it.id}" ${estActif ? 'aria-current="true"' : ''}>
     <span class="fk-etat" aria-hidden="true">${icone}</span>
-    <span>${it.type === 'quiz' ? 'Quiz : ' : ''}${fkEchapper(it.obj.titre)}<small>${it.type === 'lecon' ? fkDuree(it.obj.duree_minutes) + (it.obj.est_obligatoire ? '' : ' · facultative') : `Réussite : ${it.obj.note_passage} %`}${estFait(it) ? ' · terminé' : ''}${it.obj.verrou && it.obj.ouvre_le ? ` · 🔒 ${new Date(it.obj.ouvre_le).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}` : ''}</small></span>
+    <span>${it.type === 'quiz' ? 'Quiz : ' : ''}${fkEchapper(it.obj.titre)}<small>${it.type === 'lecon' ? fkDuree(it.obj.duree_minutes) + (it.obj.est_obligatoire ? '' : ' · facultative') : `Réussite : ${it.obj.note_passage} %`}${estFait(it) ? ' · terminé' : ''}${it.obj.verrou ? (it.obj.desactivee ? ' · en mise à jour' : it.obj.attente_precedente ? ' · après la précédente' : it.obj.ouvre_le ? ` · 🔒 ${new Date(it.obj.ouvre_le).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}` : '') : ''}</small></span>
   </button>`;
 }
 
@@ -186,6 +208,11 @@ async function ouvrir(item) {
   const zone = document.getElementById('zoneLecon');
   zone.innerHTML = '<div class="fk-chargement">Chargement…</div>';
   zone.classList.remove('fk-contenu-page');
+  if (!item.obj.verrou && item.type === 'lecon' && item.obj.contenu === undefined && !FKL.apercu) {
+    // Leçon ouverte depuis le chargement de la page (progression) : on lit son contenu.
+    const { data: ligne } = await supabaseClient.from('formation_lecons').select('*').eq('id', item.id).maybeSingle();
+    if (ligne) Object.assign(item.obj, ligne); else item.obj.verrou = true;
+  }
   if (item.obj.verrou) afficherVerrou(item);
   else if (item.type === 'lecon') await afficherLecon(item); else await afficherQuiz(item);
   zone.focus({ preventScroll: true });
@@ -207,6 +234,15 @@ function brancherNavigation(zone) {
   }));
 }
 
+// « la leçon précédente « X » » : dernier élément non terminé avant celui-ci.
+function precedentLibelle(item) {
+  const i = FKL.items.findIndex(x => x.type === item.type && x.id === item.id);
+  for (let k = i - 1; k >= 0; k--) {
+    const it = FKL.items[k];
+    if (!it.obj.desactivee && !estFait(it)) return `${it.type === 'quiz' ? 'le quiz' : 'la leçon'} « ${fkEchapper(it.obj.titre)} »`;
+  }
+  return 'la leçon précédente';
+}
 // Élément pas encore ouvert (ouverture progressive) : date et compte à rebours.
 function afficherVerrou(item) {
   const zone = document.getElementById('zoneLecon');
@@ -214,11 +250,16 @@ function afficherVerrou(item) {
   zone.innerHTML = `
     <button class="fk-btn fk-btn-ghost fk-btn-petit fk-lecteur-bascule" id="btnSommaire">☰ Sommaire</button>
     <div class="fk-carte fk-vide fk-verrou-page">
-      <span class="fk-vide-icone">🔒</span>
+      <span class="fk-vide-icone">${item.obj.desactivee ? '🛠️' : '🔒'}</span>
       <h1 style="font-size:24px">${fkEchapper(item.obj.titre)}</h1>
-      <p style="font-size:17px">${item.type === 'quiz' ? 'Ce quiz' : 'Cette leçon'} s'ouvrira <b>${o ? fkQuandOuverture(o.toISOString()) : 'bientôt'}</b>.</p>
-      <p class="fk-compte-rebours" id="compteRebours" aria-live="polite"></p>
-      <p style="color:var(--f-muted);max-width:520px;margin:10px auto 0">Votre formateur a prévu une progression régulière : prenez le temps de bien assimiler ce qui est déjà ouvert, puis revenez à la date indiquée.</p>
+      ${item.obj.desactivee ? `<p style="font-size:17px">${item.type === 'quiz' ? 'Ce quiz est' : 'Cette leçon est'} <b>en cours de mise à jour</b> par votre formateur.</p>
+        <p style="color:var(--f-muted);max-width:520px;margin:10px auto 0">Elle sera de nouveau disponible très bientôt. Elle ne compte pas dans votre progression en attendant.</p>`
+      : item.obj.attente_precedente ? `<p style="font-size:17px">Terminez d'abord ${precedentLibelle(item)} pour ouvrir ${item.type === 'quiz' ? 'ce quiz' : 'cette leçon'}.</p>
+        ${item.obj.delai_apres_precedente ? `<p style="color:var(--f-muted)">Elle s'ouvrira ensuite le ${item.obj.delai_apres_precedente === 1 ? 'lendemain' : `${item.obj.delai_apres_precedente}e jour`}, à minuit.</p>` : ''}
+        <p style="color:var(--f-muted);max-width:520px;margin:10px auto 0">Votre formateur a choisi une progression dans l'ordre, étape par étape.</p>`
+      : `<p style="font-size:17px">${item.type === 'quiz' ? 'Ce quiz' : 'Cette leçon'} s'ouvrira <b>${o ? fkQuandOuverture(o.toISOString()) : 'bientôt'}</b>.</p>
+        <p class="fk-compte-rebours" id="compteRebours" aria-live="polite"></p>
+        <p style="color:var(--f-muted);max-width:520px;margin:10px auto 0">Votre formateur a prévu une progression régulière : prenez le temps de bien assimiler ce qui est déjà ouvert, puis revenez à la date indiquée.</p>`}
     </div>
     ${navigation(item)}`;
   zone.querySelector('#btnSommaire').addEventListener('click', () => document.getElementById('lecteur').classList.toggle('nav-ouverte'));
@@ -278,6 +319,7 @@ async function afficherLecon(item) {
     if (error) { fkToast(fkMessageErreur(error), 'erreur'); return; }
     if (nouveau) FKL.faites.add(l.id); else FKL.faites.delete(l.id);
     majProgression(data);
+    await rafraichirCalendrier(); // la leçon suivante peut s'ouvrir (progression imposée)
     const i = FKL.items.findIndex(x => x.type === 'lecon' && x.id === l.id);
     if (nouveau && FKL.items[i + 1]) ouvrir(FKL.items[i + 1]); else ouvrir(item);
   });
@@ -450,7 +492,7 @@ function passerQuiz(item, data, t) {
     form.querySelector('button[type=submit]').disabled = true;
     const { data: r, error } = await supabaseClient.rpc('soumettre_quiz', { p_tentative_id: t.tentative_id, p_reponses: reponses });
     if (error) { fkToast(fkMessageErreur(error), 'erreur'); form.querySelector('button[type=submit]').disabled = false; return; }
-    if (r.reussi) FKL.reussis.add(item.id);
+    if (r.reussi) { FKL.reussis.add(item.id); rafraichirCalendrier(); }
     if (!FKL.apercu) {
       const { data: ins } = await supabaseClient.from('formation_inscriptions').select('progression').eq('id', FKL.inscription.id).maybeSingle();
       if (ins) majProgression(ins.progression);

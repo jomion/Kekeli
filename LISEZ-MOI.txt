@@ -1526,3 +1526,43 @@ COMMISSION PAR PACK, IMAGES PAR L'IA, MISE EN FORME AVANCÉE, « ASSISTANCE IA �
 4. Les boutons IA s'appellent maintenant « Assistance IA ».
 En ligne (déjà fait) : migration formation_commission_par_pack_et_images_ia,
 nouvelle fonction serveur formation-ia-image.
+
+======================================================================
+PROGRESSION, DÉSACTIVATION, DURÉE, PACK GRATUIT, ACCÈS OFFERT (27 septembre 2026)
+======================================================================
+1. Libellés : textes et titres affichés = « Assistance IA » ; boutons =
+   « Génération IA » (ex. « 🤖 Génération IA d'une formation »,
+   « 🎨 Génération IA d'image », « 🧠 Génération IA des questions »).
+2. Admin → Formations → 🤖 IA → « 🎁 Comptes à accès complet offert » :
+   e-mail (ou identifiant) du compte, date de fin facultative, motif.
+   Le compte a toutes les fonctionnalités sans aucun paiement (IA sans
+   crédits, génération complète, mise en forme avancée, statistiques,
+   messages groupés, badge Premium, commission Premium). « Retirer » l'enlève.
+3. Progression imposée (formateur → Programme) :
+   - interrupteur « 🔒 Progression imposée » : chaque leçon s'ouvre quand
+     la précédente est terminée ;
+   - dans chaque leçon / module : « Libre », « Verrouillé jusqu'à la fin du
+     précédent », « Le lendemain », « Le 2e jour », « Le 3e jour »,
+     « Une semaine » après la fin du précédent ;
+   - « 🛠️ Désactiver temporairement » : la leçon (ou tout le module) est
+     « en cours de mise à jour » pour les apprenants et ne compte pas dans
+     leur progression.
+4. Durée de la formation (onglet Infos) : ex. « 4 semaines », affichée sur
+   la fiche et les cartes (sinon, durée totale des leçons).
+5. Packs : Pack Gratuit ajouté (0 FCFA, présenté mais pas achetable) et un
+   titre de formateur par pack : 🌱 Formateur Débutant (Gratuit),
+   ⭐ Formateur Initié (Découverte), 🎯 Formateur Confirmé (Formateur),
+   ✨ Formateur Pro (Pro), 👑 Formateur Premium (Premium). Tableau des
+   avantages : une colonne par pack. Titres et icônes modifiables dans
+   l'admin (colonne « Titre du formateur »).
+6. Mise en forme avancée (Pack Formateur, Pro, Premium) : bouton
+   « ✨ Mise en forme avancée » plus visible dans l'éditeur + nouveaux
+   éléments : titre à bandeau, trois cartes à icône, liste à cocher, frise
+   chronologique, dialogue en bulles, tableau comparatif, étiquette.
+7. Éditeur : « ✕ Fermer » et « 💾 Enregistrer » toujours visibles en haut
+   des fenêtres d'édition (leçon, quiz…) et de l'onglet Infos.
+8. Petits écrans : les tableaux deviennent des cartes lisibles (espace
+   formateur, crédits, apprenant, admin) ; liste des modules / leçons et
+   onglets réorganisés.
+En ligne (déjà fait) : migrations formation_progression_imposee_desactivation_duree
+et formation_acces_offert_titres_packs_gratuit.

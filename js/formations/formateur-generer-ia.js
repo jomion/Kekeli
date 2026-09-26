@@ -49,7 +49,7 @@
         </div>
         <label class="fk-champ"><span>Consignes pour l'IA (facultatif)</span><textarea name="consignes" maxlength="1500" style="min-height:80px" placeholder="Ex. ton motivant, exemples au Bénin et au Togo, montants en FCFA, une étude de cas par module…"></textarea></label>
         <fieldset class="fk-modes-gen" data-modes><legend>Comment générer ?</legend><div class="fk-chargement">…</div></fieldset>
-        <div class="fk-actions-form"><a class="fk-btn fk-btn-ghost" href="credits-ia.html">🪙 Mes crédits IA</a><button class="fk-btn fk-btn-primary" type="submit">🤖 Lancer l'assistance IA</button></div>
+        <div class="fk-actions-form"><a class="fk-btn fk-btn-ghost" href="credits-ia.html">🪙 Mes crédits IA</a><button class="fk-btn fk-btn-primary" type="submit">🤖 Lancer la génération IA</button></div>
       </form>
       <div id="suivi"></div>
     </div></div>`;
@@ -91,7 +91,8 @@
 
   try {
     est = await appel({ action: 'estimer' });
-    if (est.gratuit) zoneSolde.innerHTML = '🛠️ Compte gestionnaire KEKELI : génération non facturée, tous les modes disponibles.';
+    if (est.offert && !est.gratuit) { est.gratuit = true; zoneSolde.innerHTML = '🎁 Accès complet offert par KEKELI : génération non facturée, tous les modes disponibles.'; }
+    else if (est.gratuit) zoneSolde.innerHTML = '🛠️ Compte gestionnaire KEKELI : génération non facturée, tous les modes disponibles.';
     else zoneSolde.innerHTML = `🪙 Crédits disponibles : <b>${est.disponible}</b> <a class="fk-link" href="credits-ia.html">Recharger</a>`;
     if (est.configure === false) zoneSolde.innerHTML += '<br><span style="color:var(--f-danger)">⚠️ L\'IA n\'est pas encore configurée sur KEKELI.</span>';
     dessinerModes();
@@ -134,9 +135,10 @@
       plan = await appel({ action: 'plan', mode, sujet: fd.get('sujet'), public: fd.get('public'), niveau: fd.get('niveau'), nbModules: nbM, leconsParModule: nbL, consignes: fd.get('consignes') });
     } catch (err) {
       suivi.innerHTML = `<p class="fk-alerte fk-alerte-erreur" style="margin-top:14px">${e(err.message)}${/crédit/i.test(err.message) || err.code === 'NIVEAU' ? ' <a class="fk-link" href="credits-ia.html#offres">🪙 Voir les offres</a>' : ''}</p>`;
-      btnGen.disabled = false; btnGen.textContent = '🤖 Lancer l\'assistance IA';
+      btnGen.disabled = false; btnGen.textContent = '🤖 Lancer la génération IA';
       return;
     }
+    if (est && est.gratuit) plan.coutModule = 0;
     form.hidden = true;
     document.getElementById('reprendre').hidden = true;
     afficherSuivi(plan);

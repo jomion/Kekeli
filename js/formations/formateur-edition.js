@@ -91,6 +91,7 @@ function ongletInfos() {
   const zone = document.getElementById('zoneOnglet');
   zone.innerHTML = `
     <form class="fk-carte" id="formInfos">
+      <div class="fk-barre-collante"><span class="fk-barre-titre">ℹ️ Informations de la formation</span><button class="fk-btn fk-btn-primary fk-btn-petit" type="submit" data-edition>💾 Enregistrer</button></div>
       <div class="fk-grille-2">
         <div>
           <label class="fk-champ"><span>Titre *</span><input type="text" name="titre" required minlength="5" maxlength="120" value="${fkEchapper(f.titre)}"></label>
@@ -101,6 +102,11 @@ function ongletInfos() {
             <label class="fk-champ"><span>Langue</span><select name="langue">${[['fr', 'Français'], ['en', 'Anglais'], ['fon', 'Fon'], ['yo', 'Yoruba']].map(([k, v]) => `<option value="${k}" ${k === f.langue ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
           </div>
           <div class="fk-grille-2">
+            <label class="fk-champ"><span>Durée de la formation</span><input type="number" name="duree_valeur" min="1" max="1000" value="${f.duree_valeur ?? ''}" placeholder="Ex. 4"></label>
+            <label class="fk-champ"><span>Unité</span><select name="duree_unite">${[['', '— (calculée d\'après les leçons)'], ['heures', 'heures'], ['jours', 'jours'], ['semaines', 'semaines'], ['mois', 'mois']].map(([k, v]) => `<option value="${k}" ${(f.duree_unite || '') === k ? 'selected' : ''}>${v}</option>`).join('')}</select>
+              <small>Affichée sur la fiche, ex. « 4 semaines ». Vide : ${fkDuree(f.duree_minutes)} (total des leçons).</small></label>
+          </div>
+          <div class="fk-grille-2">
             <label class="fk-champ"><span>Prix (FCFA)</span><input type="number" name="prix" min="0" step="100" value="${f.prix}"><small>0 = gratuite. Paiement en ligne par Mobile Money ou carte (FedaPay / KkiaPay).</small></label>
             <label class="fk-champ"><span>Visibilité</span><select name="visibilite"><option value="publique" ${f.visibilite === 'publique' ? 'selected' : ''}>Publique (catalogue)</option><option value="non_listee" ${f.visibilite === 'non_listee' ? 'selected' : ''}>Non listée (lien direct)</option></select></label>
           </div>
@@ -109,7 +115,7 @@ function ongletInfos() {
           <span style="display:block;font-weight:700;font-size:14px;margin-bottom:6px">Image de couverture</span>
           <div class="fk-cover ${fkStyleCouverture(f).classe}" id="apercuCouverture" style="border-radius:14px;${fkStyleCouverture(f).style}"></div>
           <label class="fk-btn fk-btn-outline fk-btn-petit" style="margin-top:10px;cursor:pointer">📷 Choisir une image<input type="file" id="fichierCouverture" accept="image/png,image/jpeg,image/webp" hidden data-edition></label>
-          <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" style="margin-top:10px" data-couverture-ia data-edition>🎨 Assistance IA</button>
+          <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" style="margin-top:10px" data-couverture-ia data-edition>🎨 Génération IA</button>
           <small style="display:block;color:var(--f-muted);margin-top:6px">Format paysage conseillé (1280×720), 5 Mo max.</small>
           <label class="fk-champ" style="margin-top:14px"><span>Vidéo de présentation</span><input type="url" name="video_promo" placeholder="Lien YouTube ou Vimeo" value="${fkEchapper(f.video_promo || '')}"></label>
         </div>
@@ -140,7 +146,9 @@ function ongletInfos() {
     const { error } = await supabaseClient.from('formations').update({
       titre: fd.get('titre').trim(), sous_titre: fd.get('sous_titre').trim() || null,
       categorie_id: fd.get('categorie_id') ? Number(fd.get('categorie_id')) : null, niveau: fd.get('niveau'), langue: fd.get('langue'),
-      prix, visibilite: fd.get('visibilite'), video_promo: video || null, description: ed.lireHtml() || null
+      prix, visibilite: fd.get('visibilite'), video_promo: video || null, description: ed.lireHtml() || null,
+      duree_valeur: fd.get('duree_unite') && Number(fd.get('duree_valeur')) > 0 ? Math.min(1000, Math.round(Number(fd.get('duree_valeur')))) : null,
+      duree_unite: fd.get('duree_unite') && Number(fd.get('duree_valeur')) > 0 ? fd.get('duree_unite') : null
     }).eq('id', f.id);
     if (error) { fkToast(fkMessageErreur(error), 'erreur'); return; }
     fkToast('Informations enregistrées.', 'succes');
@@ -170,11 +178,12 @@ function ongletProgramme() {
   const zone = document.getElementById('zoneOnglet');
   zone.innerHTML = `
     <div class="fk-section-head" style="margin-bottom:14px"><div><h2 style="font-size:20px">Modules et leçons</h2><p>Organisez votre formation en modules, puis ajoutez des leçons dans chaque module.</p></div>
-      <span style="display:flex;gap:8px;flex-wrap:wrap"><button class="fk-btn fk-btn-outline" id="btnRythme" data-edition title="Ouvrir les modules progressivement (ex. un module par jour)">📅 Rythme d'ouverture</button>
+      <span style="display:flex;gap:8px;flex-wrap:wrap;flex:none"><label class="fk-interrupteur" title="Chaque leçon s'ouvre seulement quand la précédente est terminée"><input type="checkbox" id="chkProgression" ${FKE.f.progression_imposee ? 'checked' : ''} data-edition> 🔒 Progression imposée</label>
+      <button class="fk-btn fk-btn-outline" id="btnRythme" data-edition title="Ouvrir les modules progressivement (ex. un module par jour)">📅 Rythme d'ouverture</button>
       <button class="fk-btn fk-btn-primary" id="btnModule" data-edition>＋ Ajouter un module</button></span></div>
     ${FKE.modules.length ? FKE.modules.map((m, i) => {
       const lecons = FKE.lecons.filter(l => l.module_id === m.id);
-      return `<div class="fk-module">
+      return `<div class="fk-module ${m.desactivee ? 'fk-desactive' : ''}">
         <div class="fk-module-tete"><span>Module ${i + 1} — ${fkEchapper(m.titre)} ${fkPastilleOuverture(m)}</span>
           <span class="fk-outils" style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="fk-btn fk-btn-ghost fk-btn-petit" data-monter-module="${m.id}" ${i === 0 ? 'disabled' : ''} aria-label="Monter le module" data-edition>↑</button>
@@ -182,7 +191,7 @@ function ongletProgramme() {
             <button class="fk-btn fk-btn-ghost fk-btn-petit" data-editer-module="${m.id}" data-edition>✏️</button>
             <button class="fk-btn fk-btn-ghost fk-btn-petit" data-supprimer-module="${m.id}" aria-label="Supprimer le module" data-edition>🗑️</button>
           </span></div>
-        ${lecons.map((l, j) => `<div class="fk-lecon-ligne">
+        ${lecons.map((l, j) => `<div class="fk-lecon-ligne ${l.desactivee ? 'fk-desactive' : ''}">
           <span class="fk-lecon-titre"><span aria-hidden="true">${iconeLecon(l.type_contenu)}</span><span>${fkEchapper(l.titre)}</span>
             ${l.est_apercu ? '<span class="fk-pastille publiee">Aperçu gratuit</span>' : ''}${!l.est_obligatoire ? '<span class="fk-pastille">Facultative</span>' : ''}${fkPastilleOuverture(l)}</span>
           <span class="fk-outils"><small>${fkDuree(l.duree_minutes)}</small>
@@ -197,6 +206,13 @@ function ongletProgramme() {
 
   zone.querySelector('#btnModule').addEventListener('click', () => modaleModule(null));
   zone.querySelector('#btnRythme').addEventListener('click', modaleRythme);
+  zone.querySelector('#chkProgression').addEventListener('change', async e => {
+    const val = e.target.checked;
+    const { error } = await supabaseClient.from('formations').update({ progression_imposee: val }).eq('id', FKE.f.id);
+    if (error) { e.target.checked = !val; fkToast(fkMessageErreur(error), 'erreur'); return; }
+    FKE.f.progression_imposee = val;
+    fkToast(val ? 'Progression imposée : chaque leçon s\'ouvrira quand la précédente sera terminée.' : 'Progression libre : les leçons ne dépendent plus les unes des autres (sauf réglage leçon par leçon).', 'succes');
+  });
   zone.querySelectorAll('[data-editer-module]').forEach(b => b.addEventListener('click', () => modaleModule(FKE.modules.find(m => m.id === Number(b.dataset.editerModule)))));
   zone.querySelectorAll('[data-supprimer-module]').forEach(b => b.addEventListener('click', async () => {
     const m = FKE.modules.find(x => x.id === Number(b.dataset.supprimerModule));
@@ -387,7 +403,7 @@ function modaleLecon(l, moduleId) {
             ${fkBoutonOutil(FKE.niveau, 1, 'data-outil="resume"', '📌 Ajouter un résumé')}
             ${fkBoutonOutil(FKE.niveau, 2, 'data-outil="tests"', '🧭 Créer des tests')}
             ${fkBoutonOutil(FKE.niveau, 2, 'data-outil="diaporama"', '🎞️ Créer un diaporama')}
-            <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-image-ia-lecon>🎨 Image (assistance IA)</button>
+            <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-image-ia-lecon>🎨 Génération IA d'image</button>
           </div>
           <div id="editeurLecon"></div></div>
         <div data-bloc-page hidden>
@@ -678,7 +694,7 @@ async function modaleQuestions(q) {
         ${resumeQuestionHtml(x)}
       </div>`).join('') : '<p class="fk-vide">Aucune question.</p>'}</div>
     <div class="fk-actions-form"><button class="fk-btn fk-btn-ghost" data-fermer>Fermer</button>
-      <button class="fk-btn fk-btn-outline" id="btnIAQ" ${FKE.verrouille ? 'disabled' : ''}>🧠 Assistance IA pour les questions</button>
+      <button class="fk-btn fk-btn-outline" id="btnIAQ" ${FKE.verrouille ? 'disabled' : ''}>🧠 Génération IA des questions</button>
       <button class="fk-btn fk-btn-primary" id="btnAjoutQ" ${FKE.verrouille ? 'disabled' : ''}>＋ Ajouter une question</button></div>`);
   md.boite.style.width = 'min(820px, 100%)';
   md.boite.querySelector('#btnIAQ').addEventListener('click', () => { md.fermer(); modaleQuizIA(q, liste.length); });
@@ -730,6 +746,7 @@ function modaleQuizIA(q, nbExistantes) {
   const majSolde = () => {
     if (FKE.s.estGestionnaire) { zoneSolde.innerHTML = '🛠️ Compte gestionnaire KEKELI : génération non facturée.'; return; }
     if (!compteIA) return;
+    if (compteIA.acces_offert) { zoneSolde.innerHTML = '🎁 Accès complet offert par KEKELI : génération non facturée.'; return; }
     const n = Math.max(1, Number(form.nombre.value) || 1);
     const essai = Math.min(compteIA.essai_restant, n);
     const cout = (n - essai) * compteIA.credits_par_question;
@@ -1441,7 +1458,7 @@ async function ongletApprenants() {
       <div class="fk-stat"><small>Taux de complétion</small><strong>${liste.length ? fkPourcentage(termines * 100 / liste.length) : '—'}</strong></div>
     </div>
     <div class="fk-carte" style="margin-bottom:14px">
-      <h3 style="margin-top:0">📣 Message à tous les apprenants ${FKE.niveau >= 3 ? '' : '<small class="fk-verrou-txt">🔒 Formateur Premium</small>'}</h3>
+      <h3 style="margin-top:0">📣 Message à tous les apprenants ${FKE.niveau >= 3 ? '' : '<small class="fk-verrou-txt">🔒 Pack Premium</small>'}</h3>
       ${FKE.niveau >= 3 ? `<form id="formMessageGroupe">
         <label class="fk-champ"><span>Titre</span><input type="text" name="titre" required minlength="3" maxlength="120" placeholder="Ex. Nouveau module disponible !"></label>
         <label class="fk-champ"><span>Message</span><textarea name="message" required minlength="5" maxlength="1000" style="min-height:80px" placeholder="Ex. Bonjour à tous, le module 4 est en ligne…"></textarea></label>
@@ -1555,7 +1572,7 @@ async function ongletPromo() {
 function verrouAvantage(niveau, titre, texte) {
   const n = FK_NIVEAUX_AVANTAGES[niveau];
   return `<div class="fk-carte fk-vide"><span class="fk-vide-icone">🔒</span><b>${titre}</b><br>${fkEchapper(texte)}<br>
-    <small>Inclus à partir du niveau ${n.icone} <b>${n.nom}</b>.</small><br>
+    <small>Inclus à partir du ${n.icone} <b>${n.pack}</b>.</small><br>
     <a class="fk-btn fk-btn-primary" style="margin-top:12px" href="credits-ia.html#offres">Voir les packs</a></div>`;
 }
 

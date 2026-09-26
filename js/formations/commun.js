@@ -161,7 +161,21 @@ function fkModale(titre, contenuHtml, opts) {
   document.addEventListener('keydown', echap);
   if (!o.protegee) fond.addEventListener('click', e => { if (e.target === fond) fermer(); });
   fond.querySelectorAll('[data-fermer]').forEach(b => b.addEventListener('click', fermer));
-  const premier = boite.querySelector('input, select, textarea, [contenteditable], button');
+  // Formulaires longs (leçon, quiz…) : « Fermer » et « Enregistrer » aussi en
+  // haut, dans une barre qui reste visible quand on fait défiler.
+  const form = boite.querySelector('form');
+  const envoi = form && form.querySelector('[type=submit]');
+  if (envoi && o.barreHaut !== false && form.querySelectorAll('input:not([type=hidden]), select, textarea').length >= 4) {
+    const barreH = document.createElement('div');
+    barreH.className = 'fk-modale-barre';
+    barreH.innerHTML = `<button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-barre-fermer>✕ Fermer</button>
+      <button type="button" class="fk-btn fk-btn-primary fk-btn-petit" data-barre-enreg ${envoi.disabled ? 'disabled' : ''}>💾 ${fkEchapper(envoi.textContent.trim() || 'Enregistrer')}</button>`;
+    boite.insertBefore(barreH, boite.firstChild);
+    boite.classList.add('fk-modale-avec-barre');
+    barreH.querySelector('[data-barre-fermer]').addEventListener('click', () => { const f = form.querySelector('[data-fermer]'); if (f) f.click(); else fermer(); });
+    barreH.querySelector('[data-barre-enreg]').addEventListener('click', () => { if (form.requestSubmit) form.requestSubmit(envoi); else envoi.click(); });
+  }
+  const premier = boite.querySelector('form input, form select, form textarea, [contenteditable]') || boite.querySelector('input, select, textarea, [contenteditable], button');
   if (premier) setTimeout(() => premier.focus(), 30);
   return { fond, boite, fermer };
 }
@@ -345,20 +359,30 @@ function fkRendrePied() {
 }
 
 // ---------- Cartes formation ----------
-const FK_SELECT_CARTE = 'id, slug, titre, sous_titre, image_couverture, prix, devise, niveau, duree_minutes, nb_lecons, nb_inscrits, note_moyenne, nb_avis, publiee_le, categorie_id, formation_categories(id, nom, icone, slug), formateurs(nom_affiche, slug, niveau_pro, pro_fin)';
+const FK_SELECT_CARTE = 'id, slug, titre, sous_titre, image_couverture, prix, devise, niveau, duree_minutes, duree_valeur, duree_unite, nb_lecons, nb_inscrits, note_moyenne, nb_avis, publiee_le, categorie_id, formation_categories(id, nom, icone, slug), formateurs(nom_affiche, slug, niveau_pro, pro_fin)';
 
 function fkStyleCouverture(f, i) {
   if (f.image_couverture) return { classe: '', style: `background-image:linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.25)),url('${fkEchapper(f.image_couverture)}')` };
   return { classe: ['', 'c1', 'c2', 'c3'][(Number(f.id) || i || 0) % 4], style: '' };
 }
 // ---------- Avantages des packs (26 septembre 2026 ; 4 packs depuis le 27) ----------
-// Niveau d'avantages d'un formateur : 1 Plus, 2 Pro, 3 Premium (voir formation_niveau_formateur).
+// Niveau d'avantages d'un formateur (voir formation_niveau_formateur) :
+// 0 Pack Gratuit, 1 Pack Découverte, 2 Pack Formateur / Pack Pro, 3 Pack Premium.
+// Chaque pack a son propre titre de formateur (formation_ia_packs.titre_formateur) ;
+// ces noms servent de repli et pour dire « à partir de quel pack ».
 const FK_NIVEAUX_AVANTAGES = [
-  { nom: 'Standard', icone: '' },
-  { nom: 'Formateur Plus', icone: '⭐' },
-  { nom: 'Formateur Pro', icone: '✨' },
-  { nom: 'Formateur Premium', icone: '👑' }
+  { nom: 'Formateur Débutant', icone: '🌱', pack: 'Pack Gratuit' },
+  { nom: 'Formateur Initié', icone: '⭐', pack: 'Pack Découverte' },
+  { nom: 'Formateur Confirmé', icone: '🎯', pack: 'Pack Formateur' },
+  { nom: 'Formateur Premium', icone: '👑', pack: 'Pack Premium' }
 ];
+// Titre affiché d'un formateur d'après son compte IA (formation_ia_mon_compte).
+function fkTitreFormateur(c) {
+  if (c && c.acces_offert) return { icone: '🎁', titre: 'Accès complet offert par KEKELI' };
+  if (c && c.pack_actif && c.pack_actif.titre) return { icone: c.pack_actif.icone || '', titre: c.pack_actif.titre };
+  const n = FK_NIVEAUX_AVANTAGES[Number(c && c.niveau) || 0];
+  return { icone: n.icone, titre: n.nom };
+}
 function fkNiveauPublic(fo) {
   if (!fo || !fo.pro_fin || new Date(fo.pro_fin) <= new Date()) return 0;
   return Number(fo.niveau_pro) || 0;
@@ -367,7 +391,7 @@ function fkNiveauPublic(fo) {
 function fkBadgePro(fo) {
   const n = fkNiveauPublic(fo);
   if (n < 2) return '';
-  return `<span class="fk-badge-pro fk-badge-pro-${n}" title="${fkEchapper(FK_NIVEAUX_AVANTAGES[n].nom)}">${FK_NIVEAUX_AVANTAGES[n].icone} ${n >= 3 ? 'Premium' : 'Pro'}</span>`;
+  return `<span class="fk-badge-pro fk-badge-pro-${n}" title="${n >= 3 ? 'Formateur Premium' : 'Formateur recommandé par KEKELI'}">${n >= 3 ? '👑 Premium' : '✨ Recommandé'}</span>`;
 }
 // Trie les formations en mettant d'abord celles des formateurs Pro/Premium (ordre stable).
 function fkMettreEnAvant(liste) {
@@ -389,11 +413,12 @@ async function fkOutilIA(action, corps) {
 function fkBoutonOutil(niveauActuel, niveauRequis, attr, libelle) {
   const ok = niveauActuel >= niveauRequis;
   return `<button type="button" class="fk-btn ${ok ? 'fk-btn-outline' : 'fk-btn-ghost fk-outil-verrou'} fk-btn-petit" ${attr} data-requis="${niveauRequis}"
-    title="${ok ? '' : `Avantage « ${FK_NIVEAUX_AVANTAGES[niveauRequis].nom} » — voir Mes crédits IA`}">${ok ? '' : '🔒 '}${libelle}</button>`;
+    title="${ok ? '' : `Inclus à partir du ${FK_NIVEAUX_AVANTAGES[niveauRequis].pack} — voir Mes crédits IA`}">${ok ? '' : '🔒 '}${libelle}</button>`;
 }
 function fkProposerOffres(niveauRequis) {
-  const m = fkModale(`${FK_NIVEAUX_AVANTAGES[niveauRequis].icone} Avantage « ${FK_NIVEAUX_AVANTAGES[niveauRequis].nom} »`, `
-    <p>Cet outil est inclus dans les packs qui donnent le niveau <b>${FK_NIVEAUX_AVANTAGES[niveauRequis].nom}</b> ou plus.</p>
+  const n = FK_NIVEAUX_AVANTAGES[niveauRequis];
+  const m = fkModale(`${n.icone} Inclus à partir du ${n.pack}`, `
+    <p>Cette fonctionnalité est incluse à partir du <b>${n.pack}</b>${niveauRequis === 2 ? ' (Pack Formateur, Pack Pro et Pack Premium)' : niveauRequis === 1 ? ' (tous les packs payants)' : ''}.</p>
     <div class="fk-actions-form"><button type="button" class="fk-btn fk-btn-ghost" data-fermer>Plus tard</button>
     <a class="fk-btn fk-btn-primary" href="${FK_BASE}formateur/credits-ia.html#offres">Voir les packs</a></div>`);
   return m;
@@ -414,7 +439,7 @@ function fkCarteFormation(f, opts) {
       <div class="fk-course-body">
         <h3><a href="${lien}">${fkEchapper(f.titre)}</a></h3>
         ${f.formateurs ? `<div class="fk-formateur-nom">par ${fkEchapper(f.formateurs.nom_affiche)} ${fkBadgePro(f.formateurs)}</div>` : ''}
-        <div class="fk-meta"><span>📚 ${f.nb_lecons || 0} leçon${f.nb_lecons > 1 ? 's' : ''}</span><span>⏱️ ${fkDuree(f.duree_minutes)}</span><span>${FK_NIVEAUX[f.niveau] || ''}</span></div>
+        <div class="fk-meta"><span>📚 ${f.nb_lecons || 0} leçon${f.nb_lecons > 1 ? 's' : ''}</span><span>⏱️ ${fkDureeFormation(f)}</span><span>${FK_NIVEAUX[f.niveau] || ''}</span></div>
         <div class="fk-rating">${fkEtoiles(f.note_moyenne, f.nb_avis)}</div>
         <div class="fk-price"><strong>${fkPrix(f.prix, f.devise)}</strong><a class="fk-btn fk-btn-primary fk-btn-petit" href="${lien}">Voir</a></div>
       </div>
@@ -1156,7 +1181,7 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
           </span>
         </span>
         ${o.niveau === undefined ? '' : `<span class="fk-riche-menu">
-          <button type="button" ${Number(o.niveau) >= 2 ? 'data-menu="avance"' : 'data-avance-verrou'} title="Mise en forme avancée (Formateur Pro et Premium)" aria-label="Mise en forme avancée">${Number(o.niveau) >= 2 ? '✨' : '🔒'} Avancé</button>
+          <button type="button" ${Number(o.niveau) >= 2 ? 'data-menu="avance"' : 'data-avance-verrou'} title="Mise en forme avancée (Pack Formateur, Pack Pro et Pack Premium)" aria-label="Mise en forme avancée" class="fk-riche-avance">${Number(o.niveau) >= 2 ? '✨' : '🔒'} Mise en forme avancée</button>
           ${Number(o.niveau) >= 2 ? `<span class="fk-riche-palette fk-riche-liste" data-palette="avance" hidden>
             <button type="button" data-avance="colonnes-2">▥ Deux colonnes</button>
             <button type="button" data-avance="colonnes-3">▥ Trois colonnes</button>
@@ -1166,6 +1191,13 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
             <button type="button" data-avance="bouton">🔘 Bouton lien</button>
             <button type="button" data-avance="lettrine">🅰 Lettrine (grande 1re lettre)</button>
             <button type="button" data-avance="separateur">✦ Séparateur décoratif</button>
+            <button type="button" data-avance="titre-bandeau">🔠 Titre à bandeau coloré</button>
+            <button type="button" data-avance="cartes">🃏 Trois cartes à icône</button>
+            <button type="button" data-avance="coches">✅ Liste à cocher (points clés)</button>
+            <button type="button" data-avance="chronologie">⏱️ Frise chronologique</button>
+            <button type="button" data-avance="dialogue">💬 Dialogue (bulles)</button>
+            <button type="button" data-avance="tableau-pro">⚖️ Tableau comparatif stylé</button>
+            <button type="button" data-avance="etiquette">🏷️ Étiquette sur le texte sélectionné</button>
           </span>` : ''}
         </span>`}
         <span class="fk-riche-sep"></span>
@@ -1364,13 +1396,28 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
     repliable: '<details><summary>Titre de la section (l\'apprenant clique pour l\'ouvrir)</summary><p>Contenu caché : réponse, explication, exemple…</p></details><p><br></p>',
     etapes: '<ol data-bloc="etapes"><li><p><strong>Première étape</strong></p><p>Explication…</p></li><li><p><strong>Deuxième étape</strong></p><p>Explication…</p></li><li><p><strong>Troisième étape</strong></p><p>Explication…</p></li></ol><p><br></p>',
     citation: '<blockquote data-bloc="citation"><p>« Votre citation ou idée forte. »</p><p>— Auteur</p></blockquote><p><br></p>',
-    separateur: '<hr data-bloc="separateur"><p><br></p>'
+    separateur: '<hr data-bloc="separateur"><p><br></p>',
+    'titre-bandeau': '<h2 data-bloc="titre-bandeau">Titre de la partie</h2><p><br></p>',
+    cartes: '<div data-bloc="cartes"><div data-bloc="carte"><p>💡</p><p><strong>Idée 1</strong></p><p>Explication courte…</p></div><div data-bloc="carte"><p>🎯</p><p><strong>Idée 2</strong></p><p>Explication courte…</p></div><div data-bloc="carte"><p>🚀</p><p><strong>Idée 3</strong></p><p>Explication courte…</p></div></div><p><br></p>',
+    coches: '<ul data-bloc="coches"><li>Premier point clé</li><li>Deuxième point clé</li><li>Troisième point clé</li></ul><p><br></p>',
+    chronologie: '<ul data-bloc="chronologie"><li><p><strong>Étape / date 1</strong></p><p>Ce qui se passe…</p></li><li><p><strong>Étape / date 2</strong></p><p>Ce qui se passe…</p></li><li><p><strong>Étape / date 3</strong></p><p>Ce qui se passe…</p></li></ul><p><br></p>',
+    dialogue: '<div data-bloc="bulle-g"><p><strong>Awa :</strong> Bonjour, comment calcule-t-on la marge ?</p></div><div data-bloc="bulle-d"><p><strong>Formateur :</strong> On retire le coût d\'achat du prix de vente.</p></div><p><br></p>',
+    'tableau-pro': '<table data-bloc="tableau-pro"><thead><tr><th>Critère</th><th>Option A</th><th>Option B</th></tr></thead><tbody><tr><td>Prix</td><td>…</td><td>…</td></tr><tr><td>Avantage</td><td>…</td><td>…</td></tr><tr><td>Limite</td><td>…</td><td>…</td></tr></tbody></table><p><br></p>'
   };
   barre.querySelectorAll('[data-avance]').forEach(b => b.addEventListener('click', () => {
     fermerPalettes();
     if (modeSource) { fkToast('Repassez en mode normal pour utiliser la mise en forme avancée.', 'erreur'); return; }
     const t = b.dataset.avance;
     if (MODELES_AVANCES[t]) { restaurer(); inserer(MODELES_AVANCES[t]); decorerDiapos(); return; }
+    if (t === 'etiquette') {
+      restaurer();
+      const sel = window.getSelection();
+      if (!sel.rangeCount || sel.isCollapsed || !zone.contains(sel.anchorNode)) { fkToast('Sélectionnez d\'abord quelques mots.', 'erreur'); return; }
+      const span = document.createElement('span');
+      span.setAttribute('data-bloc', 'etiquette');
+      try { sel.getRangeAt(0).surroundContents(span); } catch (_e) { fkToast('Sélectionnez des mots d\'un même paragraphe.', 'erreur'); return; }
+      memoriser(); return;
+    }
     if (t === 'lettrine') {
       restaurer();
       const p = blocCourant('p');
@@ -1659,7 +1706,7 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
   barre.querySelector('[data-image-btn]')?.addEventListener('click', () => {
     if (modeSource) { fkToast('Repassez en mode normal pour insérer une image.', 'erreur'); return; }
     const m = fkModale('Insérer une image', `
-      ${o.formationId ? '<div class="fk-outils-ia" style="margin-top:0"><button type="button" class="fk-btn fk-btn-primary fk-btn-petit" data-image-ia>🎨 Assistance IA pour créer l\'image</button><small>Décrivez l\'image : ChatGPT la dessine pour vous (crédits IA).</small></div>' : ''}
+      ${o.formationId ? '<div class="fk-outils-ia" style="margin-top:0"><button type="button" class="fk-btn fk-btn-primary fk-btn-petit" data-image-ia>🎨 Génération IA de l\'image</button><small>Décrivez l\'image : ChatGPT la dessine pour vous (crédits IA).</small></div>' : ''}
       <label class="fk-champ"><span>Image depuis votre appareil</span><input type="file" data-fichier accept="image/png,image/jpeg,image/webp,image/gif"><small>PNG, JPG, WEBP ou GIF, 5 Mo maximum.</small></label>
       <label class="fk-champ"><span>… ou adresse d'une image en ligne</span><input type="url" data-url placeholder="https://…"></label>
       <label class="fk-champ"><span>Description de l'image (pour l'accessibilité) *</span><input type="text" data-alt maxlength="200" placeholder="Ex. Schéma du ruban d'Excel"></label>
@@ -2198,30 +2245,51 @@ async function fkPreparerCorpsLecon(corps) {
 // (delai_jours, à minuit heure du Bénin) et/ou pas avant une date
 // (disponible_le). Le blocage réel est fait en base (formation_lecon_ouverte,
 // formation_quiz_ouvert, calendrier_formation).
+// 27 septembre 2026 : + progression imposée (verrou_progression : s'ouvre
+// quand la leçon / le module précédent est terminé, éventuellement N jours
+// après : delai_apres_precedente) et désactivation temporaire (desactivee).
 function fkChampsOuverture(o, quoi) {
   const date = o?.disponible_le ? new Date(o.disponible_le) : null;
   const iso = date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : '';
+  const prec = quoi === 'module' ? 'le module précédent' : 'la leçon précédente';
+  const acces = !o?.verrou_progression ? 'libre' : String(o.delai_apres_precedente || 0);
   return `<fieldset class="fk-carte fk-ouverture-champs"><legend>📅 Ouverture ${quoi === 'module' ? 'du module' : 'de la leçon'} (progression)</legend>
+    <label class="fk-champ"><span>🔒 Progression imposée</span><select name="acces_progression">
+      <option value="libre" ${acces === 'libre' ? 'selected' : ''}>Libre : pas besoin de finir ${prec}</option>
+      <option value="0" ${acces === '0' ? 'selected' : ''}>Verrouillé jusqu'à ce que ${prec} soit ${quoi === 'module' ? 'terminé' : 'terminée'}</option>
+      <option value="1" ${acces === '1' ? 'selected' : ''}>Le lendemain (1er jour) après ${prec} ${quoi === 'module' ? 'terminé' : 'terminée'}</option>
+      <option value="2" ${acces === '2' ? 'selected' : ''}>Le 2e jour après ${prec} ${quoi === 'module' ? 'terminé' : 'terminée'}</option>
+      <option value="3" ${acces === '3' ? 'selected' : ''}>Le 3e jour après ${prec} ${quoi === 'module' ? 'terminé' : 'terminée'}</option>
+      <option value="7" ${acces === '7' ? 'selected' : ''}>Une semaine (7e jour) après ${prec} ${quoi === 'module' ? 'terminé' : 'terminée'}</option>
+    </select><small>Oblige l'apprenant à suivre l'ordre. Les jours se comptent à partir de minuit (heure du Bénin).</small></label>
     <div class="fk-grille-2">
       <label class="fk-champ"><span>Ouvert … jours après l'inscription</span><input type="number" name="delai_jours" min="0" max="3650" placeholder="Dès l'inscription" value="${o?.delai_jours ?? ''}">
         <small>0 = le jour de l'inscription, 1 = le lendemain, 2 = le surlendemain… (à minuit). Vide = pas de délai.</small></label>
       <label class="fk-champ"><span>Pas avant le (facultatif)</span><input type="date" name="disponible_le" value="${iso}">
         <small>Même date pour tous les étudiants.</small></label>
-    </div></fieldset>`;
+    </div>
+    <label class="fk-case fk-case-desactiver"><input type="checkbox" name="desactivee" ${o?.desactivee ? 'checked' : ''}> 🛠️ Désactiver temporairement ${quoi === 'module' ? 'ce module' : 'cette leçon'} (le temps de ${quoi === 'module' ? 'le' : 'la'} mettre à jour) : les apprenants ${quoi === 'module' ? 'le' : 'la'} voient « en cours de mise à jour » et ne peuvent pas ${quoi === 'module' ? 'l\'ouvrir' : 'l\'ouvrir'} ; ${quoi === 'module' ? 'il ne compte' : 'elle ne compte'} pas dans la progression.</label>
+    </fieldset>`;
 }
 function fkLireOuverture(fd) {
   const d = String(fd.get('delai_jours') ?? '').trim();
   const date = String(fd.get('disponible_le') ?? '').trim();
+  const acces = String(fd.get('acces_progression') ?? 'libre');
   return {
     delai_jours: d === '' ? null : Math.min(3650, Math.max(0, parseInt(d, 10) || 0)),
-    disponible_le: date ? new Date(`${date}T00:00:00`).toISOString() : null
+    disponible_le: date ? new Date(`${date}T00:00:00`).toISOString() : null,
+    verrou_progression: acces !== 'libre',
+    delai_apres_precedente: acces === 'libre' ? null : Number(acces) || 0,
+    desactivee: !!fd.get('desactivee')
   };
 }
 function fkPastilleOuverture(o) {
   const morceaux = [];
   if (o?.delai_jours !== null && o?.delai_jours !== undefined) morceaux.push(o.delai_jours === 0 ? 'dès l\'inscription' : `J+${o.delai_jours}`);
   if (o?.disponible_le) morceaux.push(`dès le ${new Date(o.disponible_le).toLocaleDateString('fr-FR')}`);
-  return morceaux.length ? `<span class="fk-pastille fk-pastille-ouverture" title="Ouverture progressive">📅 ${morceaux.join(' · ')}</span>` : '';
+  return (o?.desactivee ? '<span class="fk-pastille fk-pastille-desactivee" title="Invisible pour les apprenants le temps de la mise à jour">🛠️ Désactivé</span>' : '')
+    + (o?.verrou_progression ? `<span class="fk-pastille fk-pastille-verrou" title="Progression imposée">🔒 ${o.delai_apres_precedente ? `${o.delai_apres_precedente === 7 ? '7' : o.delai_apres_precedente}${o.delai_apres_precedente === 1 ? 'er' : 'e'} jour après le précédent` : 'après le précédent'}</span>` : '')
+    + (morceaux.length ? `<span class="fk-pastille fk-pastille-ouverture" title="Ouverture progressive">📅 ${morceaux.join(' · ')}</span>` : '');
 }
 // « dans 2 jours », « demain à 00:00 »… pour une date d'ouverture future.
 function fkQuandOuverture(iso) {
@@ -2426,7 +2494,7 @@ function fkModaleImageIA(o) {
       <div class="fk-ia-solde" data-cout>Calcul du coût…</div>
       <div data-resultat></div>
       <div class="fk-actions-form"><button type="button" class="fk-btn fk-btn-ghost" data-annuler>Annuler</button>
-        <button type="button" class="fk-btn fk-btn-primary" data-generer>🎨 Créer l'image</button></div>`, { protegee: true });
+        <button type="button" class="fk-btn fk-btn-primary" data-generer>🎨 Générer l'image</button></div>`, { protegee: true });
     m.boite.style.width = 'min(720px, 100%)';
     const zoneCout = m.boite.querySelector('[data-cout]');
     const resultat = m.boite.querySelector('[data-resultat]');
@@ -2435,11 +2503,11 @@ function fkModaleImageIA(o) {
     const finir = v => { m.fermer(); resolve(v); };
     m.boite.querySelector('[data-annuler]').onclick = () => finir(null);
     fkAppelImageIA({ action: 'estimer', formationId: o.formationId }).then(est => {
-      cout = est.gratuit ? 0 : Number(est.cout) || 0;
-      zoneCout.innerHTML = est.gratuit ? '🛠️ Compte gestionnaire KEKELI : image non facturée.'
+      cout = est.gratuit || est.offert ? 0 : Number(est.cout) || 0;
+      zoneCout.innerHTML = est.gratuit ? '🛠️ Compte gestionnaire KEKELI : image non facturée.' : est.offert ? '🎁 Accès complet offert par KEKELI : image non facturée.'
         : `🪙 Une image = <b>${cout} crédit(s)</b> · vous avez <b>${est.disponible ?? 0}</b> crédit(s). ${cout > (est.disponible || 0) ? `<a class="fk-link" href="${FK_BASE}formateur/credits-ia.html" target="_blank">Recharger</a>` : ''}`;
       if (est.configure === false) zoneCout.innerHTML += '<br><span style="color:var(--f-danger)">⚠️ La création d\'images n\'est pas encore configurée sur KEKELI.</span>';
-      btn.textContent = cout ? `🎨 Créer l'image (${cout} crédits)` : '🎨 Créer l\'image';
+      btn.textContent = cout ? `🎨 Générer l'image (${cout} crédits)` : '🎨 Générer l\'image';
     }).catch(err => { zoneCout.innerHTML = `<span style="color:var(--f-danger)">${e(err.message)}</span>`; });
     btn.onclick = async () => {
       if (image) { finir(image); return; }
@@ -2462,3 +2530,39 @@ function fkModaleImageIA(o) {
     };
   });
 }
+
+
+// ---------- Durée de la formation définie par le formateur (27 septembre 2026) ----------
+// formations.duree_valeur + duree_unite (heures, jours, semaines, mois) ;
+// sinon, la durée calculée à partir des leçons (duree_minutes).
+const FK_UNITES_DUREE = { heures: ['heure', 'heures'], jours: ['jour', 'jours'], semaines: ['semaine', 'semaines'], mois: ['mois', 'mois'] };
+function fkDureeFormation(f) {
+  if (f && f.duree_valeur && FK_UNITES_DUREE[f.duree_unite]) return `${f.duree_valeur} ${FK_UNITES_DUREE[f.duree_unite][f.duree_valeur > 1 ? 1 : 0]}`;
+  return fkDuree(f ? f.duree_minutes : 0);
+}
+
+// ---------- Tableaux lisibles sur téléphone (27 septembre 2026) ----------
+// Sur un petit écran, chaque ligne de tableau devient une carte : chaque
+// case reçoit le titre de sa colonne (data-label), affiché par le CSS
+// (.fk-table-cartes). Fonctionne pour tous les tableaux ajoutés à la page.
+function fkEtiqueterTables(racine) {
+  (racine || document).querySelectorAll('table.fk-table, table.fk-tableau-revenus').forEach(t => {
+    const titres = [...t.querySelectorAll('thead th')].map(th => th.textContent.trim());
+    if (!titres.length) return;
+    t.classList.add('fk-table-cartes');
+    t.querySelectorAll('tbody tr, tfoot tr').forEach(tr => {
+      let col = 0;
+      [...tr.children].forEach(td => {
+        if (!td.hasAttribute('data-label')) td.setAttribute('data-label', titres[col] || '');
+        col += Number(td.getAttribute('colspan')) || 1;
+      });
+    });
+  });
+}
+(function () {
+  let attente = null;
+  const lancer = () => { attente = null; fkEtiqueterTables(document); };
+  const obs = new MutationObserver(() => { if (!attente) attente = setTimeout(lancer, 60); });
+  const demarrer = () => { lancer(); obs.observe(document.body, { childList: true, subtree: true }); };
+  if (document.body) demarrer(); else document.addEventListener('DOMContentLoaded', demarrer);
+})();
