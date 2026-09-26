@@ -1716,3 +1716,8 @@ body.theme-clair-compte .entete-kekeli-sousmenu a:hover { background: var(--clai
 .question-enonce-trous > p:first-child, .question-enonce-trous > div:first-child { display: inline; }
 .question-enonce-trous p { margin: 0 0 6px; }
 .bouton-inserer-trou { margin: 4px 0 8px; font-size: 13px; }
+
+/* Menu « Tableaux de bord » (KEKELI Primaire / KEKELI Formation), 26 septembre 2026 */
+.entete-kekeli-tdb .entete-kekeli-sousmenu a { display: flex; flex-direction: column; gap: 1px; }
+.entete-kekeli-aide { font-size: 11.5px; font-weight: 400; opacity: .7; }
+.entete-kekeli-tdb .entete-kekeli-sousmenu a[aria-current="page"] { outline: 2px solid currentColor; outline-offset: -2px; }

@@ -52,11 +52,39 @@ function regrouperLiensParCategorie(liens) {
   return resultat;
 }
 
-function liensNavHtml(liensVisibles) {
+// 26 septembre 2026 (demande : « créer 2 tableaux de bord pour que je
+// sélectionne au survol ») : pour tout compte adulte, le lien essentiel
+// « Tableau de bord » devient un petit menu déroulant (survol + clic)
+// proposant les DEUX espaces : KEKELI Primaire (le tableau de bord du rôle)
+// et KEKELI Formation (administration de la plateforme pour un admin,
+// « Mon apprentissage » pour les autres). Les élèves n'y ont pas accès
+// (plateforme Formation réservée aux adultes) : leur lien reste simple.
+function menuTableauxDeBordHtml(l, role) {
+  const racine = typeof RACINE_SITE === 'string' ? RACINE_SITE : '';
+  const formation = role === 'admin'
+    ? { href: l.href.replace(/tableau-de-bord\.html$/, 'formations.html'), label: '🎓 KEKELI Formation', aide: 'Administration des formations' }
+    : { href: `${racine}pages/formations/app/tableau-de-bord.html`, label: '🎓 KEKELI Formation', aide: 'Mon apprentissage' };
+  const ici = window.location.pathname;
+  const estIci = href => { try { return new URL(href, window.location.href).pathname === ici; } catch (_e) { return false; } };
+  const item = (href, label, aide) => `<a href="${href}"${estIci(href) ? ' aria-current="page"' : ''}>${label}<small class="entete-kekeli-aide">${aide}</small></a>`;
+  return `
+      <div class="entete-kekeli-categorie entete-kekeli-tdb">
+        <button type="button" class="entete-kekeli-categorie-btn">🏠 Tableaux de bord <span class="entete-kekeli-caret">▾</span></button>
+        <div class="entete-kekeli-sousmenu">
+          <div class="entete-kekeli-sousmenu-inner">
+            ${item(l.href, '🏫 KEKELI Primaire', role === 'admin' ? 'Écoles, classes, séances' : 'Mon espace')}
+            ${item(formation.href, formation.label, formation.aide)}
+          </div>
+        </div>
+      </div>`;
+}
+
+function liensNavHtml(liensVisibles, role) {
   const categories = typeof CATEGORIES_NAV === 'object' ? CATEGORIES_NAV : {};
   return regrouperLiensParCategorie(liensVisibles).map(g => {
     if (g.type === 'lien') {
       const l = g.lien;
+      if (l.essentiel && role && role !== 'eleve') return menuTableauxDeBordHtml(l, role);
       return `<a href="${l.href}">${l.icone ? `${l.icone} ` : ''}${l.label}</a>`;
     }
     const info = categories[g.cle] || { label: g.cle, icone: '' };
@@ -310,7 +338,7 @@ async function initEnteteNavigation(config) {
 
     <div class="entete-kekeli-zone" id="enteteKekeliZone">
       <nav class="entete-kekeli-liens">
-        ${liensNavHtml(liensVisibles)}
+        ${liensNavHtml(liensVisibles, config.role)}
       </nav>
       <div class="entete-kekeli-actions">
         <div id="zoneCloche"></div>

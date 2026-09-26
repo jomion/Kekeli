@@ -838,3 +838,8 @@ body.avec-banniere-site .entete-publique { top: var(--hauteur-banniere-site, 0px
 .bulle-apercu-hover ul { list-style: none; margin: 0; padding: 0; max-height: 168px; overflow: hidden; }
 .bulle-apercu-hover li { font-size: 13px; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
 .bulle-apercu-hover li:last-child { border-bottom: none; }
+
+/* Menu « Tableaux de bord » (KEKELI Primaire / KEKELI Formation), 26 septembre 2026 */
+.entete-kekeli-tdb .entete-kekeli-sousmenu a { display: flex; flex-direction: column; gap: 1px; }
+.entete-kekeli-aide { font-size: 11.5px; font-weight: 400; opacity: .7; }
+.entete-kekeli-tdb .entete-kekeli-sousmenu a[aria-current="page"] { outline: 2px solid currentColor; outline-offset: -2px; }
