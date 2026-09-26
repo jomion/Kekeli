@@ -41,7 +41,7 @@
       <a class="fk-link" href="tableau-de-bord.html">← Espace formateur</a>
       <div class="fk-section-head" style="margin-top:10px">
         <div><h1 class="fk-titre-page">🪙 Mes crédits IA</h1>
-          <p>Générez des questions de quiz et des formations complètes avec ChatGPT.</p></div>
+          <p>Générez des questions de quiz et des formations complètes avec l'IA de KEKELI.</p></div>
         <a class="fk-btn fk-btn-primary" href="generer-ia.html">🤖 Créer une formation avec l'IA</a>
       </div>
       ${c.actif === false ? '<p class="fk-alerte fk-alerte-attention">La génération par IA est momentanément désactivée par KEKELI.</p>' : ''}

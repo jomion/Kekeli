@@ -327,6 +327,7 @@ async function ongletIAAF(zone) {
         <div class="af-stat"><small>Dépensé (30 jours)</small><strong>${usd(so.depense_30j)}</strong><small>${so.appels_30j} appel(s) à ChatGPT</small></div>
         <div class="af-stat"><small>Il reste environ</small><strong>${joursRestants === null ? '—' : joursRestants + ' jour(s)'}</strong><small>au rythme des 7 derniers jours</small></div>
       </div>
+      <p style="font-size:13px;margin:10px 0 0">♊ Gemini sur 30 jours : <b>${so.gemini_gratuit_30j || 0}</b> appel(s) avec la clé <b>gratuite</b> · <b>${so.gemini_payant_30j || 0}</b> avec la clé <b>payante</b> (utilisée seulement quand la gratuite est saturée).</p>
       <form id="formRechargeOA" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:12px 0">
         <label>J'ai rechargé OpenAI de <input type="number" name="montant" min="1" step="0.01" required style="width:100px"> $</label>
         <label>Note <input name="note" maxlength="300" placeholder="ex. carte Visa, 26/09" style="width:200px"></label>
@@ -347,6 +348,11 @@ async function ongletIAAF(zone) {
       <h3 style="margin-top:0">⚙️ Réglages de l'IA (ChatGPT)</h3>
       <form id="formParIA" style="display:grid;gap:10px;max-width:560px">
         <label><input type="checkbox" name="actif" ${p.actif ? 'checked' : ''}> Génération par IA activée</label>
+        <label>IA pour les formations complètes
+          <select name="ia_formation">
+            <option value="gemini" ${p.ia_formation !== 'chatgpt' ? 'selected' : ''}>Gemini gratuit → Gemini payant (si saturé) → ChatGPT</option>
+            <option value="chatgpt" ${p.ia_formation === 'chatgpt' ? 'selected' : ''}>ChatGPT d'abord → Gemini gratuit → Gemini payant</option>
+          </select></label>
         <label>Modèle ChatGPT <input name="modele" value="${eAF(p.modele)}" maxlength="60" style="width:180px"> <small>(ex. gpt-6-sol, gpt-6-luna)</small></label>
         <label>Crédits par question de quiz <input type="number" name="cq" min="0" value="${p.credits_par_question}" style="width:90px"></label>
         <label>Crédits par formation complète <input type="number" name="cf" min="0" value="${p.credits_formation}" style="width:90px"></label>
@@ -402,7 +408,7 @@ async function ongletIAAF(zone) {
     ev.preventDefault();
     const f = ev.target;
     const { error } = await supabaseClient.from('formation_ia_parametres').update({
-      actif: f.actif.checked, modele: f.modele.value.trim() || 'gpt-6-sol', credits_par_question: Math.max(0, Number(f.cq.value) || 0),
+      actif: f.actif.checked, ia_formation: f.ia_formation.value, modele: f.modele.value.trim() || 'gpt-6-sol', credits_par_question: Math.max(0, Number(f.cq.value) || 0),
       credits_formation: Math.max(0, Number(f.cf.value) || 0), essai_questions: Math.max(0, Number(f.essai.value) || 0), maj_le: new Date().toISOString()
     }).eq('id', 1);
     if (error) { erreurAF(error); return; }

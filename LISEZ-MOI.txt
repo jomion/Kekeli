@@ -1421,3 +1421,20 @@ ALERTE SOLDE CHATGPT (OPENAI) + MENUS RÉTABLIS (26 septembre 2026)
    js/navigation-config.js, js/pages/parametres.js.
    IMPORTANT : pour ces 3 fichiers, déposez toujours la version la plus
    récente reçue (celle de ce zip).
+
+======================================================================
+GEMINI GRATUIT → GEMINI PAYANT → CHATGPT (26 septembre 2026)
+======================================================================
+Formations complètes ET quiz de formation :
+1. clé Gemini du projet GRATUIT (secret GEMINI_API_KEY) ;
+2. si Google répond « quota dépassé » (HTTP 429), la même demande repart
+   aussitôt avec la clé du projet PAYANT (secret GEMINI_API_KEY_PAYANT) ;
+3. si Gemini reste indisponible : ChatGPT (OPENAI_API_KEY) ; pour les quiz,
+   Groq en dernier secours.
+Réglage Admin → Formations → 🤖 IA : « IA pour les formations complètes »
+(Gemini d'abord, par défaut, ou ChatGPT d'abord). La carte du compte
+affiche aussi le nombre d'appels Gemini gratuits / payants sur 30 jours.
+Fonctions serveur mises à jour (déjà en ligne) : formation-ia-generer,
+formation-quiz-ia. Base : colonne fournisseur dans formation_ia_openai_usage,
+colonne ia_formation dans formation_ia_parametres (migration
+formation_ia_gemini_gratuit_payant).

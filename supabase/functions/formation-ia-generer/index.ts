@@ -1,5 +1,5 @@
 // Supabase Edge Function « formation-ia-generer » (26 septembre 2026).
-// Génère une formation complète avec ChatGPT (API OpenAI) pour un formateur
+// Génère une formation complète par IA (Gemini ou ChatGPT) pour un formateur
 // validé de KEKELI Formation : plan (titre, description, modules, leçons)
 // puis contenu rédigé de chaque leçon, module par module (plusieurs appels
 // courts plutôt qu'un seul très long, pour rester sous la limite de durée
@@ -16,13 +16,21 @@
 //   estimer — coût en crédits et crédits disponibles
 //   plan    — { sujet, public, niveau, nbModules, leconsParModule, consignes }
 //   module  — { generationId, index }
-// Secret requis : OPENAI_API_KEY (Supabase → Edge Functions → Secrets).
+// IA (26 septembre 2026) : réglage admin formation_ia_parametres.ia_formation.
+//   « gemini » (défaut) : Gemini clé GRATUITE → si quota dépassé (429), clé
+//                         PAYANTE → sinon ChatGPT en dernier secours ;
+//   « chatgpt »         : ChatGPT d'abord, puis Gemini (gratuit → payant).
+// Secrets : GEMINI_API_KEY (projet gratuit), GEMINI_API_KEY_PAYANT (projet
+// payant), OPENAI_API_KEY (Supabase → Edge Functions → Secrets).
 // Chaque appel ChatGPT enregistre son coût réel (formation_ia_enregistrer_usage)
 // pour suivre le solde OpenAI de KEKELI et alerter les gestionnaires.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY"); // projet Google AI Studio GRATUIT (A)
+const GEMINI_API_KEY_PAYANT = Deno.env.get("GEMINI_API_KEY_PAYANT"); // projet PAYANT (B), seulement si A dépasse son quota
+const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") || "gemini-3.6-flash";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -38,7 +46,7 @@ const NIVEAUX: Record<string, string> = { debutant: "débutant", intermediaire: 
 
 type Suivi = { admin: ReturnType<typeof createClient>; uid: string; source: string };
 async function openai(prompt: string, modele: string, maxTokens: number, suivi?: Suivi): Promise<Record<string, unknown>> {
-  if (!OPENAI_API_KEY) throw new Error("La génération par ChatGPT n'est pas encore configurée (clé OPENAI_API_KEY manquante).");
+  if (!OPENAI_API_KEY) throw new Error("La génération par IA n'est pas encore configurée (aucune clé Gemini ni OpenAI).");
   const c = new AbortController(); const t = setTimeout(() => c.abort(), 140000);
   try {
     const r = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -65,6 +73,50 @@ async function openai(prompt: string, modele: string, maxTokens: number, suivi?:
     if (e instanceof SyntaxError) throw new Error("Réponse de ChatGPT illisible. Réessayez.");
     throw e;
   } finally { clearTimeout(t); }
+}
+
+// Gemini : clé du projet GRATUIT, puis clé du projet PAYANT uniquement si Google
+// répond « quota dépassé » (HTTP 429 / RESOURCE_EXHAUSTED). Renvoie null si
+// Gemini n'est pas utilisable (on passe alors à ChatGPT).
+async function gemini(prompt: string, maxTokens: number, suivi?: Suivi): Promise<Record<string, unknown> | null> {
+  const cles: [string, string][] = [];
+  if (GEMINI_API_KEY) cles.push([GEMINI_API_KEY, "gemini_gratuit"]);
+  if (GEMINI_API_KEY_PAYANT) cles.push([GEMINI_API_KEY_PAYANT, "gemini_payant"]);
+  for (const [cle, fournisseur] of cles) {
+    const c = new AbortController(); const t = setTimeout(() => c.abort(), 140000);
+    try {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
+        method: "POST", signal: c.signal, headers: { "Content-Type": "application/json", "x-goog-api-key": cle },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.6, maxOutputTokens: maxTokens, responseMimeType: "application/json", thinkingConfig: { thinkingBudget: 0 } } }),
+      });
+      const d = await r.json().catch(() => ({}));
+      const brut = (d?.candidates?.[0]?.content?.parts || []).map((p: { text?: string }) => p.text || "").join("");
+      if (r.ok && brut.trim()) {
+        const um = d?.usageMetadata || {};
+        if (suivi) await Promise.resolve(suivi.admin.rpc("formation_ia_enregistrer_usage", { p_source: suivi.source, p_modele: GEMINI_MODEL, p_entree: Number(um.promptTokenCount) || 0, p_sortie: Number(um.candidatesTokenCount) || 0, p_formateur: suivi.uid, p_fournisseur: fournisseur })).catch(() => {});
+        try { const m = brut.match(/\{[\s\S]*\}/); return JSON.parse(m ? m[0] : brut); } catch { console.error("gemini", fournisseur, "JSON illisible"); return null; }
+      }
+      console.error("gemini", fournisseur, r.status, d?.error?.message);
+      if (!(r.status === 429 || d?.error?.status === "RESOURCE_EXHAUSTED")) return null;
+    } catch (e) { console.error("gemini", fournisseur, (e as Error).message); return null; } finally { clearTimeout(t); }
+  }
+  return null;
+}
+
+// Génère un objet JSON selon l'ordre choisi par l'admin (voir en-tête).
+async function genererJSON(prompt: string, modele: string, maxTokens: number, ordre: string, suivi?: Suivi): Promise<Record<string, unknown>> {
+  const avecGemini = !!(GEMINI_API_KEY || GEMINI_API_KEY_PAYANT);
+  if (ordre !== "chatgpt" && avecGemini) {
+    const g = await gemini(prompt, maxTokens, suivi);
+    if (g) return g;
+    if (!OPENAI_API_KEY) throw new Error("Gemini est indisponible pour le moment. Réessayez dans un instant.");
+  }
+  try {
+    return await openai(prompt, modele, maxTokens, suivi);
+  } catch (e) {
+    if (ordre === "chatgpt" && avecGemini) { const g = await gemini(prompt, maxTokens, suivi); if (g) return g; }
+    throw e;
+  }
 }
 
 // Nettoyage minimal côté serveur (le site nettoie encore tout HTML à l'affichage).
@@ -98,16 +150,18 @@ Deno.serve(async (req) => {
   const gratuit = gestion === true;
   if (!gratuit && fo?.statut !== "valide") return json({ error: "Réservé aux formateurs validés par KEKELI." }, 403);
   const modele = par?.modele || "gpt-6-sol";
+  const ordre = par?.ia_formation === "chatgpt" ? "chatgpt" : "gemini";
+  const iaConfiguree = !!(OPENAI_API_KEY || GEMINI_API_KEY || GEMINI_API_KEY_PAYANT);
 
   try {
     if (action === "estimer") {
-      if (gratuit) return json({ ok: true, cout: 0, gratuit: true, disponible: null, configure: !!OPENAI_API_KEY });
+      if (gratuit) return json({ ok: true, cout: 0, gratuit: true, disponible: null, configure: iaConfiguree });
       const { data: est } = await admin.rpc("formation_ia_estimer", { p_formateur: uid, p_type: "formation", p_questions: 0 });
-      return json({ ...(est || {}), configure: !!OPENAI_API_KEY });
+      return json({ ...(est || {}), configure: iaConfiguree });
     }
 
     if (action === "plan") {
-      if (!OPENAI_API_KEY) return json({ error: "La génération par ChatGPT n'est pas encore configurée (clé OPENAI_API_KEY manquante)." }, 503);
+      if (!iaConfiguree) return json({ error: "La génération par IA n'est pas encore configurée (aucune clé Gemini ni OpenAI)." }, 503);
       const sujet = txt(body.sujet, 300);
       if (sujet.length < 5) return json({ error: "Décrivez le sujet de la formation (5 caractères au moins)." }, 400);
       const publicVise = txt(body.public, 300);
@@ -127,7 +181,7 @@ Deno.serve(async (req) => {
 
       let plan: Record<string, unknown>;
       try {
-        plan = await openai(`Tu es un concepteur pédagogique expert pour KEKELI Formation, une plateforme de formation en ligne pour adultes en Afrique francophone.
+        plan = await genererJSON(`Tu es un concepteur pédagogique expert pour KEKELI Formation, une plateforme de formation en ligne pour adultes en Afrique francophone.
 Conçois le PLAN d'une formation en ligne en FRANÇAIS.
 Sujet : ${sujet}
 ${publicVise ? `Public visé : ${publicVise}\n` : ""}Niveau : ${NIVEAUX[niveau]}
@@ -135,7 +189,7 @@ Structure : exactement ${nbModules} modules, ${parModule} leçons par module, pr
 ${consignes ? `Consignes du formateur : ${consignes}\n` : ""}Exemples et contextes adaptés à l'Afrique de l'Ouest quand c'est pertinent.
 Réponds UNIQUEMENT avec un objet JSON strict :
 {"titre":"(5 à 100 caractères)","sous_titre":"(une phrase)","description":"(2 à 4 paragraphes : ce que l'on apprend, pour qui, résultat concret)","objectifs":["…","…","…"],
- "modules":[{"titre":"…","description":"(1 phrase)","lecons":[{"titre":"…","objectif":"(1 phrase : ce que l'apprenant saura faire)","duree_minutes":10}]}]}`, modele, 6000, { admin, uid, source: "formation_plan" });
+ "modules":[{"titre":"…","description":"(1 phrase)","lecons":[{"titre":"…","objectif":"(1 phrase : ce que l'apprenant saura faire)","duree_minutes":10}]}]}`, modele, 6000, ordre, { admin, uid, source: "formation_plan" });
       } catch (e) { await rembourser("échec du plan"); return json({ error: (e as Error).message + " Vos crédits ont été rendus." }, 502); }
 
       const modules = (Array.isArray(plan.modules) ? plan.modules : []).slice(0, nbModules).map((m: Record<string, unknown>) => ({
@@ -147,7 +201,7 @@ Réponds UNIQUEMENT avec un objet JSON strict :
       })).filter((m: { lecons: unknown[] }) => m.lecons.length);
       let titre = txt(plan.titre, 120);
       if (titre.length < 5) titre = sujet.slice(0, 120);
-      if (!modules.length) { await rembourser("plan vide"); return json({ error: "ChatGPT n'a pas produit de plan exploitable. Vos crédits ont été rendus. Réessayez en précisant le sujet." }, 502); }
+      if (!modules.length) { await rembourser("plan vide"); return json({ error: "L'IA n'a pas produit de plan exploitable. Vos crédits ont été rendus. Réessayez en précisant le sujet." }, 502); }
 
       // Création de la formation avec les droits du formateur.
       const objectifs = (Array.isArray(plan.objectifs) ? plan.objectifs : []).map((x) => txt(x, 300)).filter(Boolean).slice(0, 8);
@@ -191,7 +245,7 @@ Réponds UNIQUEMENT avec un objet JSON strict :
 
       const d = g.demande || {};
       const lecons = (m.lecons || []) as Record<string, unknown>[];
-      const res = await openai(`Tu es un formateur expert et un excellent rédacteur pédagogique pour KEKELI Formation (adultes, Afrique francophone).
+      const res = await genererJSON(`Tu es un formateur expert et un excellent rédacteur pédagogique pour KEKELI Formation (adultes, Afrique francophone).
 Formation : « ${g.plan?.titre} » — niveau ${NIVEAUX[String(d.niveau)] || "tous niveaux"}${d.public ? `, public : ${d.public}` : ""}.
 ${d.consignes ? `Consignes du formateur : ${d.consignes}\n` : ""}Plan complet (pour la cohérence, ne rédige QUE le module demandé) :
 ${mods.map((x, i) => `${i + 1}. ${x.titre}`).join("\n")}
@@ -205,7 +259,7 @@ et un encadré final « À retenir ».
 Format du contenu : HTML simple UNIQUEMENT avec les balises h2, h3, p, ul, ol, li, strong, em, blockquote, table, tr, th, td.
 Pour l'encadré « À retenir » utilise exactement : <div data-bloc="encadre" style="background-color: #e8f5e9"><p><strong>📌 À retenir</strong></p><ul><li>…</li></ul></div>
 Ne répète pas le titre de la leçon en h1. Pas de CSS, pas de script, pas d'image.
-Réponds UNIQUEMENT avec un objet JSON strict : {"lecons":[{"titre":"…","contenu_html":"…"}]} dans le même ordre que ci-dessus.`, modele, 16000, { admin, uid, source: "formation_module" });
+Réponds UNIQUEMENT avec un objet JSON strict : {"lecons":[{"titre":"…","contenu_html":"…"}]} dans le même ordre que ci-dessus.`, modele, 16000, ordre, { admin, uid, source: "formation_module" });
 
       const sorties = (Array.isArray(res.lecons) ? res.lecons : []) as Record<string, unknown>[];
       let faites = 0;
@@ -215,7 +269,7 @@ Réponds UNIQUEMENT avec un objet JSON strict : {"lecons":[{"titre":"…","conte
         const { error } = await client.from("formation_lecons").update({ contenu: html }).eq("id", Number(lecons[j].id));
         if (!error) faites++;
       }
-      if (!faites) return json({ error: "ChatGPT n'a pas rédigé ce module correctement. Réessayez (aucun crédit supplémentaire)." }, 502);
+      if (!faites) return json({ error: "L'IA n'a pas rédigé ce module correctement. Réessayez (aucun crédit supplémentaire)." }, 502);
       const faits = [...new Set([...(g.modules_faits || []), index])];
       const termine = faits.length >= mods.length;
       await admin.from("formation_ia_generations").update({ modules_faits: faits, statut: termine ? "terminee" : "en_cours", maj_le: new Date().toISOString() }).eq("id", g.id);

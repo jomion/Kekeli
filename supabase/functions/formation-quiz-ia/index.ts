@@ -10,7 +10,8 @@
 // gratuit de N questions, puis quota d'abonnement, puis solde — voir
 // formation_ia_estimer / formation_ia_debiter). Seules les questions
 // réellement produites sont débitées. Les gestionnaires KEKELI ne paient pas.
-// IA utilisée : Gemini d'abord (tâche simple, 26 septembre 2026), puis ChatGPT
+// IA utilisée : Gemini d'abord (tâche simple, 26 septembre 2026) — clé du projet
+// GRATUIT, puis clé du projet PAYANT si le quota gratuit est dépassé —, puis ChatGPT
 // (OpenAI, secret OPENAI_API_KEY, modèle réglé dans formation_ia_parametres),
 // puis Groq en dernier secours.
 // Chaque appel ChatGPT enregistre son coût réel (formation_ia_enregistrer_usage)
@@ -20,7 +21,8 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") || "gemini-3.6-flash";
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY"); // projet Google AI Studio GRATUIT (A)
+const GEMINI_API_KEY_PAYANT = Deno.env.get("GEMINI_API_KEY_PAYANT"); // projet PAYANT (B), seulement si A dépasse son quota
 const GROQ_MODEL = Deno.env.get("GROQ_MODEL") || "openai/gpt-oss-120b";
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -55,7 +57,7 @@ function texteBrut(html: string): string {
     .replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
 }
 
-type Suivi = (u: { entree: number; sortie: number; modele: string } | null, quota?: string) => Promise<unknown>;
+type Suivi = (u: { entree: number; sortie: number; modele: string; fournisseur?: string } | null, quota?: string) => Promise<unknown>;
 async function appelIA(prompt: string, modele: string, suivi?: Suivi): Promise<string | null> {
   const avecDelai = async (url: string, init: RequestInit, ms = 90000) => {
     const c = new AbortController(); const t = setTimeout(() => c.abort(), ms);
@@ -63,16 +65,29 @@ async function appelIA(prompt: string, modele: string, suivi?: Suivi): Promise<s
   };
   // Ordre choisi le 26 septembre 2026 : Gemini d'abord (les quiz sont une tâche
   // simple), ChatGPT en secours, puis Groq.
-  if (GEMINI_API_KEY) {
+  // Gemini : clé du projet GRATUIT d'abord ; si Google répond « quota dépassé »
+  // (HTTP 429 / RESOURCE_EXHAUSTED), la même requête repart aussitôt avec la clé
+  // du projet PAYANT. Toute autre erreur : on passe à ChatGPT.
+  const clesGemini: [string, string][] = [];
+  if (GEMINI_API_KEY) clesGemini.push([GEMINI_API_KEY, "gemini_gratuit"]);
+  if (GEMINI_API_KEY_PAYANT) clesGemini.push([GEMINI_API_KEY_PAYANT, "gemini_payant"]);
+  for (const [cle, fournisseur] of clesGemini) {
     try {
-      const r = await avecDelai(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
+      const r = await avecDelai(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
+        method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": cle },
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.5, maxOutputTokens: 8192, responseMimeType: "application/json", thinkingConfig: { thinkingBudget: 0 } } }),
       });
-      const d = await r.json();
+      const d = await r.json().catch(() => ({}));
       const t = (d?.candidates?.[0]?.content?.parts || []).map((p: { text?: string }) => p.text || "").join("");
-      if (r.ok && t.trim()) return t;
-    } catch { /* on essaie ChatGPT */ }
+      if (r.ok && t.trim()) {
+        const um = d?.usageMetadata || {};
+        if (suivi) await Promise.resolve(suivi({ entree: Number(um.promptTokenCount) || 0, sortie: Number(um.candidatesTokenCount) || 0, modele: GEMINI_MODEL, fournisseur })).catch(() => {});
+        return t;
+      }
+      const quota = r.status === 429 || d?.error?.status === "RESOURCE_EXHAUSTED";
+      console.error("gemini", fournisseur, r.status, d?.error?.message);
+      if (!quota) break; // erreur autre que le quota : inutile d'essayer la clé payante
+    } catch (e) { console.error("gemini", fournisseur, (e as Error).message); break; }
   }
   if (OPENAI_API_KEY) {
     try {
@@ -223,7 +238,7 @@ ${source}
 
   const suivi: Suivi = (conso, quota) => Promise.resolve(quota || !conso
     ? admin.rpc("formation_ia_signaler_quota_openai", { p_message: quota || "quota" })
-    : admin.rpc("formation_ia_enregistrer_usage", { p_source: "quiz", p_modele: conso.modele, p_entree: conso.entree, p_sortie: conso.sortie, p_formateur: userId }));
+    : admin.rpc("formation_ia_enregistrer_usage", { p_source: "quiz", p_modele: conso.modele, p_entree: conso.entree, p_sortie: conso.sortie, p_formateur: userId, p_fournisseur: conso.fournisseur || "openai" }));
   const brut = await appelIA(prompt, par?.modele || "gpt-6-sol", suivi);
   if (!brut) return json({ error: "Le service d'IA est momentanément indisponible. Réessayez dans quelques instants." }, 503);
   let liste: unknown[] = [];
