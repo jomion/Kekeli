@@ -7,14 +7,16 @@
   const main = document.getElementById('fkContenu');
   const s = await fkSession();
 
-  const [{ data: categories }, { data: populaires }, { data: recentes }] = await Promise.all([
+  const [{ data: categories }, { data: populairesBrut }, { data: recentes }] = await Promise.all([
     supabaseClient.from('formation_categories').select('id, nom, slug, icone, parent_id').eq('statut', 'actif').is('parent_id', null).order('position'),
     supabaseClient.from('formations').select(FK_SELECT_CARTE).eq('statut', 'publiee').eq('visibilite', 'publique')
-      .order('nb_inscrits', { ascending: false }).order('publiee_le', { ascending: false }).limit(8),
+      .order('nb_inscrits', { ascending: false }).order('publiee_le', { ascending: false }).limit(24),
     supabaseClient.from('formations').select('id, slug, titre, nb_lecons, duree_minutes, image_couverture').eq('statut', 'publiee')
       .eq('visibilite', 'publique').order('publiee_le', { ascending: false }).limit(3)
   ]);
 
+  // Mise en avant (avantage Pro / Premium) : leurs formations passent devant, 8 affichées.
+  const populaires = fkMettreEnAvant(populairesBrut).slice(0, 8);
   // Carte du héro : la vraie progression de l'apprenant connecté, sinon
   // les dernières formations publiées.
   let carteHero = '';
@@ -105,7 +107,7 @@
           <div class="fk-step"><div class="fk-step-num">1</div><h3>Choisissez</h3><p>Recherchez une formation adaptée à vos besoins et à votre niveau.</p></div>
           <div class="fk-step"><div class="fk-step-num">2</div><h3>Apprenez</h3><p>Suivez les leçons, regardez les vidéos et téléchargez les ressources.</p></div>
           <div class="fk-step"><div class="fk-step-num">3</div><h3>Pratiquez</h3><p>Répondez aux quiz pour mesurer vos progrès, à votre rythme.</p></div>
-          <div class="fk-step"><div class="fk-step-num">4</div><h3>Terminez</h3><p>Validez toutes les leçons et les quiz : votre formation est terminée. Les certificats arrivent bientôt.</p></div>
+          <div class="fk-step"><div class="fk-step-num">4</div><h3>Terminez</h3><p>Validez toutes les leçons et les quiz : votre formation est terminée et vous recevez votre certificat, vérifiable en ligne.</p></div>
         </div>
       </div>
     </section>

@@ -239,14 +239,25 @@ Deno.serve(async (req) => {
         if (ins && ins.statut !== "annulee") return json({ error: "Vous êtes déjà inscrit(e) à cette formation." }, 400);
         ligne = { formation_id: f.id, formateur_id: f.formateur_id, montant: f.prix, devise: f.devise || "XOF" };
         titre = f.titre;
+        // Code promo du formateur (avantage « Formateur Plus » et plus), revérifié ici.
+        const codePromo = String(body.codePromo || "").trim();
+        if (codePromo) {
+          const { data: cp } = await admin.rpc("formation_code_promo_valide", { p_formation: f.id, p_code: codePromo });
+          if (!cp?.ok) return json({ error: cp?.erreur || "Code promo invalide." }, 400);
+          ligne.montant = cp.prix_remise;
+          ligne.details = { code_promo_id: cp.id, code_promo: cp.code, pourcentage: cp.pourcentage, prix_initial: f.prix };
+          titre = `${f.titre} (code ${cp.code})`;
+        }
       } else {
         // Crédits IA (26 septembre 2026) : pack prépayé ou abonnement mensuel.
         const table = objet === "ia_pack" ? "formation_ia_packs" : "formation_ia_offres";
         const { data: o } = await admin.from(table).select("*").eq("id", Number(body.produitId)).eq("actif", true).maybeSingle();
         if (!o) return json({ error: "Cette offre n'est plus disponible." }, 400);
+        // Prix de lancement tant qu'il reste des places.
+        const prix = o.prix_lancement && o.places_lancement > 0 ? o.prix_lancement : o.prix;
         ligne = objet === "ia_pack"
-          ? { objet, ia_pack_id: o.id, credits: o.credits, montant: o.prix, devise: "XOF" }
-          : { objet, ia_offre_id: o.id, credits: o.credits_mensuels, montant: o.prix, devise: "XOF" };
+          ? { objet, ia_pack_id: o.id, credits: o.credits, montant: prix, devise: "XOF" }
+          : { objet, ia_offre_id: o.id, credits: o.credits_mensuels, montant: prix, devise: "XOF" };
         titre = `Crédits IA — ${o.nom}`;
       }
       const { data: p, error } = await admin.from("formation_paiements").insert({

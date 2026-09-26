@@ -42,6 +42,9 @@ async function chargerTout(id) {
   FKE.quiz = qz.data || [];
   FKE.activites = acts.data || [];
   FKE.categories = cats.data || [];
+  // Niveau d'avantages (packs / abonnement) : débloque outils IA, codes promo, statistiques…
+  const { data: niv } = await supabaseClient.rpc('formation_niveau_effectif', { p_id: FKE.s.profil.id });
+  FKE.niveau = Number(niv) || 0;
 }
 
 async function recharger() {
@@ -51,7 +54,8 @@ async function recharger() {
 
 function rendrePage() {
   const f = FKE.f;
-  const onglets = [['infos', '📝 Informations'], ['programme', '📚 Programme'], ['quiz', '✅ Quiz'], ['activites', '🧭 Tests en leçon'], ['apprenants', `👥 Apprenants (${f.nb_inscrits})`], ['publication', '🚀 Publication']];
+  const onglets = [['infos', '📝 Informations'], ['programme', '📚 Programme'], ['quiz', '✅ Quiz'], ['activites', '🧭 Tests en leçon'], ['apprenants', `👥 Apprenants (${f.nb_inscrits})`],
+    ['stats', `📈 Statistiques${FKE.niveau >= 2 ? '' : ' 🔒'}`], ['promo', `🏷️ Codes promo${FKE.niveau >= 1 ? '' : ' 🔒'}`], ['publication', '🚀 Publication']];
   document.getElementById('fkContenu').innerHTML = `
     <div class="fk-page"><div class="fk-container">
       <a class="fk-link" href="tableau-de-bord.html">← Espace formateur</a>
@@ -71,7 +75,7 @@ function rendrePage() {
     const u = new URL(window.location.href); u.searchParams.set('onglet', FKE.onglet); history.replaceState(null, '', u);
     rendrePage();
   }));
-  ({ infos: ongletInfos, programme: ongletProgramme, quiz: ongletQuiz, activites: ongletActivites, apprenants: ongletApprenants, publication: ongletPublication })[FKE.onglet]?.();
+  ({ infos: ongletInfos, programme: ongletProgramme, quiz: ongletQuiz, activites: ongletActivites, apprenants: ongletApprenants, stats: ongletStats, promo: ongletPromo, publication: ongletPublication })[FKE.onglet]?.();
   if (FKE.verrouille) document.querySelectorAll('#zoneOnglet [data-edition]').forEach(el => { el.disabled = true; });
 }
 
@@ -97,7 +101,7 @@ function ongletInfos() {
             <label class="fk-champ"><span>Langue</span><select name="langue">${[['fr', 'Français'], ['en', 'Anglais'], ['fon', 'Fon'], ['yo', 'Yoruba']].map(([k, v]) => `<option value="${k}" ${k === f.langue ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
           </div>
           <div class="fk-grille-2">
-            <label class="fk-champ"><span>Prix (FCFA)</span><input type="number" name="prix" min="0" step="100" value="${f.prix}"><small>0 = gratuite. Le paiement en ligne arrive bientôt : une formation payante restera fermée aux inscriptions d'ici là.</small></label>
+            <label class="fk-champ"><span>Prix (FCFA)</span><input type="number" name="prix" min="0" step="100" value="${f.prix}"><small>0 = gratuite. Paiement en ligne par Mobile Money ou carte (FedaPay / KkiaPay).</small></label>
             <label class="fk-champ"><span>Visibilité</span><select name="visibilite"><option value="publique" ${f.visibilite === 'publique' ? 'selected' : ''}>Publique (catalogue)</option><option value="non_listee" ${f.visibilite === 'non_listee' ? 'selected' : ''}>Non listée (lien direct)</option></select></label>
           </div>
         </div>
@@ -109,11 +113,13 @@ function ongletInfos() {
           <label class="fk-champ" style="margin-top:14px"><span>Vidéo de présentation</span><input type="url" name="video_promo" placeholder="Lien YouTube ou Vimeo" value="${fkEchapper(f.video_promo || '')}"></label>
         </div>
       </div>
+      <div class="fk-outils-ia">✨ ${fkBoutonOutil(FKE.niveau, 1, 'data-outil-vente', '✍️ Texte de vente et messages WhatsApp / Facebook (IA)')}</div>
       <div class="fk-champ"><span>Description * <small style="display:inline;font-weight:400">(50 caractères minimum : objectifs, public visé, prérequis…)</small></span><div id="editeurDescription"></div></div>
       <div class="fk-actions-form"><button class="fk-btn fk-btn-primary" type="submit" data-edition>Enregistrer</button></div>
     </form>`;
   const ed = fkEditeurRiche(document.getElementById('editeurDescription'), f.description, 'Présentez votre formation…', { formationId: f.id });
   if (FKE.verrouille) ed.desactiver();
+  zone.querySelector('[data-outil-vente]').addEventListener('click', () => outilVente(ed));
 
   document.getElementById('formInfos').addEventListener('submit', async e => {
     e.preventDefault();
@@ -365,7 +371,14 @@ function modaleLecon(l, moduleId) {
           <label><input type="radio" name="mode_contenu" value="editeur" ${l?.page_html ? '' : 'checked'}> <b>Éditeur KEKELI</b><small>Texte mis en forme, images, tests, diaporama…</small></label>
           <label><input type="radio" name="mode_contenu" value="page" ${l?.page_html ? 'checked' : ''}> <b>Page HTML complète</b><small>Votre page telle quelle : styles, animations, minuteur… tout fonctionne comme dans le navigateur.</small></label>
         </div>
-        <div data-bloc-editeur><div id="editeurLecon"></div></div>
+        <div data-bloc-editeur>
+          <div class="fk-outils-ia">✨ Outils IA :
+            ${fkBoutonOutil(FKE.niveau, 1, 'data-outil="corriger"', '🔤 Corriger l\'orthographe')}
+            ${fkBoutonOutil(FKE.niveau, 1, 'data-outil="resume"', '📌 Ajouter un résumé')}
+            ${fkBoutonOutil(FKE.niveau, 2, 'data-outil="tests"', '🧭 Créer des tests')}
+            ${fkBoutonOutil(FKE.niveau, 2, 'data-outil="diaporama"', '🎞️ Créer un diaporama')}
+          </div>
+          <div id="editeurLecon"></div></div>
         <div data-bloc-page hidden>
           <div class="fk-page-outils">
             <label class="fk-btn fk-btn-outline fk-btn-petit" style="cursor:pointer">📥 Importer un fichier .html<input type="file" data-import-page accept=".html,.htm,text/html" hidden></label>
@@ -397,6 +410,7 @@ function modaleLecon(l, moduleId) {
     } : { leconId: null, liste: [], editer: async () => null }
   });
   if (FKE.verrouille) ed.desactiver();
+  md.boite.querySelectorAll('[data-outil]').forEach(b => b.addEventListener('click', () => outilLecon(b, ed, l, md)));
 
   // ----- Page HTML complète (26 septembre 2026) -----
   let pageHtml = l?.page_html || '';
@@ -1409,12 +1423,199 @@ async function ongletApprenants() {
       <div class="fk-stat"><small>Progression moyenne</small><strong>${fkPourcentage(moyenne)}</strong></div>
       <div class="fk-stat"><small>Taux de complétion</small><strong>${liste.length ? fkPourcentage(termines * 100 / liste.length) : '—'}</strong></div>
     </div>
+    <div class="fk-carte" style="margin-bottom:14px">
+      <h3 style="margin-top:0">📣 Message à tous les apprenants ${FKE.niveau >= 3 ? '' : '<small class="fk-verrou-txt">🔒 Formateur Premium</small>'}</h3>
+      ${FKE.niveau >= 3 ? `<form id="formMessageGroupe">
+        <label class="fk-champ"><span>Titre</span><input type="text" name="titre" required minlength="3" maxlength="120" placeholder="Ex. Nouveau module disponible !"></label>
+        <label class="fk-champ"><span>Message</span><textarea name="message" required minlength="5" maxlength="1000" style="min-height:80px" placeholder="Ex. Bonjour à tous, le module 4 est en ligne…"></textarea></label>
+        <div class="fk-actions-form"><button class="fk-btn fk-btn-primary" type="submit">Envoyer à ${liste.filter(a => a.statut !== 'annulee').length} apprenant(s)</button></div>
+      </form><small style="color:var(--f-muted)">Le message arrive dans les notifications 🔔 de chaque apprenant. 3 messages par jour au maximum.</small>`
+        : `<p style="margin:0">Relancez ou informez tous vos apprenants en un clic. <a class="fk-link" href="credits-ia.html#offres">Disponible avec l'abonnement</a>.</p>`}
+    </div>
     <div class="fk-carte">${liste.length ? `<div class="fk-table-wrap"><table class="fk-table"><thead><tr><th>Apprenant</th><th>Progression</th><th>Statut</th><th>Inscrit le</th><th>Dernière activité</th></tr></thead><tbody>
       ${liste.map(a => `<tr><td>${fkEchapper(a.prenom)} ${fkEchapper(a.nom)}</td>
         <td style="min-width:140px"><div class="fk-progress"><span style="width:${Math.round(a.progression)}%"></span></div><small>${fkPourcentage(a.progression)}</small></td>
         <td><span class="fk-pastille ${a.statut}">${{ active: 'En cours', terminee: 'Terminée', annulee: 'Annulée', suspendue: 'Suspendue' }[a.statut]}</span></td>
         <td>${fkDate(a.inscrit_le)}</td><td>${fkDate(a.derniere_activite)}</td></tr>`).join('')}
     </tbody></table></div>` : '<p class="fk-vide">Aucun apprenant inscrit pour le moment.</p>'}</div>`;
+  const formMsg = document.getElementById('formMessageGroupe');
+  if (formMsg) formMsg.addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const btn = formMsg.querySelector('[type=submit]'); btn.disabled = true;
+    const { data: n, error: err } = await supabaseClient.rpc('formation_message_apprenants', { p_formation: FKE.f.id, p_titre: formMsg.titre.value, p_message: formMsg.message.value });
+    btn.disabled = false;
+    if (err) { fkToast(fkMessageErreur(err).replace(/^NIVEAU_REQUIS:\s*/, ''), 'erreur'); return; }
+    fkToast(`Message envoyé à ${n} apprenant(s).`, 'succes');
+    formMsg.reset();
+  });
+}
+
+// ---------------------------------------------------------------- Avantages (26 septembre 2026)
+// Statistiques avancées (Formateur Pro) : où les apprenants décrochent, réussite aux quiz et aux tests.
+async function ongletStats() {
+  const zone = document.getElementById('zoneOnglet');
+  if (FKE.niveau < 2) { zone.innerHTML = verrouAvantage(2, '📈 Statistiques avancées', "Voyez à quelle leçon vos apprenants décrochent, quels quiz et quels tests leur posent problème, et qui est actif cette semaine."); return; }
+  zone.innerHTML = '<div class="fk-chargement">Chargement…</div>';
+  const { data: st, error } = await supabaseClient.rpc('formation_stats_avancees', { p_formation: FKE.f.id });
+  if (error) { zone.innerHTML = `<p class="fk-alerte fk-alerte-erreur">${fkEchapper(fkMessageErreur(error).replace(/^NIVEAU_REQUIS:\s*/, ''))}</p>`; return; }
+  const e = fkEchapper, ins = Math.max(1, st.inscrits || 0);
+  const barre = (v, max) => `<div class="fk-progress" style="min-width:120px"><span style="width:${Math.round(100 * (v || 0) / Math.max(1, max))}%"></span></div>`;
+  const lecons = st.lecons || [];
+  const pire = lecons.slice(1).reduce((p, l, i) => { const avant = lecons[i].terminee || 0; const perte = avant - (l.terminee || 0); return perte > (p ? p.perte : 0) ? { l, perte } : p; }, null);
+  zone.innerHTML = `
+    <div class="fk-stats">
+      <div class="fk-stat"><small>Inscrits</small><strong>${st.inscrits}</strong></div>
+      <div class="fk-stat"><small>Ont terminé</small><strong>${st.termines}</strong></div>
+      <div class="fk-stat"><small>Progression moyenne</small><strong>${st.progression_moyenne ?? 0} %</strong></div>
+      <div class="fk-stat"><small>Actifs cette semaine</small><strong>${st.actifs_7j}</strong></div>
+    </div>
+    ${pire ? `<p class="fk-alerte fk-alerte-attention">⚠️ Le plus gros décrochage : <b>${pire.perte}</b> apprenant(s) s'arrêtent avant « ${e(pire.l.titre)} ». Pensez à alléger ou rendre plus vivante la leçon qui précède.</p>` : ''}
+    <section class="fk-carte"><h3 style="margin-top:0">📚 Parcours leçon par leçon</h3>
+      <div class="fk-table-wrap"><table class="fk-table"><thead><tr><th>Leçon</th><th>Commencée</th><th>Terminée</th><th>Taux</th></tr></thead><tbody>
+      ${lecons.map(l => `<tr><td>${e(l.titre)}<br><small style="color:var(--f-muted)">${e(l.module)}</small></td><td>${l.commencee}</td><td>${l.terminee}</td><td>${barre(l.terminee, ins)}<small>${Math.round(100 * l.terminee / ins)} %</small></td></tr>`).join('') || '<tr><td colspan="4">Aucune leçon.</td></tr>'}
+      </tbody></table></div></section>
+    <section class="fk-carte" style="margin-top:14px"><h3 style="margin-top:0">✅ Quiz</h3>
+      ${(st.quiz || []).length ? `<div class="fk-table-wrap"><table class="fk-table"><thead><tr><th>Quiz</th><th>Apprenants</th><th>Tentatives</th><th>Réussite</th><th>Note moyenne</th></tr></thead><tbody>
+      ${st.quiz.map(q => `<tr><td>${e(q.titre)}</td><td>${q.apprenants}</td><td>${q.tentatives}</td><td>${q.reussite ?? '—'}${q.reussite != null ? ' %' : ''}</td><td>${q.moyenne ?? '—'}${q.moyenne != null ? ' %' : ''}</td></tr>`).join('')}
+      </tbody></table></div>` : '<p class="fk-vide" style="padding:8px">Aucun quiz.</p>'}</section>
+    <section class="fk-carte" style="margin-top:14px"><h3 style="margin-top:0">🧭 Tests en leçon</h3>
+      ${(st.activites || []).length ? `<div class="fk-table-wrap"><table class="fk-table"><thead><tr><th>Test</th><th>Réponses</th><th>Réussite</th><th>Essais moyens</th></tr></thead><tbody>
+      ${st.activites.map(a => `<tr><td>${e(a.titre || '')}</td><td>${a.reponses}</td><td>${a.reussite ?? '—'}${a.reussite != null ? ' %' : ''}</td><td>${a.essais_moyens ?? '—'}</td></tr>`).join('')}
+      </tbody></table></div>` : '<p class="fk-vide" style="padding:8px">Aucun test en leçon.</p>'}</section>`;
+}
+
+// Codes promo (Formateur Plus) : réduction en % sur une ou toutes vos formations.
+async function ongletPromo() {
+  const zone = document.getElementById('zoneOnglet');
+  if (FKE.niveau < 1) { zone.innerHTML = verrouAvantage(1, '🏷️ Codes promo', 'Créez des codes de réduction (ex. LANCEMENT30 = -30 %) pour lancer une formation ou relancer vos ventes.'); return; }
+  const { data: codes } = await supabaseClient.from('formation_codes_promo').select('*').eq('formateur_id', FKE.s.profil.id).order('cree_le', { ascending: false });
+  const e = fkEchapper;
+  const lien = new URL(`${FK_BASE}formation.html?slug=${encodeURIComponent(FKE.f.slug)}`, window.location.href).toString();
+  zone.innerHTML = `
+    <form class="fk-carte" id="formPromo">
+      <h3 style="margin-top:0">Nouveau code promo</h3>
+      <div class="fk-grille-3">
+        <label class="fk-champ"><span>Code *</span><input name="code" required pattern="[A-Za-z0-9_-]{3,20}" maxlength="20" placeholder="LANCEMENT30" style="text-transform:uppercase"></label>
+        <label class="fk-champ"><span>Réduction (%) *</span><input type="number" name="pct" required min="5" max="90" value="20"></label>
+        <label class="fk-champ"><span>Valable pour</span><select name="portee"><option value="ici">Cette formation</option><option value="toutes">Toutes mes formations</option></select></label>
+        <label class="fk-champ"><span>Fin de validité</span><input type="date" name="fin"></label>
+        <label class="fk-champ"><span>Nombre maximum d'utilisations</span><input type="number" name="max" min="1" placeholder="illimité"></label>
+      </div>
+      <div class="fk-actions-form"><button class="fk-btn fk-btn-primary" type="submit">Créer le code</button></div>
+    </form>
+    <section class="fk-carte" style="margin-top:14px"><h3 style="margin-top:0">Mes codes</h3>
+      ${(codes || []).length ? `<div class="fk-table-wrap"><table class="fk-table"><thead><tr><th>Code</th><th>Réduction</th><th>Formation</th><th>Utilisations</th><th>Fin</th><th></th></tr></thead><tbody>
+      ${codes.map(c => `<tr><td><b>${e(c.code)}</b></td><td>-${c.pourcentage} %</td><td>${c.formation_id ? (c.formation_id === FKE.f.id ? 'Cette formation' : `#${c.formation_id}`) : 'Toutes'}</td>
+        <td>${c.utilisations}${c.max_utilisations ? ` / ${c.max_utilisations}` : ''}</td><td>${c.date_fin ? fkDate(c.date_fin) : '—'}</td>
+        <td style="white-space:nowrap"><button class="fk-btn fk-btn-ghost fk-btn-petit" data-basculer="${c.id}">${c.actif ? '⏸️ Désactiver' : '▶️ Activer'}</button>
+          <button class="fk-btn fk-btn-ghost fk-btn-petit" data-partager="${e(c.code)}" data-pct="${c.pourcentage}">💬 Partager</button></td></tr>`).join('')}
+      </tbody></table></div>` : '<p class="fk-vide" style="padding:8px">Aucun code pour le moment.</p>'}
+      <small style="color:var(--f-muted)">L'acheteur saisit le code dans la fenêtre de paiement (« 🏷️ J'ai un code promo »).</small></section>`;
+  document.getElementById('formPromo').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const fd = new FormData(ev.target);
+    const { error } = await supabaseClient.from('formation_codes_promo').insert({
+      formateur_id: FKE.s.profil.id, code: String(fd.get('code')).trim().toUpperCase(), pourcentage: Number(fd.get('pct')),
+      formation_id: fd.get('portee') === 'ici' ? FKE.f.id : null, date_fin: fd.get('fin') ? new Date(`${fd.get('fin')}T23:59:59`).toISOString() : null,
+      max_utilisations: fd.get('max') ? Number(fd.get('max')) : null
+    });
+    if (error) { fkToast(/unique|duplicate/i.test(error.message) ? 'Ce code existe déjà : choisissez-en un autre.' : fkMessageErreur(error), 'erreur'); return; }
+    fkToast('Code promo créé.', 'succes');
+    ongletPromo();
+  });
+  zone.querySelectorAll('[data-basculer]').forEach(b => b.addEventListener('click', async () => {
+    const c = codes.find(x => x.id === Number(b.dataset.basculer));
+    const { error } = await supabaseClient.from('formation_codes_promo').update({ actif: !c.actif }).eq('id', c.id);
+    if (error) { fkToast(fkMessageErreur(error), 'erreur'); return; }
+    ongletPromo();
+  }));
+  zone.querySelectorAll('[data-partager]').forEach(b => b.addEventListener('click', () => {
+    const texte = `🎁 -${b.dataset.pct} % sur « ${FKE.f.titre} » avec le code ${b.dataset.partager} ! Inscris-toi ici : ${lien}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(texte)}`, '_blank', 'noopener');
+  }));
+}
+
+function verrouAvantage(niveau, titre, texte) {
+  const n = FK_NIVEAUX_AVANTAGES[niveau];
+  return `<div class="fk-carte fk-vide"><span class="fk-vide-icone">🔒</span><b>${titre}</b><br>${fkEchapper(texte)}<br>
+    <small>Inclus à partir du niveau ${n.icone} <b>${n.nom}</b>.</small><br>
+    <a class="fk-btn fk-btn-primary" style="margin-top:12px" href="credits-ia.html#offres">Voir les packs et l'abonnement</a></div>`;
+}
+
+// Texte de vente + messages réseaux sociaux (Formateur Plus).
+async function outilVente(ed) {
+  if (FKE.niveau < 1) { fkProposerOffres(1); return; }
+  const m = fkModale('✍️ Texte de vente (IA)', '<div data-ici><div class="fk-chargement">L\'IA rédige votre texte de vente et vos messages…</div></div>', { protegee: true });
+  m.boite.style.width = 'min(820px, 100%)';
+  const ici = m.boite.querySelector('[data-ici]');
+  let r;
+  try { r = await fkOutilIA('vente', { formationId: FKE.f.id }); }
+  catch (err) { ici.innerHTML = `<p class="fk-alerte fk-alerte-erreur">${fkEchapper(err.message)}</p><div class="fk-actions-form"><button class="fk-btn fk-btn-ghost" data-fermer>Fermer</button></div>`; ici.querySelector('[data-fermer]').onclick = m.fermer; return; }
+  const e = fkEchapper;
+  const lien = new URL(`${FK_BASE}formation.html?slug=${encodeURIComponent(FKE.f.slug)}`, window.location.href).toString();
+  const avecLien = t => String(t || '').replace(/\[LIEN\]/g, lien);
+  const bloc = (titre, texte, cle) => `<div class="fk-vente-bloc"><div class="fk-vente-tete"><b>${titre}</b><span>
+      <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-copier="${cle}">📋 Copier</button>
+      ${cle === 'whatsapp' || cle === 'statut' ? `<a class="fk-btn fk-btn-ghost fk-btn-petit" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(avecLien(texte))}">💬 WhatsApp</a>` : ''}
+      ${cle === 'facebook' ? `<a class="fk-btn fk-btn-ghost fk-btn-petit" target="_blank" rel="noopener" href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(lien)}">📘 Facebook</a>` : ''}</span></div>
+      <textarea class="fk-input" data-texte="${cle}" rows="${cle === 'statut' ? 2 : 5}">${e(avecLien(texte))}</textarea></div>`;
+  ici.innerHTML = `
+    <div class="fk-vente-bloc"><b>Titres accrocheurs</b>${(r.titres || []).map((t, i) => `<div class="fk-vente-titre"><span>${e(t)}</span><button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-titre="${i}">Utiliser</button></div>`).join('')}</div>
+    ${r.sous_titre ? `<div class="fk-vente-titre"><span><b>Sous-titre :</b> ${e(r.sous_titre)}</span><button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-sous-titre>Utiliser</button></div>` : ''}
+    <div class="fk-vente-bloc"><div class="fk-vente-tete"><b>Description</b><button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-description>Remplacer ma description</button></div>
+      <div class="fk-lecon-corps fk-vente-apercu">${fkNettoyerHtml(r.description_html || '')}</div></div>
+    ${bloc('💬 Message WhatsApp', r.whatsapp, 'whatsapp')}${bloc('📘 Publication Facebook', r.facebook, 'facebook')}${bloc('📱 Statut / SMS', r.statut, 'statut')}
+    <p style="font-size:12px;color:var(--f-muted)">Relisez et adaptez avant de publier. « Utiliser » remplit le formulaire : pensez ensuite à cliquer sur « Enregistrer ».</p>
+    <div class="fk-actions-form"><button class="fk-btn fk-btn-primary" data-fermer>Fermer</button></div>`;
+  ici.querySelector('[data-fermer]').onclick = m.fermer;
+  const form = document.getElementById('formInfos');
+  ici.querySelectorAll('[data-titre]').forEach(b => b.addEventListener('click', () => { form.titre.value = r.titres[Number(b.dataset.titre)].slice(0, 120); fkToast('Titre repris dans le formulaire.', 'succes'); }));
+  const bst = ici.querySelector('[data-sous-titre]'); if (bst) bst.addEventListener('click', () => { form.sous_titre.value = r.sous_titre.slice(0, 200); fkToast('Sous-titre repris.', 'succes'); });
+  ici.querySelector('[data-description]').addEventListener('click', () => { ed.ecrireHtml(r.description_html || ''); fkToast('Description remplacée : enregistrez pour la garder.', 'succes'); });
+  ici.querySelectorAll('[data-copier]').forEach(b => b.addEventListener('click', async () => {
+    const t = ici.querySelector(`[data-texte="${b.dataset.copier}"]`);
+    try { await navigator.clipboard.writeText(t.value); } catch (_e) { t.select(); document.execCommand('copy'); }
+    fkToast('Copié !', 'succes');
+  }));
+}
+
+// Outils IA dans l'éditeur de leçon : corriger, résumé (Plus) ; tests, diaporama (Pro).
+async function outilLecon(btn, ed, l, md) {
+  const outil = btn.dataset.outil, requis = Number(btn.dataset.requis);
+  if (FKE.niveau < requis) { fkProposerOffres(requis); return; }
+  const html = ed.lireHtml();
+  const titre = md.boite.querySelector('[name=titre]').value;
+  if (!html || html.replace(/<[^>]*>/g, '').trim().length < 30) { fkToast('Écrivez d\'abord le contenu de la leçon.', 'erreur'); return; }
+  if (outil === 'tests' && !l) { fkToast('Enregistrez d\'abord la leçon pour pouvoir y ajouter des tests.', 'erreur'); return; }
+  if (outil === 'diaporama' && !await fkConfirmer('Créer un diaporama à partir de cette leçon ? Il sera AJOUTÉ à la fin de la leçon (votre texte reste en place, vous pourrez le supprimer ensuite).', 'Créer')) return;
+  const libelle = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = '⏳ L\'IA travaille…';
+  try {
+    const r = await fkOutilIA(outil, { formationId: FKE.f.id, html, titre });
+    if (outil === 'corriger') {
+      ed.ecrireHtml(r.html);
+      fkToast(`Leçon corrigée${r.nb_corrections ? ` (${r.nb_corrections} correction(s))` : ''}. Relisez puis enregistrez.${r.resume ? ' ' + r.resume : ''}`, 'succes');
+    } else if (outil === 'resume') {
+      ed.ajouterHtml(r.html);
+      fkToast('Résumé ajouté à la fin de la leçon.', 'succes');
+    } else if (outil === 'diaporama') {
+      ed.ajouterHtml('<div data-bloc="diapo"></div>' + r.html);
+      fkToast(`Diaporama de ${r.nb} diapositive(s) ajouté à la fin. Aperçu : menu 🎞️ de la barre d'outils.`, 'succes');
+    } else if (outil === 'tests') {
+      const reperes = [];
+      for (const t of r.tests) {
+        const { data: a, error } = await supabaseClient.from('formation_activites_lecon').insert({
+          lecon_id: l.id, nature: 'controle', type: t.type, titre: t.titre, enonce: t.enonce, config: { choix: t.choix }, explication: t.explication, bloquant: false
+        }).select().single();
+        if (error) { fkToast(fkMessageErreur(error), 'erreur'); break; }
+        FKE.activites = [...FKE.activites, a];
+        reperes.push(`<div data-activite="${a.id}"></div>`);
+      }
+      if (reperes.length) { ed.ajouterHtml(reperes.join('')); fkToast(`${reperes.length} test(s) ajouté(s) à la fin de la leçon. Déplacez-les si besoin, puis enregistrez.`, 'succes'); }
+    }
+  } catch (err) {
+    if (err.code === 'NIVEAU') fkProposerOffres(requis); else fkToast(err.message, 'erreur');
+  } finally { btn.disabled = false; btn.innerHTML = libelle; }
 }
 
 // ---------------------------------------------------------------- Publication

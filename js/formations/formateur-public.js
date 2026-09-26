@@ -5,7 +5,7 @@
   const main = document.getElementById('fkContenu');
   const s = await fkSession();
   const { data: fo } = await supabaseClient.from('formateurs')
-    .select('id, slug, nom_affiche, titre_professionnel, biographie, expertise, experience, site_web, photo_url, statut')
+    .select('id, slug, nom_affiche, titre_professionnel, biographie, expertise, experience, site_web, photo_url, statut, niveau_pro, pro_fin')
     .eq('slug', fkParam('slug') || '').maybeSingle();
   if (!fo || fo.statut !== 'valide') {
     main.innerHTML = `<div class="fk-page"><div class="fk-container"><div class="fk-carte fk-vide"><span class="fk-vide-icone">👤</span>Ce formateur est introuvable.<br><a class="fk-link" href="${FK_BASE}catalogue.html">Voir les formations →</a></div></div></div>`;
@@ -26,7 +26,7 @@
           <div class="fk-avatar" style="${fo.photo_url ? `background-image:url('${fkEchapper(fo.photo_url)}')` : ''}">${fo.photo_url ? '' : fkEchapper((fo.nom_affiche || '?')[0])}</div>
           <div>
             <span class="fk-badge">FORMATEUR KEKELI</span>
-            <h1 class="fk-titre-page" style="margin-top:8px">${fkEchapper(fo.nom_affiche)}</h1>
+            <h1 class="fk-titre-page" style="margin-top:8px">${fkEchapper(fo.nom_affiche)} ${fkBadgePro(fo)}</h1>
             <p style="margin:0;color:var(--f-muted)">${fkEchapper(fo.titre_professionnel || fo.expertise || '')}</p>
             ${fo.site_web && /^https?:\/\//i.test(fo.site_web) ? `<a class="fk-link" href="${fkEchapper(fo.site_web)}" rel="noopener nofollow" target="_blank">🌐 Site web</a>` : ''}
           </div>

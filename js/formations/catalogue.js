@@ -101,7 +101,9 @@ const FK_PAR_PAGE = 12;
     return;
   }
   const favoris = await fkChargerFavoris(s.profil?.id);
-  grille.innerHTML = data.map(f => fkCarteFormation(f, { favori: favoris.has(f.id) })).join('');
+  // Tri par défaut : les formations des formateurs Pro / Premium d'abord (avantage « mise en avant »).
+  const liste = filtres.tri ? data : fkMettreEnAvant(data);
+  grille.innerHTML = liste.map(f => fkCarteFormation(f, { favori: favoris.has(f.id) })).join('');
   fkBrancherFavoris(grille, favoris, s.profil?.id);
 
   const nbPages = Math.ceil((count || 0) / FK_PAR_PAGE);

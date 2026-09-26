@@ -1438,3 +1438,44 @@ Fonctions serveur mises à jour (déjà en ligne) : formation-ia-generer,
 formation-quiz-ia. Base : colonne fournisseur dans formation_ia_openai_usage,
 colonne ia_formation dans formation_ia_parametres (migration
 formation_ia_gemini_gratuit_payant).
+
+======================================================================
+AVANTAGES DES PACKS ET DE L'ABONNEMENT (27 septembre 2026)
+======================================================================
+Chaque pack / abonnement donne un NIVEAU d'avantages pendant une durée :
+  ⭐ Formateur Plus (Pack Découverte, 30 j) · ✨ Formateur Pro (Pack
+  Formateur 30 j, Pack Pro 60 j) · 👑 Formateur Premium (abonnement mensuel).
+  Réglable dans Admin → Formations → 🤖 IA (colonne « Niveau d'avantages »).
+Avantages :
+  ⭐ Plus : commission réduite (13 %), codes promo, IA texte de vente +
+     messages WhatsApp/Facebook, IA correction orthographe, IA résumé de
+     leçon, création de formation IA module par module.
+  ✨ Pro : + commission 12 %, badge Pro et mise en avant dans le catalogue,
+     statistiques avancées, IA tests en leçon, IA diaporama, certificats
+     personnalisés (logo, signature, couleur — page Mon profil formateur).
+  👑 Premium : + commission 10 %, messages groupés aux apprenants, report
+     des crédits du mois non utilisés (30 j), validation prioritaire.
+  Aussi : crédits offerts (bonus) par pack, prix de lancement pour les N
+  premiers acheteurs, parrainage (50 crédits au parrain, 20 au filleul).
+Commissions par niveau : Admin → Formations → 💳 Paiements.
+
+CRÉATION DE FORMATION PAR L'IA : DEUX FAÇONS
+  🧩 Module par module (tous les packs et l'abonnement) : 10 crédits le plan,
+     puis 25 crédits par module, débités quand le formateur clique sur
+     « Rédiger ce module » (rendus si l'IA échoue). Reprise possible plus
+     tard (« Formations à terminer »).
+  ⚡ Formation complète d'un coup (Pack Pro et abonnement mensuel
+     seulement) : 80 crédits pour tout (moins cher que 10 + 4×25 = 110).
+  Tous ces prix et la case « ⚡ Complète » de chaque pack / abonnement se
+  règlent dans Admin → Formations → 🤖 IA.
+
+CERTIFICATS
+  Quand un apprenant termine une formation : bouton « 🎓 Mon certificat »
+  (Mon apprentissage → Terminées, et dans le lecteur). Page publique
+  pages/formations/certificat.html?code=KEK-XXXX-XXXX : impression / PDF,
+  vérification par code, partage LinkedIn / WhatsApp.
+
+En ligne (déjà fait) : migrations formation_avantages_formateurs,
+formation_ia_usage_outil, formation_ia_generation_par_module ; fonctions
+serveur formation-paiement, formation-ia-outils (nouvelle),
+formation-ia-generer.

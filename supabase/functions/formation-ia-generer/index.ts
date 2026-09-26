@@ -7,15 +7,23 @@
 // formateur (RLS habituelles) : il relit, modifie, puis la soumet comme
 // d'habitude.
 //
-// Paiement : les crédits IA de la formation sont débités UNE fois, à l'étape
-// « plan » (formation_ia_debiter), et remboursés automatiquement si le plan
-// échoue. La génération des modules est ensuite incluse (3 essais par
-// module). Les gestionnaires KEKELI ne paient pas.
+// Deux façons de générer (27 septembre 2026), selon le pack ou l'abonnement :
+//  • « module » (module par module) — tout formateur ayant un pack ou un
+//    abonnement actif (niveau ≥ niveau_generation_module) : le plan coûte
+//    credits_plan, puis CHAQUE module rédigé coûte credits_module, débité au
+//    moment où le formateur le demande (remboursé si l'IA échoue) ;
+//  • « complet » (toute la formation d'un coup) — réservé aux packs /
+//    abonnements qui l'incluent (formation_ia_peut_generer_complet) : un prix
+//    unique credits_formation, moins cher que la somme des modules, débité à
+//    l'étape « plan » ; tous les modules sont ensuite inclus (3 essais chacun).
+// Les crédits sont remboursés automatiquement en cas d'échec. Les
+// gestionnaires KEKELI ne paient pas et ont accès aux deux modes.
 //
 // Actions (POST JSON, utilisateur connecté) :
-//   estimer — coût en crédits et crédits disponibles
-//   plan    — { sujet, public, niveau, nbModules, leconsParModule, consignes }
-//   module  — { generationId, index }
+//   estimer     — coûts des deux modes, droits et crédits disponibles
+//   plan        — { mode, sujet, public, niveau, nbModules, leconsParModule, consignes }
+//   module      — { generationId, index }
+//   en_cours    — générations inachevées (pour reprendre plus tard)
 // IA (26 septembre 2026) : réglage admin formation_ia_parametres.ia_formation.
 //   « gemini » (défaut) : Gemini clé GRATUITE → si quota dépassé (429), clé
 //                         PAYANTE → sinon ChatGPT en dernier secours ;
@@ -154,10 +162,31 @@ Deno.serve(async (req) => {
   const iaConfiguree = !!(OPENAI_API_KEY || GEMINI_API_KEY || GEMINI_API_KEY_PAYANT);
 
   try {
+    const droits = async () => {
+      const [{ data: niv }, { data: complet }] = await Promise.all([
+        admin.rpc("formation_niveau_effectif", { p_id: uid }),
+        admin.rpc("formation_ia_peut_generer_complet", { p_formateur: uid }),
+      ]);
+      const niveau = Number(niv) || 0;
+      const niveauModule = Number(par?.niveau_generation_module ?? 1);
+      return { niveau, niveauModule, module: gratuit || niveau >= niveauModule, complet: gratuit || complet === true };
+    };
+
     if (action === "estimer") {
-      if (gratuit) return json({ ok: true, cout: 0, gratuit: true, disponible: null, configure: iaConfiguree });
-      const { data: est } = await admin.rpc("formation_ia_estimer", { p_formateur: uid, p_type: "formation", p_questions: 0 });
-      return json({ ...(est || {}), configure: iaConfiguree });
+      const dr = await droits();
+      const couts = { coutComplet: Number(par?.credits_formation ?? 80), coutPlan: Number(par?.credits_plan ?? 10), coutModule: Number(par?.credits_module ?? 25) };
+      if (gratuit) return json({ ok: true, cout: 0, gratuit: true, disponible: null, configure: iaConfiguree, ...dr, ...couts });
+      const { data: est } = await admin.rpc("formation_ia_estimer", { p_formateur: uid, p_type: "plan", p_questions: 0 });
+      return json({ ...(est || {}), configure: iaConfiguree, ...dr, ...couts });
+    }
+
+    if (action === "en_cours") {
+      const { data: gens } = await admin.from("formation_ia_generations").select("id, formation_id, demande, plan, modules_faits, cree_le")
+        .eq("formateur_id", uid).eq("statut", "en_cours").order("cree_le", { ascending: false }).limit(10);
+      return json({ generations: (gens || []).map((g) => ({
+        id: g.id, formationId: g.formation_id, titre: g.plan?.titre, mode: g.demande?.mode || "complet", cree_le: g.cree_le,
+        modules: ((g.plan?.modules || []) as Record<string, unknown>[]).map((m, i) => ({ index: i, titre: m.titre, nbLecons: ((m.lecons || []) as unknown[]).length, fait: (g.modules_faits || []).includes(i) })),
+      })) });
     }
 
     if (action === "plan") {
@@ -169,11 +198,15 @@ Deno.serve(async (req) => {
       const nbModules = Math.min(8, Math.max(2, Number(body.nbModules) || 4));
       const parModule = Math.min(6, Math.max(2, Number(body.leconsParModule) || 3));
       const consignes = txt(body.consignes, 1500);
+      const mode = body.mode === "complet" ? "complet" : "module";
+      const dr = await droits();
+      if (mode === "complet" && !dr.complet) return json({ error: "La génération complète (toute la formation d'un coup) est réservée au Pack Pro et à l'abonnement mensuel. Vous pouvez générer votre formation module par module.", code: "NIVEAU" }, 403);
+      if (mode === "module" && !dr.module) return json({ error: "La création de formation avec l'IA est incluse dans les packs et l'abonnement : choisissez une offre pour l'activer.", code: "NIVEAU" }, 403);
 
       // Débit AVANT l'appel (remboursé automatiquement en cas d'échec).
       let mouvement: number | null = null;
       if (!gratuit) {
-        const { data: d, error } = await admin.rpc("formation_ia_debiter", { p_formateur: uid, p_type: "formation", p_questions: 0, p_details: { sujet } });
+        const { data: d, error } = await admin.rpc("formation_ia_debiter", { p_formateur: uid, p_type: mode === "complet" ? "formation" : "plan", p_questions: 0, p_details: { sujet, mode } });
         if (error) return json({ error: String(error.message || "").replace(/^CREDITS_INSUFFISANTS:\s*/, ""), code: "CREDITS" }, 402);
         mouvement = d?.mouvement_id ?? null;
       }
@@ -224,14 +257,15 @@ Réponds UNIQUEMENT avec un objet JSON strict :
         planFinal.push({ ...m, id: mod.id, lecons: m.lecons.map((l: Record<string, unknown>, j: number) => ({ ...l, id: les[j]?.id })) });
       }
       const { data: g } = await admin.from("formation_ia_generations").insert({
-        formateur_id: uid, formation_id: f.id, mouvement_id: mouvement, demande: { sujet, public: publicVise, niveau, nbModules, parModule, consignes },
+        formateur_id: uid, formation_id: f.id, mouvement_id: mouvement, demande: { sujet, public: publicVise, niveau, nbModules, parModule, consignes, mode },
         plan: { titre, modules: planFinal },
       }).select("id").single();
-      if (mouvement) await admin.from("formation_ia_mouvements").update({ details: { sujet, formation_id: f.id, generation_id: g?.id } }).eq("id", mouvement);
-      return json({ generationId: g?.id, formationId: f.id, titre, modules: planFinal.map((m, i) => ({ index: i, titre: m.titre, nbLecons: (m.lecons as unknown[]).length })) });
+      if (mouvement) await admin.from("formation_ia_mouvements").update({ details: { sujet, mode, formation_id: f.id, generation_id: g?.id } }).eq("id", mouvement);
+      return json({ generationId: g?.id, formationId: f.id, titre, mode, coutModule: mode === "module" && !gratuit ? Number(par?.credits_module ?? 25) : 0, modules: planFinal.map((m, i) => ({ index: i, titre: m.titre, nbLecons: (m.lecons as unknown[]).length })) });
     }
 
     if (action === "module") {
+      if (!iaConfiguree) return json({ error: "La génération par IA n'est pas encore configurée (aucune clé Gemini ni OpenAI)." }, 503);
       const { data: g } = await admin.from("formation_ia_generations").select("*").eq("id", Number(body.generationId)).eq("formateur_id", uid).maybeSingle();
       if (!g) return json({ error: "Génération introuvable." }, 404);
       const index = Number(body.index);
@@ -241,11 +275,22 @@ Réponds UNIQUEMENT avec un objet JSON strict :
       if ((g.modules_faits || []).includes(index)) return json({ ok: true, deja: true, index });
       const essais = Number((g.essais || {})[index] || 0);
       if (essais >= 3) return json({ error: "Ce module a déjà échoué 3 fois : rédigez ses leçons vous-même ou contactez KEKELI." }, 429);
+      const d = g.demande || {};
+      // Mode module par module : chaque module est payé quand on le demande
+      // (remboursé si l'IA échoue). Mode complet : modules déjà inclus.
+      let mvtModule: number | null = null;
+      if (d.mode === "module" && !gratuit) {
+        const { data: db, error } = await admin.rpc("formation_ia_debiter", { p_formateur: uid, p_type: "module", p_questions: 0, p_details: { generation_id: g.id, formation_id: g.formation_id, module: index + 1, titre: m.titre } });
+        if (error) return json({ error: String(error.message || "").replace(/^CREDITS_INSUFFISANTS:\s*/, ""), code: "CREDITS" }, 402);
+        mvtModule = db?.mouvement_id ?? null;
+      }
+      const rendre = async (motif: string) => { if (mvtModule) await admin.rpc("formation_ia_rembourser", { p_mouvement: mvtModule, p_motif: motif }); };
       await admin.from("formation_ia_generations").update({ essais: { ...(g.essais || {}), [index]: essais + 1 }, maj_le: new Date().toISOString() }).eq("id", g.id);
 
-      const d = g.demande || {};
       const lecons = (m.lecons || []) as Record<string, unknown>[];
-      const res = await genererJSON(`Tu es un formateur expert et un excellent rédacteur pédagogique pour KEKELI Formation (adultes, Afrique francophone).
+      let res: Record<string, unknown>;
+      try {
+      res = await genererJSON(`Tu es un formateur expert et un excellent rédacteur pédagogique pour KEKELI Formation (adultes, Afrique francophone).
 Formation : « ${g.plan?.titre} » — niveau ${NIVEAUX[String(d.niveau)] || "tous niveaux"}${d.public ? `, public : ${d.public}` : ""}.
 ${d.consignes ? `Consignes du formateur : ${d.consignes}\n` : ""}Plan complet (pour la cohérence, ne rédige QUE le module demandé) :
 ${mods.map((x, i) => `${i + 1}. ${x.titre}`).join("\n")}
@@ -260,6 +305,7 @@ Format du contenu : HTML simple UNIQUEMENT avec les balises h2, h3, p, ul, ol, l
 Pour l'encadré « À retenir » utilise exactement : <div data-bloc="encadre" style="background-color: #e8f5e9"><p><strong>📌 À retenir</strong></p><ul><li>…</li></ul></div>
 Ne répète pas le titre de la leçon en h1. Pas de CSS, pas de script, pas d'image.
 Réponds UNIQUEMENT avec un objet JSON strict : {"lecons":[{"titre":"…","contenu_html":"…"}]} dans le même ordre que ci-dessus.`, modele, 16000, ordre, { admin, uid, source: "formation_module" });
+      } catch (e) { await rendre("échec du module"); return json({ error: (e as Error).message + (mvtModule ? " Les crédits de ce module vous ont été rendus." : "") }, 502); }
 
       const sorties = (Array.isArray(res.lecons) ? res.lecons : []) as Record<string, unknown>[];
       let faites = 0;
@@ -269,7 +315,7 @@ Réponds UNIQUEMENT avec un objet JSON strict : {"lecons":[{"titre":"…","conte
         const { error } = await client.from("formation_lecons").update({ contenu: html }).eq("id", Number(lecons[j].id));
         if (!error) faites++;
       }
-      if (!faites) return json({ error: "L'IA n'a pas rédigé ce module correctement. Réessayez (aucun crédit supplémentaire)." }, 502);
+      if (!faites) { await rendre("module vide"); return json({ error: mvtModule ? "L'IA n'a pas rédigé ce module correctement. Les crédits de ce module vous ont été rendus : réessayez." : "L'IA n'a pas rédigé ce module correctement. Réessayez (aucun crédit supplémentaire)." }, 502); }
       const faits = [...new Set([...(g.modules_faits || []), index])];
       const termine = faits.length >= mods.length;
       await admin.from("formation_ia_generations").update({ modules_faits: faits, statut: termine ? "terminee" : "en_cours", maj_le: new Date().toISOString() }).eq("id", g.id);

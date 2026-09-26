@@ -30,7 +30,7 @@
         ${f.formateurs ? `<div class="fk-formateur-nom">par ${fkEchapper(f.formateurs.nom_affiche)}</div>` : ''}
         <div class="fk-progress" style="margin:8px 0 6px"><span style="width:${Math.round(i.progression)}%"></span></div>
         <div class="fk-meta"><span>${fkPourcentage(i.progression)} terminé</span><span>${i.statut === 'terminee' ? `🏆 le ${fkDate(i.termine_le)}` : `inscrit le ${fkDate(i.inscrit_le)}`}</span></div>
-        <div class="fk-price" style="margin-top:14px"><span></span><a class="fk-btn fk-btn-primary fk-btn-petit" href="${FK_BASE}app/formation.html?id=${f.id}">${i.statut === 'terminee' ? 'Revoir' : Number(i.progression) > 0 ? '▶ Continuer' : '▶ Commencer'}</a></div>
+        <div class="fk-price" style="margin-top:14px"><span>${i.statut === 'terminee' ? fkBoutonCertificat(f.id) : ''}</span><a class="fk-btn fk-btn-primary fk-btn-petit" href="${FK_BASE}app/formation.html?id=${f.id}">${i.statut === 'terminee' ? 'Revoir' : Number(i.progression) > 0 ? '▶ Continuer' : '▶ Commencer'}</a></div>
       </div></article>`;
   };
   const vide = (icone, texte) => `<div class="fk-carte fk-vide" style="grid-column:1/-1"><span class="fk-vide-icone">${icone}</span>${texte}<br><a class="fk-btn fk-btn-primary" style="margin-top:12px" href="${FK_BASE}catalogue.html">Explorer les formations</a></div>`;

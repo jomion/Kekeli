@@ -345,12 +345,60 @@ function fkRendrePied() {
 }
 
 // ---------- Cartes formation ----------
-const FK_SELECT_CARTE = 'id, slug, titre, sous_titre, image_couverture, prix, devise, niveau, duree_minutes, nb_lecons, nb_inscrits, note_moyenne, nb_avis, publiee_le, categorie_id, formation_categories(id, nom, icone, slug), formateurs(nom_affiche, slug)';
+const FK_SELECT_CARTE = 'id, slug, titre, sous_titre, image_couverture, prix, devise, niveau, duree_minutes, nb_lecons, nb_inscrits, note_moyenne, nb_avis, publiee_le, categorie_id, formation_categories(id, nom, icone, slug), formateurs(nom_affiche, slug, niveau_pro, pro_fin)';
 
 function fkStyleCouverture(f, i) {
   if (f.image_couverture) return { classe: '', style: `background-image:linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.25)),url('${fkEchapper(f.image_couverture)}')` };
   return { classe: ['', 'c1', 'c2', 'c3'][(Number(f.id) || i || 0) % 4], style: '' };
 }
+// ---------- Avantages des packs / de l'abonnement (26 septembre 2026) ----------
+// Niveau d'avantages d'un formateur : 1 Plus, 2 Pro, 3 Premium (voir formation_niveau_formateur).
+const FK_NIVEAUX_AVANTAGES = [
+  { nom: 'Standard', icone: '' },
+  { nom: 'Formateur Plus', icone: '⭐' },
+  { nom: 'Formateur Pro', icone: '✨' },
+  { nom: 'Formateur Premium', icone: '👑' }
+];
+function fkNiveauPublic(fo) {
+  if (!fo || !fo.pro_fin || new Date(fo.pro_fin) <= new Date()) return 0;
+  return Number(fo.niveau_pro) || 0;
+}
+// Badge « Pro » visible par les visiteurs (niveau 2 et plus) : mise en avant.
+function fkBadgePro(fo) {
+  const n = fkNiveauPublic(fo);
+  if (n < 2) return '';
+  return `<span class="fk-badge-pro fk-badge-pro-${n}" title="${fkEchapper(FK_NIVEAUX_AVANTAGES[n].nom)}">${FK_NIVEAUX_AVANTAGES[n].icone} ${n >= 3 ? 'Premium' : 'Pro'}</span>`;
+}
+// Trie les formations en mettant d'abord celles des formateurs Pro/Premium (ordre stable).
+function fkMettreEnAvant(liste) {
+  return (liste || []).map((f, i) => ({ f, i, n: fkNiveauPublic(f.formateurs) >= 2 ? fkNiveauPublic(f.formateurs) : 0 }))
+    .sort((a, b) => (b.n - a.n) || (a.i - b.i)).map(x => x.f);
+}
+// Appel d'un outil IA réservé aux avantages (fonction serveur « formation-ia-outils »).
+async function fkOutilIA(action, corps) {
+  const { data, error } = await supabaseClient.functions.invoke('formation-ia-outils', { body: { action, ...corps } });
+  if (error) {
+    let msg = error.message || 'Le service ne répond pas.', code = null;
+    try { const j = await error.context.json(); if (j && j.error) { msg = j.error; code = j.code; } } catch (_e) { /* réponse non JSON */ }
+    const e = new Error(msg); e.code = code; throw e;
+  }
+  if (data && data.error) throw new Error(data.error);
+  return data;
+}
+// Bouton d'outil IA : cadenas + lien vers les offres si le niveau est insuffisant.
+function fkBoutonOutil(niveauActuel, niveauRequis, attr, libelle) {
+  const ok = niveauActuel >= niveauRequis;
+  return `<button type="button" class="fk-btn ${ok ? 'fk-btn-outline' : 'fk-btn-ghost fk-outil-verrou'} fk-btn-petit" ${attr} data-requis="${niveauRequis}"
+    title="${ok ? '' : `Avantage « ${FK_NIVEAUX_AVANTAGES[niveauRequis].nom} » — voir Mes crédits IA`}">${ok ? '' : '🔒 '}${libelle}</button>`;
+}
+function fkProposerOffres(niveauRequis) {
+  const m = fkModale(`${FK_NIVEAUX_AVANTAGES[niveauRequis].icone} Avantage « ${FK_NIVEAUX_AVANTAGES[niveauRequis].nom} »`, `
+    <p>Cet outil est inclus dans les packs et l'abonnement qui donnent le niveau <b>${FK_NIVEAUX_AVANTAGES[niveauRequis].nom}</b> ou plus.</p>
+    <div class="fk-actions-form"><button type="button" class="fk-btn fk-btn-ghost" data-fermer>Plus tard</button>
+    <a class="fk-btn fk-btn-primary" href="${FK_BASE}formateur/credits-ia.html#offres">Voir les packs et l'abonnement</a></div>`);
+  return m;
+}
+
 function fkCarteFormation(f, opts) {
   const o = opts || {};
   const cat = f.formation_categories;
@@ -365,7 +413,7 @@ function fkCarteFormation(f, opts) {
       </a>
       <div class="fk-course-body">
         <h3><a href="${lien}">${fkEchapper(f.titre)}</a></h3>
-        ${f.formateurs ? `<div class="fk-formateur-nom">par ${fkEchapper(f.formateurs.nom_affiche)}</div>` : ''}
+        ${f.formateurs ? `<div class="fk-formateur-nom">par ${fkEchapper(f.formateurs.nom_affiche)} ${fkBadgePro(f.formateurs)}</div>` : ''}
         <div class="fk-meta"><span>📚 ${f.nb_lecons || 0} leçon${f.nb_lecons > 1 ? 's' : ''}</span><span>⏱️ ${fkDuree(f.duree_minutes)}</span><span>${FK_NIVEAUX[f.niveau] || ''}</span></div>
         <div class="fk-rating">${fkEtoiles(f.note_moyenne, f.nb_avis)}</div>
         <div class="fk-price"><strong>${fkPrix(f.prix, f.devise)}</strong><a class="fk-btn fk-btn-primary fk-btn-petit" href="${lien}">Voir</a></div>
@@ -1723,6 +1771,9 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
     zone,
     idsActivites: () => [...new Set([...(modeSource ? new DOMParser().parseFromString(source.value, 'text/html') : zone).querySelectorAll('[data-activite]')].map(el => Number(el.dataset.activite)))],
     lireHtml: () => lireHtmlPropre(),
+    // Outils IA (26 septembre 2026) : remplacer tout le contenu, ou ajouter à la fin.
+    ecrireHtml: html => { if (modeSource) basculerSource(); zone.innerHTML = fkNettoyerHtml(html || ''); decorerActivites(); decorerDiapos(); },
+    ajouterHtml: html => { if (modeSource) basculerSource(); const t = document.createElement('template'); t.innerHTML = fkNettoyerHtml(html || ''); zone.appendChild(t.content); decorerActivites(); decorerDiapos(); },
     desactiver: () => { zone.contentEditable = 'false'; barre.querySelectorAll('button, select, input').forEach(el => { el.disabled = true; }); }
   };
 }
@@ -2162,19 +2213,37 @@ async function fkPayer(o) {
   }
   const enTest = moyens.some(([k]) => config[k].test);
   corps.innerHTML = `${enTest ? `<p class="fk-alerte fk-alerte-attention" data-mode-test>🧪 <b>Mode test</b> : aucun argent réel n'est débité. Utilisez les numéros de test du prestataire.</p>` : ''}
-    <p style="margin:0 0 12px">Montant à payer : <b>${fkEchapper(o.montant)}</b>${o.note ? `<br><small style="color:var(--f-muted)">${fkEchapper(o.note)}</small>` : ''}</p>
+    <p style="margin:0 0 12px">Montant à payer : <b data-montant>${fkEchapper(o.montant)}</b>${o.note ? `<br><small style="color:var(--f-muted)">${fkEchapper(o.note)}</small>` : ''}</p>
+    ${f.id ? `<details class="fk-code-promo" style="margin:0 0 12px"><summary>🏷️ J'ai un code promo</summary>
+      <div style="display:flex;gap:8px;margin-top:8px"><input class="fk-input" data-code-promo maxlength="20" placeholder="EX. LANCEMENT30" style="text-transform:uppercase;flex:1">
+      <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-appliquer-code>Appliquer</button></div><small data-etat-code></small></details>` : ''}
     <div class="fk-moyens-paiement">${moyens.map(([k, nom, desc, ic]) => `<button type="button" class="fk-moyen-paiement" data-prestataire="${k}">
       <span class="fk-moyen-icone" aria-hidden="true">${ic}</span><span><b>${nom}</b><small>${desc}</small></span></button>`).join('')}</div>
     <p style="font-size:12px;color:var(--f-muted);margin:12px 0 0">🔒 Paiement sécurisé : KEKELI ne voit jamais votre code Mobile Money ni votre carte. ${f.id ? "L'accès s'ouvre" : 'Les crédits sont ajoutés'} dès que le paiement est confirmé.</p>
     <p data-etat class="fk-alerte fk-alerte-info" hidden></p>`;
   const etat = corps.querySelector('[data-etat]');
+  // Code promo (formations uniquement) : vérifié ici pour afficher le prix, puis revérifié par le serveur.
+  let codePromo = null;
+  const btnCode = corps.querySelector('[data-appliquer-code]');
+  if (btnCode) btnCode.addEventListener('click', async () => {
+    const champ = corps.querySelector('[data-code-promo]');
+    const info = corps.querySelector('[data-etat-code]');
+    const code = champ.value.trim().toUpperCase();
+    if (!code) return;
+    const { data, error } = await supabaseClient.rpc('formation_code_promo_valide', { p_formation: f.id, p_code: code });
+    if (error || !data || !data.ok) { codePromo = null; info.style.color = 'var(--f-danger)'; info.textContent = (data && data.erreur) || 'Code invalide.'; corps.querySelector('[data-montant]').textContent = o.montant; return; }
+    codePromo = data.code;
+    info.style.color = 'var(--f-primary-dark)';
+    info.textContent = `✔ Code « ${data.code} » : -${data.pourcentage} %`;
+    corps.querySelector('[data-montant]').innerHTML = `<s style="color:var(--f-muted);font-weight:400">${fkEchapper(fkPrix(data.prix))}</s> ${fkEchapper(fkPrix(data.prix_remise))}`;
+  });
   const dire = (t, type) => { etat.hidden = false; etat.className = `fk-alerte fk-alerte-${type || 'info'}`; etat.textContent = t; };
   corps.querySelectorAll('[data-prestataire]').forEach(b => b.addEventListener('click', async () => {
     const prestataire = b.dataset.prestataire;
     corps.querySelectorAll('[data-prestataire]').forEach(x => { x.disabled = true; });
     dire('Préparation du paiement…');
     try {
-      const r = await fkPaiementAppel({ action: 'initier', prestataire, ...o.corps, retour: fkUrlRetourPaiement(f.id) });
+      const r = await fkPaiementAppel({ action: 'initier', prestataire, ...o.corps, ...(codePromo ? { codePromo } : {}), retour: fkUrlRetourPaiement(f.id) });
       if (prestataire === 'fedapay') {
         dire('Redirection vers la page de paiement FedaPay…');
         window.location.href = r.url;
@@ -2232,3 +2301,21 @@ async function fkInitPage(actif) {
   }
   await fkRendreEntete(actif);
 }
+
+
+// ---------- Certificats de réussite (27 septembre 2026) ----------
+// Bouton « Obtenir mon certificat » (formation terminée). Un seul
+// gestionnaire délégué sur le document : fonctionne sur toutes les pages.
+function fkBoutonCertificat(formationId) {
+  return `<button type="button" class="fk-btn fk-btn-outline fk-btn-petit" data-obtenir-certificat="${Number(formationId)}">🎓 Mon certificat</button>`;
+}
+document.addEventListener('click', async ev => {
+  const b = ev.target.closest && ev.target.closest('[data-obtenir-certificat]');
+  if (!b) return;
+  ev.preventDefault();
+  b.disabled = true;
+  const { data, error } = await supabaseClient.rpc('formation_obtenir_certificat', { p_formation: Number(b.dataset.obtenirCertificat) });
+  b.disabled = false;
+  if (error || !data) { fkToast(fkMessageErreur(error) || 'Certificat indisponible.', 'erreur'); return; }
+  window.location.href = `${FK_BASE}certificat.html?code=${encodeURIComponent(data)}`;
+});

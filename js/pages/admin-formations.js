@@ -80,17 +80,20 @@ async function afficherAF() {
 // ---------- Formations ----------
 async function tableFormationsAF(zone, filtreStatut) {
   let req = supabaseClient.from('formations')
-    .select('id, slug, titre, statut, prix, nb_lecons, nb_inscrits, soumise_le, publiee_le, maj_le, motif_refus, formation_categories(nom), formateurs(nom_affiche)')
+    .select('id, slug, titre, statut, prix, nb_lecons, nb_inscrits, soumise_le, publiee_le, maj_le, motif_refus, formation_categories(nom), formateurs(nom_affiche, niveau_pro, pro_fin)')
     .order('soumise_le', { ascending: true, nullsFirst: false }).order('maj_le', { ascending: false }).limit(200);
   if (filtreStatut) req = req.eq('statut', filtreStatut);
   const { data, error } = await req;
   if (error) { zone.innerHTML = `<p class="message-erreur">${eAF(error.message)}</p>`; return; }
   if (!data.length) { zone.innerHTML = `<div class="carte"><p>${filtreStatut === 'en_revision' ? '✅ Aucune formation en attente de validation.' : 'Aucune formation.'}</p></div>`; return; }
+  // Validation prioritaire : avantage des formateurs Premium (abonnement).
+  const premium = f => f.formateurs && Number(f.formateurs.niveau_pro) >= 3 && f.formateurs.pro_fin && new Date(f.formateurs.pro_fin) > new Date();
+  if (filtreStatut === 'en_revision') data.sort((a, b) => Number(premium(b)) - Number(premium(a)));
   zone.innerHTML = `<div class="af-table-wrap"><table class="af-table">
     <thead><tr><th>Formation</th><th>Formateur</th><th>Statut</th><th>Leçons</th><th>Inscrits</th><th>Prix</th><th>Dates</th><th>Actions</th></tr></thead>
     <tbody>${data.map(f => `<tr>
       <td><b>${eAF(f.titre)}</b><br><small>${eAF(f.formation_categories?.nom || 'Sans catégorie')}</small>${f.motif_refus ? `<br><small style="color:#c0392b">Motif : ${eAF(f.motif_refus)}</small>` : ''}</td>
-      <td>${eAF(f.formateurs?.nom_affiche || '—')}</td>
+      <td>${eAF(f.formateurs?.nom_affiche || '—')}${premium(f) ? '<br><small style="background:#fff1cc;color:#6b4a00;padding:1px 7px;border-radius:9px;font-weight:700">⚡ Prioritaire (Premium)</small>' : ''}</td>
       <td><span class="af-pastille ${f.statut}">${STATUTS_AF[f.statut]}</span></td>
       <td>${f.nb_lecons}</td><td>${f.nb_inscrits}</td><td>${prixAF(f.prix)}</td>
       <td><small>${f.soumise_le ? `Soumise ${dAF(f.soumise_le)}<br>` : ''}${f.publiee_le ? `Publiée ${dAF(f.publiee_le)}` : `Modifiée ${dAF(f.maj_le)}`}</small></td>
@@ -251,12 +254,15 @@ async function ongletPaiementsAF(zone) {
     <div class="carte" style="margin-bottom:16px">
       <h3 style="margin-top:0">⚙️ Réglages du paiement</h3>
       <form id="formParPaiement" style="display:grid;gap:10px;max-width:460px">
-        <label>Commission KEKELI (%) <input type="number" name="commission" min="0" max="50" step="0.5" value="${eAF(p0.commission_pct)}" style="width:90px"></label>
+        <label>Commission KEKELI — Standard (%) <input type="number" name="commission" min="0" max="50" step="0.5" value="${eAF(p0.commission_pct)}" style="width:90px"></label>
+        <label>Commission — ⭐ Formateur Plus (%) <input type="number" name="c1" min="0" max="50" step="0.5" value="${eAF(p0.commission_niveau1 ?? 13)}" style="width:90px"></label>
+        <label>Commission — ✨ Formateur Pro (%) <input type="number" name="c2" min="0" max="50" step="0.5" value="${eAF(p0.commission_niveau2 ?? 12)}" style="width:90px"></label>
+        <label>Commission — 👑 Formateur Premium (%) <input type="number" name="c3" min="0" max="50" step="0.5" value="${eAF(p0.commission_niveau3 ?? 10)}" style="width:90px"></label>
         <label><input type="checkbox" name="fedapay" ${p0.fedapay_actif ? 'checked' : ''}> Proposer <b>FedaPay</b> (Mobile Money, carte)</label>
         <label><input type="checkbox" name="kkiapay" ${p0.kkiapay_actif ? 'checked' : ''}> Proposer <b>KkiaPay</b> (Mobile Money, carte, Wave)</label>
         <div><button class="btn btn-principal" type="submit">Enregistrer</button> <span data-ok style="color:#0b7a5c"></span></div>
       </form>
-      <p style="font-size:12px;color:#64748b;margin-bottom:0">Un moyen coché n'apparaît aux acheteurs que si ses clés sont enregistrées dans Supabase (Edge Functions → Secrets). La commission s'applique aux nouvelles ventes.</p>
+      <p style="font-size:12px;color:#64748b;margin-bottom:0">Un moyen coché n'apparaît aux acheteurs que si ses clés sont enregistrées dans Supabase (Edge Functions → Secrets). Les commissions s'appliquent aux nouvelles ventes, selon le niveau du formateur au moment de la vente (pack ou abonnement actif).</p>
     </div>
     <div class="af-stats">
       <div class="af-stat"><small>Ventes réelles</small><strong>${reels.length}</strong></div>
@@ -277,16 +283,17 @@ async function ongletPaiementsAF(zone) {
     e.preventDefault();
     const f = e.target;
     const c = Number(f.commission.value);
-    if (!(c >= 0 && c <= 50)) { alert('La commission doit être comprise entre 0 et 50 %.'); return; }
+    const niv = [f.c1, f.c2, f.c3].map(i => Number(i.value));
+    if (![c, ...niv].every(x => x >= 0 && x <= 50)) { alert('Les commissions doivent être comprises entre 0 et 50 %.'); return; }
     const { error } = await supabaseClient.from('formation_parametres_paiement')
-      .update({ commission_pct: c, fedapay_actif: f.fedapay.checked, kkiapay_actif: f.kkiapay.checked, maj_le: new Date().toISOString() }).eq('id', 1);
+      .update({ commission_pct: c, commission_niveau1: niv[0], commission_niveau2: niv[1], commission_niveau3: niv[2], fedapay_actif: f.fedapay.checked, kkiapay_actif: f.kkiapay.checked, maj_le: new Date().toISOString() }).eq('id', 1);
     if (error) { erreurAF(error); return; }
     f.querySelector('[data-ok]').textContent = '✔ Enregistré';
   });
 }
 
 // ---------- IA payante : réglages, packs, abonnements, comptes (26 septembre 2026) ----------
-const LIB_MVT_AF = { achat_pack: '🛒 Pack', abonnement: '📅 Abonnement', usage_quiz: '🧠 Quiz', usage_formation: '🤖 Formation', remboursement: '↩️ Remboursement', ajustement: '🛠️ Ajustement' };
+const LIB_MVT_AF = { achat_pack: '🛒 Pack', abonnement: '📅 Abonnement', usage_quiz: '🧠 Quiz', usage_formation: '🤖 Formation IA', remboursement: '↩️ Remboursement', ajustement: '🛠️ Ajustement' };
 async function ongletIAAF(zone) {
   const [{ data: par, error: e1 }, { data: packs }, { data: offres }, { data: mvts }, { data: comptes }, { data: soldeOA }, { data: recharges }] = await Promise.all([
     supabaseClient.from('formation_ia_parametres').select('*').eq('id', 1).maybeSingle(),
@@ -307,6 +314,11 @@ async function ongletIAAF(zone) {
       ${type === 'pack' ? `<td><input data-k="credits" type="number" min="1" value="${x.credits}" style="width:90px"></td>`
         : `<td><input data-k="credits_mensuels" type="number" min="1" value="${x.credits_mensuels}" style="width:90px"></td><td><input data-k="duree_jours" type="number" min="1" max="366" value="${x.duree_jours}" style="width:70px"></td>`}
       <td><input data-k="prix" type="number" min="100" step="50" value="${x.prix}" style="width:100px"></td>
+      <td><select data-k="niveau" data-num>${[[0, '—'], [1, '⭐ Plus'], [2, '✨ Pro'], [3, '👑 Premium']].map(([v, l]) => `<option value="${v}" ${Number(x.niveau) === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+        ${type === 'pack' ? `<br><small>pendant</small> <input data-k="duree_avantages_jours" type="number" min="0" max="366" value="${x.duree_avantages_jours ?? 30}" style="width:60px"> <small>j</small>` : ''}</td>
+      <td style="text-align:center"><input data-k="generation_complete" type="checkbox" ${x.generation_complete ? 'checked' : ''}></td>
+      <td><input data-k="bonus_credits" type="number" min="0" value="${x.bonus_credits ?? 0}" style="width:70px"></td>
+      <td><input data-k="prix_lancement" data-vide-null type="number" min="0" step="50" value="${x.prix_lancement ?? ''}" placeholder="—" style="width:90px"><br><small>places</small> <input data-k="places_lancement" type="number" min="0" value="${x.places_lancement ?? 0}" style="width:60px"></td>
       <td><input data-k="position" type="number" value="${x.position}" style="width:60px"></td>
       <td style="text-align:center"><input data-k="actif" type="checkbox" ${x.actif ? 'checked' : ''}></td>
       <td style="white-space:nowrap"><button class="btn btn-principal" data-enreg>💾</button> <button class="btn btn-discret" data-suppr title="Supprimer">🗑️</button></td></tr>`;
@@ -348,14 +360,22 @@ async function ongletIAAF(zone) {
       <h3 style="margin-top:0">⚙️ Réglages de l'IA (ChatGPT)</h3>
       <form id="formParIA" style="display:grid;gap:10px;max-width:560px">
         <label><input type="checkbox" name="actif" ${p.actif ? 'checked' : ''}> Génération par IA activée</label>
-        <label>IA pour les formations complètes
+        <label>IA pour la création de formations
           <select name="ia_formation">
             <option value="gemini" ${p.ia_formation !== 'chatgpt' ? 'selected' : ''}>Gemini gratuit → Gemini payant (si saturé) → ChatGPT</option>
             <option value="chatgpt" ${p.ia_formation === 'chatgpt' ? 'selected' : ''}>ChatGPT d'abord → Gemini gratuit → Gemini payant</option>
           </select></label>
         <label>Modèle ChatGPT <input name="modele" value="${eAF(p.modele)}" maxlength="60" style="width:180px"> <small>(ex. gpt-6-sol, gpt-6-luna)</small></label>
         <label>Crédits par question de quiz <input type="number" name="cq" min="0" value="${p.credits_par_question}" style="width:90px"></label>
-        <label>Crédits par formation complète <input type="number" name="cf" min="0" value="${p.credits_formation}" style="width:90px"></label>
+        <fieldset style="border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px"><legend><b>Création de formation avec l'IA</b></legend>
+          <label>🧩 Module par module — crédits pour le plan <input type="number" name="cplan" min="0" value="${p.credits_plan ?? 10}" style="width:80px"></label><br>
+          <label>🧩 Module par module — crédits par module rédigé <input type="number" name="cmod" min="0" value="${p.credits_module ?? 25}" style="width:80px"></label><br>
+          <label>🧩 Module par module — ouvert à partir du niveau <select name="nmod">${[[0, 'Standard (tous)'], [1, '⭐ Plus'], [2, '✨ Pro'], [3, '👑 Premium']].map(([v, l]) => `<option value="${v}" ${Number(p.niveau_generation_module ?? 1) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label><br>
+          <label>⚡ Formation complète d'un coup — crédits <input type="number" name="cf" min="0" value="${p.credits_formation}" style="width:80px"></label>
+          <small style="display:block;color:#64748b">La génération complète est réservée aux packs / abonnements où la case « ⚡ Complète » est cochée ci-dessous. Gardez-la moins chère que « plan + tous les modules » pour la rendre attractive.</small>
+        </fieldset>
+        <label>Parrainage : crédits offerts au parrain <input type="number" name="bp" min="0" value="${p.bonus_parrain ?? 50}" style="width:80px"> · au filleul <input type="number" name="bf" min="0" value="${p.bonus_filleul ?? 20}" style="width:80px"></label>
+        <label>Outils IA de l'éditeur (vente, correction, résumé, tests, diaporama) : maximum <input type="number" name="lo" min="0" value="${p.limite_outils_jour ?? 30}" style="width:80px"> utilisations par jour et par formateur</label>
         <label>Questions d'essai offertes à chaque nouveau formateur <input type="number" name="essai" min="0" value="${p.essai_questions}" style="width:90px"></label>
         <div><button class="btn btn-principal" type="submit">Enregistrer</button> <span data-ok style="color:#0b7a5c"></span></div>
       </form>
@@ -363,28 +383,29 @@ async function ongletIAAF(zone) {
     </div>
     <div class="carte" style="margin-bottom:16px">
       <h3 style="margin-top:0">🛒 Packs de crédits</h3>
-      <div class="af-table-wrap"><table class="af-table"><thead><tr><th>Nom</th><th>Crédits</th><th>Prix (FCFA)</th><th>Ordre</th><th>Actif</th><th></th></tr></thead>
+      <div class="af-table-wrap"><table class="af-table"><thead><tr><th>Nom</th><th>Crédits</th><th>Prix (FCFA)</th><th>Niveau d'avantages</th><th>⚡ Complète</th><th>Bonus crédits</th><th>Prix de lancement</th><th>Ordre</th><th>Actif</th><th></th></tr></thead>
         <tbody>${(packs || []).map(x => ligneProduit(x, 'pack')).join('')}</tbody></table></div>
       <button class="btn btn-discret" data-ajout="pack">＋ Ajouter un pack</button>
     </div>
     <div class="carte" style="margin-bottom:16px">
       <h3 style="margin-top:0">📅 Abonnements mensuels</h3>
-      <div class="af-table-wrap"><table class="af-table"><thead><tr><th>Nom</th><th>Crédits / période</th><th>Jours</th><th>Prix (FCFA)</th><th>Ordre</th><th>Actif</th><th></th></tr></thead>
+      <div class="af-table-wrap"><table class="af-table"><thead><tr><th>Nom</th><th>Crédits / période</th><th>Jours</th><th>Prix (FCFA)</th><th>Niveau d'avantages</th><th>⚡ Complète</th><th>Bonus crédits</th><th>Prix de lancement</th><th>Ordre</th><th>Actif</th><th></th></tr></thead>
         <tbody>${(offres || []).map(x => ligneProduit(x, 'offre')).join('')}</tbody></table></div>
       <button class="btn btn-discret" data-ajout="offre">＋ Ajouter un abonnement</button>
+      <p style="font-size:12px;color:#64748b;margin-bottom:0">Niveaux d'avantages : ⭐ Plus (commission réduite, codes promo, IA texte de vente / correction / résumé, création module par module) · ✨ Pro (+ badge et mise en avant, statistiques avancées, IA tests en leçon et diaporama, certificats personnalisés) · 👑 Premium (+ messages groupés, report des crédits, validation prioritaire). « ⚡ Complète » : le pack / l'abonnement permet de générer toute une formation d'un coup. Prix de lancement : prix réduit pour les N premiers acheteurs (laisser vide pour aucun).</p>
     </div>
     <div class="carte" style="margin-bottom:16px">
       <h3 style="margin-top:0">👛 Comptes IA des formateurs</h3>
-      ${(comptes || []).length ? `<div class="af-table-wrap"><table class="af-table"><thead><tr><th>Formateur</th><th>Solde</th><th>Abonnement</th><th>Essai restant</th><th>Ajuster</th></tr></thead>
+      ${(comptes || []).length ? `<div class="af-table-wrap"><table class="af-table"><thead><tr><th>Formateur</th><th>Solde</th><th>Abonnement</th><th>Avantages</th><th>Essai restant</th><th>Ajuster</th></tr></thead>
         <tbody>${comptes.map(c => `<tr><td>${eAF(nomDe(c.formateur_id))}</td><td>${c.solde}</td>
-          <td>${c.abonnement_fin && new Date(c.abonnement_fin) > new Date() ? `${c.credits_abonnement} jusqu'au ${dAF(c.abonnement_fin)}` : '—'}</td><td>${c.essai_restant}</td>
+          <td>${c.abonnement_fin && new Date(c.abonnement_fin) > new Date() ? `${c.credits_abonnement} jusqu'au ${dAF(c.abonnement_fin)}` : '—'}</td><td>${c.avantages_fin && new Date(c.avantages_fin) > new Date() ? `${['', '⭐ Plus', '✨ Pro', '👑 Premium'][c.niveau] || '—'} jusqu'au ${dAF(c.avantages_fin)}` : '—'}${c.generation_complete_fin && new Date(c.generation_complete_fin) > new Date() ? '<br><small>⚡ génération complète</small>' : ''}</td><td>${c.essai_restant}</td>
           <td><button class="btn btn-discret" data-ajuster="${c.formateur_id}">± Crédits</button></td></tr>`).join('')}</tbody></table></div>` : '<p>Aucun compte IA pour le moment (créé au premier usage).</p>'}
     </div>
     <div class="carte">
       <h3 style="margin-top:0">🧾 100 derniers mouvements</h3>
       ${(mvts || []).length ? `<div class="af-table-wrap"><table class="af-table"><thead><tr><th>Date</th><th>Formateur</th><th>Opération</th><th>Crédits</th><th>Essai</th><th>Abonnement</th><th>Détail</th></tr></thead>
         <tbody>${mvts.map(m => `<tr><td>${new Date(m.cree_le).toLocaleString('fr-FR')}</td><td>${eAF(nomDe(m.formateur_id))}</td><td>${LIB_MVT_AF[m.type] || eAF(m.type)}</td>
-          <td>${m.credits}</td><td>${m.essai}</td><td>${m.abonnement}</td><td><small>${eAF(m.details?.sujet || m.details?.motif || (m.details?.questions ? m.details.questions + ' question(s)' : '') || (m.details?.montant ? prixAF(m.details.montant) + (m.details.mode === 'test' ? ' (test)' : '') : ''))}${m.details?.rembourse ? ' — remboursé' : ''}</small></td></tr>`).join('')}</tbody></table></div>` : '<p>Aucun mouvement.</p>'}
+          <td>${m.credits}</td><td>${m.essai}</td><td>${m.abonnement}</td><td><small>${eAF((m.details?.module ? `Module ${m.details.module} : ${m.details.titre || ''}` : '') || (m.details?.sujet ? `${m.details.mode === 'module' ? '🧩 plan — ' : ''}${m.details.sujet}` : '') || m.details?.motif || (m.details?.questions ? m.details.questions + ' question(s)' : '') || (m.details?.montant ? prixAF(m.details.montant) + (m.details.mode === 'test' ? ' (test)' : '') : ''))}${m.details?.rembourse ? ' — remboursé' : ''}</small></td></tr>`).join('')}</tbody></table></div>` : '<p>Aucun mouvement.</p>'}
     </div>`;
 
   zone.querySelector('#formRechargeOA').addEventListener('submit', async ev => {
@@ -409,7 +430,10 @@ async function ongletIAAF(zone) {
     const f = ev.target;
     const { error } = await supabaseClient.from('formation_ia_parametres').update({
       actif: f.actif.checked, ia_formation: f.ia_formation.value, modele: f.modele.value.trim() || 'gpt-6-sol', credits_par_question: Math.max(0, Number(f.cq.value) || 0),
-      credits_formation: Math.max(0, Number(f.cf.value) || 0), essai_questions: Math.max(0, Number(f.essai.value) || 0), maj_le: new Date().toISOString()
+      credits_formation: Math.max(0, Number(f.cf.value) || 0), essai_questions: Math.max(0, Number(f.essai.value) || 0),
+      credits_plan: Math.max(0, Number(f.cplan.value) || 0), credits_module: Math.max(0, Number(f.cmod.value) || 0), niveau_generation_module: Number(f.nmod.value) || 0,
+      bonus_parrain: Math.max(0, Number(f.bp.value) || 0), bonus_filleul: Math.max(0, Number(f.bf.value) || 0), limite_outils_jour: Math.max(0, Number(f.lo.value) || 0),
+      maj_le: new Date().toISOString()
     }).eq('id', 1);
     if (error) { erreurAF(error); return; }
     f.querySelector('[data-ok]').textContent = '✔ Enregistré';
@@ -420,7 +444,9 @@ async function ongletIAAF(zone) {
     const id = Number(tr.dataset.pack || tr.dataset.offre);
     tr.querySelector('[data-enreg]').addEventListener('click', async () => {
       const v = {};
-      tr.querySelectorAll('[data-k]').forEach(i => { v[i.dataset.k] = i.type === 'checkbox' ? i.checked : i.type === 'number' ? Number(i.value) : i.value.trim(); });
+      tr.querySelectorAll('[data-k]').forEach(i => {
+        v[i.dataset.k] = i.type === 'checkbox' ? i.checked : ('videNull' in i.dataset && i.value === '') ? null : (i.type === 'number' || 'num' in i.dataset) ? Number(i.value) : i.value.trim();
+      });
       const { error } = await supabaseClient.from(table(type)).update(v).eq('id', id);
       if (error) { erreurAF(error); return; }
       tr.style.background = '#ecfdf5'; setTimeout(() => { tr.style.background = ''; }, 900);

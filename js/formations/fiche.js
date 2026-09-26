@@ -10,7 +10,7 @@
   const slug = fkParam('slug');
   const id = fkParam('id');
 
-  let req = supabaseClient.from('formations').select(`*, formation_categories(id, nom, slug, icone), formateurs(id, nom_affiche, slug, titre_professionnel, biographie, photo_url)`);
+  let req = supabaseClient.from('formations').select(`*, formation_categories(id, nom, slug, icone), formateurs(id, nom_affiche, slug, titre_professionnel, biographie, photo_url, niveau_pro, pro_fin)`);
   req = slug ? req.eq('slug', slug) : req.eq('id', Number(id) || 0);
   const { data: f } = await req.maybeSingle();
   if (!f) {
@@ -49,7 +49,7 @@
           <span>📈 ${FK_NIVEAUX[f.niveau]}</span>
           <span>🌐 ${f.langue === 'fr' ? 'Français' : fkEchapper(f.langue)}</span>
         </div>
-        ${fo ? `<p style="margin-top:14px;font-size:15px">Formateur : <a class="fk-lien-clair" href="${FK_BASE}formateur.html?slug=${encodeURIComponent(fo.slug)}">${fkEchapper(fo.nom_affiche)}</a></p>` : ''}
+        ${fo ? `<p style="margin-top:14px;font-size:15px">Formateur : <a class="fk-lien-clair" href="${FK_BASE}formateur.html?slug=${encodeURIComponent(fo.slug)}">${fkEchapper(fo.nom_affiche)}</a> ${fkBadgePro(fo)}</p>` : ''}
       </div>
       <aside class="fk-fiche-achat">
         <div class="fk-cover ${cv.classe}" style="${cv.style}">${f.image_couverture ? '' : `<div class="fk-symbol">${fkEchapper(cat?.icone || '🎓')}</div>`}</div>
@@ -91,7 +91,7 @@
         ${fo ? `<section class="fk-carte"><h2>Votre formateur</h2>
           <div style="display:flex;gap:14px;align-items:center;margin-bottom:12px">
             <div class="fk-avatar" style="width:64px;height:64px;font-size:24px;${fo.photo_url ? `background-image:url('${fkEchapper(fo.photo_url)}')` : ''}">${fo.photo_url ? '' : fkEchapper((fo.nom_affiche || '?')[0])}</div>
-            <div><b>${fkEchapper(fo.nom_affiche)}</b><br><small style="color:var(--f-muted)">${fkEchapper(fo.titre_professionnel || '')}</small></div>
+            <div><b>${fkEchapper(fo.nom_affiche)}</b> ${fkBadgePro(fo)}<br><small style="color:var(--f-muted)">${fkEchapper(fo.titre_professionnel || '')}</small></div>
           </div>
           <p style="color:var(--f-muted);font-size:14px;line-height:1.6">${fkEchapper((fo.biographie || '').slice(0, 280))}${(fo.biographie || '').length > 280 ? '…' : ''}</p>
           <a class="fk-link" href="${FK_BASE}formateur.html?slug=${encodeURIComponent(fo.slug)}">Voir le profil →</a>

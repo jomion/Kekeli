@@ -73,7 +73,8 @@ const FKL = { s: null, f: null, inscription: null, modules: [], lecons: [], quiz
           <h2 style="margin-top:10px">${fkEchapper(f.titre)}</h2>
           ${FKL.apercu ? '<span class="fk-pastille en_revision">Mode aperçu (formateur)</span>' : `
             <div class="fk-progress"><span id="barreProg" style="width:${Math.round(ins.progression)}%"></span></div>
-            <small style="color:var(--f-muted)" id="texteProg">${fkPourcentage(ins.progression)} terminé</small>`}
+            <small style="color:var(--f-muted)" id="texteProg">${fkPourcentage(ins.progression)} terminé</small>
+            <div id="zoneCertificat">${ins.statut === 'terminee' || Number(ins.progression) >= 100 ? fkBoutonCertificat(f.id) : ''}</div>`}
         </div>
         <div id="sommaire"></div>
         <div class="fk-tiroir-pied"><button class="fk-btn fk-btn-ghost fk-btn-petit" id="btnModeAffichage"></button></div>
@@ -163,7 +164,11 @@ function majProgression(pct) {
   FKL.inscription.progression = pct;
   document.getElementById('barreProg').style.width = `${Math.round(pct)}%`;
   document.getElementById('texteProg').textContent = `${fkPourcentage(pct)} terminé`;
-  if (Number(pct) >= 100) fkToast('🏆 Félicitations, vous avez terminé cette formation !', 'succes');
+  if (Number(pct) >= 100) {
+    fkToast('🏆 Félicitations, vous avez terminé cette formation ! Votre certificat est disponible.', 'succes');
+    const z = document.getElementById('zoneCertificat');
+    if (z && !z.innerHTML) z.innerHTML = fkBoutonCertificat(FKL.f ? FKL.f.id : Number(fkParam("id")));
+  }
 }
 
 async function ouvrir(item) {
