@@ -484,6 +484,128 @@ function fkNomFichierSur(nom) {
   return `${alea}-${base}.${ext}`;
 }
 
+// ---------- Zone de code HTML : numéros de ligne + position mémorisée (26 septembre 2026) ----------
+// Transforme un <textarea> de code en petit éditeur : numéros de ligne à
+// gauche (défilement synchronisé, lignes non repliées), barre d'état
+// « Ligne x, colonne y · n lignes » avec « Aller à la ligne ». Si `opts.cle`
+// est fourni, la position du curseur et du défilement est mémorisée sur
+// l'appareil et restaurée à la prochaine ouverture (demande : « si je quitte
+// l'éditeur, que je revienne là où j'étais »). Le textarea reste le même
+// élément : le code existant (value, hidden, événements) continue de marcher.
+function fkEditeurCode(ta, opts) {
+  const o = opts || {};
+  if (!ta || ta.dataset.fkCode) return ta && ta._fkCode;
+  ta.dataset.fkCode = '1';
+  ta.setAttribute('wrap', 'off');
+  ta.spellcheck = false;
+  const cadre = document.createElement('div');
+  cadre.className = 'fk-code-cadre';
+  ta.parentNode.insertBefore(cadre, ta);
+  const corps = document.createElement('div');
+  corps.className = 'fk-code-corps';
+  // La colonne des numéros est positionnée en absolu dans sa boîte : sa
+  // longueur ne doit jamais agrandir la zone (sinon plus de défilement).
+  const boiteNum = document.createElement('div');
+  boiteNum.className = 'fk-code-gouttiere';
+  const gouttiere = document.createElement('pre');
+  gouttiere.className = 'fk-code-lignes';
+  gouttiere.setAttribute('aria-hidden', 'true');
+  boiteNum.appendChild(gouttiere);
+  corps.appendChild(boiteNum);
+  corps.appendChild(ta);
+  const etat = document.createElement('div');
+  etat.className = 'fk-code-etat';
+  etat.innerHTML = `<span data-pos>Ligne 1, colonne 1</span>
+    <label>Aller à la ligne <input type="number" min="1" step="1" data-aller aria-label="Aller à la ligne"></label>`;
+  cadre.appendChild(corps);
+  cadre.appendChild(etat);
+  const pos = etat.querySelector('[data-pos]');
+  const aller = etat.querySelector('[data-aller]');
+  const cle = o.cle ? `kekeli-code-pos-${o.cle}` : null;
+
+  let nbAffiche = 0;
+  const majNumeros = () => {
+    const n = (ta.value.match(/\n/g) || []).length + 1;
+    if (n !== nbAffiche) {
+      nbAffiche = n;
+      let s = '';
+      for (let i = 1; i <= n; i++) s += i + '\n';
+      gouttiere.textContent = s;
+      boiteNum.style.width = `calc(${String(n).length}ch + 16px)`;
+    }
+    gouttiere.scrollTop = ta.scrollTop;
+  };
+  const ligneCol = i => {
+    const avant = ta.value.slice(0, i);
+    const ligne = (avant.match(/\n/g) || []).length + 1;
+    return { ligne, col: i - avant.lastIndexOf('\n') };
+  };
+  const majPos = () => {
+    const { ligne, col } = ligneCol(ta.selectionStart);
+    pos.textContent = `Ligne ${ligne}, colonne ${col} · ${nbAffiche} ligne${nbAffiche > 1 ? 's' : ''}`;
+  };
+  let minuteur = null;
+  const memoriser = () => {
+    if (!cle || !ta.value) return;
+    clearTimeout(minuteur);
+    minuteur = setTimeout(() => {
+      try { localStorage.setItem(cle, JSON.stringify({ d: ta.selectionStart, f: ta.selectionEnd, h: ta.scrollTop, g: ta.scrollLeft, n: ta.value.length })); } catch (_e) { /* stockage indisponible */ }
+    }, 250);
+  };
+  const tout = () => { majNumeros(); majPos(); };
+  // Une valeur posée par le code (import, collage…) met aussi les numéros à jour.
+  const desc = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
+  Object.defineProperty(ta, 'value', { configurable: true, get() { return desc.get.call(this); }, set(v) { desc.set.call(this, v); tout(); } });
+  ta.addEventListener('input', () => { tout(); memoriser(); });
+  ta.addEventListener('scroll', () => { gouttiere.scrollTop = ta.scrollTop; memoriser(); });
+  ['keyup', 'click', 'select', 'focus'].forEach(t => ta.addEventListener(t, () => { majPos(); memoriser(); }));
+  // La tabulation insère deux espaces au lieu de quitter la zone.
+  ta.addEventListener('keydown', e => {
+    if (e.key !== 'Tab' || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey || ta.readOnly || ta.disabled) return;
+    e.preventDefault();
+    const d = ta.selectionStart;
+    ta.setRangeText('  ', d, ta.selectionEnd, 'end');
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  const allerA = (ligne, focus) => {
+    const lignes = ta.value.split('\n');
+    const l = Math.min(Math.max(1, ligne | 0), lignes.length);
+    let i = 0;
+    for (let k = 0; k < l - 1; k++) i += lignes[k].length + 1;
+    if (focus !== false) ta.focus({ preventScroll: true });
+    ta.setSelectionRange(i, i + lignes[l - 1].length);
+    const hLigne = parseFloat(getComputedStyle(ta).lineHeight) || 18;
+    ta.scrollTop = Math.max(0, (l - 1) * hLigne - ta.clientHeight / 3);
+    majNumeros(); majPos(); memoriser();
+  };
+  aller.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); if (aller.value) allerA(Number(aller.value)); } });
+  aller.addEventListener('change', () => { if (aller.value) allerA(Number(aller.value)); });
+
+  // Le cadre suit l'état caché/visible du textarea (les pages basculent `hidden`).
+  let restaure = false;
+  const restaurer = () => {
+    if (restaure || !cle || ta.hidden || !ta.value) return;
+    restaure = true;
+    let p = null;
+    try { p = JSON.parse(localStorage.getItem(cle) || 'null'); } catch (_e) { p = null; }
+    if (!p) return;
+    const max = ta.value.length;
+    requestAnimationFrame(() => {
+      ta.setSelectionRange(Math.min(p.d || 0, max), Math.min(p.f || 0, max));
+      ta.scrollTop = p.h || 0; ta.scrollLeft = p.g || 0;
+      majNumeros(); majPos();
+    });
+  };
+  const suivreVisibilite = () => { cadre.hidden = ta.hidden; if (!ta.hidden) { tout(); restaurer(); } };
+  new MutationObserver(suivreVisibilite).observe(ta, { attributes: true, attributeFilter: ['hidden'] });
+  suivreVisibilite();
+  tout();
+  ta._fkCode = { allerA, maj: tout, restaurer, cadre };
+  return ta._fkCode;
+}
+function fkLireMemo(cle) { try { return JSON.parse(localStorage.getItem(cle) || 'null'); } catch (_e) { return null; } }
+function fkEcrireMemo(cle, v) { try { if (v == null) localStorage.removeItem(cle); else localStorage.setItem(cle, JSON.stringify(v)); } catch (_e) { /* stockage indisponible */ } }
+
 // ---------- Éditeur riche ----------
 // 25 septembre 2026 (demande du porteur du projet) : barre d'outils FIXE
 // (reste visible en haut pendant qu'on fait défiler une longue leçon),
@@ -1021,6 +1143,7 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
   const zone = conteneur.querySelector('.fk-riche-zone');
   const source = conteneur.querySelector('.fk-riche-source');
   const barre = conteneur.querySelector('.fk-riche-barre');
+  fkEditeurCode(source, { cle: o.cleMemo ? `${o.cleMemo}-source` : null });
   zone.innerHTML = fkNettoyerHtml(htmlInitial || '');
   let modeSource = false;
   let selection = null;
@@ -1354,8 +1477,11 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
     btnSource.setAttribute('aria-pressed', String(modeSource));
     btnSource.classList.toggle('actif', modeSource);
     barre.classList.toggle('mode-source', modeSource);
+    if (o.cleMemo) fkEcrireMemo(`kekeli-riche-mode-${o.cleMemo}`, modeSource ? 1 : null);
   }
   btnSource.addEventListener('click', basculerSource);
+  // Revenir en mode « </> Code » si c'était le cas à la dernière visite.
+  if (o.cleMemo && fkLireMemo(`kekeli-riche-mode-${o.cleMemo}`)) setTimeout(() => { if (!modeSource) basculerSource(); }, 0);
 
   // Collage : on garde la mise en forme (HTML nettoyé) ; du Markdown collé
   // en texte brut est détecté et converti.

@@ -1337,3 +1337,24 @@ EN-TÊTE TOUJOURS VISIBLE + ÉPINGLAGE DEPUIS PARAMÈTRES (26 septembre 2026)
    autre outil et n'est pas modifié.)
 Fichiers : js/entete-navigation.js, js/pages/parametres.js,
 js/formations/app-lecteur.js, css/formations.css.
+
+======================================================================
+ÉDITEUR DE CODE HTML : NUMÉROS DE LIGNE + REPRISE AU MÊME ENDROIT (26 septembre 2026)
+======================================================================
+Dans l'éditeur des leçons de formation (zone « </> Voir / coller le code »
+d'une page HTML complète, et mode « </> Code » de l'éditeur KEKELI) :
+- numéros de ligne à gauche du code, lignes non repliées ;
+- barre d'état « Ligne x, colonne y · n lignes » et champ « Aller à la
+  ligne » ;
+- la touche Tab insère deux espaces.
+Reprise « là où j'étais » (mémorisé sur l'appareil) :
+- si l'on quitte la page alors qu'une leçon est ouverte en modification,
+  elle se rouvre automatiquement au retour ;
+- dans chaque leçon : même défilement de la fenêtre, zone de code / mode
+  Code rouverts, curseur et défilement du code restaurés ;
+- fermer volontairement la leçon (Fermer / Enregistrer) : pas de
+  réouverture automatique, mais la position dans le code reste mémorisée ;
+- un avertissement s'affiche si l'on quitte la page avec des
+  modifications non enregistrées.
+Fichiers : js/formations/commun.js (fkEditeurCode), js/formations/formateur-edition.js,
+css/formations.css, pages du site Formation (version ?v=20260926r).

@@ -20,6 +20,7 @@ const FKE = { s: null, f: null, modules: [], lecons: [], ressources: [], quiz: [
     return;
   }
   rendrePage();
+  rouvrirEditionLecon();
 })();
 
 async function chargerTout(id) {
@@ -287,6 +288,52 @@ function modaleModule(m) {
   });
 }
 
+// ----- « Revenir là où j'étais » dans l'éditeur de leçon (26 septembre 2026) -----
+// Tant que la fenêtre d'une leçon est ouverte, on note laquelle : si l'on
+// quitte la page (autre page, fermeture de l'onglet, rechargement), elle se
+// rouvre toute seule au retour, au même endroit (défilement de la fenêtre,
+// mode Code, curseur dans le code : voir fkEditeurCode). La fermer
+// volontairement (Fermer / Enregistrer) efface ce repère.
+const cleEditionOuverte = () => `kekeli-edition-ouverte-${FKE.f.id}`;
+function suivreEditionLecon(md, l) {
+  if (!l) return;
+  fkEcrireMemo(cleEditionOuverte(), l.id);
+  const cleDefil = `kekeli-lecon-defil-${l.id}`;
+  const defil = fkLireMemo(cleDefil);
+  if (defil) setTimeout(() => { md.boite.scrollTop = defil; }, 80);
+  let minuteur = null;
+  md.boite.addEventListener('scroll', () => {
+    clearTimeout(minuteur);
+    minuteur = setTimeout(() => fkEcrireMemo(cleDefil, Math.round(md.boite.scrollTop) || null), 200);
+  });
+  // Avertir avant de quitter la page si des changements ne sont pas enregistrés.
+  let modifie = false;
+  const marquer = () => { modifie = true; };
+  md.boite.addEventListener('input', marquer);
+  md.boite.addEventListener('change', marquer);
+  const avantDepart = e => { if (modifie && document.body.contains(md.fond)) { e.preventDefault(); e.returnValue = ''; } };
+  window.addEventListener('beforeunload', avantDepart);
+  md.boite.querySelector('#formLecon').addEventListener('submit', () => { modifie = false; }, true);
+  const obs = new MutationObserver(() => {
+    if (document.body.contains(md.fond)) return;
+    obs.disconnect();
+    window.removeEventListener('beforeunload', avantDepart);
+    if (fkLireMemo(cleEditionOuverte()) === l.id) fkEcrireMemo(cleEditionOuverte(), null);
+  });
+  obs.observe(document.body, { childList: true });
+}
+function rouvrirEditionLecon() {
+  const id = fkLireMemo(cleEditionOuverte());
+  const l = id && FKE.lecons.find(x => x.id === id);
+  if (!l) { if (id) fkEcrireMemo(cleEditionOuverte(), null); return; }
+  if (FKE.onglet !== 'programme') {
+    FKE.onglet = 'programme';
+    const u = new URL(window.location.href); u.searchParams.set('onglet', 'programme'); history.replaceState(null, '', u);
+    rendrePage();
+  }
+  modaleLecon(l);
+}
+
 function modaleLecon(l, moduleId) {
   const ressources = l ? FKE.ressources.filter(r => r.lecon_id === l.id) : [];
   const video = l?.video_url || '';
@@ -340,6 +387,7 @@ function modaleLecon(l, moduleId) {
   md.boite.style.width = 'min(860px, 100%)';
   const ed = fkEditeurRiche(md.boite.querySelector('#editeurLecon'), l?.contenu, 'Rédigez le contenu de la leçon…', {
     formationId: FKE.f.id,
+    cleMemo: l ? `lecon-${l.id}` : null,
     diaporama: true,
     surPageComplete: html => (FKE.proposerPage ? FKE.proposerPage(html) : false),
     activites: l ? {
@@ -381,12 +429,18 @@ function modaleLecon(l, moduleId) {
     appliquerMode();
   };
   md.boite.querySelectorAll('[name=mode_contenu]').forEach(r => r.addEventListener('change', appliquerMode));
+  // Numéros de ligne + position du curseur mémorisée (26 septembre 2026).
+  fkEditeurCode(codePage, { cle: l ? `lecon-${l.id}-page` : null });
   codePage.value = pageHtml;
   codePage.addEventListener('input', () => { pageHtml = codePage.value; majApercuPage(); });
-  md.boite.querySelector('[data-code-page]').addEventListener('click', ev => {
+  const cleCodeOuvert = l ? `kekeli-page-code-ouvert-${l.id}` : null;
+  const btnCodePage = md.boite.querySelector('[data-code-page]');
+  btnCodePage.addEventListener('click', ev => {
     codePage.hidden = !codePage.hidden; ev.currentTarget.setAttribute('aria-expanded', String(!codePage.hidden));
-    if (!codePage.hidden) codePage.focus();
+    if (cleCodeOuvert) fkEcrireMemo(cleCodeOuvert, codePage.hidden ? null : 1);
+    if (!codePage.hidden) codePage.focus({ preventScroll: true });
   });
+  if (cleCodeOuvert && pageHtml && fkLireMemo(cleCodeOuvert)) { codePage.hidden = false; btnCodePage.setAttribute('aria-expanded', 'true'); }
   md.boite.querySelector('[data-vider-page]').addEventListener('click', async () => {
     if (pageHtml && !await fkConfirmer('Retirer la page HTML de cette leçon ?', 'Retirer')) return;
     pageHtml = ''; codePage.value = ''; md.boite.querySelector('[name=mode_contenu][value=editeur]').checked = true; appliquerMode();
@@ -406,6 +460,7 @@ function modaleLecon(l, moduleId) {
   };
   if (FKE.verrouille) md.boite.querySelectorAll('[data-bloc-page] button, [data-bloc-page] input, [data-bloc-page] textarea, [name=mode_contenu]').forEach(x => { x.disabled = true; });
   appliquerMode();
+  suivreEditionLecon(md, l);
   const medias = { video: video.startsWith('fichier:') ? video : null, audio: audio.startsWith('fichier:') ? audio : null };
   const aSupprimer = [];
 
