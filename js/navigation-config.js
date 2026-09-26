@@ -37,20 +37,7 @@ const CATEGORIES_NAV = {
   // bouton à l'affichage") : suivi personnel de l'élève (résultats, badges,
   // progrès, favoris) — distinct de "pedagogie" qui reste les outils de
   // travail (matières, séances, emploi du temps, cahier d'écriture).
-  suivi: { label: 'Mon suivi', icone: '📈' },
-  // 26 septembre 2026 (demande : « Pour Pédagogie il y a trop d'éléments.
-  // Réorganise en conservant uniquement ce qui est réellement pédagogique et
-  // en relogeant ce qui reste ») — menu admin :
-  //   - « Pédagogie » = création et organisation des contenus (arborescence,
-  //     séances, compétences, questions IA) ;
-  //   - « Suivi » = correction et résultats (activités à
-  //     corriger, devoirs & notes, badges) ;
-  //   - « Outils » = emploi du temps, cahier d'écriture, bannière et
-  //     bandeau d'accueil (ces deux derniers étaient à plat dans la barre).
-  // Les identifiants des liens ne changent pas (liens masqués et raccourcis
-  // déjà enregistrés dans Paramètres restent valables).
-  suiviEleves: { label: 'Suivi', icone: '📈' },
-  outils: { label: 'Outils', icone: '🧰' }
+  suivi: { label: 'Mon suivi', icone: '📈' }
 };
 
 const LIENS_PAR_ROLE = {
@@ -111,21 +98,35 @@ const LIENS_PAR_ROLE = {
     // + autorisation d'un parent) plutôt que de disparaître silencieusement.
     { id: 'messagerie', href: 'messagerie.html', icone: '💬', label: 'Messagerie ✨' }
   ],
+  // 26 septembre 2026 (demande explicite : "regroupe les éléments du menu
+  // élèves et des menus contenant beaucoup d'éléments") : l'en-tête parent
+  // était le seul, avec l'ancien en-tête élève, à afficher tous ses liens à
+  // plat (8 éléments, jamais regroupés) — regroupé ici selon les mêmes
+  // catégories déjà utilisées ailleurs sur le site (voir CATEGORIES_NAV et
+  // LIENS_PAR_ROLE.eleve/admin ci-dessus/dessous), pour rester cohérent avec
+  // le reste de l'interface plutôt que d'inventer un nouveau découpage :
+  //   - "pedagogie" : les outils de suivi scolaire au jour le jour (séances,
+  //     emploi du temps, cahier d'écriture) ;
+  //   - "suivi" : le suivi personnel de l'enfant (suivi de l'enfant, devoirs
+  //     & notes) ;
+  //   - "finances" : paiements (déjà le nom utilisé côté admin).
+  // "Tableau de bord" (essentiel) et "Messagerie" restent à plat. Résultat :
+  // 5 éléments visibles dans la barre au lieu de 8.
   parent: [
     { id: 'tableau-de-bord', href: 'tableau-de-bord.html', icone: '🏠', label: 'Tableau de bord', essentiel: true },
     // 19 septembre 2026 (25e lot) : « en tant que parent, je n'ai pas pu
     // accéder aux activités de l'enfant... les cours suivis, les activités,
     // les badges » — nouvelle page dédiée (voir js/pages/parent-suivi-enfant.js).
-    { id: 'suivi-enfant', href: 'suivi-enfant.html', icone: '📈', label: "Suivi de l'enfant" },
-    { id: 'seances', href: 'pages/seances.html', racine: true, icone: '📌', label: 'Séances' },
-    { id: 'emploi-du-temps', href: 'pages/emploi-du-temps.html', racine: true, icone: '🗓️', label: 'Emploi du temps' },
-    { id: 'devoirs-notes', href: 'devoirs-notes.html', icone: '📊', label: 'Devoirs & notes' },
+    { id: 'suivi-enfant', href: 'suivi-enfant.html', icone: '📈', label: "Suivi de l'enfant", categorie: 'suivi' },
+    { id: 'seances', href: 'pages/seances.html', racine: true, icone: '📌', label: 'Séances', categorie: 'pedagogie' },
+    { id: 'emploi-du-temps', href: 'pages/emploi-du-temps.html', racine: true, icone: '🗓️', label: 'Emploi du temps', categorie: 'pedagogie' },
+    { id: 'devoirs-notes', href: 'devoirs-notes.html', icone: '📊', label: 'Devoirs & notes', categorie: 'suivi' },
     // 24 septembre 2026 : cahier d'écriture personnel du parent —
     // généralisation à tous les rôles (voir js/cahier-ecriture-partage.js),
     // jusque-là réservé à l'élève. Sauvegarde cloud gratuite et illimitée
     // pour ce rôle.
-    { id: 'cahier-ecriture', href: 'cahier-ecriture.html', icone: '✍️', label: "Cahier d'écriture" },
-    { id: 'paiements', href: 'paiements.html', icone: '💳', label: 'Paiements' },
+    { id: 'cahier-ecriture', href: 'cahier-ecriture.html', icone: '✍️', label: "Cahier d'écriture", categorie: 'pedagogie' },
+    { id: 'paiements', href: 'paiements.html', icone: '💳', label: 'Paiements', categorie: 'finances' },
     { id: 'messagerie', href: 'messagerie.html', icone: '💬', label: 'Messagerie' }
   ],
   enseignant: [
@@ -156,33 +157,30 @@ const LIENS_PAR_ROLE = {
   ],
   admin: [
     { id: 'tableau-de-bord', href: 'tableau-de-bord.html', icone: '🏠', label: 'Tableau de bord', essentiel: true },
-    // --- Pédagogie : contenus et programme ---
     { id: 'navigation-arbo', href: 'pages/navigation.html', racine: true, icone: '🌳', label: 'Arborescence', categorie: 'pedagogie' },
     { id: 'editer-seance', href: 'gestion-seances.html', icone: '✏️', label: 'Gestion des séances', categorie: 'pedagogie' },
     { id: 'seances', href: 'pages/seances.html', racine: true, icone: '📌', label: 'Séances', categorie: 'pedagogie' },
+    { id: 'emploi-du-temps', href: 'pages/emploi-du-temps.html', racine: true, icone: '🗓️', label: 'Emploi du temps', categorie: 'pedagogie' },
+    { id: 'activites', href: 'activites.html', icone: '✅', label: 'Corriger activités', categorie: 'pedagogie' },
+    { id: 'devoirs-notes', href: 'devoirs-notes.html', icone: '📊', label: 'Devoirs & notes', categorie: 'pedagogie' },
+    { id: 'badges', href: 'badges.html', icone: '🏅', label: 'Badges', categorie: 'pedagogie' },
     { id: 'competences', href: 'competences.html', icone: '🧩', label: 'Compétences ✨', categorie: 'pedagogie' },
     // 24 septembre 2026 (requête P, partie 2) : génération par IA de
     // questions d'entraînement pour les jeux Français/ES/EST, toujours
     // relues et validées ici avant qu'un élève ne puisse y accéder — voir
     // js/pages/admin-questions-ia-jeux.js.
     { id: 'questions-ia-jeux', href: 'questions-ia-jeux.html', icone: '🤖', label: 'Questions IA (jeux) ✨', categorie: 'pedagogie' },
-    // --- Suivi des élèves : correction et résultats ---
-    { id: 'activites', href: 'activites.html', icone: '✅', label: 'Corriger activités', categorie: 'suiviEleves' },
-    { id: 'devoirs-notes', href: 'devoirs-notes.html', icone: '📊', label: 'Devoirs & notes', categorie: 'suiviEleves' },
-    { id: 'badges', href: 'badges.html', icone: '🏅', label: 'Badges', categorie: 'suiviEleves' },
     { id: 'enseignants-classes', href: 'enseignants-classes.html', icone: '🏫', label: 'Enseignants & classes', categorie: 'comptes' },
     { id: 'gestion-administrateurs', href: 'gestion-administrateurs.html', icone: '🛠️', label: 'Administrateurs', categorie: 'comptes', superAdminSeulement: true },
     { id: 'roles', href: 'roles.html', icone: '🎛️', label: 'Rôles admin', categorie: 'comptes', superAdminSeulement: true },
     { id: 'abonnements', href: 'abonnements.html', icone: '💳', label: 'Abonnements', categorie: 'finances' },
     { id: 'paiements', href: 'paiements.html', icone: '💰', label: 'Paiements', categorie: 'finances' },
-    // --- Outils & site ---
-    { id: 'emploi-du-temps', href: 'pages/emploi-du-temps.html', racine: true, icone: '🗓️', label: 'Emploi du temps', categorie: 'outils' },
     // 24 septembre 2026 : cahier d'écriture personnel — généralisation à
     // tous les rôles (voir js/cahier-ecriture-partage.js).
-    { id: 'cahier-ecriture', href: 'cahier-ecriture.html', icone: '✍️', label: "Cahier d'écriture", categorie: 'outils' },
-    { id: 'bannieres', href: 'bannieres.html', icone: '📣', label: 'Bannière', categorie: 'outils', superAdminSeulement: true },
-    { id: 'section-accueil', href: 'section-accueil.html', icone: '🖼️', label: "Accueil (bandeau)", categorie: 'outils', superAdminSeulement: true },
-    { id: 'messagerie', href: 'messagerie.html', icone: '💬', label: 'Messagerie' }
+    { id: 'cahier-ecriture', href: 'cahier-ecriture.html', icone: '✍️', label: "Cahier d'écriture", categorie: 'pedagogie' },
+    { id: 'messagerie', href: 'messagerie.html', icone: '💬', label: 'Messagerie' },
+    { id: 'bannieres', href: 'bannieres.html', icone: '📣', label: 'Bannière', superAdminSeulement: true },
+    { id: 'section-accueil', href: 'section-accueil.html', icone: '🖼️', label: "Accueil (bandeau)", superAdminSeulement: true }
   ]
 };
 

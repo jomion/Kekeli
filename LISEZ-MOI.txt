@@ -1,3 +1,42 @@
+KEKELI — Livraison du 26 septembre 2026 (vingt-quatrième lot) — Regroupement du menu Parent (8 liens à plat réduits à 5)
+===========================================================================
+
+CE QUI A ÉTÉ DEMANDÉ
+------------------------------------------------------------------------------
+"Regroupe les éléments du menu élèves et des menus contenant beaucoup
+d'éléments."
+
+CE QUI CHANGE CONCRÈTEMENT
+------------------------------------------------------------------------------
+Le menu élève est déjà regroupé depuis le 24 septembre (2 catégories
+déroulantes "📚 Pédagogie" et "📈 Mon suivi", en-tête classique ET sidebar
+premium). En passant en revue tous les rôles, le menu Parent était le seul
+à afficher encore ses 8 liens intégralement à plat dans la barre — devenu,
+de fait, le menu "à beaucoup d'éléments" restant à traiter. Il est
+maintenant regroupé selon les mêmes catégories déjà utilisées ailleurs sur
+le site (mêmes noms, mêmes icônes, pour rester cohérent) :
+
+- "📚 Pédagogie" : Séances, Emploi du temps, Cahier d'écriture.
+- "📈 Mon suivi" : Suivi de l'enfant, Devoirs & notes.
+- "💳 Finances" : Paiements.
+
+"Tableau de bord" et "Messagerie" restent affichés directement. Résultat :
+5 éléments visibles dans la barre au lieu de 8. Les autres rôles (élève,
+enseignant, autorité, admin) étaient déjà correctement regroupés ou
+n'avaient pas assez de liens pour en avoir besoin — aucun changement pour
+eux dans ce lot.
+
+CHOIX TECHNIQUES, EN TOUTE TRANSPARENCE
+------------------------------------------------------------------------------
+- Aucune migration de base de données, aucun changement visuel/CSS : le
+  mécanisme de regroupement par catégorie existait déjà (utilisé pour
+  l'élève et l'admin) et a simplement été appliqué aux liens du rôle
+  Parent dans js/navigation-config.js.
+- Vérifié que la page Paramètres (choix des liens à masquer, épinglage)
+  continue de lister chaque lien Parent individuellement, comme avant : elle
+  ne dépend pas du regroupement par catégorie.
+- Vérifié via `node --check` sur le fichier modifié.
+
 KEKELI — Livraison du 26 septembre 2026 (vingt-troisième lot) — Retrait du bouton d'épinglage de l'en-tête, coquille premium manquante sur 4 pages, retrait du réglage "look premium" devenu inutile
 ===========================================================================
 
