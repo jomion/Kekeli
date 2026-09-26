@@ -1,10 +1,10 @@
 // Espace formateur — Créer une formation avec l'IA (pages/formations/formateur/generer-ia.html),
 // 26 septembre 2026. IA de KEKELI : Gemini puis ChatGPT (fonction serveur « formation-ia-generer »).
-// Deux façons de générer (27 septembre 2026), selon le pack ou l'abonnement :
-//  • « Module par module » (tous les packs et l'abonnement) : l'IA prépare le
+// Deux façons de générer (27 septembre 2026), selon le pack :
+//  • « Module par module » (tous les packs) : l'IA prépare le
 //    plan (petit prix), puis le formateur choisit quand faire rédiger chaque
 //    module (prix par module, débité au clic, rendu si l'IA échoue) ;
-//  • « Formation complète d'un coup » (Pack Pro et abonnement mensuel) : un
+//  • « Formation complète d'un coup » (Pack Pro et Pack Premium) : un
 //    prix unique, moins cher que la somme des modules ; l'IA rédige tout.
 // La formation est créée en BROUILLON : le formateur la relit et la modifie
 // dans l'éditeur habituel. Les générations inachevées se reprennent ici.
@@ -75,16 +75,16 @@
     zoneModes.innerHTML = `<legend>Comment générer ?</legend>
       <label class="fk-mode-gen ${est.module ? '' : 'fk-outil-verrou'}">
         <input type="radio" name="mode" value="module" ${choisi === 'module' || !est.complet ? 'checked' : ''} ${est.module ? '' : 'disabled'}>
-        <span><b>🧩 Module par module</b> <small class="fk-offre-niveau">Tous les packs et l'abonnement</small><br>
+        <span><b>🧩 Module par module</b> <small class="fk-offre-niveau">Tous les packs</small><br>
         Plan : <b>${prix(est.coutPlan)}</b>, puis <b>${prix(est.coutModule)}</b> par module, quand vous le décidez.
         ${gratuit ? '' : `<small>(${nbM} modules = ${coutTotalModule()} crédits au total)</small>`}
         ${est.module ? '' : '<br>🔒 <a class="fk-link" href="credits-ia.html#offres">Choisissez un pack pour l\'activer</a>'}</span></label>
       <label class="fk-mode-gen ${est.complet ? '' : 'fk-outil-verrou'}">
         <input type="radio" name="mode" value="complet" ${choisi === 'complet' && est.complet ? 'checked' : ''} ${est.complet ? '' : 'disabled'}>
-        <span><b>⚡ Formation complète d'un coup</b> <small class="fk-offre-niveau">Pack Pro et abonnement mensuel</small><br>
+        <span><b>⚡ Formation complète d'un coup</b> <small class="fk-offre-niveau">Pack Pro et Pack Premium</small><br>
         Plan et toutes les leçons rédigés automatiquement : <b>${prix(est.coutComplet)}</b> pour toute la formation.
         ${!gratuit && economie > 0 ? `<span class="fk-bonus">Vous économisez ${economie} crédits</span>` : ''}
-        ${est.complet ? '' : '<br>🔒 <a class="fk-link" href="credits-ia.html#offres">Passez au Pack Pro ou à l\'abonnement</a>'}</span></label>`;
+        ${est.complet ? '' : '<br>🔒 <a class="fk-link" href="credits-ia.html#offres">Passez au Pack Pro ou au Pack Premium</a>'}</span></label>`;
     btnGen.disabled = !est.module && !est.complet;
   }
   form.nbModules.addEventListener('input', dessinerModes);

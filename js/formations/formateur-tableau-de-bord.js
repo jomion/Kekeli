@@ -50,7 +50,7 @@
       </div>
       <div class="fk-niveau-actuel fk-niveau-${niveauFo}">
         ${niveauFo ? `<span><b>${NA[niveauFo].icone} ${NA[niveauFo].nom}</b> — commission KEKELI de <b>${String(commission).replace('.', ',')} %</b>${s.formateur.pro_fin ? ` jusqu'au ${fkDate(s.formateur.pro_fin)}` : ''}.</span>`
-          : `<span>Niveau <b>Standard</b> — commission KEKELI de <b>${String(commission).replace('.', ',')} %</b>. Un pack ou l'abonnement réduit la commission et débloque codes promo, outils IA, badge Pro, statistiques, certificats personnalisés…</span>`}
+          : `<span>Niveau <b>Standard</b> — commission KEKELI de <b>${String(commission).replace('.', ',')} %</b>. Un pack réduit la commission et débloque codes promo, outils IA, badge Pro, statistiques, certificats personnalisés…</span>`}
         <a class="fk-btn fk-btn-ghost fk-btn-petit" href="credits-ia.html#offres">${niveauFo >= 3 ? 'Mes avantages' : '🎁 Voir les avantages'}</a>
       </div>
       <div class="fk-stats">

@@ -1479,3 +1479,25 @@ En ligne (déjà fait) : migrations formation_avantages_formateurs,
 formation_ia_usage_outil, formation_ia_generation_par_module ; fonctions
 serveur formation-paiement, formation-ia-outils (nouvelle),
 formation-ia-generer.
+
+======================================================================
+4 PACKS, PLUS D'ABONNEMENT MENSUEL (27 septembre 2026)
+======================================================================
+L'abonnement mensuel est supprimé (désactivé) et remplacé par un 4e pack :
+  Pack Découverte  1 000 FCFA  · 100 crédits          · ⭐ Plus
+  Pack Formateur   2 500 FCFA  · 300 + 30 offerts     · ✨ Pro
+  Pack Pro         5 000 FCFA  · 700 + 100 offerts    · ✨ Pro + génération complète
+  Pack Premium    10 000 FCFA  · 1 500 + 300 offerts  · 👑 Premium + génération complète
+Chaque pack est valable 30 jours : crédits ET avantages (commission réduite,
+outils IA, badge…). À la fin des 30 jours :
+  - les crédits non utilisés sont PERDUS, sauf avec le Pack Premium : ils
+    passent au mois suivant (30 jours de plus, une fois) ;
+  - les avantages s'arrêtent si le pack n'est pas racheté (le Premium perd
+    donc sa commission de 10 %, même si ses crédits sont reportés).
+Les crédits qui finissent le plus tôt sont utilisés en premier. Les crédits
+offerts par le parrainage ou par un geste KEKELI n'ont pas de date de fin.
+Le formateur voit ses packs en cours, leur date de fin et une alerte 5 jours
+avant. Réglages : Admin → Formations → 🤖 IA (colonnes « Niveau et durée »,
+« ⚡ Complète », « 🔁 Report »).
+En ligne (déjà fait) : migration formation_ia_quatre_packs_credits_30_jours
+(table formation_ia_lots), fonction serveur formation-ia-generer.

@@ -7,13 +7,13 @@
 // formateur (RLS habituelles) : il relit, modifie, puis la soumet comme
 // d'habitude.
 //
-// Deux façons de générer (27 septembre 2026), selon le pack ou l'abonnement :
-//  • « module » (module par module) — tout formateur ayant un pack ou un
-//    abonnement actif (niveau ≥ niveau_generation_module) : le plan coûte
+// Deux façons de générer (27 septembre 2026), selon le pack acheté :
+//  • « module » (module par module) — tout formateur ayant un pack
+//    actif (niveau ≥ niveau_generation_module) : le plan coûte
 //    credits_plan, puis CHAQUE module rédigé coûte credits_module, débité au
 //    moment où le formateur le demande (remboursé si l'IA échoue) ;
-//  • « complet » (toute la formation d'un coup) — réservé aux packs /
-//    abonnements qui l'incluent (formation_ia_peut_generer_complet) : un prix
+//  • « complet » (toute la formation d'un coup) — réservé aux packs
+//    qui l'incluent (Pack Pro, Pack Premium) (formation_ia_peut_generer_complet) : un prix
 //    unique credits_formation, moins cher que la somme des modules, débité à
 //    l'étape « plan » ; tous les modules sont ensuite inclus (3 essais chacun).
 // Les crédits sont remboursés automatiquement en cas d'échec. Les
@@ -200,8 +200,8 @@ Deno.serve(async (req) => {
       const consignes = txt(body.consignes, 1500);
       const mode = body.mode === "complet" ? "complet" : "module";
       const dr = await droits();
-      if (mode === "complet" && !dr.complet) return json({ error: "La génération complète (toute la formation d'un coup) est réservée au Pack Pro et à l'abonnement mensuel. Vous pouvez générer votre formation module par module.", code: "NIVEAU" }, 403);
-      if (mode === "module" && !dr.module) return json({ error: "La création de formation avec l'IA est incluse dans les packs et l'abonnement : choisissez une offre pour l'activer.", code: "NIVEAU" }, 403);
+      if (mode === "complet" && !dr.complet) return json({ error: "La génération complète (toute la formation d'un coup) est réservée au Pack Pro et au Pack Premium. Vous pouvez générer votre formation module par module.", code: "NIVEAU" }, 403);
+      if (mode === "module" && !dr.module) return json({ error: "La création de formation avec l'IA est incluse dans les packs : choisissez un pack pour l'activer.", code: "NIVEAU" }, 403);
 
       // Débit AVANT l'appel (remboursé automatiquement en cas d'échec).
       let mouvement: number | null = null;

@@ -351,7 +351,7 @@ function fkStyleCouverture(f, i) {
   if (f.image_couverture) return { classe: '', style: `background-image:linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.25)),url('${fkEchapper(f.image_couverture)}')` };
   return { classe: ['', 'c1', 'c2', 'c3'][(Number(f.id) || i || 0) % 4], style: '' };
 }
-// ---------- Avantages des packs / de l'abonnement (26 septembre 2026) ----------
+// ---------- Avantages des packs (26 septembre 2026 ; 4 packs depuis le 27) ----------
 // Niveau d'avantages d'un formateur : 1 Plus, 2 Pro, 3 Premium (voir formation_niveau_formateur).
 const FK_NIVEAUX_AVANTAGES = [
   { nom: 'Standard', icone: '' },
@@ -393,9 +393,9 @@ function fkBoutonOutil(niveauActuel, niveauRequis, attr, libelle) {
 }
 function fkProposerOffres(niveauRequis) {
   const m = fkModale(`${FK_NIVEAUX_AVANTAGES[niveauRequis].icone} Avantage « ${FK_NIVEAUX_AVANTAGES[niveauRequis].nom} »`, `
-    <p>Cet outil est inclus dans les packs et l'abonnement qui donnent le niveau <b>${FK_NIVEAUX_AVANTAGES[niveauRequis].nom}</b> ou plus.</p>
+    <p>Cet outil est inclus dans les packs qui donnent le niveau <b>${FK_NIVEAUX_AVANTAGES[niveauRequis].nom}</b> ou plus.</p>
     <div class="fk-actions-form"><button type="button" class="fk-btn fk-btn-ghost" data-fermer>Plus tard</button>
-    <a class="fk-btn fk-btn-primary" href="${FK_BASE}formateur/credits-ia.html#offres">Voir les packs et l'abonnement</a></div>`);
+    <a class="fk-btn fk-btn-primary" href="${FK_BASE}formateur/credits-ia.html#offres">Voir les packs</a></div>`);
   return m;
 }
 

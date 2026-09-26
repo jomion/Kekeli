@@ -42,7 +42,7 @@ async function chargerTout(id) {
   FKE.quiz = qz.data || [];
   FKE.activites = acts.data || [];
   FKE.categories = cats.data || [];
-  // Niveau d'avantages (packs / abonnement) : débloque outils IA, codes promo, statistiques…
+  // Niveau d'avantages (packs) : débloque outils IA, codes promo, statistiques…
   const { data: niv } = await supabaseClient.rpc('formation_niveau_effectif', { p_id: FKE.s.profil.id });
   FKE.niveau = Number(niv) || 0;
 }
@@ -716,7 +716,7 @@ function modaleQuizIA(q, nbExistantes) {
     const n = Math.max(1, Number(form.nombre.value) || 1);
     const essai = Math.min(compteIA.essai_restant, n);
     const cout = (n - essai) * compteIA.credits_par_question;
-    const dispo = compteIA.solde + compteIA.credits_abonnement;
+    const dispo = compteIA.disponible ?? (compteIA.solde + compteIA.credits_abonnement);
     zoneSolde.innerHTML = `🪙 <b>${dispo}</b> crédit(s) IA${compteIA.essai_restant ? ` · 🎁 <b>${compteIA.essai_restant}</b> question(s) d'essai gratuites` : ''}
       — cette génération : <b>${cout ? `${cout} crédit(s)` : 'gratuite (essai)'}</b>${essai && cout ? ` (dont ${essai} question(s) offertes)` : ''}
       ${cout > dispo ? `<br><span style="color:var(--f-danger)">Crédits insuffisants${compteIA.essai_restant ? ` : demandez ${compteIA.essai_restant} question(s) pour utiliser votre essai gratuit,` : ''} ou <a class="fk-link" href="credits-ia.html" target="_blank">rechargez vos crédits IA</a>.</span>` : ` · <a class="fk-link" href="credits-ia.html" target="_blank">Mes crédits IA</a>`}
@@ -1430,7 +1430,7 @@ async function ongletApprenants() {
         <label class="fk-champ"><span>Message</span><textarea name="message" required minlength="5" maxlength="1000" style="min-height:80px" placeholder="Ex. Bonjour à tous, le module 4 est en ligne…"></textarea></label>
         <div class="fk-actions-form"><button class="fk-btn fk-btn-primary" type="submit">Envoyer à ${liste.filter(a => a.statut !== 'annulee').length} apprenant(s)</button></div>
       </form><small style="color:var(--f-muted)">Le message arrive dans les notifications 🔔 de chaque apprenant. 3 messages par jour au maximum.</small>`
-        : `<p style="margin:0">Relancez ou informez tous vos apprenants en un clic. <a class="fk-link" href="credits-ia.html#offres">Disponible avec l'abonnement</a>.</p>`}
+        : `<p style="margin:0">Relancez ou informez tous vos apprenants en un clic. <a class="fk-link" href="credits-ia.html#offres">Disponible avec le Pack Premium</a>.</p>`}
     </div>
     <div class="fk-carte">${liste.length ? `<div class="fk-table-wrap"><table class="fk-table"><thead><tr><th>Apprenant</th><th>Progression</th><th>Statut</th><th>Inscrit le</th><th>Dernière activité</th></tr></thead><tbody>
       ${liste.map(a => `<tr><td>${fkEchapper(a.prenom)} ${fkEchapper(a.nom)}</td>
@@ -1539,7 +1539,7 @@ function verrouAvantage(niveau, titre, texte) {
   const n = FK_NIVEAUX_AVANTAGES[niveau];
   return `<div class="fk-carte fk-vide"><span class="fk-vide-icone">🔒</span><b>${titre}</b><br>${fkEchapper(texte)}<br>
     <small>Inclus à partir du niveau ${n.icone} <b>${n.nom}</b>.</small><br>
-    <a class="fk-btn fk-btn-primary" style="margin-top:12px" href="credits-ia.html#offres">Voir les packs et l'abonnement</a></div>`;
+    <a class="fk-btn fk-btn-primary" style="margin-top:12px" href="credits-ia.html#offres">Voir les packs</a></div>`;
 }
 
 // Texte de vente + messages réseaux sociaux (Formateur Plus).
