@@ -1390,3 +1390,34 @@ formation-quiz-ia et formation-paiement (mises à jour).
 À FAIRE : ajouter le secret OPENAI_API_KEY dans Supabase → Edge Functions
 → Secrets (clé créée sur platform.openai.com). Sans elle, la création de
 formation est indisponible ; les quiz utilisent alors Gemini/Groq.
+
+======================================================================
+ALERTE SOLDE CHATGPT (OPENAI) + MENUS RÉTABLIS (26 septembre 2026)
+======================================================================
+1. Suivi du compte ChatGPT de KEKELI (Admin → Formations → onglet 🤖 IA,
+   carte « 💰 Compte ChatGPT de KEKELI ») :
+   - OpenAI ne permet pas de lire le solde automatiquement : KEKELI
+     l'ESTIME = recharges notées par l'admin − coût réel de chaque appel à
+     ChatGPT (nombre de jetons renvoyé par OpenAI × prix réglés dans l'onglet) ;
+   - affiche : solde estimé ($ et FCFA), dépense sur 7 et 30 jours, nombre
+     de jours restants au rythme actuel ;
+   - bouton « J'ai rechargé OpenAI de … $ » après chaque recharge sur
+     platform.openai.com (une recharge négative sert à corriger l'estimation) ;
+   - alertes 🔔 (notifications) à tous les gestionnaires : dès que le solde
+     passe sous le seuil (5 $ par défaut, réglable), puis chaque matin à
+     8 h tant qu'il reste bas, et immédiatement si OpenAI refuse une
+     demande faute de crédit ; bandeau rouge en haut de la page admin
+     Formations tant que le solde est bas.
+   Base : formation_ia_openai_recharges, formation_ia_openai_usage, colonnes
+   de réglage dans formation_ia_parametres, tâche quotidienne pg_cron
+   « kekeli-solde-openai ».
+2. Menus rétablis : un dépôt de fichiers plus anciens avait effacé le menu
+   « 🏠 Tableaux de bord » (Primaire / Formation), le regroupement du menu
+   admin (Pédagogie / Suivi / Outils), les liens « Mes formations / Mon
+   espace formateur » du menu du compte, le logo vers primaire.html et
+   l'épinglage par adresse collée dans Paramètres. Tout est remis, en
+   gardant les changements récents (menu Parent regroupé, retrait du réglage
+   « look premium »). Fichiers : js/entete-navigation.js,
+   js/navigation-config.js, js/pages/parametres.js.
+   IMPORTANT : pour ces 3 fichiers, déposez toujours la version la plus
+   récente reçue (celle de ce zip).

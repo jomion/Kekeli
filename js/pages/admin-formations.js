@@ -57,6 +57,7 @@ async function afficherAF() {
       <div class="af-stat"><small>Formations publiées</small><strong>${nbPubliees || 0}</strong></div>
       <div class="af-stat"><small>Inscriptions</small><strong>${nbInscriptions || 0}</strong></div>
     </div>
+    <div id="alerteSoldeOA"></div>
     <div class="af-onglets" role="tablist">${onglets.map(([k, l]) => `<button role="tab" data-onglet="${k}" class="${k === ongletAF ? 'actif' : ''}" aria-selected="${k === ongletAF}">${l}</button>`).join('')}</div>
     <div id="zoneAF" class="chargement">Chargement...</div>`;
   document.querySelectorAll('[data-onglet]').forEach(b => b.addEventListener('click', () => {
@@ -64,6 +65,12 @@ async function afficherAF() {
     const u = new URL(window.location.href); u.searchParams.set('onglet', ongletAF); history.replaceState(null, '', u);
     afficherAF();
   }));
+  // Alerte visible sur tous les onglets si le solde ChatGPT estimé est bas.
+  supabaseClient.rpc('formation_ia_admin_solde_openai').then(({ data }) => {
+    const el = document.getElementById('alerteSoldeOA');
+    if (!el || !data || data.seuil == null || Number(data.solde) >= Number(data.seuil)) return;
+    el.innerHTML = `<p class="message-erreur">⚠️ Solde ChatGPT (OpenAI) estimé bas : <b>${Number(data.solde).toFixed(2).replace('.', ',')} $</b> (seuil ${data.seuil} $). <a href="?onglet=ia">Voir l'onglet 🤖 IA</a> · <a href="https://platform.openai.com/settings/organization/billing/overview" target="_blank" rel="noopener">Recharger sur OpenAI</a></p>`;
+  }, () => {});
   const zone = document.getElementById('zoneAF');
   zone.classList.remove('chargement');
   await ({ validation: ongletValidationAF, formations: ongletFormationsAF, formateurs: ongletFormateursAF,
@@ -281,12 +288,14 @@ async function ongletPaiementsAF(zone) {
 // ---------- IA payante : réglages, packs, abonnements, comptes (26 septembre 2026) ----------
 const LIB_MVT_AF = { achat_pack: '🛒 Pack', abonnement: '📅 Abonnement', usage_quiz: '🧠 Quiz', usage_formation: '🤖 Formation', remboursement: '↩️ Remboursement', ajustement: '🛠️ Ajustement' };
 async function ongletIAAF(zone) {
-  const [{ data: par, error: e1 }, { data: packs }, { data: offres }, { data: mvts }, { data: comptes }] = await Promise.all([
+  const [{ data: par, error: e1 }, { data: packs }, { data: offres }, { data: mvts }, { data: comptes }, { data: soldeOA }, { data: recharges }] = await Promise.all([
     supabaseClient.from('formation_ia_parametres').select('*').eq('id', 1).maybeSingle(),
     supabaseClient.from('formation_ia_packs').select('*').order('position').order('prix'),
     supabaseClient.from('formation_ia_offres').select('*').order('position').order('prix'),
     supabaseClient.from('formation_ia_mouvements').select('*').order('cree_le', { ascending: false }).limit(100),
-    supabaseClient.from('formation_ia_comptes').select('*').order('maj_le', { ascending: false }).limit(200)
+    supabaseClient.from('formation_ia_comptes').select('*').order('maj_le', { ascending: false }).limit(200),
+    supabaseClient.rpc('formation_ia_admin_solde_openai'),
+    supabaseClient.from('formation_ia_openai_recharges').select('*').order('cree_le', { ascending: false }).limit(10)
   ]);
   if (e1) { zone.innerHTML = `<p class="message-erreur">${eAF(e1.message)}</p>`; return; }
   const ids = [...new Set([...(mvts || []).map(m => m.formateur_id), ...(comptes || []).map(c => c.formateur_id)])];
@@ -301,7 +310,39 @@ async function ongletIAAF(zone) {
       <td><input data-k="position" type="number" value="${x.position}" style="width:60px"></td>
       <td style="text-align:center"><input data-k="actif" type="checkbox" ${x.actif ? 'checked' : ''}></td>
       <td style="white-space:nowrap"><button class="btn btn-principal" data-enreg>💾</button> <button class="btn btn-discret" data-suppr title="Supprimer">🗑️</button></td></tr>`;
+  const so = soldeOA || { solde: 0, recharges: 0, depense: 0, depense_7j: 0, depense_30j: 0, appels_30j: 0 };
+  const taux = Number(p.taux_fcfa_usd || 600);
+  const usd = v => `${Number(v || 0).toFixed(2).replace('.', ',')} $`;
+  const fcfaAF2 = v => `≈ ${Math.round(Number(v || 0) * taux).toLocaleString('fr-FR')} FCFA`;
+  const parJour = Number(so.depense_7j || 0) / 7;
+  const joursRestants = parJour > 0 ? Math.max(0, Math.floor(Number(so.solde) / parJour)) : null;
+  const bas = Number(so.solde) < Number(p.seuil_alerte_usd ?? 5);
   zone.innerHTML = `
+    <div class="carte" style="margin-bottom:16px;${bas ? 'border:2px solid #dc2626' : ''}">
+      <h3 style="margin-top:0">💰 Compte ChatGPT de KEKELI (OpenAI)</h3>
+      ${bas ? `<p class="message-erreur" style="margin-top:0">⚠️ Solde estimé sous le seuil d'alerte : rechargez votre compte sur <a href="https://platform.openai.com/settings/organization/billing/overview" target="_blank" rel="noopener">platform.openai.com</a>, puis notez la recharge ci-dessous.</p>` : ''}
+      <div class="af-stats">
+        <div class="af-stat"><small>Solde estimé</small><strong style="color:${bas ? '#dc2626' : '#0b7a5c'}">${usd(so.solde)}</strong><small>${fcfaAF2(so.solde)}</small></div>
+        <div class="af-stat"><small>Dépensé (7 jours)</small><strong>${usd(so.depense_7j)}</strong><small>${fcfaAF2(so.depense_7j)}</small></div>
+        <div class="af-stat"><small>Dépensé (30 jours)</small><strong>${usd(so.depense_30j)}</strong><small>${so.appels_30j} appel(s) à ChatGPT</small></div>
+        <div class="af-stat"><small>Il reste environ</small><strong>${joursRestants === null ? '—' : joursRestants + ' jour(s)'}</strong><small>au rythme des 7 derniers jours</small></div>
+      </div>
+      <form id="formRechargeOA" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:12px 0">
+        <label>J'ai rechargé OpenAI de <input type="number" name="montant" min="1" step="0.01" required style="width:100px"> $</label>
+        <label>Note <input name="note" maxlength="300" placeholder="ex. carte Visa, 26/09" style="width:200px"></label>
+        <button class="btn btn-principal" type="submit">Enregistrer la recharge</button>
+      </form>
+      <details><summary style="cursor:pointer;font-weight:700">Réglages du suivi et dernières recharges</summary>
+        <form id="formSuiviOA" style="display:grid;gap:8px;max-width:560px;margin-top:10px">
+          <label>Alerte quand le solde passe sous <input type="number" name="seuil" min="0" step="0.5" value="${p.seuil_alerte_usd ?? 5}" style="width:90px"> $</label>
+          <label>Prix OpenAI — entrée : <input type="number" name="pe" min="0" step="0.01" value="${p.prix_entree_usd ?? 2}" style="width:80px"> $ / million de jetons ; sortie : <input type="number" name="ps" min="0" step="0.01" value="${p.prix_sortie_usd ?? 10}" style="width:80px"> $ / million</label>
+          <label>Taux de change : 1 $ = <input type="number" name="taux" min="1" value="${taux}" style="width:90px"> FCFA</label>
+          <div><button class="btn btn-principal" type="submit">Enregistrer</button> <span data-ok style="color:#0b7a5c"></span></div>
+        </form>
+        <ul style="font-size:13px">${(recharges || []).map(r => `<li>${dAF(r.cree_le)} : ${usd(r.montant_usd)}${r.note ? ` — ${eAF(r.note)}` : ''}</li>`).join('') || '<li>Aucune recharge enregistrée.</li>'}</ul>
+      </details>
+      <p style="font-size:12px;color:#64748b;margin-bottom:0">OpenAI ne permet pas de lire le solde automatiquement : KEKELI l'estime (recharges notées ici − coût réel de chaque appel à ChatGPT). Les gestionnaires reçoivent une notification 🔔 dès que le solde passe sous le seuil, puis chaque matin tant qu'il reste bas, et immédiatement si OpenAI refuse une demande faute de crédit. Vérifiez de temps en temps le vrai solde sur platform.openai.com et corrigez avec une recharge (négative si besoin).</p>
+    </div>
     <div class="carte" style="margin-bottom:16px">
       <h3 style="margin-top:0">⚙️ Réglages de l'IA (ChatGPT)</h3>
       <form id="formParIA" style="display:grid;gap:10px;max-width:560px">
@@ -340,6 +381,23 @@ async function ongletIAAF(zone) {
           <td>${m.credits}</td><td>${m.essai}</td><td>${m.abonnement}</td><td><small>${eAF(m.details?.sujet || m.details?.motif || (m.details?.questions ? m.details.questions + ' question(s)' : '') || (m.details?.montant ? prixAF(m.details.montant) + (m.details.mode === 'test' ? ' (test)' : '') : ''))}${m.details?.rembourse ? ' — remboursé' : ''}</small></td></tr>`).join('')}</tbody></table></div>` : '<p>Aucun mouvement.</p>'}
     </div>`;
 
+  zone.querySelector('#formRechargeOA').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const f = ev.target;
+    const { error } = await supabaseClient.rpc('formation_ia_admin_recharge_openai', { p_montant_usd: Number(f.montant.value), p_note: f.note.value.trim() || null });
+    if (error) { erreurAF(error); return; }
+    ongletIAAF(zone);
+  });
+  zone.querySelector('#formSuiviOA').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const f = ev.target;
+    const { error } = await supabaseClient.from('formation_ia_parametres').update({
+      seuil_alerte_usd: Math.max(0, Number(f.seuil.value) || 0), prix_entree_usd: Math.max(0, Number(f.pe.value) || 0),
+      prix_sortie_usd: Math.max(0, Number(f.ps.value) || 0), taux_fcfa_usd: Math.max(1, Number(f.taux.value) || 600), maj_le: new Date().toISOString()
+    }).eq('id', 1);
+    if (error) { erreurAF(error); return; }
+    f.querySelector('[data-ok]').textContent = '✔ Enregistré';
+  });
   zone.querySelector('#formParIA').addEventListener('submit', async ev => {
     ev.preventDefault();
     const f = ev.target;

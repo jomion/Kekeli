@@ -12,6 +12,8 @@
 // réellement produites sont débitées. Les gestionnaires KEKELI ne paient pas.
 // IA utilisée : ChatGPT (OpenAI, secret OPENAI_API_KEY, modèle réglé dans
 // formation_ia_parametres) ; Gemini puis Groq en secours.
+// Chaque appel ChatGPT enregistre son coût réel (formation_ia_enregistrer_usage)
+// pour suivre le solde OpenAI de KEKELI et alerter les gestionnaires.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -52,7 +54,8 @@ function texteBrut(html: string): string {
     .replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
 }
 
-async function appelIA(prompt: string, modele: string): Promise<string | null> {
+type Suivi = (u: { entree: number; sortie: number; modele: string } | null, quota?: string) => Promise<unknown>;
+async function appelIA(prompt: string, modele: string, suivi?: Suivi): Promise<string | null> {
   const avecDelai = async (url: string, init: RequestInit, ms = 90000) => {
     const c = new AbortController(); const t = setTimeout(() => c.abort(), ms);
     try { return await fetch(url, { ...init, signal: c.signal }); } finally { clearTimeout(t); }
@@ -65,8 +68,11 @@ async function appelIA(prompt: string, modele: string): Promise<string | null> {
       });
       const d = await r.json();
       const t = d?.choices?.[0]?.message?.content || "";
+      // Coût réel (jetons) enregistré pour suivre le solde OpenAI de KEKELI.
+      if (d?.usage && suivi) await Promise.resolve(suivi({ entree: Number(d.usage.prompt_tokens) || 0, sortie: Number(d.usage.completion_tokens) || 0, modele: String(d.model || modele) })).catch(() => {});
       if (r.ok && t.trim()) return t;
       console.error("openai", r.status, d?.error?.message);
+      if (suivi && (d?.error?.code === "insufficient_quota" || d?.error?.type === "insufficient_quota")) await Promise.resolve(suivi(null, d?.error?.message || "insufficient_quota")).catch(() => {});
     } catch (e) { console.error("openai", (e as Error).message); }
   }
   if (GEMINI_API_KEY) {
@@ -169,6 +175,7 @@ Deno.serve(async (req) => {
   const { count } = await admin.from("formation_ia_usage").select("*", { count: "exact", head: true }).eq("utilisateur_id", u.user.id).gte("cree_le", depuis);
   if ((count || 0) >= LIMITE_JOUR) return json({ error: `Limite atteinte : ${LIMITE_JOUR} générations par 24 heures. Réessayez plus tard.` }, 429);
 
+  const userId = u.user.id;
   const nb = Math.min(20, Math.max(1, Number(body.nombre) || 5));
   // Crédits IA : vérification AVANT d'appeler l'IA (rien n'est débité ici).
   const { data: gestion } = await admin.rpc("peut_gerer_formations", { p_id: u.user.id });
@@ -211,7 +218,10 @@ CONTENU :
 ${source}
 """`;
 
-  const brut = await appelIA(prompt, par?.modele || "gpt-6-sol");
+  const suivi: Suivi = (conso, quota) => Promise.resolve(quota || !conso
+    ? admin.rpc("formation_ia_signaler_quota_openai", { p_message: quota || "quota" })
+    : admin.rpc("formation_ia_enregistrer_usage", { p_source: "quiz", p_modele: conso.modele, p_entree: conso.entree, p_sortie: conso.sortie, p_formateur: userId }));
+  const brut = await appelIA(prompt, par?.modele || "gpt-6-sol", suivi);
   if (!brut) return json({ error: "Le service d'IA est momentanément indisponible. Réessayez dans quelques instants." }, 503);
   let liste: unknown[] = [];
   try {

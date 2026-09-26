@@ -17,6 +17,8 @@
 //   plan    — { sujet, public, niveau, nbModules, leconsParModule, consignes }
 //   module  — { generationId, index }
 // Secret requis : OPENAI_API_KEY (Supabase → Edge Functions → Secrets).
+// Chaque appel ChatGPT enregistre son coût réel (formation_ia_enregistrer_usage)
+// pour suivre le solde OpenAI de KEKELI et alerter les gestionnaires.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -34,7 +36,8 @@ const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: 
 const txt = (v: unknown, max = 500) => (typeof v === "string" ? v.trim().slice(0, max) : typeof v === "number" ? String(v) : "");
 const NIVEAUX: Record<string, string> = { debutant: "débutant", intermediaire: "intermédiaire", avance: "avancé", tous: "tous niveaux" };
 
-async function openai(prompt: string, modele: string, maxTokens: number): Promise<Record<string, unknown>> {
+type Suivi = { admin: ReturnType<typeof createClient>; uid: string; source: string };
+async function openai(prompt: string, modele: string, maxTokens: number, suivi?: Suivi): Promise<Record<string, unknown>> {
   if (!OPENAI_API_KEY) throw new Error("La génération par ChatGPT n'est pas encore configurée (clé OPENAI_API_KEY manquante).");
   const c = new AbortController(); const t = setTimeout(() => c.abort(), 140000);
   try {
@@ -44,7 +47,16 @@ async function openai(prompt: string, modele: string, maxTokens: number): Promis
       body: JSON.stringify({ model: modele || "gpt-6-sol", messages: [{ role: "user", content: prompt }], reasoning_effort: "low", max_completion_tokens: maxTokens, response_format: { type: "json_object" } }),
     });
     const d = await r.json().catch(() => ({}));
-    if (!r.ok) { console.error("openai", r.status, d?.error?.message); throw new Error(`ChatGPT indisponible (${r.status}). Réessayez dans un instant.`); }
+    // Coût réel (jetons) enregistré pour suivre le solde OpenAI de KEKELI.
+    if (suivi && d?.usage) await Promise.resolve(suivi.admin.rpc("formation_ia_enregistrer_usage", { p_source: suivi.source, p_modele: String(d.model || modele), p_entree: Number(d.usage.prompt_tokens) || 0, p_sortie: Number(d.usage.completion_tokens) || 0, p_formateur: suivi.uid })).catch(() => {});
+    if (!r.ok) {
+      console.error("openai", r.status, d?.error?.message);
+      if (suivi && (d?.error?.code === "insufficient_quota" || d?.error?.type === "insufficient_quota")) {
+        await Promise.resolve(suivi.admin.rpc("formation_ia_signaler_quota_openai", { p_message: String(d?.error?.message || "insufficient_quota") })).catch(() => {});
+        throw new Error("Le service d'IA de KEKELI est momentanément indisponible. L'équipe KEKELI a été prévenue.");
+      }
+      throw new Error(`ChatGPT indisponible (${r.status}). Réessayez dans un instant.`);
+    }
     const brut = d?.choices?.[0]?.message?.content || "";
     const m = brut.match(/\{[\s\S]*\}/);
     return JSON.parse(m ? m[0] : brut);
@@ -123,7 +135,7 @@ Structure : exactement ${nbModules} modules, ${parModule} leçons par module, pr
 ${consignes ? `Consignes du formateur : ${consignes}\n` : ""}Exemples et contextes adaptés à l'Afrique de l'Ouest quand c'est pertinent.
 Réponds UNIQUEMENT avec un objet JSON strict :
 {"titre":"(5 à 100 caractères)","sous_titre":"(une phrase)","description":"(2 à 4 paragraphes : ce que l'on apprend, pour qui, résultat concret)","objectifs":["…","…","…"],
- "modules":[{"titre":"…","description":"(1 phrase)","lecons":[{"titre":"…","objectif":"(1 phrase : ce que l'apprenant saura faire)","duree_minutes":10}]}]}`, modele, 6000);
+ "modules":[{"titre":"…","description":"(1 phrase)","lecons":[{"titre":"…","objectif":"(1 phrase : ce que l'apprenant saura faire)","duree_minutes":10}]}]}`, modele, 6000, { admin, uid, source: "formation_plan" });
       } catch (e) { await rembourser("échec du plan"); return json({ error: (e as Error).message + " Vos crédits ont été rendus." }, 502); }
 
       const modules = (Array.isArray(plan.modules) ? plan.modules : []).slice(0, nbModules).map((m: Record<string, unknown>) => ({
@@ -193,7 +205,7 @@ et un encadré final « À retenir ».
 Format du contenu : HTML simple UNIQUEMENT avec les balises h2, h3, p, ul, ol, li, strong, em, blockquote, table, tr, th, td.
 Pour l'encadré « À retenir » utilise exactement : <div data-bloc="encadre" style="background-color: #e8f5e9"><p><strong>📌 À retenir</strong></p><ul><li>…</li></ul></div>
 Ne répète pas le titre de la leçon en h1. Pas de CSS, pas de script, pas d'image.
-Réponds UNIQUEMENT avec un objet JSON strict : {"lecons":[{"titre":"…","contenu_html":"…"}]} dans le même ordre que ci-dessus.`, modele, 16000);
+Réponds UNIQUEMENT avec un objet JSON strict : {"lecons":[{"titre":"…","contenu_html":"…"}]} dans le même ordre que ci-dessus.`, modele, 16000, { admin, uid, source: "formation_module" });
 
       const sorties = (Array.isArray(res.lecons) ? res.lecons : []) as Record<string, unknown>[];
       let faites = 0;

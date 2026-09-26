@@ -52,11 +52,44 @@ function regrouperLiensParCategorie(liens) {
   return resultat;
 }
 
-function liensNavHtml(liensVisibles) {
+// 26 septembre 2026 (demande : « créer 2 tableaux de bord pour que je
+// sélectionne au survol ») : pour tout compte adulte, le lien essentiel
+// « Tableau de bord » devient un petit menu déroulant (survol + clic)
+// proposant les DEUX espaces : KEKELI Primaire (le tableau de bord du rôle)
+// et KEKELI Formation (administration de la plateforme pour un admin,
+// « Mon apprentissage » pour les autres). Les élèves n'y ont pas accès
+// (plateforme Formation réservée aux adultes) : leur lien reste simple.
+function menuTableauxDeBordHtml(l, role) {
+  const racine = typeof RACINE_SITE === 'string' ? RACINE_SITE : '';
+  const formation = role === 'admin'
+    ? { href: l.href.replace(/tableau-de-bord\.html$/, 'formations.html'), label: '🎓 KEKELI Formation', aide: 'Administration des formations' }
+    : { href: `${racine}pages/formations/app/tableau-de-bord.html`, label: '🎓 KEKELI Formation', aide: 'Mon apprentissage' };
+  const ici = window.location.pathname;
+  const estIci = href => { try { return new URL(href, window.location.href).pathname === ici; } catch (_e) { return false; } };
+  const item = (href, label, aide) => `<a href="${href}"${estIci(href) ? ' aria-current="page"' : ''}>${label}<small class="entete-kekeli-aide">${aide}</small></a>`;
+  return `
+      <div class="entete-kekeli-categorie entete-kekeli-tdb">
+        <button type="button" class="entete-kekeli-categorie-btn">🏠 Tableaux de bord <span class="entete-kekeli-caret">▾</span></button>
+        <div class="entete-kekeli-sousmenu">
+          <div class="entete-kekeli-sousmenu-inner">
+            ${item(l.href, '🏫 KEKELI Primaire', role === 'admin' ? 'Écoles, classes, séances' : 'Mon espace')}
+            ${item(formation.href, formation.label, formation.aide)}
+          </div>
+        </div>
+      </div>`;
+}
+
+function liensNavHtml(liensVisibles, role) {
   const categories = typeof CATEGORIES_NAV === 'object' ? CATEGORIES_NAV : {};
   return regrouperLiensParCategorie(liensVisibles).map(g => {
     if (g.type === 'lien') {
       const l = g.lien;
+      if (l.essentiel && role && role !== 'eleve') return menuTableauxDeBordHtml(l, role);
+      if (l.perso) {
+        // Raccourci personnel (nom saisi librement dans Paramètres) : échappé.
+        const esc = v => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        return `<a href="${esc(l.href)}">${esc(l.icone || '📌')} ${esc(l.label)}</a>`;
+      }
       return `<a href="${l.href}">${l.icone ? `${l.icone} ` : ''}${l.label}</a>`;
     }
     const info = categories[g.cle] || { label: g.cle, icone: '' };
@@ -95,6 +128,23 @@ function initCategoriesNavEntete(header) {
 
   document.addEventListener('click', () => fermerToutes());
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermerToutes(); });
+}
+
+async function ajouterLiensFormationEntete(utilisateurId, racine) {
+  try {
+    const [{ data: formateur }, { count: nbInscriptions }] = await Promise.all([
+      supabaseClient.from('formateurs').select('statut').eq('id', utilisateurId).maybeSingle(),
+      supabaseClient.from('formation_inscriptions').select('id', { count: 'exact', head: true })
+        .eq('apprenant_id', utilisateurId).neq('statut', 'annulee')
+    ]);
+    const liens = [];
+    if (nbInscriptions > 0) liens.push(`<a href="${racine}pages/formations/app/tableau-de-bord.html">🎓 Mes formations (KEKELI Formation)</a>`);
+    if (formateur && formateur.statut === 'valide') liens.push(`<a href="${racine}pages/formations/formateur/tableau-de-bord.html">👨‍🏫 Mon espace formateur</a>`);
+    else if (formateur && formateur.statut === 'en_attente') liens.push(`<a href="${racine}pages/formations/devenir-formateur.html">⏳ Ma candidature formateur</a>`);
+    const menu = document.getElementById('menuCompteEntete');
+    if (!liens.length || !menu) return;
+    menu.insertAdjacentHTML('afterbegin', liens.join('') + '<hr style="border:0;border-top:1px solid #e2e8f0;margin:4px 0">');
+  } catch (_e) { /* lien facultatif : on n'affiche rien en cas d'erreur */ }
 }
 
 // Le bouton d'épinglage "📌 Épingler cette page" a été retiré de l'en-tête
@@ -164,20 +214,23 @@ async function initEnteteNavigation(config) {
       // `racine: true` de js/navigation-config.js) : on les préfixe ici avec
       // le RACINE_SITE de la page COURANTE, pas celui de la page où ils ont
       // été ajoutés.
-      // Un raccourci épinglé via l'ancien bouton 📌 de l'en-tête (retiré le 26
-      // septembre 2026 — voir plus haut) avait stocké une adresse ABSOLUE
-      // (commence par "/") — utilisable telle quelle depuis n'importe quelle
-      // profondeur de page, donc pas de préfixe RACINE_SITE dans ce cas ; ces
-      // raccourcis déjà enregistrés continuent de fonctionner normalement. Un
-      // raccourci ajouté depuis la page Paramètres (liste des pages du rôle)
-      // garde, lui, l'ancienne convention relative à la racine du site (comme
-      // les liens `racine: true`).
-      raccourcisPerso = (data?.raccourcis || []).map(r => ({ ...r, href: r.href && r.href.startsWith('/') ? r.href : racine + r.href }));
+      // Un raccourci "épinglé depuis l'en-tête" (ancien bouton 📌, retiré le 26 septembre 2026
+      // ci-dessous) stocke une adresse ABSOLUE (commence par "/") — utilisable
+      // telle quelle depuis n'importe quelle profondeur de page, donc pas de
+      // préfixe RACINE_SITE dans ce cas. Un raccourci ajouté depuis la page
+      // Paramètres (liste des pages du rôle) garde, lui, l'ancienne convention
+      // relative à la racine du site (comme les liens `racine: true`).
+      raccourcisPerso = (data?.raccourcis || []).map(r => ({ ...r, perso: true, href: r.href && r.href.startsWith('/') ? r.href : racine + r.href }));
     } catch (_e) { /* préférences indisponibles -> on affiche tout, tant pis */ }
   }
 
   const liensVisibles = [...(config.liens || []).filter(l => l.essentiel || !liensMasques.includes(l.id)), ...raccourcisPerso];
   const fnDeconnexion = config.role === 'admin' ? 'deconnecterAdmin' : 'deconnecterUtilisateur';
+
+  // 26 septembre 2026 (demande : « Retire le bouton épingler des pages et
+  // maintiens l'épinglement via Paramètres uniquement ») : plus de bouton 📌
+  // dans l'en-tête. Les raccourcis se gèrent uniquement dans
+  // pages/parametres.html (choix d'une page du rôle, ou adresse collée).
 
   // Petit "top" de dernière activité pour le contrôle parental (voir
   // pages/parent/tableau-de-bord.html) — sans bloquer l'affichage de la page,
@@ -202,7 +255,7 @@ async function initEnteteNavigation(config) {
 
   header.classList.add('entete-kekeli');
   header.innerHTML = `
-    <a href="${racine}index.html" class="entete-kekeli-logo">
+    <a href="${racine}primaire.html" class="entete-kekeli-logo">
       <img src="${racine}assets/logo/logo.png" alt="KEKELI"> KEKELI${config.role === 'admin' ? ' Admin' : ''}
     </a>
 
@@ -212,7 +265,7 @@ async function initEnteteNavigation(config) {
 
     <div class="entete-kekeli-zone" id="enteteKekeliZone">
       <nav class="entete-kekeli-liens">
-        ${liensNavHtml(liensVisibles)}
+        ${liensNavHtml(liensVisibles, config.role)}
       </nav>
       <div class="entete-kekeli-actions">
         <div id="zoneCloche"></div>
@@ -222,7 +275,7 @@ async function initEnteteNavigation(config) {
             ${config.badgeHtml ? `<span class="entete-kekeli-badge">${config.badgeHtml}</span> ` : ''}<span class="entete-kekeli-caret">▾</span>
           </button>
           <div class="entete-kekeli-sousmenu">
-            <div class="entete-kekeli-sousmenu-inner">
+            <div class="entete-kekeli-sousmenu-inner" id="menuCompteEntete">
               ${['parent', 'enseignant', 'autorite'].includes(config.role) && typeof urlCompleterProfil === 'function' ? `<a href="${urlCompleterProfil()}">👤 Mon profil</a>` : ''}
               <a href="${racine}pages/parametres.html">⚙️ Paramètres</a>
               <a href="#" id="btnDeconnexionEntete">🚪 Déconnexion</a>
@@ -242,6 +295,13 @@ async function initEnteteNavigation(config) {
     e.preventDefault();
     if (typeof window[fnDeconnexion] === 'function') window[fnDeconnexion]();
   });
+
+  // 25 septembre 2026 : accès direct à KEKELI Formation depuis le menu du
+  // nom (en haut à droite), pour un compte KEKELI Primaire qui suit au moins
+  // une formation ou qui est formateur. Les comptes élèves n'y ont jamais
+  // accès (plateforme réservée aux adultes, bloquée aussi côté base).
+  if (config.utilisateurId && config.role !== 'eleve') ajouterLiensFormationEntete(config.utilisateurId, racine);
+
 
   if (config.avecCloche !== false && config.utilisateurId && typeof initClocheNotifications === 'function') {
     initClocheNotifications('zoneCloche', config.utilisateurId);
