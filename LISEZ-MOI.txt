@@ -1501,3 +1501,28 @@ avant. Réglages : Admin → Formations → 🤖 IA (colonnes « Niveau et duré
 « ⚡ Complète », « 🔁 Report »).
 En ligne (déjà fait) : migration formation_ia_quatre_packs_credits_30_jours
 (table formation_ia_lots), fonction serveur formation-ia-generer.
+
+======================================================================
+COMMISSION PAR PACK, IMAGES PAR L'IA, MISE EN FORME AVANCÉE, « ASSISTANCE IA »
+(27 septembre 2026)
+======================================================================
+1. Commission réglée PACK PAR PACK : Admin → Formations → 💳 Paiements.
+   « sans pack » + une ligne par pack (Découverte, Formateur, Pro, Premium).
+   La commission du dernier pack acheté s'applique pendant ses 30 jours.
+2. Images créées par l'IA (appel DIRECT à ChatGPT Images, OpenAI) :
+   - dans l'éditeur de leçon : « 🎨 Image (assistance IA) », et dans la
+     fenêtre 🖼️ Image de l'éditeur ;
+   - couverture de la formation : onglet Infos → « 🎨 Assistance IA ».
+   Le formateur décrit l'image, choisit le style (illustration, photo,
+   schéma, dessin, 3D) et le format ; aperçu, « Autre essai » ou « Insérer ».
+   Prix : 5 crédits par image (réglable). Crédits rendus si l'image échoue.
+   Réglages : Admin → Formations → 🤖 IA → « Assistance IA pour les images »
+   (crédits, modèle gpt-image-1, qualité, coût réel estimé, limite par jour).
+   Clé nécessaire : OPENAI_API_KEY (Supabase → Edge Functions → Secrets).
+3. Mise en forme avancée (Formateur Pro et Premium) : menu « ✨ Avancé » de
+   l'éditeur : deux / trois colonnes, section repliable, étapes numérotées,
+   citation mise en valeur, bouton lien, lettrine, séparateur décoratif.
+   Les autres voient « 🔒 Avancé » (lien vers les packs).
+4. Les boutons IA s'appellent maintenant « Assistance IA ».
+En ligne (déjà fait) : migration formation_commission_par_pack_et_images_ia,
+nouvelle fonction serveur formation-ia-image.

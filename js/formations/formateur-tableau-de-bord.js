@@ -44,7 +44,7 @@
           <a class="fk-btn fk-btn-ghost" href="profil.html">🪪 Mon profil formateur</a>
           <a class="fk-btn fk-btn-ghost" href="${FK_BASE}formateur.html?slug=${encodeURIComponent(s.formateur.slug)}">👁️ Profil public</a>
           <a class="fk-btn fk-btn-ghost" href="credits-ia.html">🪙 Crédits IA</a>
-          <a class="fk-btn fk-btn-outline" href="generer-ia.html">🤖 Créer avec l'IA</a>
+          <a class="fk-btn fk-btn-outline" href="generer-ia.html">🤖 Assistance IA</a>
           <button class="fk-btn fk-btn-primary" id="btnNouvelle">＋ Nouvelle formation</button>
         </div>
       </div>

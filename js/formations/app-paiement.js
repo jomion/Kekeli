@@ -47,7 +47,7 @@
   if (res && res.statut === 'reussi' && estIA) {
     cadre(`<span class="fk-vide-icone" aria-hidden="true">🪙</span><h1>Crédits IA ajoutés !</h1>
       <p>Merci ! ${res.credits ? `<b>${Number(res.credits)}</b> crédits ont été ajoutés à votre compte IA.` : 'Vos crédits IA sont disponibles.'}</p>
-      <a class="fk-btn fk-btn-primary" href="${FK_BASE}formateur/generer-ia.html">🤖 Créer une formation avec l'IA</a>
+      <a class="fk-btn fk-btn-primary" href="${FK_BASE}formateur/generer-ia.html">🤖 Assistance IA pour créer une formation</a>
       <a class="fk-btn fk-btn-ghost" href="${FK_BASE}formateur/credits-ia.html">Mes crédits IA</a>`);
     return;
   }

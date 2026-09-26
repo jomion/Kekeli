@@ -237,10 +237,11 @@ async function ongletInscriptionsAF(zone, page) {
 const fcfaAF = n => `${Math.round(Number(n) || 0).toLocaleString('fr-FR')} FCFA`;
 const STATUTS_PAIEMENT_AF = { en_attente: '⏳ En attente', reussi: '✅ Réussi', echoue: '❌ Échoué', annule: '🚫 Annulé', rembourse: '↩️ Remboursé' };
 async function ongletPaiementsAF(zone) {
-  const [{ data: par, error: e1 }, { data: paiements, error: e2 }] = await Promise.all([
+  const [{ data: par, error: e1 }, { data: paiements, error: e2 }, { data: packsCom }] = await Promise.all([
     supabaseClient.from('formation_parametres_paiement').select('*').eq('id', 1).maybeSingle(),
     supabaseClient.from('formation_paiements').select('id, formation_id, apprenant_id, prestataire, mode, montant, statut, part_kekeli, part_formateur, commission_pct, reference_externe, cree_le, confirme_le, objet, credits, formations(titre)')
-      .order('cree_le', { ascending: false }).limit(200)
+      .order('cree_le', { ascending: false }).limit(200),
+    supabaseClient.from('formation_ia_packs').select('id, nom, prix, niveau, commission_pct, actif').order('position').order('prix')
   ]);
   if (e1 || e2) { zone.innerHTML = `<p class="message-erreur">${eAF((e1 || e2).message)}</p>`; return; }
   const liste = paiements || [];
@@ -254,15 +255,13 @@ async function ongletPaiementsAF(zone) {
     <div class="carte" style="margin-bottom:16px">
       <h3 style="margin-top:0">⚙️ Réglages du paiement</h3>
       <form id="formParPaiement" style="display:grid;gap:10px;max-width:460px">
-        <label>Commission KEKELI — Standard (%) <input type="number" name="commission" min="0" max="50" step="0.5" value="${eAF(p0.commission_pct)}" style="width:90px"></label>
-        <label>Commission — ⭐ Formateur Plus (%) <input type="number" name="c1" min="0" max="50" step="0.5" value="${eAF(p0.commission_niveau1 ?? 13)}" style="width:90px"></label>
-        <label>Commission — ✨ Formateur Pro (%) <input type="number" name="c2" min="0" max="50" step="0.5" value="${eAF(p0.commission_niveau2 ?? 12)}" style="width:90px"></label>
-        <label>Commission — 👑 Formateur Premium (%) <input type="number" name="c3" min="0" max="50" step="0.5" value="${eAF(p0.commission_niveau3 ?? 10)}" style="width:90px"></label>
+        <label>Commission KEKELI — sans pack (%) <input type="number" name="commission" min="0" max="50" step="0.5" value="${eAF(p0.commission_pct)}" style="width:90px"></label>
+        ${(packsCom || []).map(k => `<label>Commission — ${['', '⭐', '✨', '👑'][k.niveau] || '🛒'} ${eAF(k.nom)} (%)${k.actif ? '' : ' <small>(pack masqué)</small>'} <input type="number" data-com-pack="${k.id}" min="0" max="50" step="0.5" value="${eAF(k.commission_pct ?? '')}" style="width:90px"></label>`).join('')}
         <label><input type="checkbox" name="fedapay" ${p0.fedapay_actif ? 'checked' : ''}> Proposer <b>FedaPay</b> (Mobile Money, carte)</label>
         <label><input type="checkbox" name="kkiapay" ${p0.kkiapay_actif ? 'checked' : ''}> Proposer <b>KkiaPay</b> (Mobile Money, carte, Wave)</label>
         <div><button class="btn btn-principal" type="submit">Enregistrer</button> <span data-ok style="color:#0b7a5c"></span></div>
       </form>
-      <p style="font-size:12px;color:#64748b;margin-bottom:0">Un moyen coché n'apparaît aux acheteurs que si ses clés sont enregistrées dans Supabase (Edge Functions → Secrets). Les commissions s'appliquent aux nouvelles ventes, selon le niveau du formateur au moment de la vente (pack ou abonnement actif).</p>
+      <p style="font-size:12px;color:#64748b;margin-bottom:0">Un moyen coché n'apparaît aux acheteurs que si ses clés sont enregistrées dans Supabase (Edge Functions → Secrets). Chaque pack a sa propre commission : elle s'applique aux ventes du formateur tant que son dernier pack acheté est valable (30 jours) ; ensuite, commission « sans pack ». Nouvelles ventes seulement.</p>
     </div>
     <div class="af-stats">
       <div class="af-stat"><small>Ventes réelles</small><strong>${reels.length}</strong></div>
@@ -283,17 +282,21 @@ async function ongletPaiementsAF(zone) {
     e.preventDefault();
     const f = e.target;
     const c = Number(f.commission.value);
-    const niv = [f.c1, f.c2, f.c3].map(i => Number(i.value));
-    if (![c, ...niv].every(x => x >= 0 && x <= 50)) { alert('Les commissions doivent être comprises entre 0 et 50 %.'); return; }
+    const coms = [...f.querySelectorAll('[data-com-pack]')].map(i => ({ id: Number(i.dataset.comPack), v: i.value === '' ? null : Number(i.value) }));
+    if (![c, ...coms.map(x => x.v ?? 0)].every(x => x >= 0 && x <= 50)) { alert('Les commissions doivent être comprises entre 0 et 50 %.'); return; }
+    for (const x of coms) {
+      const { error: ek } = await supabaseClient.from('formation_ia_packs').update({ commission_pct: x.v }).eq('id', x.id);
+      if (ek) { erreurAF(ek); return; }
+    }
     const { error } = await supabaseClient.from('formation_parametres_paiement')
-      .update({ commission_pct: c, commission_niveau1: niv[0], commission_niveau2: niv[1], commission_niveau3: niv[2], fedapay_actif: f.fedapay.checked, kkiapay_actif: f.kkiapay.checked, maj_le: new Date().toISOString() }).eq('id', 1);
+      .update({ commission_pct: c, fedapay_actif: f.fedapay.checked, kkiapay_actif: f.kkiapay.checked, maj_le: new Date().toISOString() }).eq('id', 1);
     if (error) { erreurAF(error); return; }
     f.querySelector('[data-ok]').textContent = '✔ Enregistré';
   });
 }
 
 // ---------- IA payante : réglages, packs, comptes (26 septembre 2026 ; abonnement remplacé par le Pack Premium le 27) ----------
-const LIB_MVT_AF = { achat_pack: '🛒 Pack', abonnement: '📅 Abonnement', usage_quiz: '🧠 Quiz', usage_formation: '🤖 Formation IA', remboursement: '↩️ Remboursement', expiration: '⌛ Fin de pack', report: '🔁 Report', ajustement: '🛠️ Ajustement' };
+const LIB_MVT_AF = { achat_pack: '🛒 Pack', abonnement: '📅 Abonnement', usage_quiz: '🧠 Quiz', usage_formation: '🤖 Formation IA', usage_image: '🎨 Image IA', remboursement: '↩️ Remboursement', expiration: '⌛ Fin de pack', report: '🔁 Report', ajustement: '🛠️ Ajustement' };
 async function ongletIAAF(zone) {
   const [{ data: par, error: e1 }, { data: packs }, { data: lotsActifs }, { data: mvts }, { data: comptes }, { data: soldeOA }, { data: recharges }] = await Promise.all([
     supabaseClient.from('formation_ia_parametres').select('*').eq('id', 1).maybeSingle(),
@@ -368,12 +371,19 @@ async function ongletIAAF(zone) {
           </select></label>
         <label>Modèle ChatGPT <input name="modele" value="${eAF(p.modele)}" maxlength="60" style="width:180px"> <small>(ex. gpt-6-sol, gpt-6-luna)</small></label>
         <label>Crédits par question de quiz <input type="number" name="cq" min="0" value="${p.credits_par_question}" style="width:90px"></label>
-        <fieldset style="border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px"><legend><b>Création de formation avec l'IA</b></legend>
+        <fieldset style="border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px"><legend><b>Assistance IA pour créer une formation</b></legend>
           <label>🧩 Module par module — crédits pour le plan <input type="number" name="cplan" min="0" value="${p.credits_plan ?? 10}" style="width:80px"></label><br>
           <label>🧩 Module par module — crédits par module rédigé <input type="number" name="cmod" min="0" value="${p.credits_module ?? 25}" style="width:80px"></label><br>
           <label>🧩 Module par module — ouvert à partir du niveau <select name="nmod">${[[0, 'Standard (tous)'], [1, '⭐ Plus'], [2, '✨ Pro'], [3, '👑 Premium']].map(([v, l]) => `<option value="${v}" ${Number(p.niveau_generation_module ?? 1) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label><br>
           <label>⚡ Formation complète d'un coup — crédits <input type="number" name="cf" min="0" value="${p.credits_formation}" style="width:80px"></label>
           <small style="display:block;color:#64748b">La génération complète est réservée aux packs où la case « ⚡ Complète » est cochée ci-dessous. Gardez-la moins chère que « plan + tous les modules » pour la rendre attractive.</small>
+        </fieldset>
+        <fieldset style="border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px"><legend><b>🎨 Assistance IA pour les images (appel direct à ChatGPT Images)</b></legend>
+          <label>Crédits par image <input type="number" name="cimg" min="0" value="${p.credits_image ?? 5}" style="width:80px"></label><br>
+          <label>Modèle d'image OpenAI <input name="mimg" value="${eAF(p.modele_image || 'gpt-image-1')}" maxlength="60" style="width:160px"></label>
+          <label>Qualité <select name="qimg">${[['low', 'Basse (moins chère)'], ['medium', 'Moyenne'], ['high', 'Haute (plus chère)']].map(([v, l]) => `<option value="${v}" ${(p.qualite_image || 'medium') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label><br>
+          <label>Coût réel estimé d'une image <input type="number" name="uimg" min="0" step="0.001" value="${p.cout_image_usd ?? 0.06}" style="width:90px"> $ <small>(pour le suivi du solde OpenAI)</small></label><br>
+          <label>Maximum <input type="number" name="limg" min="0" value="${p.limite_images_jour ?? 20}" style="width:80px"> images par jour et par formateur</label>
         </fieldset>
         <label>Parrainage : crédits offerts au parrain <input type="number" name="bp" min="0" value="${p.bonus_parrain ?? 50}" style="width:80px"> · au filleul <input type="number" name="bf" min="0" value="${p.bonus_filleul ?? 20}" style="width:80px"></label>
         <label>Outils IA de l'éditeur (vente, correction, résumé, tests, diaporama) : maximum <input type="number" name="lo" min="0" value="${p.limite_outils_jour ?? 30}" style="width:80px"> utilisations par jour et par formateur</label>
@@ -429,6 +439,8 @@ async function ongletIAAF(zone) {
       actif: f.actif.checked, ia_formation: f.ia_formation.value, modele: f.modele.value.trim() || 'gpt-6-sol', credits_par_question: Math.max(0, Number(f.cq.value) || 0),
       credits_formation: Math.max(0, Number(f.cf.value) || 0), essai_questions: Math.max(0, Number(f.essai.value) || 0),
       credits_plan: Math.max(0, Number(f.cplan.value) || 0), credits_module: Math.max(0, Number(f.cmod.value) || 0), niveau_generation_module: Number(f.nmod.value) || 0,
+      credits_image: Math.max(0, Number(f.cimg.value) || 0), modele_image: f.mimg.value.trim() || 'gpt-image-1', qualite_image: f.qimg.value,
+      cout_image_usd: Math.max(0, Number(f.uimg.value) || 0), limite_images_jour: Math.max(0, Number(f.limg.value) || 0),
       bonus_parrain: Math.max(0, Number(f.bp.value) || 0), bonus_filleul: Math.max(0, Number(f.bf.value) || 0), limite_outils_jour: Math.max(0, Number(f.lo.value) || 0),
       maj_le: new Date().toISOString()
     }).eq('id', 1);

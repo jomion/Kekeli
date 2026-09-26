@@ -118,7 +118,7 @@ function fkNettoyerHtml(html) {
       });
     }
     return window.DOMPurify.sanitize(html, {
-      ALLOWED_TAGS: ['p', 'br', 'b', 'strong', 'i', 'em', 'u', 's', 'strike', 'del', 'mark', 'small', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'a', 'img', 'code', 'pre', 'span', 'div', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'hr', 'sub', 'sup', 'figure', 'figcaption', 'dl', 'dt', 'dd', 'input'],
+      ALLOWED_TAGS: ['p', 'br', 'b', 'strong', 'i', 'em', 'u', 's', 'strike', 'del', 'mark', 'small', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'a', 'img', 'code', 'pre', 'span', 'div', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'hr', 'sub', 'sup', 'figure', 'figcaption', 'dl', 'dt', 'dd', 'input', 'details', 'summary'],
       ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'colspan', 'rowspan', 'style', 'data-bloc', 'data-activite', 'data-image', 'data-presentation', 'data-src', 'target', 'rel', 'type', 'checked', 'disabled'],
       ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|#|\/|\.)/i
     }).replace(/<input(?![^>]*type="checkbox")[^>]*>/gi, '');
@@ -1155,6 +1155,19 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
             <button type="button" data-tableau="suppr-tableau">🗑️ Supprimer le tableau</button>
           </span>
         </span>
+        ${o.niveau === undefined ? '' : `<span class="fk-riche-menu">
+          <button type="button" ${Number(o.niveau) >= 2 ? 'data-menu="avance"' : 'data-avance-verrou'} title="Mise en forme avancée (Formateur Pro et Premium)" aria-label="Mise en forme avancée">${Number(o.niveau) >= 2 ? '✨' : '🔒'} Avancé</button>
+          ${Number(o.niveau) >= 2 ? `<span class="fk-riche-palette fk-riche-liste" data-palette="avance" hidden>
+            <button type="button" data-avance="colonnes-2">▥ Deux colonnes</button>
+            <button type="button" data-avance="colonnes-3">▥ Trois colonnes</button>
+            <button type="button" data-avance="repliable">▸ Section repliable (« cliquer pour afficher »)</button>
+            <button type="button" data-avance="etapes">① Étapes numérotées</button>
+            <button type="button" data-avance="citation">❝ Citation mise en valeur</button>
+            <button type="button" data-avance="bouton">🔘 Bouton lien</button>
+            <button type="button" data-avance="lettrine">🅰 Lettrine (grande 1re lettre)</button>
+            <button type="button" data-avance="separateur">✦ Séparateur décoratif</button>
+          </span>` : ''}
+        </span>`}
         <span class="fk-riche-sep"></span>
         <button type="button" data-cmd="justifyLeft" title="Aligner à gauche" aria-label="Aligner à gauche">⬅︎</button>
         <button type="button" data-cmd="justifyCenter" title="Centrer" aria-label="Centrer">↔︎</button>
@@ -1338,6 +1351,56 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
       m.fermer(); insererEncadre(c, '', t);
     });
   }));
+
+  // ----- Mise en forme avancée (27 septembre 2026) -----
+  // Avantage « Formateur Pro » et « Premium » (o.niveau ≥ 2) : colonnes,
+  // sections repliables, étapes numérotées, citation, bouton lien, lettrine,
+  // séparateur. Le contenu reste du HTML simple (data-bloc, details/summary),
+  // affiché tel quel chez l'apprenant, même si le formateur change de niveau.
+  barre.querySelector('[data-avance-verrou]')?.addEventListener('click', () => fkProposerOffres(2));
+  const MODELES_AVANCES = {
+    'colonnes-2': '<div data-bloc="colonnes-2"><div data-bloc="colonne"><p><strong>Colonne 1</strong></p><p>Votre texte…</p></div><div data-bloc="colonne"><p><strong>Colonne 2</strong></p><p>Votre texte…</p></div></div><p><br></p>',
+    'colonnes-3': '<div data-bloc="colonnes-3"><div data-bloc="colonne"><p><strong>Colonne 1</strong></p><p>Votre texte…</p></div><div data-bloc="colonne"><p><strong>Colonne 2</strong></p><p>Votre texte…</p></div><div data-bloc="colonne"><p><strong>Colonne 3</strong></p><p>Votre texte…</p></div></div><p><br></p>',
+    repliable: '<details><summary>Titre de la section (l\'apprenant clique pour l\'ouvrir)</summary><p>Contenu caché : réponse, explication, exemple…</p></details><p><br></p>',
+    etapes: '<ol data-bloc="etapes"><li><p><strong>Première étape</strong></p><p>Explication…</p></li><li><p><strong>Deuxième étape</strong></p><p>Explication…</p></li><li><p><strong>Troisième étape</strong></p><p>Explication…</p></li></ol><p><br></p>',
+    citation: '<blockquote data-bloc="citation"><p>« Votre citation ou idée forte. »</p><p>— Auteur</p></blockquote><p><br></p>',
+    separateur: '<hr data-bloc="separateur"><p><br></p>'
+  };
+  barre.querySelectorAll('[data-avance]').forEach(b => b.addEventListener('click', () => {
+    fermerPalettes();
+    if (modeSource) { fkToast('Repassez en mode normal pour utiliser la mise en forme avancée.', 'erreur'); return; }
+    const t = b.dataset.avance;
+    if (MODELES_AVANCES[t]) { restaurer(); inserer(MODELES_AVANCES[t]); decorerDiapos(); return; }
+    if (t === 'lettrine') {
+      restaurer();
+      const p = blocCourant('p');
+      if (!p || !p.textContent.trim()) { fkToast('Placez d\'abord le curseur dans un paragraphe.', 'erreur'); return; }
+      if (p.getAttribute('data-bloc') === 'lettrine') p.removeAttribute('data-bloc'); else p.setAttribute('data-bloc', 'lettrine');
+      memoriser(); return;
+    }
+    if (t === 'bouton') {
+      const m = fkModale('Bouton lien', `
+        <label class="fk-champ"><span>Texte du bouton *</span><input type="text" data-t maxlength="60" placeholder="Ex. Télécharger le modèle"></label>
+        <label class="fk-champ"><span>Adresse du lien *</span><input type="url" data-u placeholder="https://…"></label>
+        <div class="fk-actions-form"><button type="button" class="fk-btn fk-btn-ghost" data-fermer>Annuler</button><button type="button" class="fk-btn fk-btn-primary" data-ok>Insérer</button></div>`);
+      m.boite.querySelector('[data-ok]').addEventListener('click', () => {
+        const texte = m.boite.querySelector('[data-t]').value.trim(), url = m.boite.querySelector('[data-u]').value.trim();
+        if (!texte || !/^https?:\/\//i.test(url)) { fkToast('Indiquez le texte et une adresse commençant par https://', 'erreur'); return; }
+        m.fermer(); restaurer();
+        inserer(`<p style="text-align: center"><a data-bloc="bouton" href="${fkEchapper(url)}">${fkEchapper(texte)}</a></p><p><br></p>`);
+      });
+    }
+  }));
+  // Sections repliables : toujours ouvertes dans l'éditeur ; le titre
+  // s'écrit sans replier la section.
+  zone.addEventListener('click', e => { if (e.target.closest && e.target.closest('summary') && zone.contains(e.target)) e.preventDefault(); });
+  zone.addEventListener('keydown', e => {
+    const n = window.getSelection().anchorNode;
+    const sum = n && (n.nodeType === 3 ? n.parentElement : n)?.closest?.('summary');
+    if (!sum || !zone.contains(sum)) return;
+    if (e.key === ' ') { e.preventDefault(); document.execCommand('insertText', false, ' '); }
+    if (e.key === 'Enter') { e.preventDefault(); const p = sum.parentElement.querySelector(':scope > :not(summary)'); if (p) { const r = document.createRange(); r.selectNodeContents(p); r.collapse(true); window.getSelection().removeAllRanges(); window.getSelection().addRange(r); } }
+  });
 
   // ----- Blocs à barre latérale (25 septembre 2026) -----
   // Curseur dans un bloc à barre : change sa couleur (ou retire la barre).
@@ -1596,6 +1659,7 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
   barre.querySelector('[data-image-btn]')?.addEventListener('click', () => {
     if (modeSource) { fkToast('Repassez en mode normal pour insérer une image.', 'erreur'); return; }
     const m = fkModale('Insérer une image', `
+      ${o.formationId ? '<div class="fk-outils-ia" style="margin-top:0"><button type="button" class="fk-btn fk-btn-primary fk-btn-petit" data-image-ia>🎨 Assistance IA pour créer l\'image</button><small>Décrivez l\'image : ChatGPT la dessine pour vous (crédits IA).</small></div>' : ''}
       <label class="fk-champ"><span>Image depuis votre appareil</span><input type="file" data-fichier accept="image/png,image/jpeg,image/webp,image/gif"><small>PNG, JPG, WEBP ou GIF, 5 Mo maximum.</small></label>
       <label class="fk-champ"><span>… ou adresse d'une image en ligne</span><input type="url" data-url placeholder="https://…"></label>
       <label class="fk-champ"><span>Description de l'image (pour l'accessibilité) *</span><input type="text" data-alt maxlength="200" placeholder="Ex. Schéma du ruban d'Excel"></label>
@@ -1605,6 +1669,11 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
         <label class="fk-champ"><span>Position</span><select data-align><option value="left">À gauche</option><option value="center" selected>Centrée</option><option value="right">À droite</option></select></label>
       </div>
       <div class="fk-actions-form"><button type="button" class="fk-btn fk-btn-ghost" data-fermer>Annuler</button><button type="button" class="fk-btn fk-btn-primary" data-ok>Insérer</button></div>`, { protegee: true });
+    m.boite.querySelector('[data-image-ia]')?.addEventListener('click', async () => {
+      m.fermer();
+      const r = await fkModaleImageIA({ formationId: o.formationId, cible: 'lecon' });
+      if (r) inserer(fkFigureImage(r.url, r.alt));
+    });
     m.boite.querySelector('[data-ok]').addEventListener('click', async ev => {
       const fichier = m.boite.querySelector('[data-fichier]').files[0];
       let url = m.boite.querySelector('[data-url]').value.trim();
@@ -1635,6 +1704,7 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
   // <div data-presentation="pdf|pptx|lien" data-src="…" title="…"> remplacé
   // par une visionneuse à l'affichage.
   function decorerDiapos() {
+    zone.querySelectorAll('details').forEach(d => { d.open = true; });
     const diapos = [...zone.querySelectorAll('[data-bloc="diapo"]')];
     diapos.forEach((el, i) => {
       el.setAttribute('contenteditable', 'false');
@@ -1773,6 +1843,7 @@ function fkEditeurRiche(conteneur, htmlInitial, placeholder, opts) {
     lireHtml: () => lireHtmlPropre(),
     // Outils IA (26 septembre 2026) : remplacer tout le contenu, ou ajouter à la fin.
     ecrireHtml: html => { if (modeSource) basculerSource(); zone.innerHTML = fkNettoyerHtml(html || ''); decorerActivites(); decorerDiapos(); },
+    insererHtml: html => inserer(fkNettoyerHtml(html || '')),
     ajouterHtml: html => { if (modeSource) basculerSource(); const t = document.createElement('template'); t.innerHTML = fkNettoyerHtml(html || ''); zone.appendChild(t.content); decorerActivites(); decorerDiapos(); },
     desactiver: () => { zone.contentEditable = 'false'; barre.querySelectorAll('button, select, input').forEach(el => { el.disabled = true; }); }
   };
@@ -2319,3 +2390,75 @@ document.addEventListener('click', async ev => {
   if (error || !data) { fkToast(fkMessageErreur(error) || 'Certificat indisponible.', 'erreur'); return; }
   window.location.href = `${FK_BASE}certificat.html?code=${encodeURIComponent(data)}`;
 });
+
+
+// ---------- Images créées par l'IA (27 septembre 2026) ----------
+// Fonction serveur « formation-ia-image » : appel direct à ChatGPT Images
+// (OpenAI), crédits IA décomptés par image (rendus en cas d'échec).
+function fkFigureImage(url, alt, taille) {
+  return `<figure data-image="${taille || 'moyenne'}" style="text-align: center"><img src="${fkEchapper(url)}" alt="${fkEchapper(alt || 'Illustration')}"></figure><p><br></p>`;
+}
+async function fkAppelImageIA(corps) {
+  const { data, error } = await supabaseClient.functions.invoke('formation-ia-image', { body: corps });
+  if (error) {
+    let msg = error.message || 'Le service ne répond pas.', code = '';
+    try { const j = await error.context.json(); if (j && j.error) { msg = j.error; code = j.code || ''; } } catch (_e) { /* réponse non JSON */ }
+    const err = new Error(msg); err.code = code; throw err;
+  }
+  if (data && data.error) { const err = new Error(data.error); err.code = data.code || ''; throw err; }
+  return data;
+}
+// Ouvre la fenêtre « Créer une image avec l'IA ». Renvoie { url, alt } ou null.
+function fkModaleImageIA(o) {
+  const e = fkEchapper;
+  const couverture = o.cible === 'couverture';
+  return new Promise(resolve => {
+    const m = fkModale(couverture ? '🎨 Assistance IA — image de couverture' : '🎨 Assistance IA — créer une image', `
+      <p style="margin-top:0;color:var(--f-muted);font-size:14px">Décrivez ce que l'image doit montrer : ChatGPT la dessine. Soyez précis (personnes, objets, lieu, ambiance). L'image ne contiendra pas de texte.</p>
+      <label class="fk-champ"><span>Description de l'image *</span><textarea data-desc maxlength="1000" style="min-height:90px" placeholder="${couverture ? 'Ex. une commerçante souriante qui tient un cahier de comptes devant son étal au marché' : 'Ex. une main qui remplit un tableau de budget mensuel sur un cahier, avec des pièces de monnaie'}">${e(o.suggestion || '')}</textarea></label>
+      <div class="fk-grille-2">
+        <label class="fk-champ"><span>Style</span><select data-style>
+          <option value="illustration">🖌️ Illustration colorée</option><option value="photo">📷 Photo réaliste</option>
+          <option value="schema">📊 Schéma simple</option><option value="dessin">✏️ Dessin à la main</option><option value="3d">🧊 3D arrondie</option></select></label>
+        <label class="fk-champ"><span>Format</span><select data-format>
+          <option value="paysage" selected>▭ Paysage</option><option value="carre">□ Carré</option>${couverture ? '' : '<option value="portrait">▯ Portrait</option>'}</select></label>
+      </div>
+      <div class="fk-ia-solde" data-cout>Calcul du coût…</div>
+      <div data-resultat></div>
+      <div class="fk-actions-form"><button type="button" class="fk-btn fk-btn-ghost" data-annuler>Annuler</button>
+        <button type="button" class="fk-btn fk-btn-primary" data-generer>🎨 Créer l'image</button></div>`, { protegee: true });
+    m.boite.style.width = 'min(720px, 100%)';
+    const zoneCout = m.boite.querySelector('[data-cout]');
+    const resultat = m.boite.querySelector('[data-resultat]');
+    const btn = m.boite.querySelector('[data-generer]');
+    let cout = 0, image = null;
+    const finir = v => { m.fermer(); resolve(v); };
+    m.boite.querySelector('[data-annuler]').onclick = () => finir(null);
+    fkAppelImageIA({ action: 'estimer', formationId: o.formationId }).then(est => {
+      cout = est.gratuit ? 0 : Number(est.cout) || 0;
+      zoneCout.innerHTML = est.gratuit ? '🛠️ Compte gestionnaire KEKELI : image non facturée.'
+        : `🪙 Une image = <b>${cout} crédit(s)</b> · vous avez <b>${est.disponible ?? 0}</b> crédit(s). ${cout > (est.disponible || 0) ? `<a class="fk-link" href="${FK_BASE}formateur/credits-ia.html" target="_blank">Recharger</a>` : ''}`;
+      if (est.configure === false) zoneCout.innerHTML += '<br><span style="color:var(--f-danger)">⚠️ La création d\'images n\'est pas encore configurée sur KEKELI.</span>';
+      btn.textContent = cout ? `🎨 Créer l'image (${cout} crédits)` : '🎨 Créer l\'image';
+    }).catch(err => { zoneCout.innerHTML = `<span style="color:var(--f-danger)">${e(err.message)}</span>`; });
+    btn.onclick = async () => {
+      if (image) { finir(image); return; }
+      const description = m.boite.querySelector('[data-desc]').value.trim();
+      if (description.length < 8) { fkToast('Décrivez l\'image souhaitée (8 caractères au moins).', 'erreur'); return; }
+      btn.disabled = true; btn.textContent = '⏳ Création en cours (jusqu\'à 1 minute)…';
+      resultat.innerHTML = '<div class="fk-chargement">ChatGPT dessine votre image…</div>';
+      try {
+        const r = await fkAppelImageIA({ action: 'generer', formationId: o.formationId, cible: o.cible || 'lecon', description,
+          style: m.boite.querySelector('[data-style]').value, format: m.boite.querySelector('[data-format]').value });
+        image = { url: r.url, alt: r.alt || description.slice(0, 150) };
+        resultat.innerHTML = `<div class="fk-image-ia"><img src="${e(r.url)}" alt="${e(image.alt)}"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-refaire>🔄 Autre essai${cout ? ` (${cout} crédits)` : ''}</button></div>`;
+        resultat.querySelector('[data-refaire]').onclick = () => { image = null; resultat.innerHTML = ''; btn.onclick(); };
+        btn.disabled = false; btn.textContent = couverture ? '✅ Utiliser comme couverture' : '✅ Insérer dans la leçon';
+      } catch (err) {
+        resultat.innerHTML = `<p class="fk-alerte fk-alerte-erreur">${e(err.message)}${err.code === 'CREDITS' ? ` <a class="fk-link" href="${FK_BASE}formateur/credits-ia.html" target="_blank">🪙 Recharger</a>` : ''}</p>`;
+        btn.disabled = false; btn.textContent = cout ? `🎨 Réessayer (${cout} crédits)` : '🎨 Réessayer';
+      }
+    };
+  });
+}

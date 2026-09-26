@@ -35,7 +35,7 @@
   main.innerHTML = `
     <div class="fk-page"><div class="fk-container" style="max-width:860px">
       <a class="fk-link" href="tableau-de-bord.html">← Espace formateur</a>
-      <h1 class="fk-titre-page" style="margin-top:10px">🤖 Créer une formation avec l'IA</h1>
+      <h1 class="fk-titre-page" style="margin-top:10px">🤖 Assistance IA pour créer une formation</h1>
       <p class="fk-sous-titre">Décrivez votre formation : l'IA de KEKELI prépare le plan puis rédige les leçons. Vous relisez et modifiez tout ensuite, avant de la soumettre à KEKELI.</p>
       <div class="fk-ia-solde" data-solde>Chargement de vos crédits IA…</div>
       <div id="reprendre"></div>
@@ -49,7 +49,7 @@
         </div>
         <label class="fk-champ"><span>Consignes pour l'IA (facultatif)</span><textarea name="consignes" maxlength="1500" style="min-height:80px" placeholder="Ex. ton motivant, exemples au Bénin et au Togo, montants en FCFA, une étude de cas par module…"></textarea></label>
         <fieldset class="fk-modes-gen" data-modes><legend>Comment générer ?</legend><div class="fk-chargement">…</div></fieldset>
-        <div class="fk-actions-form"><a class="fk-btn fk-btn-ghost" href="credits-ia.html">🪙 Mes crédits IA</a><button class="fk-btn fk-btn-primary" type="submit">🤖 Générer</button></div>
+        <div class="fk-actions-form"><a class="fk-btn fk-btn-ghost" href="credits-ia.html">🪙 Mes crédits IA</a><button class="fk-btn fk-btn-primary" type="submit">🤖 Lancer l'assistance IA</button></div>
       </form>
       <div id="suivi"></div>
     </div></div>`;
@@ -134,7 +134,7 @@
       plan = await appel({ action: 'plan', mode, sujet: fd.get('sujet'), public: fd.get('public'), niveau: fd.get('niveau'), nbModules: nbM, leconsParModule: nbL, consignes: fd.get('consignes') });
     } catch (err) {
       suivi.innerHTML = `<p class="fk-alerte fk-alerte-erreur" style="margin-top:14px">${e(err.message)}${/crédit/i.test(err.message) || err.code === 'NIVEAU' ? ' <a class="fk-link" href="credits-ia.html#offres">🪙 Voir les offres</a>' : ''}</p>`;
-      btnGen.disabled = false; btnGen.textContent = '🤖 Générer';
+      btnGen.disabled = false; btnGen.textContent = '🤖 Lancer l\'assistance IA';
       return;
     }
     form.hidden = true;

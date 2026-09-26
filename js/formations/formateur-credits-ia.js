@@ -19,7 +19,7 @@
   const LIB = {
     achat_pack: '🛒 Achat de pack', abonnement: '📅 Abonnement', usage_quiz: '🧠 Questions de quiz',
     usage_formation: '🤖 Formation générée', remboursement: '↩️ Remboursement', ajustement: '🛠️ Ajustement KEKELI',
-    expiration: '⌛ Fin du pack (crédits perdus)', report: '🔁 Crédits reportés au mois suivant'
+    usage_image: '🎨 Image créée', expiration: '⌛ Fin du pack (crédits perdus)', report: '🔁 Crédits reportés au mois suivant'
   };
 
   // Parrainage : lien ?parrain=CODE reçu d'un autre formateur.
@@ -42,22 +42,29 @@
   const N = FK_NIVEAUX_AVANTAGES;
   const com = c.commissions || [15, 13, 12, 10];
   const AVANTAGES = [
-    [1, '💸', `Commission KEKELI réduite sur vos ventes`, n => `${String(com[n]).replace('.', ',')} %`],
+    [1, '💸', `Commission KEKELI réduite sur vos ventes`, n => {
+      if (!n) return `${String(com[0]).replace('.', ',')} %`;
+      const ks = (c.packs || []).filter(p => p.niveau === n);
+      const vals = [...new Set(ks.map(p => p.commission_pct ?? com[n]))];
+      return vals.length === 1 ? `${String(vals[0]).replace('.', ',')} %` : ks.map(p => `${String(p.commission_pct ?? com[n]).replace('.', ',')} % <small>${e(p.nom.replace(/^Pack /, ''))}</small>`).join('<br>');
+    }],
     [1, '🏷️', 'Codes promo pour vos formations'],
-    [1, '✍️', 'IA : texte de vente + messages WhatsApp / Facebook'],
-    [1, '🔤', "IA : correction de l'orthographe et du style"],
-    [1, '📌', 'IA : résumé automatique des leçons'],
-    [1, '🧩', `IA : créer une formation module par module (${c.credits_plan} crédits le plan + ${c.credits_module} par module)`],
-    [3, '⚡', `IA : formation complète générée d'un coup (${c.credits_formation} crédits, moins cher)`, n => {
+    [1, '✍️', 'Assistance IA : texte de vente + messages WhatsApp / Facebook'],
+    [1, '🔤', "Assistance IA : correction de l'orthographe et du style"],
+    [1, '📌', 'Assistance IA : résumé automatique des leçons'],
+    [1, '🧩', `Assistance IA : créer une formation module par module (${c.credits_plan} crédits le plan + ${c.credits_module} par module)`],
+    [3, '⚡', `Assistance IA : formation complète générée d'un coup (${c.credits_formation} crédits, moins cher)`, n => {
       const liste = (c.packs || []).filter(p => p.niveau === n);
       const avec = liste.filter(x => x.generation_complete);
       if (!liste.length || !avec.length) return '—';
       return avec.length === liste.length ? '✅' : `✅ <small>${e(avec.map(x => x.nom).join(', '))}</small>`;
     }],
+    [1, '🎨', `Assistance IA : images créées par ChatGPT (${c.credits_image ?? 5} crédits par image)`],
+    [2, '🖋️', 'Mise en forme avancée (colonnes, sections repliables, étapes, bouton, lettrine…)'],
     [2, '✨', 'Badge Pro et mise en avant dans le catalogue'],
     [2, '📈', 'Statistiques avancées (décrochage, réussite)'],
-    [2, '🧭', 'IA : tests en leçon générés automatiquement'],
-    [2, '🎞️', "IA : diaporama créé à partir d'une leçon"],
+    [2, '🧭', 'Assistance IA : tests en leçon générés automatiquement'],
+    [2, '🎞️', "Assistance IA : diaporama créé à partir d'une leçon"],
     [2, '🎓', 'Certificats personnalisés (logo, signature)'],
     [3, '📣', 'Messages groupés à vos apprenants'],
     [3, '🔁', 'Crédits non utilisés reportés au mois suivant (sinon perdus après 30 jours)'],
@@ -83,7 +90,7 @@
       m.essai ? `${m.essai > 0 ? '+' : ''}${m.essai} question(s) d'essai` : ''
     ].filter(Boolean).join(' · ') || '—';
     const d = m.details || {};
-    const info = (m.type === 'expiration' || m.type === 'report') ? `${e(d.pack || '')}${m.type === 'report' ? ` — ${d.credits_reportes} crédit(s), jusqu'au ${fkDate(d.fin)}` : ''}` : m.type === 'usage_quiz' ? `${d.questions || ''} question(s)` : m.type === 'usage_formation' ? e(d.sujet ? `${d.mode === 'module' ? '🧩 Plan : ' : '⚡ '}${d.sujet}` : d.module ? `🧩 Module ${d.module} : ${d.titre || ''}` : '') : m.type === 'ajustement' ? e(d.motif || '') : d.montant ? fcfa(d.montant) + (d.mode === 'test' ? ' (test)' : '') : '';
+    const info = m.type === 'usage_image' ? `🎨 ${e((d.description || '').slice(0, 60))}` : (m.type === 'expiration' || m.type === 'report') ? `${e(d.pack || '')}${m.type === 'report' ? ` — ${d.credits_reportes} crédit(s), jusqu'au ${fkDate(d.fin)}` : ''}` : m.type === 'usage_quiz' ? `${d.questions || ''} question(s)` : m.type === 'usage_formation' ? e(d.sujet ? `${d.mode === 'module' ? '🧩 Plan : ' : '⚡ '}${d.sujet}` : d.module ? `🧩 Module ${d.module} : ${d.titre || ''}` : '') : m.type === 'ajustement' ? e(d.motif || '') : d.montant ? fcfa(d.montant) + (d.mode === 'test' ? ' (test)' : '') : '';
     return `<tr><td>${fkDate(m.cree_le)}</td><td>${LIB[m.type] || e(m.type)}${d.rembourse ? ' <small>(remboursé)</small>' : ''}</td><td>${info}</td><td class="n ${total + m.essai < 0 ? 'neg' : 'pos'}">${parts}</td></tr>`;
   };
 
@@ -92,13 +99,13 @@
       <a class="fk-link" href="tableau-de-bord.html">← Espace formateur</a>
       <div class="fk-section-head" style="margin-top:10px">
         <div><h1 class="fk-titre-page">🪙 Mes crédits IA</h1>
-          <p>Générez des questions de quiz et des formations avec l'IA de KEKELI.</p></div>
-        <a class="fk-btn fk-btn-primary" href="generer-ia.html">🤖 Créer une formation avec l'IA</a>
+          <p>L'assistance IA de KEKELI vous aide à créer vos formations, vos quiz et vos images.</p></div>
+        <a class="fk-btn fk-btn-primary" href="generer-ia.html">🤖 Assistance IA pour créer une formation</a>
       </div>
       ${c.actif === false ? '<p class="fk-alerte fk-alerte-attention">La génération par IA est momentanément désactivée par KEKELI.</p>' : ''}
       ${prochain && (new Date(prochain.fin) - Date.now()) < 5 * 864e5 ? `<p class="fk-alerte fk-alerte-attention">⌛ ${prochain.credits} crédit(s) de votre ${e(prochain.pack || 'pack')} ${reporte(prochain) ? 'seront reportés au mois suivant' : 'seront perdus'} le ${fkDate(prochain.fin)}.${reporte(prochain) ? '' : ' Utilisez-les avant, ou rachetez un pack.'}</p>` : ''}
       <div class="fk-niveau-actuel fk-niveau-${niveauActuel}">
-        ${niveauActuel ? `<b>${N[niveauActuel].icone} Vous êtes ${N[niveauActuel].nom}</b> jusqu'au ${fkDate(c.avantages_fin)} — commission KEKELI de ${String(com[niveauActuel]).replace('.', ',')} % sur vos ventes.${c.generation_complete_fin ? ` ⚡ Génération complète jusqu'au ${fkDate(c.generation_complete_fin)}.` : ''}`
+        ${niveauActuel ? `<b>${N[niveauActuel].icone} Vous êtes ${N[niveauActuel].nom}</b> jusqu'au ${fkDate(c.avantages_fin)} — commission KEKELI de ${String(c.commission_actuelle ?? com[niveauActuel]).replace('.', ',')} % sur vos ventes.${c.generation_complete_fin ? ` ⚡ Génération complète jusqu'au ${fkDate(c.generation_complete_fin)}.` : ''}`
           : `Vous êtes au niveau <b>Standard</b> (commission ${String(com[0]).replace('.', ',')} %). Un pack débloque des avantages pour vendre plus et gagner plus.`}
       </div>
       <div class="fk-stats">
@@ -109,7 +116,7 @@
         ${c.solde > 0 ? `<div class="fk-stat"><small>Crédits offerts (sans limite)</small><strong>${c.solde}</strong></div>` : ''}
       </div>
       <div class="fk-alerte fk-alerte-info">💡 Tarifs : <b>${c.credits_par_question} crédit(s)</b> par question de quiz générée · formation <b>module par module</b> : ${c.credits_plan} crédits le plan puis ${c.credits_module} par module rédigé ·
-        formation <b>complète d'un coup</b> (Pack Pro et Pack Premium) : ${c.credits_formation} crédits.
+        formation <b>complète d'un coup</b> (Pack Pro et Pack Premium) : ${c.credits_formation} crédits · <b>image</b> créée par ChatGPT : ${c.credits_image ?? 5} crédits.
         <br>Chaque pack est valable <b>30 jours</b> (crédits et avantages). À la fin, les crédits non utilisés sont perdus, <b>sauf avec le Pack Premium</b> : ils sont reportés au mois suivant. Les avantages (commission réduite, etc.) s'arrêtent si le pack n'est pas racheté.
         Les crédits qui finissent le plus tôt sont utilisés en premier. En cas d'échec de l'IA, rien n'est décompté.</div>
       ${lots.length ? `<section class="fk-carte" style="margin-top:18px"><h2>📦 Mes packs en cours</h2>
@@ -133,7 +140,7 @@
             ${avantagesHtml(p.niveau, p.duree_avantages_jours)}
             ${p.generation_complete ? '<div class="fk-offre-niveau">⚡ Génération complète d\'une formation incluse</div>' : '<div class="fk-offre-niveau">🧩 Génération module par module</div>'}
             <div class="fk-offre-niveau">${p.report_credits ? '🔁 Crédits restants reportés au mois suivant' : `⌛ Crédits valables ${p.duree_avantages_jours || 30} jours`}</div>
-            <small>≈ ${Math.floor((p.credits + (p.bonus_credits || 0)) / Math.max(1, c.credits_module))} modules rédigés ou ${Math.floor(p.credits / Math.max(1, c.credits_par_question))} questions</small>
+            <small>≈ ${Math.floor((p.credits + (p.bonus_credits || 0)) / Math.max(1, c.credits_module))} modules rédigés, ${Math.floor((p.credits + (p.bonus_credits || 0)) / Math.max(1, c.credits_image || 5))} images ou ${Math.floor(p.credits / Math.max(1, c.credits_par_question))} questions</small>
             <button class="fk-btn fk-btn-primary fk-btn-bloc" data-pack="${p.id}">Acheter</button></div>`).join('')}</div>`
           : '<p class="fk-vide" style="padding:10px">Aucun pack disponible pour le moment.</p>'}
       </section>

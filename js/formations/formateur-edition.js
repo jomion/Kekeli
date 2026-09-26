@@ -109,6 +109,7 @@ function ongletInfos() {
           <span style="display:block;font-weight:700;font-size:14px;margin-bottom:6px">Image de couverture</span>
           <div class="fk-cover ${fkStyleCouverture(f).classe}" id="apercuCouverture" style="border-radius:14px;${fkStyleCouverture(f).style}"></div>
           <label class="fk-btn fk-btn-outline fk-btn-petit" style="margin-top:10px;cursor:pointer">📷 Choisir une image<input type="file" id="fichierCouverture" accept="image/png,image/jpeg,image/webp" hidden data-edition></label>
+          <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" style="margin-top:10px" data-couverture-ia data-edition>🎨 Assistance IA</button>
           <small style="display:block;color:var(--f-muted);margin-top:6px">Format paysage conseillé (1280×720), 5 Mo max.</small>
           <label class="fk-champ" style="margin-top:14px"><span>Vidéo de présentation</span><input type="url" name="video_promo" placeholder="Lien YouTube ou Vimeo" value="${fkEchapper(f.video_promo || '')}"></label>
         </div>
@@ -117,9 +118,18 @@ function ongletInfos() {
       <div class="fk-champ"><span>Description * <small style="display:inline;font-weight:400">(50 caractères minimum : objectifs, public visé, prérequis…)</small></span><div id="editeurDescription"></div></div>
       <div class="fk-actions-form"><button class="fk-btn fk-btn-primary" type="submit" data-edition>Enregistrer</button></div>
     </form>`;
-  const ed = fkEditeurRiche(document.getElementById('editeurDescription'), f.description, 'Présentez votre formation…', { formationId: f.id });
+  const ed = fkEditeurRiche(document.getElementById('editeurDescription'), f.description, 'Présentez votre formation…', { formationId: f.id, niveau: FKE.niveau });
   if (FKE.verrouille) ed.desactiver();
   zone.querySelector('[data-outil-vente]').addEventListener('click', () => outilVente(ed));
+  // Couverture créée par l'IA (ChatGPT Images, crédits IA).
+  zone.querySelector('[data-couverture-ia]').addEventListener('click', async () => {
+    const r = await fkModaleImageIA({ formationId: f.id, cible: 'couverture', suggestion: f.titre ? `Image de couverture pour la formation « ${f.titre} »${f.sous_titre ? ` : ${f.sous_titre}` : ''}` : '' });
+    if (!r) return;
+    const { error } = await supabaseClient.from('formations').update({ image_couverture: r.url }).eq('id', f.id);
+    if (error) { fkToast(fkMessageErreur(error), 'erreur'); return; }
+    fkToast('Nouvelle couverture enregistrée.', 'succes');
+    await recharger();
+  });
 
   document.getElementById('formInfos').addEventListener('submit', async e => {
     e.preventDefault();
@@ -372,11 +382,12 @@ function modaleLecon(l, moduleId) {
           <label><input type="radio" name="mode_contenu" value="page" ${l?.page_html ? 'checked' : ''}> <b>Page HTML complète</b><small>Votre page telle quelle : styles, animations, minuteur… tout fonctionne comme dans le navigateur.</small></label>
         </div>
         <div data-bloc-editeur>
-          <div class="fk-outils-ia">✨ Outils IA :
+          <div class="fk-outils-ia">✨ Assistance IA :
             ${fkBoutonOutil(FKE.niveau, 1, 'data-outil="corriger"', '🔤 Corriger l\'orthographe')}
             ${fkBoutonOutil(FKE.niveau, 1, 'data-outil="resume"', '📌 Ajouter un résumé')}
             ${fkBoutonOutil(FKE.niveau, 2, 'data-outil="tests"', '🧭 Créer des tests')}
             ${fkBoutonOutil(FKE.niveau, 2, 'data-outil="diaporama"', '🎞️ Créer un diaporama')}
+            <button type="button" class="fk-btn fk-btn-ghost fk-btn-petit" data-image-ia-lecon>🎨 Image (assistance IA)</button>
           </div>
           <div id="editeurLecon"></div></div>
         <div data-bloc-page hidden>
@@ -400,6 +411,7 @@ function modaleLecon(l, moduleId) {
   md.boite.style.width = 'min(860px, 100%)';
   const ed = fkEditeurRiche(md.boite.querySelector('#editeurLecon'), l?.contenu, 'Rédigez le contenu de la leçon…', {
     formationId: FKE.f.id,
+    niveau: FKE.niveau,
     cleMemo: l ? `lecon-${l.id}` : null,
     diaporama: true,
     surPageComplete: html => (FKE.proposerPage ? FKE.proposerPage(html) : false),
@@ -411,6 +423,11 @@ function modaleLecon(l, moduleId) {
   });
   if (FKE.verrouille) ed.desactiver();
   md.boite.querySelectorAll('[data-outil]').forEach(b => b.addEventListener('click', () => outilLecon(b, ed, l, md)));
+  md.boite.querySelector('[data-image-ia-lecon]').addEventListener('click', async () => {
+    const titreLecon = md.boite.querySelector('[name=titre]').value.trim();
+    const r = await fkModaleImageIA({ formationId: FKE.f.id, cible: 'lecon', suggestion: titreLecon ? `Illustration pour la leçon « ${titreLecon} » : ` : '' });
+    if (r) { ed.insererHtml(fkFigureImage(r.url, r.alt)); fkToast('Image insérée dans la leçon : pensez à enregistrer.', 'succes'); }
+  });
 
   // ----- Page HTML complète (26 septembre 2026) -----
   let pageHtml = l?.page_html || '';
@@ -661,7 +678,7 @@ async function modaleQuestions(q) {
         ${resumeQuestionHtml(x)}
       </div>`).join('') : '<p class="fk-vide">Aucune question.</p>'}</div>
     <div class="fk-actions-form"><button class="fk-btn fk-btn-ghost" data-fermer>Fermer</button>
-      <button class="fk-btn fk-btn-outline" id="btnIAQ" ${FKE.verrouille ? 'disabled' : ''}>🧠 Générer avec l'IA</button>
+      <button class="fk-btn fk-btn-outline" id="btnIAQ" ${FKE.verrouille ? 'disabled' : ''}>🧠 Assistance IA pour les questions</button>
       <button class="fk-btn fk-btn-primary" id="btnAjoutQ" ${FKE.verrouille ? 'disabled' : ''}>＋ Ajouter une question</button></div>`);
   md.boite.style.width = 'min(820px, 100%)';
   md.boite.querySelector('#btnIAQ').addEventListener('click', () => { md.fermer(); modaleQuizIA(q, liste.length); });
@@ -686,7 +703,7 @@ const FK_TYPES_IA = ['choix_unique', 'choix_multiple', 'vrai_faux', 'reponse_cou
 function modaleQuizIA(q, nbExistantes) {
   const e = fkEchapper;
   const leconsModule = FKE.lecons.filter(l => l.module_id === q.module_id).map(l => l.id);
-  const md = fkModale(`🧠 Générer des questions — ${q.titre}`, `
+  const md = fkModale(`🧠 Assistance IA — questions pour ${q.titre}`, `
     <form data-form-ia>
       <div class="fk-champ"><span>Contenu à évaluer (leçons)</span>
         <div class="fk-ia-lecons">${FKE.modules.map((m, i) => `<div class="fk-ia-module"><b>Module ${i + 1} — ${e(m.titre)}</b>
