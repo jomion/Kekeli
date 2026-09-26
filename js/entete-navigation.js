@@ -85,6 +85,11 @@ function liensNavHtml(liensVisibles, role) {
     if (g.type === 'lien') {
       const l = g.lien;
       if (l.essentiel && role && role !== 'eleve') return menuTableauxDeBordHtml(l, role);
+      if (l.perso) {
+        // Raccourci personnel (nom saisi librement dans Paramètres) : échappé.
+        const esc = v => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        return `<a href="${esc(l.href)}">${esc(l.icone || '📌')} ${esc(l.label)}</a>`;
+      }
       return `<a href="${l.href}">${l.icone ? `${l.icone} ` : ''}${l.label}</a>`;
     }
     const info = categories[g.cle] || { label: g.cle, icone: '' };
@@ -123,86 +128,6 @@ function initCategoriesNavEntete(header) {
 
   document.addEventListener('click', () => fermerToutes());
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermerToutes(); });
-}
-
-// Épingle la page COURANTE dans les raccourcis personnels de l'utilisateur
-// (preferences_navigation.raccourcis — voir js/pages/parametres.js pour la
-// gestion complète/suppression). Sert la demande "afficher dans la
-// navigation une carte ou une page voulue" : plutôt que de faire chercher la
-// page dans une longue liste, on la capture directement pendant qu'on la
-// consulte. N'a pas besoin de js/modal.js (pas garanti chargé partout) : les
-// classes .modal-overlay/.modal-boite/.champ-modal/.modal-actions sont de
-// simples classes CSS, définies dans les deux thèmes.
-// Calcule le chemin de la page COURANTE relatif à la RACINE DU SITE Kekeli
-// (ex: "pages/eleve/tableau-de-bord.html"), et non à la racine du serveur
-// qui l'héberge. Correction du 11 septembre 2026 : ouvrirEpinglagePageEntete
-// stockait auparavant window.location.pathname tel quel (ex:
-// "/pages/eleve/tableau-de-bord.html") comme adresse ABSOLUE, réutilisée
-// telle quelle depuis n'importe quelle page. Ça fonctionne tant que le site
-// est servi exactement à la racine du domaine — mais dès qu'il est servi
-// depuis un sous-dossier (hébergement mutualisé, aperçu de déploiement,
-// serveur de test local ouvrant un dossier parent...), ce chemin absolu
-// contient ce préfixe de sous-dossier ; si la page est ensuite rouverte
-// depuis un autre point de montage (notamment la mise en ligne finale après
-// une phase de test), le raccourci pointe vers un chemin qui n'existe plus
-// -> 404. C'est exactement le bug signalé : "quand on épingle une page au
-// menu quand on clic sur ça elle envoie 404".
-//
-// On utilise à la place RACINE_SITE (déjà défini par chaque page, ex: "../"
-// ou "../../") pour connaître la PROFONDEUR de la page courante sous la
-// racine du site, puis on ne garde que les derniers segments correspondants
-// du chemin réel — ce qui élimine tout préfixe de déploiement. Le résultat
-// est stocké SANS "/" au début, avec la même convention que les raccourcis
-// ajoutés depuis la page Paramètres (voir raccourcisPerso plus bas).
-function cheminRelatifSiteActuel() {
-  const racineActuelle = typeof RACINE_SITE === 'string' ? RACINE_SITE : '';
-  const profondeur = (racineActuelle.match(/\.\.\//g) || []).length;
-  const segments = window.location.pathname.split('/').filter(Boolean);
-  return segments.slice(-(profondeur + 1)).join('/');
-}
-
-async function ouvrirEpinglagePageEntete(utilisateurId) {
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  const labelParDefaut = (document.title || '').replace(/^KEKELI\s*-\s*/i, '').trim();
-  overlay.innerHTML = `
-    <div class="modal-boite">
-      <h3>📌 Épingler cette page</h3>
-      <p style="font-size:13px;color:var(--text-gris,#64748B);margin-top:-8px">Elle apparaîtra dans votre menu, sur toutes vos pages.</p>
-      <form id="formEpinglerPageEntete">
-        <label class="champ-modal">Nom affiché
-          <input type="text" name="label" value="${labelParDefaut.replace(/"/g, '&quot;')}" required maxlength="40">
-        </label>
-        <div class="modal-actions">
-          <button type="button" class="btn btn-discret" data-fermer-modal>Annuler</button>
-          <button type="submit" class="btn btn-primaire">Épingler</button>
-        </div>
-      </form>
-    </div>`;
-  document.body.appendChild(overlay);
-
-  const fermer = () => overlay.remove();
-  overlay.querySelector('[data-fermer-modal]').addEventListener('click', fermer);
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) fermer(); });
-  document.addEventListener('keydown', function echap(e) { if (e.key === 'Escape') { fermer(); document.removeEventListener('keydown', echap); } });
-
-  overlay.querySelector('#formEpinglerPageEntete').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const label = overlay.querySelector('[name="label"]').value.trim();
-    fermer();
-    if (!label) return;
-
-    const href = cheminRelatifSiteActuel() + window.location.search;
-    const { data: prefsActuelles } = await supabaseClient.from('preferences_navigation').select('raccourcis').eq('utilisateur_id', utilisateurId).maybeSingle();
-    const raccourcisActuels = prefsActuelles?.raccourcis || [];
-    if (raccourcisActuels.some(r => r.href === href)) { alert('Cette page est déjà dans vos raccourcis.'); return; }
-
-    const nouveauRaccourci = { id: 'r' + Date.now().toString(36), href, icone: '📌', label };
-    const { error } = await supabaseClient.from('preferences_navigation')
-      .upsert({ utilisateur_id: utilisateurId, raccourcis: [...raccourcisActuels, nouveauRaccourci], maj_le: new Date().toISOString() });
-    if (error) { alert(error.message); return; }
-    window.location.reload();
-  });
 }
 
 async function ajouterLiensFormationEntete(utilisateurId, racine) {
@@ -280,30 +205,23 @@ async function initEnteteNavigation(config) {
       // `racine: true` de js/navigation-config.js) : on les préfixe ici avec
       // le RACINE_SITE de la page COURANTE, pas celui de la page où ils ont
       // été ajoutés.
-      // Un raccourci "épinglé depuis l'en-tête" (voir ouvrirEpinglagePageEntete
+      // Un raccourci "épinglé depuis l'en-tête" (ancien bouton 📌, retiré le 26 septembre 2026
       // ci-dessous) stocke une adresse ABSOLUE (commence par "/") — utilisable
       // telle quelle depuis n'importe quelle profondeur de page, donc pas de
       // préfixe RACINE_SITE dans ce cas. Un raccourci ajouté depuis la page
       // Paramètres (liste des pages du rôle) garde, lui, l'ancienne convention
       // relative à la racine du site (comme les liens `racine: true`).
-      raccourcisPerso = (data?.raccourcis || []).map(r => ({ ...r, href: r.href && r.href.startsWith('/') ? r.href : racine + r.href }));
+      raccourcisPerso = (data?.raccourcis || []).map(r => ({ ...r, perso: true, href: r.href && r.href.startsWith('/') ? r.href : racine + r.href }));
     } catch (_e) { /* préférences indisponibles -> on affiche tout, tant pis */ }
   }
 
   const liensVisibles = [...(config.liens || []).filter(l => l.essentiel || !liensMasques.includes(l.id)), ...raccourcisPerso];
   const fnDeconnexion = config.role === 'admin' ? 'deconnecterAdmin' : 'deconnecterUtilisateur';
 
-  // Le bouton "📌 Épingler cette page" n'a pas de sens si la page courante
-  // est déjà accessible depuis le menu (lien de navigation OU raccourci déjà
-  // épinglé) : on compare le chemin absolu de chaque lien visible à celui de
-  // la page courante plutôt que les chaînes brutes, car les liens du menu
-  // sont écrits en relatif (voir js/navigation-config.js) alors que le
-  // raccourci épinglé depuis l'en-tête stocke un chemin absolu.
-  const cheminActuel = window.location.pathname;
-  const pageDejaDansMenu = liensVisibles.some(l => {
-    try { return new URL(l.href, window.location.href).pathname === cheminActuel; }
-    catch (_e) { return false; }
-  });
+  // 26 septembre 2026 (demande : « Retire le bouton épingler des pages et
+  // maintiens l'épinglement via Paramètres uniquement ») : plus de bouton 📌
+  // dans l'en-tête. Les raccourcis se gèrent uniquement dans
+  // pages/parametres.html (choix d'une page du rôle, ou adresse collée).
 
   // Petit "top" de dernière activité pour le contrôle parental (voir
   // pages/parent/tableau-de-bord.html) — sans bloquer l'affichage de la page,
@@ -355,7 +273,6 @@ async function initEnteteNavigation(config) {
             </div>
           </div>
         </div>` : ''}
-        ${config.utilisateurId && !pageDejaDansMenu ? `<button type="button" class="entete-kekeli-icone-btn" id="btnEpinglerPageEntete" title="Épingler cette page dans mes raccourcis">📌</button>` : ''}
       </div>
     </div>
     <div class="entete-kekeli-overlay" id="enteteKekeliOverlay"></div>
@@ -376,8 +293,6 @@ async function initEnteteNavigation(config) {
   // accès (plateforme réservée aux adultes, bloquée aussi côté base).
   if (config.utilisateurId && config.role !== 'eleve') ajouterLiensFormationEntete(config.utilisateurId, racine);
 
-  const btnEpinglerPageEntete = document.getElementById('btnEpinglerPageEntete');
-  if (btnEpinglerPageEntete) btnEpinglerPageEntete.addEventListener('click', () => ouvrirEpinglagePageEntete(config.utilisateurId));
 
   if (config.avecCloche !== false && config.utilisateurId && typeof initClocheNotifications === 'function') {
     initClocheNotifications('zoneCloche', config.utilisateurId);

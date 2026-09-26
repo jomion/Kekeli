@@ -1296,7 +1296,7 @@ js/pages/admin-formations.js (onglet 💳 Paiements), css/formations.css,
 supabase/functions/formation-paiement/index.ts (copie de sauvegarde de la
 fonction déjà déployée).
 Mise à jour : les pages du site Formation et la page admin chargent
-désormais leurs scripts avec « ?v=20260926p », pour que le navigateur prenne
+désormais leurs scripts avec « ?v=20260926q », pour que le navigateur prenne
 toujours la dernière version après un dépôt sur GitHub (sans vider le cache).
 
 ======================================================================
@@ -1318,3 +1318,22 @@ MENU ADMIN : DEUX TABLEAUX DE BORD + PÉDAGOGIE ALLÉGÉE (26 septembre 2026)
    - 💬 Messagerie reste directement dans la barre.
 Fichiers : js/navigation-config.js, js/entete-navigation.js, css/style.css,
 css/style-public.css.
+
+======================================================================
+EN-TÊTE TOUJOURS VISIBLE + ÉPINGLAGE DEPUIS PARAMÈTRES (26 septembre 2026)
+======================================================================
+1. Lecteur de formation (pages/formations/app/formation.html) : en mode
+   plein écran, l'en-tête du site reste désormais toujours affiché ; le
+   bouton ☰ du sommaire se place juste en dessous. Seul le pied de page est
+   masqué.
+2. Le bouton 📌 « Épingler cette page » a été retiré de l'en-tête de toutes
+   les pages. L'épinglage se fait uniquement dans ⚙️ Paramètres → « Mes
+   raccourcis épinglés » :
+   - choisir une page de son espace dans la liste, ou
+   - coller l'adresse d'une page précise (matière, séance, formation…) et
+     lui donner un nom. Seules les adresses du site KEKELI sont acceptées.
+   Les raccourcis déjà enregistrés restent en place.
+   (L'épinglage des SÉANCES en favoris, sur les listes de séances, est un
+   autre outil et n'est pas modifié.)
+Fichiers : js/entete-navigation.js, js/pages/parametres.js,
+js/formations/app-lecteur.js, css/formations.css.

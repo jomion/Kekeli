@@ -95,17 +95,27 @@ const FKL = { s: null, f: null, inscription: null, modules: [], lecons: [], quiz
   else document.getElementById('zoneLecon').innerHTML = '<div class="fk-vide"><span class="fk-vide-icone">📭</span>Cette formation ne contient pas encore de leçon.</div>';
 })();
 
-// Affichage « plein écran » (26 septembre 2026) : la leçon occupe toute la page,
-// sans l'en-tête du site ; un petit bouton fixe en haut à gauche ouvre le
+// Affichage « plein écran » (26 septembre 2026) : la leçon occupe toute la
+// largeur de la page. L'en-tête du site reste TOUJOURS affiché (demande du
+// 26 septembre : « même en mode plein écran garde toujours l'entête du
+// site ») ; seul le pied de page est masqué. Un petit bouton fixe, juste sous
+// l'en-tête, en haut à gauche, ouvre le
 // sommaire (leçons, Précédent / Suivant, retour à l'affichage classique).
 // Choix mémorisé sur l'appareil ; plein écran par défaut.
 function modePlein() { try { return localStorage.getItem('kekeli-lecteur-plein') !== '0'; } catch (_e) { return true; } }
 function appliquerModeAffichage() {
   const plein = modePlein();
   document.body.classList.toggle('fk-plein', plein);
+  mesurerEntete();
   const b = document.getElementById('btnModeAffichage');
-  if (b) b.textContent = plein ? '⤡ Affichage classique (avec le menu du site)' : '⛶ Afficher les cours en plein écran';
+  if (b) b.textContent = plein ? '⤡ Affichage classique (avec le sommaire à côté)' : '⛶ Afficher les cours en plein écran';
 }
+// Hauteur réelle de l'en-tête du site : le bouton flottant se place juste en dessous.
+function mesurerEntete() {
+  const h = document.getElementById('fkEntete');
+  document.documentElement.style.setProperty('--fk-entete-h', `${h ? Math.round(h.getBoundingClientRect().height) : 0}px`);
+}
+window.addEventListener('resize', () => mesurerEntete());
 function brancherPleinEcran() {
   const lecteur = document.getElementById('lecteur');
   const ouvrirTiroir = ouvert => lecteur.classList.toggle('nav-ouverte', ouvert);
