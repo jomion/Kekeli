@@ -90,14 +90,13 @@ const PRESENTATION_CHAMPS_ELEVE = {
 // Reflète l'état de navigation courant (champ/niveau/SA) dans l'URL, sans
 // recharger la page — cette page pilote toute sa navigation en mémoire
 // (etatMat), sans jamais toucher à l'URL une fois passée l'arrivée initiale
-// (voir le bloc ?champId=&noeudId=&saId= en haut de ce fichier). Résultat :
-// "📌 Épingler cette page" (js/entete-navigation.js), qui capture
-// window.location.pathname+search au moment du clic, capturait toujours
-// l'adresse d'arrivée (ou une adresse nue) — jamais l'endroit réellement
-// affiché après avoir cliqué plus loin dans l'arborescence. Appelée au
-// début de chacun des trois rendus d'écran (afficherChamps/afficherNiveau/
-// afficherSeancesListe), qui sont le point de passage unique de tout
-// changement de etatMat.
+// (voir le bloc ?champId=&noeudId=&saId= en haut de ce fichier). Sans ça,
+// l'URL resterait figée sur l'adresse d'arrivée quel que soit l'endroit
+// réellement affiché après avoir cliqué plus loin dans l'arborescence — un
+// rechargement de page, un lien copié ou le bouton précédent du navigateur
+// ne ramèneraient jamais au bon endroit. Appelée au début de chacun des
+// trois rendus d'écran (afficherChamps/afficherNiveau/afficherSeancesListe),
+// qui sont le point de passage unique de tout changement de etatMat.
 function synchroniserUrlMat() {
   const params = new URLSearchParams();
   if (etatMat.champ) params.set('champId', etatMat.champ.id);

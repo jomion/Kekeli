@@ -218,8 +218,9 @@ async function afficherSuiviEnfant() {
 
 // Contrôle parental (demande explicite du 24 septembre 2026 : "prévois dans
 // le contrôle parental qui pourra consulter le cahier en plus de l'élève") —
-// même schéma que enregistrerThemePremium() dans js/pages/parametres.js :
-// écriture directe, revert de la case à cocher en cas d'erreur.
+// même schéma que enregistrerMasquerOperationJeux() dans
+// js/pages/parametres.js : écriture directe, revert de la case à cocher en
+// cas d'erreur.
 async function enregistrerVisibiliteCahierEnseignantSuivi(e) {
   const visible = e.target.checked;
   const messageSucces = document.getElementById('messageSuccesCahierVisibleEns');

@@ -118,14 +118,13 @@ async function afficher() {
 
 // Reflète l'état de navigation courant (classe/champ/niveau/SA/vue) dans
 // l'URL, sans recharger la page — cette page pilote toute sa navigation en
-// mémoire (etat), sans jamais toucher à l'URL une fois chargée. Résultat :
-// "📌 Épingler cette page" (js/entete-navigation.js), qui capture
-// window.location.pathname+search au moment du clic, capturait toujours la
-// même adresse nue (sans le contexte réel affiché) — le raccourci "épinglé"
-// ne ramenait donc jamais à l'endroit précis où on l'avait posé. Appelée à
-// chaque rendu (afficher() ci-dessus est le point de passage unique de tous
-// les changements d'état de cette page) ; lue par initDepuisURL() au
-// chargement pour reprendre exactement là où on était.
+// mémoire (etat), sans jamais toucher à l'URL une fois chargée. Sans ça,
+// l'URL resterait figée sur l'adresse nue (sans le contexte réel affiché) —
+// un rechargement, un lien copié ou le bouton précédent du navigateur ne
+// ramèneraient jamais à l'endroit précis où on se trouvait. Appelée à chaque
+// rendu (afficher() ci-dessus est le point de passage unique de tous les
+// changements d'état de cette page) ; lue par initDepuisURL() au chargement
+// pour reprendre exactement là où on était.
 function synchroniserUrlNav() {
   const params = new URLSearchParams();
   if (etat.classe) params.set('classeId', etat.classe.id);

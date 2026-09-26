@@ -14,9 +14,6 @@ let roleParametres = null; // clé dans LIENS_PAR_ROLE ('admin', 'eleve', 'paren
 let estSuperAdminParam = false;
 let liensMasquesActuels = [];
 let raccourcisActuelsParam = [];
-let themePremiumActuel = false; // aperçu du formatage premium (élève uniquement) — preferences_navigation.theme_premium
-let accesPremiumEleveParam = false; // a_acces_premium_eleve(id) — un abonnement Premium actif débloque ce thème (et la messagerie instantanée, voir pages/eleve/messagerie.html)
-let themePremiumImposeATous = false; // parametres_premium.theme_premium_par_defaut_tous (11 septembre 2026, réglage global réversible)
 let masquerOperationJeuxActuel = false; // preferences_navigation.masquer_operation_jeux — jeu Calcul mental/Cadran opératoire (lot "Jeux éducatifs interactifs", 11 septembre 2026), aucun lien avec Premium
 
 (async function () {
@@ -55,20 +52,10 @@ let masquerOperationJeuxActuel = false; // preferences_navigation.masquer_operat
     liens: liensAvecPrefixe(roleParametres, roleParametres + '/', { superAdmin: estSuperAdminParam })
   });
 
-  const { data: prefs } = await supabaseClient.from('preferences_navigation').select('liens_masques, raccourcis, theme_premium, masquer_operation_jeux').eq('utilisateur_id', profilParametres.id).maybeSingle();
+  const { data: prefs } = await supabaseClient.from('preferences_navigation').select('liens_masques, raccourcis, masquer_operation_jeux').eq('utilisateur_id', profilParametres.id).maybeSingle();
   liensMasquesActuels = prefs?.liens_masques || [];
   raccourcisActuelsParam = prefs?.raccourcis || [];
-  themePremiumActuel = !!prefs?.theme_premium;
   masquerOperationJeuxActuel = !!prefs?.masquer_operation_jeux;
-
-  if (roleParametres === 'eleve') {
-    const [{ data: acces }, { data: parametresPremium }] = await Promise.all([
-      supabaseClient.rpc('a_acces_premium_eleve', { p_eleve_id: profilParametres.id }),
-      supabaseClient.from('parametres_premium').select('theme_premium_par_defaut_tous').eq('id', 1).maybeSingle()
-    ]);
-    accesPremiumEleveParam = !!acces;
-    themePremiumImposeATous = !!parametresPremium?.theme_premium_par_defaut_tous;
-  }
 
   afficherPageParametres();
 })();
@@ -76,10 +63,9 @@ let masquerOperationJeuxActuel = false; // preferences_navigation.masquer_operat
 function afficherPageParametres() {
   const liens = LIENS_PAR_ROLE[roleParametres].filter(l => !l.essentiel && (!l.superAdminSeulement || estSuperAdminParam));
   // Pages proposables au raccourci rapide : tout le rôle, y compris les
-  // liens essentiels (redondant mais inoffensif). Depuis le 26 septembre
-  // 2026, le bouton 📌 de l'en-tête a été retiré : l'épinglage se fait
-  // UNIQUEMENT ici — choix d'une page du rôle, ou adresse d'une page précise
-  // collée (formulaire « Épingler une page précise » ci-dessous).
+  // liens essentiels (redondant mais inoffensif) — depuis le retrait du
+  // bouton 📌 de l'en-tête (26 septembre 2026), ce sélecteur est le SEUL
+  // moyen d'épingler une page (voir js/entete-navigation.js).
   const pagesEpinglablesParam = LIENS_PAR_ROLE[roleParametres].filter(l => !l.superAdminSeulement || estSuperAdminParam);
 
   document.getElementById('contenu').innerHTML = `
@@ -91,25 +77,6 @@ function afficherPageParametres() {
       <h2>👤 Mon profil</h2>
       <p class="desc-param">Renseignez ou mettez à jour vos informations personnelles (sexe, localisation${roleParametres === 'enseignant' ? ', établissement, classe' : ''}...) — entièrement facultatif.</p>
       <a href="${urlCompleterProfil()}" class="btn-param-enregistrer" style="display:inline-block;text-decoration:none">Ouvrir mon profil</a>
-    </div>` : ''}
-
-    ${roleParametres === 'eleve' ? `
-    <div class="carte-param">
-      <h2>🎨 Nouveau look premium</h2>
-      ${themePremiumImposeATous ? `
-      <p class="desc-param">✨ Le nouveau look premium est actuellement activé pour tout le monde (réglage temporaire de l'administration) — pas besoin de cocher quoi que ce soit, il s'affiche déjà partout dans ton espace.</p>
-      ` : `
-      <p class="desc-param">${accesPremiumEleveParam
-        ? "Essaie le nouveau formatage premium de ton espace — c'est réversible, tu peux revenir au look actuel à tout moment en décochant la case ci-dessous."
-        : "Ce nouveau look fait partie de l'offre <strong>✨ Premium</strong> (comme la messagerie instantanée) — demande à tes parents de souscrire depuis leur tableau de bord pour en profiter."}</p>
-      <div class="ligne-lien-param">
-        <label style="${accesPremiumEleveParam ? '' : 'opacity:.5'}">
-          <input type="checkbox" id="caseThemePremium" ${themePremiumActuel ? 'checked' : ''} ${accesPremiumEleveParam ? '' : 'disabled'}>
-          🎨 Essayer le nouveau look premium
-        </label>
-      </div>
-      <p class="message-param-succes" id="messageSuccesThemePremium" style="display:none">✅ Préférence enregistrée — recharge la page pour voir le changement.</p>
-      `}
     </div>` : ''}
 
     ${roleParametres === 'eleve' ? `
@@ -143,7 +110,7 @@ function afficherPageParametres() {
 
     <div class="carte-param">
       <h2>Mes raccourcis épinglés</h2>
-      <p class="desc-param">Une page que vous consultez souvent : choisissez-la dans la liste, ou collez l'adresse d'une page précise (une matière, une séance, une formation…). Elle s'ajoute à votre en-tête, sur toutes vos pages.</p>
+      <p class="desc-param">Une carte ou une page précise que vous consultez souvent : choisissez-la ci-dessous. Elle s'ajoute à votre en-tête, sur toutes vos pages.</p>
       <div id="listeRaccourcisParam">
         ${raccourcisActuelsParam.length ? raccourcisActuelsParam.map(r => `
           <div class="ligne-lien-param">
@@ -160,22 +127,9 @@ function afficherPageParametres() {
         </label>
         <button type="submit" class="btn-param-enregistrer">Épingler</button>
       </form>
-      <form id="formAjouterAdresseParam" style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
-        <label style="flex:2;min-width:240px;font-size:13px;font-weight:700;color:#64748B">Épingler une page précise — collez son adresse
-          <input type="url" id="adresseRaccourciParam" required placeholder="https://jomion.github.io/Kekeli/pages/…" style="width:100%;padding:10px;border-radius:8px;border:1px solid #CBD5E1;margin-top:4px;font-size:14px;box-sizing:border-box">
-        </label>
-        <label style="flex:1;min-width:160px;font-size:13px;font-weight:700;color:#64748B">Nom affiché
-          <input type="text" id="nomRaccourciParam" required maxlength="40" placeholder="Ex. Maths CM2" style="width:100%;padding:10px;border-radius:8px;border:1px solid #CBD5E1;margin-top:4px;font-size:14px;box-sizing:border-box">
-        </label>
-        <button type="submit" class="btn-param-enregistrer">Épingler</button>
-      </form>
-      <p class="desc-param" style="margin-top:6px;font-size:12px">Astuce : ouvrez la page voulue, copiez l'adresse dans la barre du navigateur, puis collez-la ici.</p>
       <p class="message-param-succes" id="messageSuccesRaccourciParam" style="display:none">✅ Raccourci ajouté.</p>
     </div>
   `;
-
-  const caseThemePremium = document.getElementById('caseThemePremium');
-  if (caseThemePremium) caseThemePremium.addEventListener('change', enregistrerThemePremium);
 
   const caseMasquerOperationJeux = document.getElementById('caseMasquerOperationJeux');
   if (caseMasquerOperationJeux) caseMasquerOperationJeux.addEventListener('change', enregistrerMasquerOperationJeux);
@@ -188,58 +142,12 @@ function afficherPageParametres() {
   });
   const formRaccourci = document.getElementById('formAjouterRaccourciParam');
   if (formRaccourci) formRaccourci.addEventListener('submit', ajouterRaccourciDepuisListeParam);
-  const formAdresse = document.getElementById('formAjouterAdresseParam');
-  if (formAdresse) formAdresse.addEventListener('submit', ajouterRaccourciDepuisAdresseParam);
-}
-
-// Épingler une page précise à partir de son adresse collée (remplace l'ancien
-// bouton 📌 de l'en-tête, retiré le 26 septembre 2026). L'adresse doit être
-// une page de CE site : on la convertit en chemin relatif à la racine du site
-// (même convention que les autres raccourcis), en retirant le préfixe
-// d'hébergement (ex. "/Kekeli/") pour que le raccourci marche partout.
-async function ajouterRaccourciDepuisAdresseParam(e) {
-  e.preventDefault();
-  const brut = document.getElementById('adresseRaccourciParam').value.trim();
-  const label = document.getElementById('nomRaccourciParam').value.trim();
-  if (!brut || !label) return;
-  let url;
-  try { url = new URL(brut, window.location.href); } catch (_e) { alert("Cette adresse n'est pas valide."); return; }
-  const racineSite = new URL(typeof RACINE_SITE === 'string' ? RACINE_SITE : '../', window.location.href);
-  if (url.origin !== window.location.origin || !url.pathname.startsWith(racineSite.pathname)) {
-    alert('Collez l\'adresse d\'une page de KEKELI (elle doit commencer par ' + racineSite.href + ').');
-    return;
-  }
-  const chemin = url.pathname.slice(racineSite.pathname.length) || 'index.html';
-  if (!/\.html$/.test(chemin)) { alert('Cette adresse ne correspond pas à une page de KEKELI.'); return; }
-  const href = chemin + url.search;
-  if (raccourcisActuelsParam.some(r => r.href === href)) { alert('Cette page est déjà dans vos raccourcis.'); return; }
-  const nouveauRaccourci = { id: 'r' + Date.now().toString(36), href, icone: '📌', label: label.slice(0, 40) };
-  const succes = await enregistrerRaccourcisParam([...raccourcisActuelsParam, nouveauRaccourci]);
-  if (succes) afficherPageParametres();
-}
-
-// Interrupteur "look premium" (aperçu) — voir js/theme-premium-eleve.js et
-// js/entete-navigation.js (le champ theme_premium détermine, à chaque
-// chargement de page, si l'élève voit l'en-tête classique ou la nouvelle
-// coquille premium). On recharge la page après l'enregistrement pour que le
-// changement soit visible immédiatement, plutôt que de reconstruire tout
-// l'en-tête en JavaScript à la volée.
-async function enregistrerThemePremium(e) {
-  const actif = e.target.checked;
-  const messageSucces = document.getElementById('messageSuccesThemePremium');
-  const { error } = await supabaseClient.from('preferences_navigation')
-    .upsert({ utilisateur_id: profilParametres.id, theme_premium: actif, maj_le: new Date().toISOString() });
-  if (error) { alert(error.message); e.target.checked = !actif; return; }
-  themePremiumActuel = actif;
-  if (messageSucces) messageSucces.style.display = 'block';
-  window.location.reload();
 }
 
 // Réglage "masquer l'affichage de l'opération pour entraîner la mémoire"
 // (jeu Cadran opératoire / Calcul mental, lot "Jeux éducatifs interactifs" du
-// 11 septembre 2026) — même colonne/pattern d'upsert que theme_premium
-// ci-dessus, mais sans lien avec Premium ni rechargement de page (rien dans
-// l'en-tête ne dépend de ce réglage).
+// 11 septembre 2026) — sans lien avec Premium ni rechargement de page (rien
+// dans l'en-tête ne dépend de ce réglage).
 async function enregistrerMasquerOperationJeux(e) {
   const actif = e.target.checked;
   const messageSucces = document.getElementById('messageSuccesMasquerOperationJeux');

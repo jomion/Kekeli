@@ -4,11 +4,16 @@
 // projet (kekeli_modele_dashboard.html).
 //
 // N'est appelé que depuis js/entete-navigation.js#initEnteteNavigation,
-// UNIQUEMENT quand le rôle est 'eleve' ET que l'élève a activé
-// "🎨 Essayer le nouveau look premium" dans Paramètres (voir
-// preferences_navigation.theme_premium) — jamais directement par une page,
-// et jamais pour un autre rôle (parent/enseignant/autorité/admin gardent
-// TOUJOURS l'en-tête classique, quoi qu'il arrive).
+// UNIQUEMENT quand le rôle est 'eleve' ET que le thème premium est actif
+// pour cet élève — soit via le réglage global réversible de l'admin
+// (parametres_premium.theme_premium_par_defaut_tous, actif pour tout le
+// monde depuis le 11 septembre 2026 — voir pages/admin/abonnements.html),
+// soit via sa préférence personnelle enregistrée (preferences_navigation.
+// theme_premium, plus proposée à la coche depuis pages/parametres.html
+// depuis le 26 septembre 2026, mais toujours lue en repli) — jamais
+// directement par une page, et jamais pour un autre rôle (parent/
+// enseignant/autorité/admin gardent TOUJOURS l'en-tête classique, quoi qu'il
+// arrive).
 //
 // Ce module construit uniquement le CADRE autour de la page : le <header>
 // du DOM devient la barre du haut, une nouvelle <aside> (sidebar, CLAIRE —
@@ -182,12 +187,42 @@ async function construireShellPremiumEleve(config, liensVisibles) {
   // on les retire donc de liensVisibles ici pour éviter de les afficher en
   // double dans cette sidebar.
   const lienMatieres = liensVisibles.find(l => l.id === 'matieres');
+  // 24 septembre 2026 (demande explicite : "regroupe les boutons de
+  // l'entête de même catégorie... pour réduire le nombre de bouton à
+  // l'affichage") : "Mes progrès"/"Favoris" reçoivent ici la même
+  // `categorie: 'suivi'` que leurs équivalents réels dans
+  // LIENS_PAR_ROLE.eleve (js/navigation-config.js), pour être regroupés
+  // avec "Devoirs & notes"/"Mes badges" comme le reste de la sidebar — voir
+  // regrouperLiensSidebarPremium() plus bas.
   const liensSidebar = [
     ...liensVisibles.filter(l => l.id !== 'mes-progres' && l.id !== 'favoris').map(l => ({ ...l, reel: true })),
     { id: 'jeux-educatifs', href: 'jeux-educatifs.html', icone: 'manette', label: 'Jeux éducatifs', reel: true },
-    { id: 'mes-progres', href: 'mes-progres.html', icone: 'progres', label: 'Mes progrès', reel: true },
-    { id: 'favoris', href: 'favoris.html', icone: 'favoris', label: 'Favoris', reel: true },
+    { id: 'mes-progres', href: 'mes-progres.html', icone: 'progres', label: 'Mes progrès', reel: true, categorie: 'suivi' },
+    { id: 'favoris', href: 'favoris.html', icone: 'favoris', label: 'Favoris', reel: true, categorie: 'suivi' },
   ];
+
+  // Regroupe les liens de la sidebar partageant une même `categorie` (voir
+  // CATEGORIES_NAV/LIENS_PAR_ROLE.eleve dans js/navigation-config.js) sous
+  // un même sous-menu dépliable — le pendant, pour la sidebar premium, de
+  // regrouperLiensParCategorie() déjà utilisée par l'en-tête classique
+  // (js/entete-navigation.js). "Séances" garde son comportement spécial
+  // existant (bouton qui déplie le panneau "MATIÈRES", jamais un lien
+  // classique) et n'est donc jamais regroupé ici, même s'il porte lui aussi
+  // `categorie: 'pedagogie'` dans js/navigation-config.js.
+  function regrouperLiensSidebarPremium(liens) {
+    const resultat = [];
+    const indexParCategorie = new Map();
+    liens.forEach(l => {
+      if (l.id === 'seances' || !l.categorie) { resultat.push({ type: 'lien', lien: l }); return; }
+      if (indexParCategorie.has(l.categorie)) {
+        resultat[indexParCategorie.get(l.categorie)].liens.push(l);
+      } else {
+        indexParCategorie.set(l.categorie, resultat.length);
+        resultat.push({ type: 'categorie', cle: l.categorie, liens: [l] });
+      }
+    });
+    return resultat;
+  }
 
   // Le lien "Séances" (id 'seances') n'ouvre plus pages/seances.html
   // directement : il devient un bouton qui déplie/replie le panneau
@@ -213,6 +248,35 @@ async function construireShellPremiumEleve(config, liensVisibles) {
     return `<a href="${l.href}" class="prem-sidebar-lien${actif ? ' actif' : ''}">
       <span class="prem-sidebar-icone">${iconePrem(nomIcone)}</span><span>${echapperPremEleve(l.label)}</span>
     </a>`;
+  };
+
+  // Rendu d'un groupe de catégorie (matieres/emploi-du-temps/cahier-écriture
+  // sous "📚 Pédagogie", devoirs-notes/badges/mes-progres/favoris sous
+  // "📈 Mon suivi") : un bouton qui déplie/replie un petit sous-menu
+  // indenté, sur le même modèle visuel que le panneau "MATIÈRES" ci-dessous
+  // (voir #premSidebarMatieres) — repris dans css/theme-premium-eleve.css
+  // (classes .prem-sidebar-souscategorie/.prem-sidebar-lien-sousmenu).
+  // Ouvert par défaut si l'élève se trouve déjà sur une des pages du groupe,
+  // pour ne jamais masquer la page active derrière un sous-menu replié.
+  const groupeCategorieSidebarHtml = (groupe) => {
+    const infos = (typeof CATEGORIES_NAV === 'object' && CATEGORIES_NAV[groupe.cle]) || { label: groupe.cle, icone: '' };
+    const dejaOuvert = groupe.liens.some(l => {
+      const basename = (l.href.split('/').pop() || '').toLowerCase();
+      return basename && basename === nomFichierActuel;
+    });
+    const sousLiensHtml = groupe.liens.map(l => {
+      const nomIcone = l.id === 'mes-progres' || l.id === 'favoris' ? l.icone : (ICONE_LIEN_SIDEBAR_PREMIUM[l.id] || 'plus');
+      const basename = (l.href.split('/').pop() || '').toLowerCase();
+      const actif = basename && basename === nomFichierActuel;
+      return `<a href="${l.href}" class="prem-sidebar-lien prem-sidebar-lien-sousmenu${actif ? ' actif' : ''}">
+        <span class="prem-sidebar-icone">${iconePrem(nomIcone, 16)}</span><span>${echapperPremEleve(l.label)}</span>
+      </a>`;
+    }).join('');
+    return `<a href="#" class="prem-sidebar-lien${dejaOuvert ? ' selected' : ''}" data-sidebar-toggle-categorie="${groupe.cle}">
+        <span class="prem-sidebar-icone">${infos.icone || '📁'}</span><span>${echapperPremEleve(infos.label)}</span>
+        <span class="prem-sidebar-categorie-chevron">${iconePrem('chevronBas', 14)}</span>
+      </a>
+      <div class="prem-sidebar-souscategorie${dejaOuvert ? ' ouvert' : ''}" id="premSidebarCategorie-${groupe.cle}">${sousLiensHtml}</div>`;
   };
 
   // Panneau "MATIÈRES" : liste réelle des matières de la classe (jamais de
@@ -241,10 +305,10 @@ async function construireShellPremiumEleve(config, liensVisibles) {
   sidebar.id = 'premSidebar';
   sidebar.innerHTML = `
     <div class="prem-sidebar-entete">
-      <a href="${racine}primaire.html" class="prem-sidebar-logo"><img src="${racine}assets/logo/logo.png" alt="KEKELI"><span class="prem-sidebar-logo-texte">KEKELI</span></a>
+      <a href="${racine}index.html" class="prem-sidebar-logo"><img src="${racine}assets/logo/logo.png" alt="KEKELI"><span class="prem-sidebar-logo-texte">KEKELI</span></a>
       <button type="button" class="prem-sidebar-toggle" id="premBtnReplierSidebar" title="Réduire ou agrandir le menu" aria-label="Réduire ou agrandir le menu">${iconePrem('volet', 16)}</button>
     </div>
-    <nav class="prem-sidebar-nav">${liensSidebar.map(ligneSidebarHtml).join('')}</nav>
+    <nav class="prem-sidebar-nav">${regrouperLiensSidebarPremium(liensSidebar).map(g => g.type === 'categorie' ? groupeCategorieSidebarHtml(g) : ligneSidebarHtml(g.lien)).join('')}</nav>
     ${sectionMatieresHtml}
     <div class="prem-sidebar-carte-pub">
       <div class="prem-sidebar-carte-pub-emoji">📖</div>
@@ -343,11 +407,12 @@ async function construireShellPremiumEleve(config, liensVisibles) {
   }
   if (btnMenu) btnMenu.addEventListener('click', basculerSidebarMobile);
   overlaySidebar.addEventListener('click', fermerSidebarMobile);
-  // Le bouton "Séances" (déplie/replie MATIÈRES) ne doit pas refermer le
-  // tiroir mobile : sans ça, sur mobile, déplier le panneau le cacherait
-  // aussitôt derrière la fermeture du tiroir.
+  // Le bouton "Séances" (déplie/replie MATIÈRES) et les boutons de
+  // catégorie (déplient/replient "Pédagogie"/"Mon suivi") ne doivent pas
+  // refermer le tiroir mobile : sans ça, sur mobile, déplier un panneau le
+  // cacherait aussitôt derrière la fermeture du tiroir.
   sidebar.querySelectorAll('a').forEach(a => {
-    if (a.id !== 'premBoutonToggleMatieres') a.addEventListener('click', fermerSidebarMobile);
+    if (a.id !== 'premBoutonToggleMatieres' && !a.hasAttribute('data-sidebar-toggle-categorie')) a.addEventListener('click', fermerSidebarMobile);
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermerSidebarMobile(); });
   window.addEventListener('resize', () => { if (window.innerWidth > RUPTURE_PREMIUM_MOBILE) fermerSidebarMobile(); });
@@ -362,11 +427,14 @@ async function construireShellPremiumEleve(config, liensVisibles) {
       const repliee = document.body.classList.toggle('prem-sidebar-repliee');
       try { localStorage.setItem(CLE_SIDEBAR_REPLIEE, repliee ? '1' : '0'); } catch (_e) { /* stockage indisponible : pas bloquant */ }
       if (repliee) {
-        // Replier referme aussi le panneau MATIÈRES (plus de place pour l'afficher).
+        // Replier referme aussi le panneau MATIÈRES et tous les sous-menus
+        // de catégorie (plus de place pour les afficher).
         const panneau = document.getElementById('premSidebarMatieres');
         const bouton = document.getElementById('premBoutonToggleMatieres');
         if (panneau) panneau.classList.remove('ouvert');
         if (bouton) bouton.classList.remove('selected');
+        sidebar.querySelectorAll('.prem-sidebar-souscategorie.ouvert').forEach(p => p.classList.remove('ouvert'));
+        sidebar.querySelectorAll('[data-sidebar-toggle-categorie].selected').forEach(b => b.classList.remove('selected'));
       }
     });
   }
@@ -382,4 +450,19 @@ async function construireShellPremiumEleve(config, liensVisibles) {
       boutonToggleMatieres.classList.toggle('selected', ouvert);
     });
   }
+
+  // --- Sous-menus de catégorie ("Pédagogie", "Mon suivi"...) : déplier/
+  // replier au clic, un seul mécanisme générique pour tous, quelle que soit
+  // la catégorie (voir regrouperLiensSidebarPremium/groupeCategorieSidebarHtml
+  // plus haut). Chaque sous-menu s'ouvre/se ferme indépendamment des autres.
+  sidebar.querySelectorAll('[data-sidebar-toggle-categorie]').forEach(bouton => {
+    const panneau = document.getElementById(`premSidebarCategorie-${bouton.dataset.sidebarToggleCategorie}`);
+    if (!panneau) return;
+    bouton.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (document.body.classList.contains('prem-sidebar-repliee')) return; // pas de place en mode réduit
+      const ouvert = panneau.classList.toggle('ouvert');
+      bouton.classList.toggle('selected', ouvert);
+    });
+  });
 }

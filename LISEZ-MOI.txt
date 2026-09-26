@@ -1,3 +1,73 @@
+KEKELI — Livraison du 26 septembre 2026 (vingt-troisième lot) — Retrait du bouton d'épinglage de l'en-tête, coquille premium manquante sur 4 pages, retrait du réglage "look premium" devenu inutile
+===========================================================================
+
+CE QUI A ÉTÉ DEMANDÉ
+------------------------------------------------------------------------------
+"Retire le bouton épingler de toutes les pages et maintient l'épinglement
+via paramètre uniquement. Certaines page comme paramètre continuent
+d'afficher l'ancienne version d'affichage. Assure toi que toutes les pages
+affiche la version premium et retire le look premium des paramètres. c'est
+désormais inutile puisque toute les pages sont déjà en mode premium pour
+l'affichage."
+
+Trois demandes traitées ensemble ci-dessous, car elles portent toutes les
+trois sur la cohérence de l'affichage premium et de la navigation de
+l'espace élève.
+
+CE QUI CHANGE CONCRÈTEMENT
+------------------------------------------------------------------------------
+1. Le bouton "📌 Épingler cette page" de l'en-tête classique a été retiré,
+   sur toutes les pages et pour tous les rôles. Le seul moyen d'ajouter (ou
+   de retirer) un raccourci personnel reste désormais la page Paramètres ⚙️
+   (bloc "Mes raccourcis épinglés" : choisir une page dans la liste
+   déroulante, ou cliquer sur "✕ Retirer" en face d'un raccourci existant)
+   — fonctionnalité déjà en place, inchangée, qui gérait déjà l'ajout ET la
+   suppression. Les raccourcis déjà épinglés par l'ancien bouton avant sa
+   suppression continuent de fonctionner normalement.
+
+2. Quatre pages accessibles aux élèves affichaient encore l'ancien en-tête
+   (sombre, classique) au lieu de la nouvelle coquille premium (sidebar
+   claire + barre du haut), alors que le réglage "nouveau look premium" est
+   actif pour tout le monde depuis le 11 septembre : Paramètres
+   (pages/parametres.html), Messagerie (pages/eleve/messagerie.html),
+   Séances (pages/seances.html — accessible depuis "Toutes mes séances"
+   dans le panneau MATIÈRES de la sidebar) et Emploi du temps
+   (pages/emploi-du-temps.html). Cause : ces 4 pages, partagées par
+   plusieurs rôles ou ajoutées avant la coquille premium, n'incluaient tout
+   simplement pas le fichier qui la construit (js/theme-premium-eleve.js) —
+   sans lui, l'en-tête retombe silencieusement sur l'ancienne version, par
+   sécurité, plutôt que de casser la page. Elles l'incluent désormais,
+   comme les 14 autres pages élève déjà correctes ; les autres rôles
+   (parent/enseignant/autorité/admin) ne sont pas concernés — ils gardent
+   toujours l'en-tête classique, par conception.
+
+3. Le réglage "🎨 Essayer le nouveau look premium" de la page Paramètres a
+   été retiré. Il ne servait plus à rien : le nouveau look est rendu
+   obligatoire pour tous les élèves depuis le réglage global de
+   l'administration ("Activer pour tout le monde" dans Abonnements), déjà
+   actif en ce moment — la case à cocher, quand elle s'affichait encore,
+   était de toute façon remplacée par un simple message "déjà actif pour
+   tout le monde" tant que ce réglage global reste actif. Les deux autres
+   réglages élève de cette page (Jeux éducatifs, Mes raccourcis épinglés)
+   restent inchangés.
+
+CHOIX TECHNIQUES, EN TOUTE TRANSPARENCE
+------------------------------------------------------------------------------
+- Aucune migration de base de données : la colonne
+  preferences_navigation.theme_premium et la logique serveur qui la lit
+  restent en place (elles servent de repli si l'administration désactive un
+  jour le réglage global "actif pour tout le monde") — seule la case à
+  cocher qui l'écrivait depuis Paramètres a été retirée.
+- Le retrait du bouton d'épinglage de l'en-tête a été vérifié sans laisser
+  de référence orpheline dans le code (recherche exhaustive dans tout le
+  dépôt).
+- Les 4 pages corrigées ont été identifiées par un audit systématique de
+  toutes les pages du site partagées par plusieurs rôles, pour s'assurer
+  qu'aucune autre page accessible aux élèves n'avait été oubliée.
+- Vérifié via `node --check` sur les six fichiers JavaScript modifiés, et
+  vérification du bon équilibre des balises <div> sur les quatre pages HTML
+  modifiées.
+
 KEKELI — Livraison du 26 septembre 2026 (vingt-deuxième lot) — Génération IA des activités : lecture des blocs HTML/tableaux, nouvel éditeur riche pour le bloc "HTML libre", paliers plus stricts
 ===========================================================================
 
@@ -1252,109 +1322,3 @@ alerte ; test réel du verrouillage sur une matière à 7 séances (première
 séance accessible seule au départ, déblocage confirmé séance par séance) ;
 relecture des règles d'accès existantes pour confirmer qu'aucun rôle autre
 que l'élève n'est concerné par le nouveau verrouillage.
-
-======================================================================
-PAIEMENT DES FORMATIONS — FedaPay et KkiaPay (26 septembre 2026)
-======================================================================
-Les formations payantes peuvent maintenant être achetées en ligne
-(Mobile Money MTN/Moov/Wave, carte bancaire). KEKELI garde une commission
-de 15 % (modifiable dans Admin → Formations → 💳 Paiements).
-
-Parcours de l'acheteur : fiche de la formation → « 💳 Acheter » → choix
-FedaPay ou KkiaPay → paiement chez le prestataire → page
-pages/formations/app/paiement.html qui fait VÉRIFIER le paiement par le
-serveur → accès ouvert automatiquement.
-
-Sécurité : le navigateur ne décide jamais qu'un paiement est réussi. La
-fonction serveur « formation-paiement » (déjà en ligne) interroge elle-même
-FedaPay/KkiaPay avec les clés secrètes, contrôle le montant, puis ouvre
-l'accès. Une même transaction ne peut pas servir deux fois. Les clés ne
-sont JAMAIS dans le code du site : uniquement dans Supabase → Edge
-Functions → Secrets.
-
-Secrets à créer dans Supabase (Edge Functions → Secrets) :
-  FEDAPAY_SECRET_KEY    clé secrète FedaPay (sk_sandbox_… en test)
-  FEDAPAY_ENV           sandbox   (plus tard : live)
-  KKIAPAY_PUBLIC_KEY    clé publique KkiaPay
-  KKIAPAY_PRIVATE_KEY   clé privée KkiaPay
-  KKIAPAY_SECRET        clé secrète KkiaPay
-  KKIAPAY_ENV           sandbox   (plus tard : live)
-  SITE_ORIGINES         https://jomion.github.io   (adresse du site, sans / final)
-  FEDAPAY_WEBHOOK_SECRET / KKIAPAY_WEBHOOK_SECRET   (facultatifs, pour les webhooks)
-Adresses de webhook à donner aux prestataires :
-  https://rudikjbpfvpklduumzkw.supabase.co/functions/v1/formation-paiement?webhook=fedapay
-  https://rudikjbpfvpklduumzkw.supabase.co/functions/v1/formation-paiement?webhook=kkiapay
-
-Tant qu'un prestataire n'a pas ses clés, il n'apparaît pas aux acheteurs.
-En mode « sandbox », une bannière « Mode test » s'affiche et les ventes sont
-marquées « test » (non comptées dans les revenus réels).
-
-Fichiers : js/formations/commun.js (fkAcheterFormation…), js/formations/fiche.js,
-pages/formations/app/paiement.html + js/formations/app-paiement.js,
-js/formations/formateur-tableau-de-bord.js (section 💰 Revenus),
-js/pages/admin-formations.js (onglet 💳 Paiements), css/formations.css,
-supabase/functions/formation-paiement/index.ts (copie de sauvegarde de la
-fonction déjà déployée).
-Mise à jour : les pages du site Formation et la page admin chargent
-désormais leurs scripts avec « ?v=20260926q », pour que le navigateur prenne
-toujours la dernière version après un dépôt sur GitHub (sans vider le cache).
-
-======================================================================
-MENU ADMIN : DEUX TABLEAUX DE BORD + PÉDAGOGIE ALLÉGÉE (26 septembre 2026)
-======================================================================
-1. « 🏠 Tableaux de bord » (au survol ou au clic) propose les deux espaces :
-   - 🏫 KEKELI Primaire : le tableau de bord habituel ;
-   - 🎓 KEKELI Formation : pour un admin, l'administration des formations
-     (validation, formateurs, catégories, inscriptions, 💳 Paiements) ;
-     pour un enseignant, parent ou autorité, « Mon apprentissage ».
-   Les élèves gardent un lien simple (Formation réservée aux adultes).
-2. Menu admin réorganisé (les pages ne changent pas, seulement le menu) :
-   - 📚 Pédagogie : Arborescence, Gestion des séances, Séances,
-     Compétences, Questions IA (jeux) ;
-   - 📈 Suivi : Corriger activités, Devoirs & notes, Badges ;
-   - 👥 Comptes et 💳 Finances : inchangés ;
-   - 🧰 Outils : Emploi du temps, Cahier d'écriture, Bannière et Accueil
-     (bandeau) (ces deux derniers : super admin) ;
-   - 💬 Messagerie reste directement dans la barre.
-Fichiers : js/navigation-config.js, js/entete-navigation.js, css/style.css,
-css/style-public.css.
-
-======================================================================
-EN-TÊTE TOUJOURS VISIBLE + ÉPINGLAGE DEPUIS PARAMÈTRES (26 septembre 2026)
-======================================================================
-1. Lecteur de formation (pages/formations/app/formation.html) : en mode
-   plein écran, l'en-tête du site reste désormais toujours affiché ; le
-   bouton ☰ du sommaire se place juste en dessous. Seul le pied de page est
-   masqué.
-2. Le bouton 📌 « Épingler cette page » a été retiré de l'en-tête de toutes
-   les pages. L'épinglage se fait uniquement dans ⚙️ Paramètres → « Mes
-   raccourcis épinglés » :
-   - choisir une page de son espace dans la liste, ou
-   - coller l'adresse d'une page précise (matière, séance, formation…) et
-     lui donner un nom. Seules les adresses du site KEKELI sont acceptées.
-   Les raccourcis déjà enregistrés restent en place.
-   (L'épinglage des SÉANCES en favoris, sur les listes de séances, est un
-   autre outil et n'est pas modifié.)
-Fichiers : js/entete-navigation.js, js/pages/parametres.js,
-js/formations/app-lecteur.js, css/formations.css.
-
-======================================================================
-ÉDITEUR DE CODE HTML : NUMÉROS DE LIGNE + REPRISE AU MÊME ENDROIT (26 septembre 2026)
-======================================================================
-Dans l'éditeur des leçons de formation (zone « </> Voir / coller le code »
-d'une page HTML complète, et mode « </> Code » de l'éditeur KEKELI) :
-- numéros de ligne à gauche du code, lignes non repliées ;
-- barre d'état « Ligne x, colonne y · n lignes » et champ « Aller à la
-  ligne » ;
-- la touche Tab insère deux espaces.
-Reprise « là où j'étais » (mémorisé sur l'appareil) :
-- si l'on quitte la page alors qu'une leçon est ouverte en modification,
-  elle se rouvre automatiquement au retour ;
-- dans chaque leçon : même défilement de la fenêtre, zone de code / mode
-  Code rouverts, curseur et défilement du code restaurés ;
-- fermer volontairement la leçon (Fermer / Enregistrer) : pas de
-  réouverture automatique, mais la position dans le code reste mémorisée ;
-- un avertissement s'affiche si l'on quitte la page avec des
-  modifications non enregistrées.
-Fichiers : js/formations/commun.js (fkEditeurCode), js/formations/formateur-edition.js,
-css/formations.css, pages du site Formation (version ?v=20260926r).
